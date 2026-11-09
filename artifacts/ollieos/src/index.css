@@ -357,6 +357,11 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 
 /* Status pill (dark) */
 .oo-status { display: inline-flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; padding: 6px 14px; border-radius: var(--oo-r-full); background: var(--oo-glass-quiet); border: 1px solid var(--oo-glass-border); backdrop-filter: blur(18px); font-size: 13px; }
+.oo-req-lock { color: var(--oo-accent); flex: none; }
+.oo-req-btn { font: inherit; font-size: 12px; padding: 5px 10px; min-height: 28px; display: inline-flex; align-items: center; border-radius: var(--oo-r-full); border: 1px solid var(--oo-white-20); background: transparent; color: var(--oo-text-on-dark) !important; cursor: pointer; text-decoration: none; }
+.oo-req-btn:hover { background: var(--oo-white-08); }
+.oo-req-btn[data-tone="accent"] { border-color: transparent; background: var(--oo-accent); color: var(--oo-ink) !important; font-weight: 600; }
+.oo-req-btn:disabled { opacity: 0.6; cursor: default; }
 .oo-dot { width: 7px; height: 7px; border-radius: var(--oo-r-full); background: var(--oo-ok-dot); display: inline-block; }
 .oo-dot[data-off="true"] { background: var(--oo-text-on-dark-4); }
 .oo-tick { color: var(--oo-ok-dot); flex: none; }
@@ -630,3 +635,10 @@ button.oo-chip:hover { background: var(--oo-white-16); }
   .oo-row, .oo-card-row { transition: none !important; }
 }
 }
+
+/* AI access */
+.oo-held { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--oo-r-card); border: 1px solid var(--oo-accent-border); background: var(--oo-white-08); }
+.oo-request { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: var(--oo-r-card); border: 1px solid var(--oo-banner-border); background: var(--oo-banner-bg); }
+.oo-request[data-state="open"] { border-color: var(--oo-line); background: var(--oo-panel); }
+.oo-seg button[aria-checked="true"] { background: var(--oo-ink); color: var(--oo-on-ink); font-weight: 500; }
+.oo-seg button[aria-checked="true"][data-tone="danger"] { background: var(--oo-danger); }

@@ -163,7 +163,8 @@ export const GetHomeResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 }),
   "reason": zod.string().describe('One-line reason, e.g. "Overdue by 2 days" or "High priority, due Friday 13th November"')
 })).describe('Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped.'),
@@ -225,7 +226,8 @@ export const GetHomeResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 }),
   "daysWaiting": zod.number().int().describe('Whole days since waitingSince (or updatedAt if unknown). Amber at 5 or more.')
 })),
@@ -279,7 +281,8 @@ export const GetHomeResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 })).describe('Open tasks with kind promise'),
   "doneThisWeek": zod.object({
   "count": zod.number().int(),
@@ -333,7 +336,8 @@ export const GetHomeResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 })).describe('Up to 5, most recently completed first')
 }),
   "lastSweepAt": zod.coerce.date().nullable().describe('When the last successful sweep finished. Null until the sweep runs (milestone 5).'),
@@ -344,7 +348,53 @@ export const GetHomeResponse = zod.object({
   "endsAt": zod.coerce.date(),
   "personal": zod.boolean(),
   "location": zod.string().nullable()
-})).describe('Today\'s calendar events, in start order. Empty until the sweep writes calendar data (milestone 5).')
+})).describe('Today\'s calendar events, in start order. Empty until the sweep writes calendar data (milestone 5).'),
+  "access": zod.object({
+  "pending": zod.array(zod.object({
+  "id": zod.number().int(),
+  "client": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+}),
+  "requestedName": zod.string().describe('What the AI asked for'),
+  "reason": zod.string().nullable(),
+  "status": zod.enum(['pending', 'approved', 'declined', 'expired']),
+  "open": zod.boolean().describe('An approval that has not expired yet'),
+  "item": zod.union([zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean().describe('The item\'s own confidential flag')
+}),zod.null()]).describe('The matched item. Null when the name matched nothing and Ollie has not picked one.'),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "expiresAt": zod.coerce.date().nullable()
+})),
+  "open": zod.array(zod.object({
+  "id": zod.number().int(),
+  "client": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+}),
+  "requestedName": zod.string().describe('What the AI asked for'),
+  "reason": zod.string().nullable(),
+  "status": zod.enum(['pending', 'approved', 'declined', 'expired']),
+  "open": zod.boolean().describe('An approval that has not expired yet'),
+  "item": zod.union([zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean().describe('The item\'s own confidential flag')
+}),zod.null()]).describe('The matched item. Null when the name matched nothing and Ollie has not picked one.'),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "expiresAt": zod.coerce.date().nullable()
+}))
+}).describe('AI access requests waiting for Ollie, and approvals still open')
 })
 
 
@@ -409,7 +459,8 @@ export const ListTasksResponseItem = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 })
 export const ListTasksResponse = zod.array(ListTasksResponseItem)
 
@@ -501,7 +552,8 @@ export const QuickAddTaskResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 }),
   "warnings": zod.array(zod.string()).describe('e.g. "No project called @foo, added without a project"')
 })
@@ -565,7 +617,8 @@ export const GetTaskResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 }),
   "history": zod.array(zod.object({
   "id": zod.number().int(),
@@ -650,7 +703,8 @@ export const UpdateTaskResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 })
 
 
@@ -711,7 +765,8 @@ export const SnoozeTaskResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 })
 
 
@@ -811,7 +866,8 @@ export const TriageTaskResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 }),
   "noiseRule": zod.union([zod.object({
   "id": zod.number().int(),
@@ -885,7 +941,8 @@ export const UndoTaskResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 })
 
 
@@ -946,7 +1003,8 @@ export const RestoreTaskResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 })
 
 
@@ -1175,7 +1233,8 @@ export const GetProjectResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 })),
   "people": zod.array(zod.object({
   "id": zod.number().int(),
@@ -1395,7 +1454,8 @@ export const GetPersonResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 })),
   "theyOwe": zod.array(zod.object({
   "id": zod.number().int(),
@@ -1447,7 +1507,8 @@ export const GetPersonResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 })),
   "projects": zod.array(zod.object({
   "id": zod.number().int(),
@@ -2108,7 +2169,15 @@ export const AskOllieOSResponse = zod.object({
 })),
   "sourceCount": zod.number().int(),
   "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
-  "usedConfidential": zod.boolean(),
+  "hiddenItems": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})).describe('The hidden items that matched, named for Ollie only'),
+  "canAllow": zod.boolean().describe('Ollie can allow the hidden items for this question'),
+  "usedConfidential": zod.boolean().describe('The answer used items that are only readable with an approval'),
   "draftTo": zod.string().nullable(),
   "draft": zod.union([zod.object({
   "to": zod.string().nullable(),
@@ -2167,7 +2236,8 @@ export const AskOllieOSResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -2216,7 +2286,15 @@ export const GetAskThreadResponse = zod.object({
 })),
   "sourceCount": zod.number().int(),
   "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
-  "usedConfidential": zod.boolean(),
+  "hiddenItems": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})).describe('The hidden items that matched, named for Ollie only'),
+  "canAllow": zod.boolean().describe('Ollie can allow the hidden items for this question'),
+  "usedConfidential": zod.boolean().describe('The answer used items that are only readable with an approval'),
   "draftTo": zod.string().nullable(),
   "draft": zod.union([zod.object({
   "to": zod.string().nullable(),
@@ -2275,7 +2353,8 @@ export const GetAskThreadResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -2324,7 +2403,15 @@ export const DraftAskReplyResponse = zod.object({
 })),
   "sourceCount": zod.number().int(),
   "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
-  "usedConfidential": zod.boolean(),
+  "hiddenItems": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})).describe('The hidden items that matched, named for Ollie only'),
+  "canAllow": zod.boolean().describe('Ollie can allow the hidden items for this question'),
+  "usedConfidential": zod.boolean().describe('The answer used items that are only readable with an approval'),
   "draftTo": zod.string().nullable(),
   "draft": zod.union([zod.object({
   "to": zod.string().nullable(),
@@ -2383,7 +2470,125 @@ export const DraftAskReplyResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+}),zod.null()]),
+  "title": zod.string(),
+  "undone": zod.boolean(),
+  "canUndo": zod.boolean()
+}),zod.null()])
+}))
+})
+
+
+/**
+ * @summary Allow the hidden items for this question for one hour and answer it again
+ */
+export const AllowAskTurnParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const AllowAskTurnResponse = zod.object({
+  "turns": zod.array(zod.object({
+  "id": zod.number().int(),
+  "parentId": zod.number().int().nullable(),
+  "question": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "model": zod.string().nullable(),
+  "status": zod.enum(['answered', 'not_found']),
+  "summary": zod.string(),
+  "items": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "badge": zod.union([zod.object({
+  "label": zod.string(),
+  "tone": zod.enum(['high', 'neutral', 'done'])
+}),zod.null()])
+})),
+  "related": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "sourceCount": zod.number().int(),
+  "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
+  "hiddenItems": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})).describe('The hidden items that matched, named for Ollie only'),
+  "canAllow": zod.boolean().describe('Ollie can allow the hidden items for this question'),
+  "usedConfidential": zod.boolean().describe('The answer used items that are only readable with an approval'),
+  "draftTo": zod.string().nullable(),
+  "draft": zod.union([zod.object({
+  "to": zod.string().nullable(),
+  "text": zod.string()
+}),zod.null()]),
+  "bundleTitle": zod.string().nullable(),
+  "canBundle": zod.boolean(),
+  "bundle": zod.union([zod.object({
+  "task": zod.union([zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -2441,7 +2646,15 @@ export const BundleAskTasksResponse = zod.object({
 })),
   "sourceCount": zod.number().int(),
   "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
-  "usedConfidential": zod.boolean(),
+  "hiddenItems": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})).describe('The hidden items that matched, named for Ollie only'),
+  "canAllow": zod.boolean().describe('Ollie can allow the hidden items for this question'),
+  "usedConfidential": zod.boolean().describe('The answer used items that are only readable with an approval'),
   "draftTo": zod.string().nullable(),
   "draft": zod.union([zod.object({
   "to": zod.string().nullable(),
@@ -2500,7 +2713,8 @@ export const BundleAskTasksResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -2549,7 +2763,15 @@ export const UndoAskBundleResponse = zod.object({
 })),
   "sourceCount": zod.number().int(),
   "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
-  "usedConfidential": zod.boolean(),
+  "hiddenItems": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})).describe('The hidden items that matched, named for Ollie only'),
+  "canAllow": zod.boolean().describe('Ollie can allow the hidden items for this question'),
+  "usedConfidential": zod.boolean().describe('The answer used items that are only readable with an approval'),
   "draftTo": zod.string().nullable(),
   "draft": zod.union([zod.object({
   "to": zod.string().nullable(),
@@ -2608,7 +2830,8 @@ export const UndoAskBundleResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
-}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -2616,5 +2839,240 @@ export const UndoAskBundleResponse = zod.object({
 }),zod.null()])
 }))
 })
+
+
+/**
+ * @summary Pending requests, open approvals and the last week's decisions
+ */
+export const ListAccessRequestsResponse = zod.object({
+  "pending": zod.array(zod.object({
+  "id": zod.number().int(),
+  "client": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+}),
+  "requestedName": zod.string().describe('What the AI asked for'),
+  "reason": zod.string().nullable(),
+  "status": zod.enum(['pending', 'approved', 'declined', 'expired']),
+  "open": zod.boolean().describe('An approval that has not expired yet'),
+  "item": zod.union([zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean().describe('The item\'s own confidential flag')
+}),zod.null()]).describe('The matched item. Null when the name matched nothing and Ollie has not picked one.'),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "expiresAt": zod.coerce.date().nullable()
+})),
+  "open": zod.array(zod.object({
+  "id": zod.number().int(),
+  "client": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+}),
+  "requestedName": zod.string().describe('What the AI asked for'),
+  "reason": zod.string().nullable(),
+  "status": zod.enum(['pending', 'approved', 'declined', 'expired']),
+  "open": zod.boolean().describe('An approval that has not expired yet'),
+  "item": zod.union([zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean().describe('The item\'s own confidential flag')
+}),zod.null()]).describe('The matched item. Null when the name matched nothing and Ollie has not picked one.'),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "expiresAt": zod.coerce.date().nullable()
+})),
+  "recent": zod.array(zod.object({
+  "id": zod.number().int(),
+  "client": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+}),
+  "requestedName": zod.string().describe('What the AI asked for'),
+  "reason": zod.string().nullable(),
+  "status": zod.enum(['pending', 'approved', 'declined', 'expired']),
+  "open": zod.boolean().describe('An approval that has not expired yet'),
+  "item": zod.union([zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean().describe('The item\'s own confidential flag')
+}),zod.null()]).describe('The matched item. Null when the name matched nothing and Ollie has not picked one.'),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "expiresAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * @summary Allow for 1 hour, for the requesting tool only. Unmatched requests need the item chosen.
+ */
+export const ApproveAccessRequestParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ApproveAccessRequestBody = zod.object({
+  "entityType": zod.enum(['project', 'person', 'organisation', 'task', 'decision', 'note']).optional(),
+  "entityId": zod.number().int().optional()
+})
+
+export const ApproveAccessRequestResponse = zod.object({
+  "id": zod.number().int(),
+  "client": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+}),
+  "requestedName": zod.string().describe('What the AI asked for'),
+  "reason": zod.string().nullable(),
+  "status": zod.enum(['pending', 'approved', 'declined', 'expired']),
+  "open": zod.boolean().describe('An approval that has not expired yet'),
+  "item": zod.union([zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean().describe('The item\'s own confidential flag')
+}),zod.null()]).describe('The matched item. Null when the name matched nothing and Ollie has not picked one.'),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "expiresAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Decline a request
+ */
+export const DeclineAccessRequestParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeclineAccessRequestResponse = zod.object({
+  "id": zod.number().int(),
+  "client": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+}),
+  "requestedName": zod.string().describe('What the AI asked for'),
+  "reason": zod.string().nullable(),
+  "status": zod.enum(['pending', 'approved', 'declined', 'expired']),
+  "open": zod.boolean().describe('An approval that has not expired yet'),
+  "item": zod.union([zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean().describe('The item\'s own confidential flag')
+}),zod.null()]).describe('The matched item. Null when the name matched nothing and Ollie has not picked one.'),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "expiresAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Close an approval before its hour is up
+ */
+export const EndAccessParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const EndAccessResponse = zod.object({
+  "id": zod.number().int(),
+  "client": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string()
+}),
+  "requestedName": zod.string().describe('What the AI asked for'),
+  "reason": zod.string().nullable(),
+  "status": zod.enum(['pending', 'approved', 'declined', 'expired']),
+  "open": zod.boolean().describe('An approval that has not expired yet'),
+  "item": zod.union([zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean().describe('The item\'s own confidential flag')
+}),zod.null()]).describe('The matched item. Null when the name matched nothing and Ollie has not picked one.'),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "expiresAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary AI tools that can read OllieOS
+ */
+export const ListAiClientsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "kind": zod.string(),
+  "auth": zod.string(),
+  "builtIn": zod.boolean(),
+  "scopes": zod.array(zod.string()),
+  "connectedAt": zod.coerce.date().nullable(),
+  "lastUsedAt": zod.coerce.date().nullable(),
+  "revokedAt": zod.coerce.date().nullable()
+})
+export const ListAiClientsResponse = zod.array(ListAiClientsResponseItem)
+
+
+/**
+ * @summary Counts for the AI access settings page
+ */
+export const GetAiAccessSummaryResponse = zod.object({
+  "connectedTools": zod.number().int(),
+  "pendingRequests": zod.number().int(),
+  "openGrants": zod.number().int(),
+  "readsToday": zod.number().int(),
+  "hidden": zod.object({
+  "projects": zod.number().int(),
+  "people": zod.number().int(),
+  "organisations": zod.number().int()
+})
+})
+
+
+/**
+ * @summary The last AI actions, newest first, with reads from one call grouped
+ */
+export const listAiActivityQueryLimitMax = 100;
+
+
+
+export const ListAiActivityQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(listAiActivityQueryLimitMax).optional()
+})
+
+export const ListAiActivityResponseItem = zod.object({
+  "key": zod.string(),
+  "at": zod.coerce.date(),
+  "actor": zod.string(),
+  "kind": zod.enum(['read', 'search', 'request', 'write']),
+  "action": zod.string(),
+  "count": zod.number().int(),
+  "items": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean().describe('The item\'s own confidential flag')
+})),
+  "context": zod.string().nullable().describe('The Ask question')
+})
+export const ListAiActivityResponse = zod.array(ListAiActivityResponseItem)
 
 

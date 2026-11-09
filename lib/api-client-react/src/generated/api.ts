@@ -25,6 +25,12 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AccessRequest,
+  AccessRequestList,
+  AiAccessSummary,
+  AiActivity,
+  AiClient,
+  ApproveAccessInput,
   AskInput,
   AskResult,
   AskThread,
@@ -49,6 +55,7 @@ import type {
   HomeSummary,
   LinkInput,
   LinkResult,
+  ListAiActivityParams,
   ListProjectsParams,
   ListTasksParams,
   LogoutBrowserSessionParams,
@@ -5040,6 +5047,80 @@ export const useDraftAskReply = <TError = ErrorType<NotAuthorisedResponse | Erro
       return useMutation(getDraftAskReplyMutationOptions(options), queryClient);
     }
 
+export const getAllowAskTurnUrl = (id: number,) => {
+
+
+
+
+  return `/api/ask/${id}/allow`
+}
+
+/**
+ * @summary Allow the hidden items for this question for one hour and answer it again
+ */
+export const allowAskTurn = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<AskThread> => {
+
+  return customFetch<AskThread>(getAllowAskTurnUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAllowAskTurnMutationKey = () => ['allowAskTurn'] as const;
+
+export const getAllowAskTurnMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allowAskTurn>>, TError,AllowAskTurnMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof allowAskTurn>>, TError,AllowAskTurnMutationVariables, TContext> => {
+
+const mutationKey = getAllowAskTurnMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof allowAskTurn>>, AllowAskTurnMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  allowAskTurn(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AllowAskTurnMutationResult = NonNullable<Awaited<ReturnType<typeof allowAskTurn>>>
+
+    export type AllowAskTurnMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type AllowAskTurnMutationVariables = {id: number}
+
+    /**
+ * @summary Allow the hidden items for this question for one hour and answer it again
+ */
+export const useAllowAskTurn = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allowAskTurn>>, TError,AllowAskTurnMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof allowAskTurn>>,
+        TError,
+        AllowAskTurnMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAllowAskTurnMutationOptions(options), queryClient);
+    }
+
 export const getBundleAskTasksUrl = (id: number,) => {
 
 
@@ -5202,4 +5283,652 @@ export const useUndoAskBundle = <TError = ErrorType<NotAuthorisedResponse | Erro
       > => {
       return useMutation(getUndoAskBundleMutationOptions(options), queryClient);
     }
+
+export const getListAccessRequestsUrl = () => {
+
+
+
+
+  return `/api/access-requests`
+}
+
+/**
+ * @summary Pending requests, open approvals and the last week's decisions
+ */
+export const listAccessRequests = async ( options?: Parameters<typeof customFetch>[1]): Promise<AccessRequestList> => {
+
+  return customFetch<AccessRequestList>(getListAccessRequestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAccessRequestsQueryKey = () => {
+    return [
+    `/api/access-requests`
+    ] as const;
+    }
+
+
+export const getListAccessRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listAccessRequests>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAccessRequests>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAccessRequestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAccessRequests>>> = ({ signal }) => listAccessRequests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAccessRequests>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListAccessRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listAccessRequests>>>
+export type ListAccessRequestsQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListAccessRequests<TData = Awaited<ReturnType<typeof listAccessRequests>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAccessRequests>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAccessRequests>>,
+          TError,
+          Awaited<ReturnType<typeof listAccessRequests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAccessRequests<TData = Awaited<ReturnType<typeof listAccessRequests>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAccessRequests>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAccessRequests>>,
+          TError,
+          Awaited<ReturnType<typeof listAccessRequests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAccessRequests<TData = Awaited<ReturnType<typeof listAccessRequests>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAccessRequests>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Pending requests, open approvals and the last week's decisions
+ */
+
+export function useListAccessRequests<TData = Awaited<ReturnType<typeof listAccessRequests>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAccessRequests>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListAccessRequestsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApproveAccessRequestUrl = (id: number,) => {
+
+
+
+
+  return `/api/access-requests/${id}/approve`
+}
+
+/**
+ * @summary Allow for 1 hour, for the requesting tool only. Unmatched requests need the item chosen.
+ */
+export const approveAccessRequest = async (id: number,
+    approveAccessInput?: ApproveAccessInput, options?: Parameters<typeof customFetch>[1]): Promise<AccessRequest> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AccessRequest>(getApproveAccessRequestUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(approveAccessInput)
+  }
+);}
+
+
+
+
+
+export const getApproveAccessRequestMutationKey = () => ['approveAccessRequest'] as const;
+
+export const getApproveAccessRequestMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveAccessRequest>>, TError,ApproveAccessRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveAccessRequest>>, TError,ApproveAccessRequestMutationVariables, TContext> => {
+
+const mutationKey = getApproveAccessRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveAccessRequest>>, ApproveAccessRequestMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  approveAccessRequest(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveAccessRequestMutationResult = NonNullable<Awaited<ReturnType<typeof approveAccessRequest>>>
+    export type ApproveAccessRequestMutationBody = BodyType<ApproveAccessInput> | undefined
+    export type ApproveAccessRequestMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type ApproveAccessRequestMutationVariables = {id: number;data?: BodyType<ApproveAccessInput>}
+
+    /**
+ * @summary Allow for 1 hour, for the requesting tool only. Unmatched requests need the item chosen.
+ */
+export const useApproveAccessRequest = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveAccessRequest>>, TError,ApproveAccessRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof approveAccessRequest>>,
+        TError,
+        ApproveAccessRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveAccessRequestMutationOptions(options), queryClient);
+    }
+
+export const getDeclineAccessRequestUrl = (id: number,) => {
+
+
+
+
+  return `/api/access-requests/${id}/decline`
+}
+
+/**
+ * @summary Decline a request
+ */
+export const declineAccessRequest = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<AccessRequest> => {
+
+  return customFetch<AccessRequest>(getDeclineAccessRequestUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeclineAccessRequestMutationKey = () => ['declineAccessRequest'] as const;
+
+export const getDeclineAccessRequestMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineAccessRequest>>, TError,DeclineAccessRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof declineAccessRequest>>, TError,DeclineAccessRequestMutationVariables, TContext> => {
+
+const mutationKey = getDeclineAccessRequestMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof declineAccessRequest>>, DeclineAccessRequestMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  declineAccessRequest(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeclineAccessRequestMutationResult = NonNullable<Awaited<ReturnType<typeof declineAccessRequest>>>
+
+    export type DeclineAccessRequestMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type DeclineAccessRequestMutationVariables = {id: number}
+
+    /**
+ * @summary Decline a request
+ */
+export const useDeclineAccessRequest = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof declineAccessRequest>>, TError,DeclineAccessRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof declineAccessRequest>>,
+        TError,
+        DeclineAccessRequestMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeclineAccessRequestMutationOptions(options), queryClient);
+    }
+
+export const getEndAccessUrl = (id: number,) => {
+
+
+
+
+  return `/api/access-requests/${id}/end`
+}
+
+/**
+ * @summary Close an approval before its hour is up
+ */
+export const endAccess = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<AccessRequest> => {
+
+  return customFetch<AccessRequest>(getEndAccessUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEndAccessMutationKey = () => ['endAccess'] as const;
+
+export const getEndAccessMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endAccess>>, TError,EndAccessMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof endAccess>>, TError,EndAccessMutationVariables, TContext> => {
+
+const mutationKey = getEndAccessMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof endAccess>>, EndAccessMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  endAccess(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EndAccessMutationResult = NonNullable<Awaited<ReturnType<typeof endAccess>>>
+
+    export type EndAccessMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type EndAccessMutationVariables = {id: number}
+
+    /**
+ * @summary Close an approval before its hour is up
+ */
+export const useEndAccess = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof endAccess>>, TError,EndAccessMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof endAccess>>,
+        TError,
+        EndAccessMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEndAccessMutationOptions(options), queryClient);
+    }
+
+export const getListAiClientsUrl = () => {
+
+
+
+
+  return `/api/ai-clients`
+}
+
+/**
+ * @summary AI tools that can read OllieOS
+ */
+export const listAiClients = async ( options?: Parameters<typeof customFetch>[1]): Promise<AiClient[]> => {
+
+  return customFetch<AiClient[]>(getListAiClientsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAiClientsQueryKey = () => {
+    return [
+    `/api/ai-clients`
+    ] as const;
+    }
+
+
+export const getListAiClientsQueryOptions = <TData = Awaited<ReturnType<typeof listAiClients>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiClients>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAiClientsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAiClients>>> = ({ signal }) => listAiClients({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAiClients>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListAiClientsQueryResult = NonNullable<Awaited<ReturnType<typeof listAiClients>>>
+export type ListAiClientsQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListAiClients<TData = Awaited<ReturnType<typeof listAiClients>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiClients>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAiClients>>,
+          TError,
+          Awaited<ReturnType<typeof listAiClients>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAiClients<TData = Awaited<ReturnType<typeof listAiClients>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiClients>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAiClients>>,
+          TError,
+          Awaited<ReturnType<typeof listAiClients>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAiClients<TData = Awaited<ReturnType<typeof listAiClients>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiClients>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary AI tools that can read OllieOS
+ */
+
+export function useListAiClients<TData = Awaited<ReturnType<typeof listAiClients>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiClients>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListAiClientsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAiAccessSummaryUrl = () => {
+
+
+
+
+  return `/api/ai-access/summary`
+}
+
+/**
+ * @summary Counts for the AI access settings page
+ */
+export const getAiAccessSummary = async ( options?: Parameters<typeof customFetch>[1]): Promise<AiAccessSummary> => {
+
+  return customFetch<AiAccessSummary>(getGetAiAccessSummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAiAccessSummaryQueryKey = () => {
+    return [
+    `/api/ai-access/summary`
+    ] as const;
+    }
+
+
+export const getGetAiAccessSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getAiAccessSummary>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiAccessSummary>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAiAccessSummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiAccessSummary>>> = ({ signal }) => getAiAccessSummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiAccessSummary>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAiAccessSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getAiAccessSummary>>>
+export type GetAiAccessSummaryQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetAiAccessSummary<TData = Awaited<ReturnType<typeof getAiAccessSummary>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiAccessSummary>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAiAccessSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getAiAccessSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAiAccessSummary<TData = Awaited<ReturnType<typeof getAiAccessSummary>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiAccessSummary>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAiAccessSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getAiAccessSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAiAccessSummary<TData = Awaited<ReturnType<typeof getAiAccessSummary>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiAccessSummary>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Counts for the AI access settings page
+ */
+
+export function useGetAiAccessSummary<TData = Awaited<ReturnType<typeof getAiAccessSummary>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiAccessSummary>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAiAccessSummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAiActivityUrl = (params?: ListAiActivityParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/ai-activity?${stringifiedParams}` : `/api/ai-activity`
+}
+
+/**
+ * @summary The last AI actions, newest first, with reads from one call grouped
+ */
+export const listAiActivity = async (params?: ListAiActivityParams, options?: Parameters<typeof customFetch>[1]): Promise<AiActivity[]> => {
+
+  return customFetch<AiActivity[]>(getListAiActivityUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAiActivityQueryKey = (params?: ListAiActivityParams,) => {
+    return [
+    `/api/ai-activity`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAiActivityQueryOptions = <TData = Awaited<ReturnType<typeof listAiActivity>>, TError = ErrorType<NotAuthorisedResponse>>(params?: ListAiActivityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiActivity>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAiActivityQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAiActivity>>> = ({ signal }) => listAiActivity(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAiActivity>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListAiActivityQueryResult = NonNullable<Awaited<ReturnType<typeof listAiActivity>>>
+export type ListAiActivityQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListAiActivity<TData = Awaited<ReturnType<typeof listAiActivity>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params: undefined |  ListAiActivityParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiActivity>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAiActivity>>,
+          TError,
+          Awaited<ReturnType<typeof listAiActivity>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAiActivity<TData = Awaited<ReturnType<typeof listAiActivity>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params?: ListAiActivityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiActivity>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAiActivity>>,
+          TError,
+          Awaited<ReturnType<typeof listAiActivity>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAiActivity<TData = Awaited<ReturnType<typeof listAiActivity>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params?: ListAiActivityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiActivity>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The last AI actions, newest first, with reads from one call grouped
+ */
+
+export function useListAiActivity<TData = Awaited<ReturnType<typeof listAiActivity>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params?: ListAiActivityParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiActivity>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListAiActivityQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 

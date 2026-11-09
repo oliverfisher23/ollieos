@@ -11,3 +11,5 @@ The screenshot tool and testing browser cannot sign in as Ollie, so signed-in sc
 The test session's `sess.user` must include `lastName` and `profileImageUrl` (null is fine) or `/api/auth/user` fails its response schema with a 500 and the app never gets past the splash. Note the max `audit_events` id before testing so the test rows can be deleted afterwards.
 
 Task lists render both a table (desktop) and cards (phone) with the same testids, so scope Playwright locators to `table` or a row. Grant `clipboard-read`/`clipboard-write` on the context to check copy buttons.
+
+Better option since the AI access milestone: point the test API instance at the `ollieos_test` database (`DATABASE_URL` with the db name swapped) and seed it by SQL, so Ollie's real data is untouched while he uses the app. Vitest leaves the last test's rows in that database, so truncate or account for them before seeding. Drop `ollieos_test` afterwards.

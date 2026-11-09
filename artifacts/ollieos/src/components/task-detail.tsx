@@ -13,6 +13,7 @@ import { SOURCE_LABELS, formatDayMonth, formatShort, formatTime } from '@workspa
 import { Skel, SourceMark } from '@/components/bits';
 import { IconClose } from '@/components/icons';
 import { NoiseRuleChooser } from '@/components/noise-rule-chooser';
+import { TriStateAccess } from '@/components/knowledge/parts';
 import { useInvalidateTasks } from '@/lib/task-cache';
 import { useTaskActions } from '@/lib/task-actions';
 import { notify } from '@/lib/notify';
@@ -233,6 +234,18 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                 )}
               </div>
             </div>
+
+            <TriStateAccess
+              value={task.confidential ?? null}
+              hidden={task.hiddenFromAi}
+              parent="its project and people"
+              testId="task-access"
+              wide
+              itemRef={'task:' + task.id}
+              onChange={(v) =>
+                save({ confidential: v }, v === true ? 'Marked confidential. Hidden from AI.' : v === false ? 'Readable by AI, whatever its links say' : 'Now follows its project and people')
+              }
+            />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label htmlFor="td-notes" className="oo-field-label">Notes</label>

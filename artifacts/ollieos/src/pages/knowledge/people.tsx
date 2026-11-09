@@ -210,6 +210,7 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
           <AccessPanel
             bare
             kind="person"
+            itemId={person.id}
             confidential={person.confidential}
             aiAccess={person.aiAccess}
             testPrefix="person"

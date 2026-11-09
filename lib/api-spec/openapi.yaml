@@ -22,6 +22,8 @@ tags:
     description: Ask OllieOS
   - name: noise
     description: Noise rules
+  - name: access
+    description: AI access requests, connected tools and the AI read log
 paths:
   /healthz:
     get:
@@ -1084,6 +1086,24 @@ paths:
         "409": { $ref: "#/components/responses/Error" }
         "502": { $ref: "#/components/responses/Error" }
 
+  /ask/{id}/allow:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: allowAskTurn
+      tags: [ask]
+      summary: Allow the hidden items for this question for one hour and answer it again
+      responses:
+        "200":
+          description: Conversation with the new answer
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AskThread" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
   /ask/{id}/bundle:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -1122,6 +1142,124 @@ paths:
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
         "409": { $ref: "#/components/responses/Error" }
+
+  /access-requests:
+    get:
+      operationId: listAccessRequests
+      tags: [access]
+      summary: Pending requests, open approvals and the last week's decisions
+      responses:
+        "200":
+          description: Requests
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessRequestList" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /access-requests/{id}/approve:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: approveAccessRequest
+      tags: [access]
+      summary: Allow for 1 hour, for the requesting tool only. Unmatched requests need the item chosen.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApproveAccessInput" }
+      responses:
+        "200":
+          description: The approved request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessRequest" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /access-requests/{id}/decline:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: declineAccessRequest
+      tags: [access]
+      summary: Decline a request
+      responses:
+        "200":
+          description: The declined request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessRequest" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /access-requests/{id}/end:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: endAccess
+      tags: [access]
+      summary: Close an approval before its hour is up
+      responses:
+        "200":
+          description: The ended approval
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessRequest" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /ai-clients:
+    get:
+      operationId: listAiClients
+      tags: [access]
+      summary: AI tools that can read OllieOS
+      responses:
+        "200":
+          description: Clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AiClient" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /ai-access/summary:
+    get:
+      operationId: getAiAccessSummary
+      tags: [access]
+      summary: Counts for the AI access settings page
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiAccessSummary" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /ai-activity:
+    get:
+      operationId: listAiActivity
+      tags: [access]
+      summary: The last AI actions, newest first, with reads from one call grouped
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        "200":
+          description: Actions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AiActivity" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
 
 components:
   parameters:
@@ -1306,6 +1444,7 @@ components:
         - triagedAt
         - stale
         - noiseRule
+        - hiddenFromAi
       properties:
         id:
           type: integer
@@ -1386,6 +1525,9 @@ components:
           oneOf:
             - $ref: "#/components/schemas/NoiseRuleSummary"
             - type: "null"
+        hiddenFromAi:
+          type: boolean
+          description: AI tools cannot read this task without an approval (own flag or inherited)
 
     TaskUpdate:
       type: object
@@ -1545,7 +1687,7 @@ components:
 
     HomeSummary:
       type: object
-      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today]
+      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access]
       properties:
         doNext:
           type: array
@@ -1591,6 +1733,13 @@ components:
           description: Today's calendar events, in start order. Empty until the sweep writes calendar data (milestone 5).
           items:
             $ref: "#/components/schemas/CalendarEvent"
+        access:
+          type: object
+          required: [pending, open]
+          description: AI access requests waiting for Ollie, and approvals still open
+          properties:
+            pending: { type: array, items: { $ref: "#/components/schemas/AccessRequest" } }
+            open: { type: array, items: { $ref: "#/components/schemas/AccessRequest" } }
 
     NoiseMatchType:
       type: string
@@ -2152,7 +2301,7 @@ components:
 
     AskTurn:
       type: object
-      required: [id, parentId, question, createdAt, model, status, summary, items, related, sourceCount, hiddenMatches, usedConfidential, draftTo, draft, bundleTitle, canBundle, bundle]
+      required: [id, parentId, question, createdAt, model, status, summary, items, related, sourceCount, hiddenMatches, hiddenItems, canAllow, usedConfidential, draftTo, draft, bundleTitle, canBundle, bundle]
       properties:
         id: { type: integer }
         parentId: { type: [integer, "null"] }
@@ -2165,7 +2314,12 @@ components:
         related: { type: array, items: { $ref: "#/components/schemas/SourceChip" } }
         sourceCount: { type: integer }
         hiddenMatches: { type: boolean, description: Items hidden from AI also matched the question and were not used }
-        usedConfidential: { type: boolean }
+        hiddenItems:
+          type: array
+          description: The hidden items that matched, named for Ollie only
+          items: { $ref: "#/components/schemas/SourceChip" }
+        canAllow: { type: boolean, description: Ollie can allow the hidden items for this question }
+        usedConfidential: { type: boolean, description: The answer used items that are only readable with an approval }
         draftTo: { type: [string, "null"] }
         draft:
           oneOf:
@@ -2202,3 +2356,95 @@ components:
       properties:
         taskId: { type: integer }
         turns: { type: array, items: { $ref: "#/components/schemas/AskTurn" } }
+
+    ItemLabel:
+      type: object
+      required: [ref, type, id, name, path, confidential]
+      properties:
+        ref: { type: string }
+        type: { type: string }
+        id: { type: integer }
+        name: { type: string }
+        path: { type: [string, "null"] }
+        confidential: { type: boolean, description: The item's own confidential flag }
+
+    AccessRequest:
+      type: object
+      required: [id, client, requestedName, reason, status, open, item, createdAt, decidedAt, expiresAt]
+      properties:
+        id: { type: integer }
+        client:
+          type: object
+          required: [id, name]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+        requestedName: { type: string, description: What the AI asked for, as written }
+        reason: { type: [string, "null"] }
+        status: { type: string, enum: [pending, approved, declined, expired] }
+        open: { type: boolean, description: An approval that has not expired yet }
+        item:
+          description: The matched item. Null when the name matched nothing and Ollie has not picked one.
+          oneOf:
+            - $ref: "#/components/schemas/ItemLabel"
+            - type: "null"
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, "null"], format: date-time }
+        expiresAt: { type: [string, "null"], format: date-time }
+
+    AccessRequestList:
+      type: object
+      required: [pending, open, recent]
+      properties:
+        pending: { type: array, items: { $ref: "#/components/schemas/AccessRequest" } }
+        open: { type: array, items: { $ref: "#/components/schemas/AccessRequest" } }
+        recent: { type: array, items: { $ref: "#/components/schemas/AccessRequest" } }
+
+    ApproveAccessInput:
+      type: object
+      properties:
+        entityType: { type: string, enum: [project, person, organisation, task, decision, note] }
+        entityId: { type: integer }
+
+    AiClient:
+      type: object
+      required: [id, name, kind, auth, builtIn, scopes, connectedAt, lastUsedAt, revokedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        kind: { type: string }
+        auth: { type: string }
+        builtIn: { type: boolean }
+        scopes: { type: array, items: { type: string } }
+        connectedAt: { type: [string, "null"], format: date-time }
+        lastUsedAt: { type: [string, "null"], format: date-time }
+        revokedAt: { type: [string, "null"], format: date-time }
+
+    AiAccessSummary:
+      type: object
+      required: [connectedTools, pendingRequests, openGrants, readsToday, hidden]
+      properties:
+        connectedTools: { type: integer }
+        pendingRequests: { type: integer }
+        openGrants: { type: integer }
+        readsToday: { type: integer }
+        hidden:
+          type: object
+          required: [projects, people, organisations]
+          properties:
+            projects: { type: integer }
+            people: { type: integer }
+            organisations: { type: integer }
+
+    AiActivity:
+      type: object
+      required: [key, at, actor, kind, action, count, items, context]
+      properties:
+        key: { type: string }
+        at: { type: string, format: date-time }
+        actor: { type: string }
+        kind: { type: string, enum: [read, search, request, write] }
+        action: { type: string }
+        count: { type: integer }
+        items: { type: array, items: { $ref: "#/components/schemas/ItemLabel" } }
+        context: { type: [string, "null"], description: The Ask question, search words or requested name }

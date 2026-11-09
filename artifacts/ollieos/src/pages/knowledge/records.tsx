@@ -16,28 +16,13 @@ import { Skel } from '@/components/bits';
 import { InlineText } from '@/components/inline-text';
 import { KnowledgeLayout, ListHeader } from '@/components/knowledge/layout';
 import { CreateDialog } from '@/components/knowledge/create-dialog';
-import { HiddenFromAi, PageProblem, PageSkeleton } from '@/components/knowledge/parts';
+import { HiddenFromAi, PageProblem, PageSkeleton, TriStateAccess } from '@/components/knowledge/parts';
 import { entityPath, isNotFound, TYPE_LABELS, useKnowledgeWrite } from '@/lib/knowledge';
 
 /* ---------- Shared ---------- */
 
-/** Confidential switch for things that otherwise follow their parent. Off means "follow", not "public". */
-function InheritSwitch({ value, hidden, parent, onChange, testId }: { value: boolean | null; hidden: boolean; parent: string; onChange: (v: boolean | null) => void; testId: string }) {
-  const on = value === true;
-  const note = on
-    ? 'Confidential: hidden from AI unless you approve a request.'
-    : hidden
-      ? `Follows ${parent}, which is hidden from AI.`
-      : `Follows ${parent}. Claude can read it.`;
-  return (
-    <section className="oo-access" aria-label="AI access" data-testid={testId}>
-      <div className="oo-access-row">
-        <span id={testId + '-label'}>Confidential</span>
-        <button type="button" role="switch" className="oo-switch" data-tone="danger" aria-checked={on} aria-labelledby={testId + '-label'} onClick={() => onChange(on ? null : true)} data-testid={'switch-' + testId} />
-      </div>
-      <span style={{ fontSize: 12 }} className="oo-muted" role="status" data-testid={'text-' + testId + '-note'}>{note}</span>
-    </section>
-  );
+function accessMessage(v: boolean | null, parent: string): string {
+  return v === true ? 'Marked confidential. Hidden from AI.' : v === false ? 'Readable by AI, whatever its parent says' : `Now follows ${parent}`;
 }
 
 function ListState({ loading, error, empty, emptyText, onRetry }: { loading: boolean; error: unknown; empty: boolean; emptyText: string; onRetry: () => void }) {
@@ -111,7 +96,7 @@ export function DecisionPage() {
             <InlineText value={d.text} label="Decision" multiline required testId="decision-text" onSave={(v) => save({ text: v ?? d.text })} />
           </h1>
         </div>
-        <InheritSwitch value={d.confidential} hidden={d.hiddenFromAi} parent="its project" testId="decision-access" onChange={(v) => save({ confidential: v }, v ? 'Marked confidential. Hidden from AI.' : 'Now follows its project')} />
+        <TriStateAccess value={d.confidential} hidden={d.hiddenFromAi} parent="its project" testId="decision-access" itemRef={'decision:' + d.id} onChange={(v) => save({ confidential: v }, accessMessage(v, 'its project'))} />
       </div>
       <dl className="oo-dl" style={{ maxWidth: 560 }}>
         <dt><label htmlFor="decision-date">Decided on</label></dt>
@@ -218,7 +203,7 @@ export function NotePage() {
             {n.updatedAt !== n.createdAt ? ` · edited ${formatDayMonth(n.updatedAt)}` : ''}
           </p>
         </div>
-        <InheritSwitch value={n.confidential} hidden={n.hiddenFromAi} parent={parentNoun} testId="note-access" onChange={(v) => save({ confidential: v }, v ? 'Marked confidential. Hidden from AI.' : `Now follows ${parentNoun}`)} />
+        <TriStateAccess value={n.confidential} hidden={n.hiddenFromAi} parent={parentNoun} testId="note-access" itemRef={'note:' + n.id} onChange={(v) => save({ confidential: v }, accessMessage(v, parentNoun))} />
       </div>
       <div style={{ fontSize: 15, lineHeight: 1.65, maxWidth: '72ch', whiteSpace: 'pre-wrap' }}>
         <InlineText value={n.body} label="Note" multiline required testId="note-body" onSave={(v) => save({ body: v ?? n.body })} />

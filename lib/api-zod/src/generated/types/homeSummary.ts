@@ -7,6 +7,7 @@
  */
 import type { CalendarEvent } from './calendarEvent';
 import type { DoNextItem } from './doNextItem';
+import type { HomeSummaryAccess } from './homeSummaryAccess';
 import type { HomeSummaryDoneThisWeek } from './homeSummaryDoneThisWeek';
 import type { HomeSummaryInbox } from './homeSummaryInbox';
 import type { Task } from './task';
@@ -27,4 +28,6 @@ export interface HomeSummary {
   lastSweepAt: Date | null;
   /** Today's calendar events, in start order. Empty until the sweep writes calendar data (milestone 5). */
   today: CalendarEvent[];
+  /** AI access requests waiting for Ollie, and approvals still open */
+  access: HomeSummaryAccess;
 }

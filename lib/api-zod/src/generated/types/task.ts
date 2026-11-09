@@ -64,4 +64,6 @@ export interface Task {
   stale: boolean;
   /** The rule that caught this item, if any */
   noiseRule: NoiseRuleSummary | null;
+  /** AI tools cannot read this task without an approval (own flag or inherited) */
+  hiddenFromAi: boolean;
 }

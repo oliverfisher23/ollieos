@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { Link } from 'wouter';
 import {
   createDecision,
@@ -8,6 +8,7 @@ import {
   removeLink,
   supersedeFact,
   updateDecision,
+  useListAccessRequests,
   useListOrganisations,
   useListPeople,
   useListProjects,
@@ -19,7 +20,7 @@ import {
   type Task,
   type TimelineItem,
 } from '@workspace/api-client-react';
-import { formatDayMonthShort, formatShort, PRIORITY_LABELS, todayLondon } from '@workspace/shared';
+import { formatDayMonthShort, formatShort, formatTime, PRIORITY_LABELS, todayLondon } from '@workspace/shared';
 import { Avatar } from '@/components/bits';
 import { IconClose, IconLock } from '@/components/icons';
 import { InlineText } from '@/components/inline-text';
@@ -42,6 +43,92 @@ export function LockMark() {
 
 const NOUN: Record<string, string> = { project: 'project', person: 'person', organisation: 'organisation' };
 
+/** "Open to Claude until 14:05" for approvals that are still live on this item. */
+export function OpenGrantsNote({ itemRef }: { itemRef: string }) {
+  const list = useListAccessRequests();
+  const open = (list.data?.open ?? []).filter((r) => r.item?.ref === itemRef);
+  if (!open.length) return null;
+  return (
+    <span style={{ fontSize: 12 }} className="oo-soft" data-testid="text-open-grants">
+      {open.map((r) => `Open to ${r.client.name} until ${formatTime(r.expiresAt!)}`).join('. ')}.{' '}
+      <Link href="/settings/ai-access">Manage</Link>
+    </span>
+  );
+}
+
+const TRI: { value: boolean | null; label: (parent: string) => string; tone?: string }[] = [
+  { value: null, label: () => 'Follows parent' },
+  { value: true, label: () => 'Confidential', tone: 'danger' },
+  { value: false, label: () => 'Always readable' },
+];
+
+/**
+ * AI access for things that otherwise follow their parent: follow it, always hide, or always allow
+ * (build plan question 11). A radio group, so arrow keys move between the three.
+ */
+export function TriStateAccess({
+  value,
+  hidden,
+  parent,
+  onChange,
+  testId,
+  itemRef,
+  bare,
+  wide,
+}: {
+  wide?: boolean;
+  value: boolean | null;
+  hidden: boolean;
+  parent: string;
+  onChange: (v: boolean | null) => void;
+  testId: string;
+  itemRef?: string;
+  bare?: boolean;
+}) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const note =
+    value === true
+      ? 'Confidential: hidden from AI unless you approve a request.'
+      : value === false
+        ? 'Always readable by AI, even if what it belongs to is hidden.'
+        : hidden
+          ? `Hidden from AI because it follows ${parent}.`
+          : `Follows ${parent}. AI can read it.`;
+  const idx = TRI.findIndex((o) => o.value === value);
+  const onKey = (e: KeyboardEvent) => {
+    const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const next = (idx + step + TRI.length) % TRI.length;
+    onChange(TRI[next].value);
+    refs.current[next]?.focus();
+  };
+  return (
+    <section className="oo-access" data-bare={bare} aria-label="AI access" style={wide ? { maxWidth: 'none' } : undefined} data-testid={testId}>
+      <span style={{ fontSize: 12, fontWeight: 600 }} id={testId + '-label'}>AI access</span>
+      <div role="radiogroup" aria-labelledby={testId + '-label'} className="oo-seg" onKeyDown={onKey}>
+        {TRI.map((o, i) => (
+          <button
+            key={String(o.value)}
+            ref={(el) => { refs.current[i] = el; }}
+            type="button"
+            role="radio"
+            aria-checked={o.value === value}
+            tabIndex={o.value === value ? 0 : -1}
+            data-tone={o.tone}
+            onClick={() => o.value !== value && onChange(o.value)}
+            data-testid={`radio-${testId}-${o.value === null ? 'follow' : o.value ? 'confidential' : 'readable'}`}
+          >
+            {o.label(parent)}
+          </button>
+        ))}
+      </div>
+      <span style={{ fontSize: 12 }} className="oo-muted" role="status" data-testid={'text-' + testId + '-note'}>{note}</span>
+      {itemRef && <OpenGrantsNote itemRef={itemRef} />}
+    </section>
+  );
+}
+
 export function AccessPanel({
   kind,
   confidential,
@@ -49,8 +136,10 @@ export function AccessPanel({
   onChange,
   testPrefix,
   bare,
+  itemId,
 }: {
   bare?: boolean;
+  itemId?: number;
   kind: 'project' | 'person' | 'organisation';
   confidential: boolean;
   aiAccess: boolean;
@@ -93,6 +182,7 @@ export function AccessPanel({
         />
       </div>
       <span style={{ fontSize: 12 }} className="oo-muted" role="status" data-testid={'text-' + testPrefix + '-access-note'}>{note}</span>
+      {itemId != null && <OpenGrantsNote itemRef={`${kind}:${itemId}`} />}
     </section>
   );
 }

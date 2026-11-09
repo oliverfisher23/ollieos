@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { handle } from "../lib/handle";
-import { ask, bundleTasks, draftReply, getThread, listRecentThreads, undoBundle } from "../services/ask/ask";
+import { allowForTurn, ask, bundleTasks, draftReply, getThread, listRecentThreads, undoBundle } from "../services/ask/ask";
 
 const router: IRouter = Router();
 
@@ -20,6 +20,7 @@ router.post("/ask", handle(async (req, res) => {
   res.status(201).json(await ask(body.question, body.parentId));
 }));
 router.get("/ask/:id", handle(async (req, res) => void res.json(await getThread(IdParams.parse(req.params).id))));
+router.post("/ask/:id/allow", handle(async (req, res) => void res.json(await allowForTurn(IdParams.parse(req.params).id))));
 router.post("/ask/:id/draft", handle(async (req, res) => void res.json(await draftReply(IdParams.parse(req.params).id))));
 router.post(
   "/ask/:id/bundle",

@@ -19,8 +19,10 @@ import {
   personVisible,
   projectVisible,
   taskVisible,
+  type Grants,
 } from "./visibility";
-import { searchItems, type SearchType } from "./search";
+import { searchItems, type SearchHit, type SearchType } from "./search";
+import type { AiScope } from "./scope";
 
 /** One item handed to the model, already filtered for visibility. */
 export interface AiDoc {
@@ -34,20 +36,23 @@ const MAX_DOCS = 60;
 const EXPAND_ENTITIES = 4;
 const RECENT_DONE_DAYS = 60;
 
-const v = {
-  task: sql.raw(taskVisible("tasks")),
-  project: sql.raw(projectVisible("projects")),
-  person: sql.raw(personVisible("people")),
-  organisation: sql.raw(organisationVisible("organisations")),
-  decision: sql.raw(decisionVisible("decisions")),
-  note: sql.raw(noteVisible("notes")),
-  fact: sql.raw(factVisible("facts")),
-};
+function filters(g: Grants) {
+  return {
+    task: sql.raw(taskVisible("tasks", g)),
+    project: sql.raw(projectVisible("projects", g)),
+    person: sql.raw(personVisible("people", g)),
+    organisation: sql.raw(organisationVisible("organisations", g)),
+    decision: sql.raw(decisionVisible("decisions", g)),
+    note: sql.raw(noteVisible("notes", g)),
+    fact: sql.raw(factVisible("facts", g)),
+  };
+}
 
 type Names = Map<string, string>;
 
 /** Visible names for entity refs, so a visible task never leaks the name of a hidden project or person. */
-async function visibleNames(refs: { type: RefType; id: number }[]): Promise<Names> {
+async function visibleNames(refs: { type: RefType; id: number }[], g: Grants): Promise<Names> {
+  const v = filters(g);
   const ids = (t: RefType) => [...new Set(refs.filter((r) => r.type === t).map((r) => r.id))];
   const out: Names = new Map();
   const [pr, pe, or_, ta, de] = await Promise.all([
@@ -83,7 +88,8 @@ const line = (parts: (string | null | undefined | false)[]) => parts.filter(Bool
 const clip = (s: string | null | undefined, n = 1200) => (s ? (s.length > n ? s.slice(0, n) + "…" : s) : null);
 
 /** Loads model-ready text for the given refs. Hidden refs are silently dropped. */
-export async function loadVisibleDocs(refList: string[]): Promise<AiDoc[]> {
+export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promise<AiDoc[]> {
+  const v = filters(scope.grants);
   const refs = refList.map(parseRef).filter((r): r is NonNullable<typeof r> => !!r);
   const ids = (t: RefType) => [...new Set(refs.filter((r) => r.type === t).map((r) => r.id))];
 
@@ -113,7 +119,7 @@ export async function loadVisibleDocs(refList: string[]): Promise<AiDoc[]> {
     const r = parseRef(`${n.entityType}:${n.entityId}`);
     if (r) nameRefs.push(r);
   }
-  const names = await visibleNames(nameRefs);
+  const names = await visibleNames(nameRefs, scope.grants);
   const name = (t: RefType, id: number | null) => (id ? (names.get(toRef(t, id)) ?? null) : null);
 
   const docs: AiDoc[] = [];
@@ -277,15 +283,32 @@ export interface Retrieval {
   docs: AiDoc[];
   /** True when the same search, run without the filter, would also have matched hidden items. Shown only to Ollie. */
   hiddenMatches: boolean;
+  /**
+   * The hidden items that matched, as the refs a grant would name (a fact maps to the item it hangs off).
+   * Used only by Ollie's "Allow for this question"; never passed to the model.
+   */
+  hiddenRefs: string[];
+}
+
+/** The ref a grant would name to unlock a hidden search hit. Facts have no flag of their own, so their entity is granted. */
+function grantRefFor(h: SearchHit): string | null {
+  if (h.type === "fact") {
+    return h.entityType && h.entityId != null && ["project", "person", "organisation", "task", "decision"].includes(h.entityType)
+      ? `${h.entityType}:${h.entityId}`
+      : null;
+  }
+  return toRef(h.type, h.id);
 }
 
 /** Ask OllieOS retrieval: search through the filter, expand the strongest matching entities, and load the visible items. */
-export async function retrieveForAsk(question: string, carryRefs: string[] = []): Promise<Retrieval> {
+export async function retrieveForAsk(scope: AiScope, question: string, carryRefs: string[] = []): Promise<Retrieval> {
   const [visible, all] = await Promise.all([
-    searchItems({ q: question, mode: "ask", visibleOnly: true, limitPerType: 12 }),
-    searchItems({ q: question, mode: "ask", visibleOnly: false, limitPerType: 12 }),
+    searchItems({ q: question, mode: "ask", visibleOnly: true, scope, limitPerType: 12 }),
+    searchItems({ q: question, mode: "ask", visibleOnly: false, scope, limitPerType: 12 }),
   ]);
-  const hiddenMatches = all.some((h) => h.hiddenFromAi);
+  const hiddenHits = all.filter((h) => h.hiddenFromAi);
+  const hiddenMatches = hiddenHits.length > 0;
+  const hiddenRefs = [...new Set(hiddenHits.map(grantRefFor).filter((r): r is string => !!r))].slice(0, 10);
 
   const refs: string[] = [...carryRefs];
   const entities = visible.filter((h) => h.type === "project" || h.type === "person" || h.type === "organisation").slice(0, EXPAND_ENTITIES);
@@ -293,6 +316,6 @@ export async function retrieveForAsk(question: string, carryRefs: string[] = [])
   for (const e of entities) refs.push(...(await expandEntity(e.type, e.id)));
 
   const unique = [...new Set(refs)].slice(0, MAX_DOCS * 2);
-  const docs = (await loadVisibleDocs(unique)).slice(0, MAX_DOCS);
-  return { docs, hiddenMatches };
+  const docs = (await loadVisibleDocs(scope, unique)).slice(0, MAX_DOCS);
+  return { docs, hiddenMatches, hiddenRefs };
 }

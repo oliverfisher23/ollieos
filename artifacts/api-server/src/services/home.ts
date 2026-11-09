@@ -12,6 +12,7 @@ import {
   type TaskStatus,
 } from "@workspace/shared";
 import { toTaskViews, type TaskView } from "./taskView";
+import { listAccessRequests } from "./access";
 
 const OPEN = [...OPEN_STATUSES] as TaskStatus[];
 
@@ -113,11 +114,12 @@ export async function getHome() {
         .orderBy(asc(calendarEventsTable.startsAt)),
     ]);
 
-  const [candidates, waiting, promises, latestDone] = await Promise.all([
+  const [candidates, waiting, promises, latestDone, access] = await Promise.all([
     toTaskViews(candidateRows),
     toTaskViews(waitingRows),
     toTaskViews(promiseRows),
     toTaskViews(doneRows),
+    listAccessRequests(),
   ]);
 
   const waitingOn = waiting
@@ -146,5 +148,6 @@ export async function getHome() {
       personal: e.personal,
       location: e.location,
     })),
+    access: { pending: access.pending, open: access.open },
   };
 }

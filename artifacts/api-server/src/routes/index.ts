@@ -6,6 +6,7 @@ import tasksRouter from "./tasks";
 import noiseRulesRouter from "./noiseRules";
 import knowledgeRouter from "./knowledge";
 import askRouter from "./ask";
+import accessRouter from "./access";
 import { requireOllie } from "../middlewares/requireOllie";
 
 const router: IRouter = Router();
@@ -21,5 +22,6 @@ router.use(tasksRouter);
 router.use(noiseRulesRouter);
 router.use(knowledgeRouter);
 router.use(askRouter);
+router.use(accessRouter);
 
 export default router;

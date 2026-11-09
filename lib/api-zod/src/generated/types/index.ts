@@ -6,6 +6,17 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './accessRequest';
+export * from './accessRequestClient';
+export * from './accessRequestList';
+export * from './accessRequestStatus';
+export * from './aiAccessSummary';
+export * from './aiAccessSummaryHidden';
+export * from './aiActivity';
+export * from './aiActivityKind';
+export * from './aiClient';
+export * from './approveAccessInput';
+export * from './approveAccessInputEntityType';
 export * from './askBadge';
 export * from './askBadgeTone';
 export * from './askBundle';
@@ -44,12 +55,15 @@ export * from './handleBrowserLoginCallbackParams';
 export * from './healthStatus';
 export * from './historyEvent';
 export * from './homeSummary';
+export * from './homeSummaryAccess';
 export * from './homeSummaryDoneThisWeek';
 export * from './homeSummaryInbox';
+export * from './itemLabel';
 export * from './linkable';
 export * from './linkedEntity';
 export * from './linkInput';
 export * from './linkResult';
+export * from './listAiActivityParams';
 export * from './listProjectsIncludeArchived';
 export * from './listProjectsParams';
 export * from './listTasksParams';

@@ -2,10 +2,12 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 
 import { Link, useLocation, useParams, useSearch } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  allowAskTurn,
   askOllieOS,
   bundleAskTasks,
   draftAskReply,
   getGetAskThreadQueryKey,
+  getGetHomeQueryKey,
   getListAskThreadsQueryKey,
   undoAskBundle,
   useGetAskThread,
@@ -220,7 +222,13 @@ function RecentThreads() {
 }
 
 function provenance(t: AskTurn): string {
-  const conf = t.hiddenMatches ? 'some confidential items were not used' : 'no confidential items used';
+  const conf = t.usedConfidential
+    ? t.hiddenMatches
+      ? 'confidential items used with your approval, others not used'
+      : 'confidential items used with your approval'
+    : t.hiddenMatches
+      ? 'some confidential items were not used'
+      : 'no confidential items used';
   if (t.status === 'not_found') return `Not found in OllieOS · ${conf}`;
   return `Answered from OllieOS · ${t.sourceCount === 1 ? '1 source' : `${t.sourceCount} sources`} · ${conf}`;
 }
@@ -274,7 +282,7 @@ function TurnView({ turn, threadKeyId }: { turn: AskTurn; threadKeyId: number })
   const qc = useQueryClient();
   const invalidateTasks = useInvalidateTasks();
   const [showDraft, setShowDraft] = useState(false);
-  const [busy, setBusy] = useState<'draft' | 'bundle' | 'undo' | null>(null);
+  const [busy, setBusy] = useState<'draft' | 'bundle' | 'undo' | 'allow' | null>(null);
   const [copied, setCopied] = useState<'answer' | 'draft' | null>(null);
   const draftRef = useRef<HTMLDivElement>(null);
   const answered = turn.status === 'answered';
@@ -328,6 +336,18 @@ function TurnView({ turn, threadKeyId }: { turn: AskTurn; threadKeyId: number })
     setBusy(null);
   };
 
+  const allow = async () => {
+    setBusy('allow');
+    try {
+      setThread(await allowAskTurn(turn.id));
+      void qc.invalidateQueries({ queryKey: getGetHomeQueryKey() });
+      notify('Allowed for 1 hour', 'Ask OllieOS answered again with those items. You can end it early in Settings.');
+    } catch (err) {
+      fail(err, 'Could not allow those items');
+    }
+    setBusy(null);
+  };
+
   const copy = async (what: 'answer' | 'draft', text: string) => {
     if (await copyText(text)) {
       setCopied(what);
@@ -373,6 +393,23 @@ function TurnView({ turn, threadKeyId }: { turn: AskTurn; threadKeyId: number })
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {turn.related.map((r) => <RelatedChip key={r.ref} chip={r} />)}
             </div>
+          </div>
+        )}
+
+        {turn.canAllow && turn.hiddenItems.length > 0 && (
+          <div className="oo-held" data-testid={'held-' + turn.id}>
+            <span style={{ fontSize: 14, lineHeight: 1.5 }}>
+              {turn.hiddenItems.length === 1 ? 'This item also matched but is hidden from AI, so it was not used:' : 'These items also matched but are hidden from AI, so they were not used:'}
+            </span>
+            <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {turn.hiddenItems.map((c) => <Chip key={c.ref} chip={c} />)}
+            </span>
+            <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+              <button type="button" className="oo-btn oo-btn-white" disabled={busy === 'allow'} onClick={allow} data-testid={'button-allow-' + turn.id}>
+                {busy === 'allow' ? 'Answering again…' : 'Allow for this question'}
+              </button>
+              <span className="oo-t3" style={{ fontSize: 12 }}>Opens them to Ask OllieOS for 1 hour and answers again. Every read is logged.</span>
+            </span>
           </div>
         )}
 

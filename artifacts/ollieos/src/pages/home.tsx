@@ -10,7 +10,8 @@ import {
 import { SOURCE_LABELS, WAITING_AMBER_DAYS, formatLong, formatShort, formatTime, greeting } from '@workspace/shared';
 import { AddBox } from '@/components/add-box';
 import { Avatar, PriorityPill, Skel } from '@/components/bits';
-import { IconCheck, IconSettings } from '@/components/icons';
+import { IconCheck, IconLock, IconSettings } from '@/components/icons';
+import { requestItemName, useAccessActions } from '@/lib/access';
 import { useSession } from '@/lib/auth-context';
 import { useTaskActions } from '@/lib/task-actions';
 import { PHONE_QUERY, useMedia } from '@/lib/use-media';
@@ -21,6 +22,70 @@ function breakdown(home: HomeSummary): string {
     .filter((s) => s.count > 0)
     .map((s) => s.count + ' ' + (s.source === 'slack' ? 'Slack' : SOURCE_LABELS[s.source].toLowerCase()))
     .join(' · ');
+}
+
+/** Access requests from AI tools, answered straight from the status line (PRD 10, rule 3). */
+function AccessStatus({ access }: { access: HomeSummary['access'] }) {
+  const actions = useAccessActions();
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const req = access.pending[0];
+  const more = access.pending.length - 1;
+  const open = access.open[0];
+
+  const act = async (fn: () => Promise<unknown>, done: string) => {
+    setBusy(true);
+    const ok = await fn();
+    setBusy(false);
+    if (ok) setNote(done);
+  };
+
+  let content;
+  if (req) {
+    const name = requestItemName(req);
+    content = (
+      <span style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }} data-testid={'status-request-' + req.id}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <IconLock size={13} className="oo-req-lock" />
+          {req.client.name} asked to read <b style={{ fontWeight: 600 }}>{name}</b>
+        </span>
+        {req.item ? (
+          <button type="button" className="oo-req-btn" data-tone="accent" disabled={busy}
+            onClick={() => act(() => actions.approve(req), `${name} open to ${req.client.name} for 1 hour`)} data-testid={'button-home-allow-' + req.id}>
+            Allow 1 hour
+          </button>
+        ) : (
+          <Link href="/settings/ai-access" className="oo-req-btn" data-tone="accent" data-testid={'link-home-review-' + req.id}>Choose item</Link>
+        )}
+        <button type="button" className="oo-req-btn" disabled={busy}
+          onClick={() => act(() => actions.decline(req), 'Request declined')} data-testid={'button-home-decline-' + req.id}>
+          Decline
+        </button>
+        {more > 0 && (
+          <Link href="/settings/ai-access" className="oo-t2" style={{ fontSize: 12 }} data-testid="link-home-more-requests">
+            {more === 1 ? '1 more request' : `${more} more requests`}
+          </Link>
+        )}
+      </span>
+    );
+  } else if (open) {
+    content = (
+      <Link href="/settings/ai-access" style={{ color: 'inherit' }} data-testid="text-home-open-access">
+        {requestItemName(open)} open to {open.client.name} until {formatTime(open.expiresAt!)}
+        {access.open.length > 1 ? ` · ${access.open.length - 1} more` : ''}
+      </Link>
+    );
+  } else if (note) {
+    content = <span data-testid="text-home-access-note">{note}</span>;
+  } else {
+    return null;
+  }
+  return (
+    <>
+      <span aria-hidden="true" className="oo-t4">·</span>
+      {content}
+    </>
+  );
 }
 
 function daysLabel(d: number) {
@@ -43,6 +108,7 @@ export default function HomePage() {
       </span>
       <span aria-hidden="true" className="oo-t4">·</span>
       <span data-testid="text-inbox-new">{home.data.inbox.count} new</span>
+      <AccessStatus access={home.data.access} />
     </>
   ) : (
     <span className="oo-t2">Loading your morning</span>

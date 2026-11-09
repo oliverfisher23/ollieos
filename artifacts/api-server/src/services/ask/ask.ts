@@ -22,7 +22,9 @@ import {
   type TaskStatus,
 } from "@workspace/shared";
 import { loadVisibleDocs, retrieveForAsk, type AiDoc } from "../../lib/ai-data/retrieve";
-import { personVisible } from "../../lib/ai-data/visibility";
+import { askClient, buildScope, defaultScope, recordReads, visibleRefs, type AiScope } from "../../lib/ai-data/scope";
+import type { GrantType } from "../../lib/ai-data/visibility";
+import { describeRefs, grantDirect } from "../access";
 import { writeAudit } from "../../lib/audit";
 import { ConflictError, NotFoundError, UpstreamError, ValidationError, snapshotOf, type LifecycleSnapshot } from "../tasks";
 import { toTaskView, type TaskView } from "../taskView";
@@ -44,6 +46,8 @@ interface StoredAnswer {
   bundleTitle: string | null;
   /** The unfiltered search also matched items AI cannot read */
   hiddenMatches: boolean;
+  /** Those hidden items, as refs Ollie can allow for this question. Never shown to the model. */
+  hiddenRefs?: string[];
   sourceCount: number;
   retrievedRefs: string[];
   draftTo: { ref: string; name: string } | null;
@@ -86,6 +90,9 @@ export interface AskTurnView {
   related: SourceChip[];
   sourceCount: number;
   hiddenMatches: boolean;
+  /** Hidden items that matched, named for Ollie so he can allow them for this question */
+  hiddenItems: SourceChip[];
+  canAllow: boolean;
   usedConfidential: boolean;
   draftTo: string | null;
   draft: { to: string | null; text: string } | null;
@@ -206,7 +213,7 @@ function citedTaskIds(answer: StoredAnswer): number[] {
 
 async function toTurnViews(rows: AskThread[]): Promise<AskTurnView[]> {
   const answers = rows.map((r) => r.answer as StoredAnswer);
-  const allRefs = answers.flatMap((a) => [...a.items.flatMap((i) => i.refs), ...a.related]);
+  const allRefs = answers.flatMap((a) => [...a.items.flatMap((i) => i.refs), ...a.related, ...(a.hiddenRefs ?? [])]);
   const { chips, taskById } = await resolveChips(allRefs);
   const bundleTasks = new Map<number, TaskView>();
   for (const a of answers) {
@@ -237,6 +244,11 @@ async function toTurnViews(rows: AskThread[]): Promise<AskTurnView[]> {
       related: a.related.map((r) => chips.get(r)).filter((c): c is SourceChip => !!c),
       sourceCount: a.sourceCount,
       hiddenMatches: a.hiddenMatches,
+      hiddenItems: (a.hiddenRefs ?? [])
+        .map((r) => chips.get(r))
+        .filter((c): c is SourceChip => !!c)
+        .map((c) => ({ ...c, confidential: true })),
+      canAllow: (a.hiddenRefs ?? []).length > 0 && !(a.bundle && !a.bundle.undone),
       usedConfidential: row.usedConfidential,
       draftTo: a.draftTo?.name ?? null,
       draft: a.draft ? { to: a.draft.to, text: a.draft.text } : null,
@@ -305,7 +317,7 @@ export async function listRecentThreads(): Promise<{ id: number; question: strin
 const NOT_FOUND_SUMMARY = "OllieOS has nothing on that yet. Try different words, or add it to Knowledge first.";
 
 /** Picks who "Draft a reply" goes to: the first visible person the answer is about. */
-async function pickDraftRecipient(related: string[], docs: AiDoc[]): Promise<StoredAnswer["draftTo"]> {
+async function pickDraftRecipient(scope: AiScope, related: string[], docs: AiDoc[]): Promise<StoredAnswer["draftTo"]> {
   const candidates: number[] = [];
   for (const ref of related) {
     const r = parseRef(ref);
@@ -315,94 +327,156 @@ async function pickDraftRecipient(related: string[], docs: AiDoc[]): Promise<Sto
     for (const d of docs) if (d.type === "person") candidates.push(d.id);
   }
   if (!candidates.length) return null;
-  const rows = await db
-    .select({ id: peopleTable.id, name: peopleTable.name })
-    .from(peopleTable)
-    .where(and(inArray(peopleTable.id, candidates), sql.raw(personVisible("people"))));
+  const visible = await visibleRefs(scope, candidates.map((id) => toRef("person", id)));
+  const ids = candidates.filter((id) => visible.has(toRef("person", id)));
+  const rows = ids.length
+    ? await db.select({ id: peopleTable.id, name: peopleTable.name }).from(peopleTable).where(inArray(peopleTable.id, ids))
+    : [];
   const byId = new Map(rows.map((r) => [r.id, r.name]));
   const first = candidates.find((id) => byId.has(id));
   return first ? { ref: toRef("person", first), name: byId.get(first)! } : null;
 }
 
-export async function ask(question: string, parentId?: number | null): Promise<{ id: number; turns: AskTurnView[] }> {
-  const q = question.trim();
-  if (!q) throw new ValidationError("Ask a question first");
-
-  let prior: PriorTurn[] = [];
-  let carry: string[] = [];
-  if (parentId) {
-    const chain = (await ancestors(await loadRow(parentId))).slice(-PRIOR_TURNS);
-    prior = chain.map((r) => ({ question: r.question, summary: (r.answer as StoredAnswer).summary }));
-    carry = chain[chain.length - 1].citedIds;
-  }
-
-  const { docs, hiddenMatches } = await retrieveForAsk(q, carry);
-  let answer: StoredAnswer;
-  let model: string | null = null;
-
+/** Retrieves through the filter for this scope and asks the model. Shared by a new question and "Allow for this question". */
+async function computeAnswer(scope: AiScope, q: string, prior: PriorTurn[], carry: string[]): Promise<{ answer: StoredAnswer; model: string | null }> {
+  const { docs, hiddenMatches, hiddenRefs } = await retrieveForAsk(scope, q, carry);
   if (!docs.length) {
-    answer = {
-      status: "not_found",
-      summary: NOT_FOUND_SUMMARY,
-      items: [],
-      related: [],
-      bundleTitle: null,
-      hiddenMatches,
-      sourceCount: 0,
-      retrievedRefs: [],
-      draftTo: null,
-      draft: null,
-      bundle: null,
+    return {
+      model: null,
+      answer: {
+        status: "not_found",
+        summary: NOT_FOUND_SUMMARY,
+        items: [],
+        related: [],
+        bundleTitle: null,
+        hiddenMatches,
+        hiddenRefs,
+        sourceCount: 0,
+        retrievedRefs: [],
+        draftTo: null,
+        draft: null,
+        bundle: null,
+      },
     };
-  } else {
-    let raw;
-    try {
-      raw = await answerFromDocs(q, docs, prior);
-    } catch (err) {
-      logger.error({ err }, "Ask OllieOS model call failed");
-      throw new UpstreamError("Ask OllieOS could not reach the model just now. Try again in a moment.");
-    }
-    model = ASK_MODEL;
-    // Only refs that were actually handed to the model count; anything else is dropped, and an item left without a source goes too.
-    const allowed = new Set(docs.map((d) => d.ref));
-    const items = raw.items
-      .map((i) => ({ text: i.text, refs: [...new Set(i.refs.map((r) => r.trim()))].filter((r) => allowed.has(r)) }))
-      .filter((i) => i.text && i.refs.length);
-    const related = [...new Set(raw.related.map((r) => r.trim()))].filter((r) => {
-      const p = parseRef(r);
-      return allowed.has(r) && !!p && (p.type === "person" || p.type === "project" || p.type === "organisation");
-    });
-    const found = raw.found && items.length > 0;
-    const cited = new Set(items.flatMap((i) => i.refs));
-    answer = {
+  }
+  let raw;
+  try {
+    raw = await answerFromDocs(q, docs, prior);
+  } catch (err) {
+    logger.error({ err }, "Ask OllieOS model call failed");
+    throw new UpstreamError("Ask OllieOS could not reach the model just now. Try again in a moment.");
+  }
+  // Only refs that were actually handed to the model count; anything else is dropped, and an item left without a source goes too.
+  const allowed = new Set(docs.map((d) => d.ref));
+  const items = raw.items
+    .map((i) => ({ text: i.text, refs: [...new Set(i.refs.map((r) => r.trim()))].filter((r) => allowed.has(r)) }))
+    .filter((i) => i.text && i.refs.length);
+  const related = [...new Set(raw.related.map((r) => r.trim()))].filter((r) => {
+    const p = parseRef(r);
+    return allowed.has(r) && !!p && (p.type === "person" || p.type === "project" || p.type === "organisation");
+  });
+  const found = raw.found && items.length > 0;
+  const cited = new Set(items.flatMap((i) => i.refs));
+  return {
+    model: ASK_MODEL,
+    answer: {
       status: found ? "answered" : "not_found",
       summary: found ? raw.summary : raw.summary || NOT_FOUND_SUMMARY,
       items: found ? items : [],
       related: found ? related : [],
       bundleTitle: found && raw.bundleTitle ? raw.bundleTitle : null,
       hiddenMatches,
+      hiddenRefs,
       sourceCount: cited.size,
       retrievedRefs: docs.map((d) => d.ref),
-      draftTo: found ? await pickDraftRecipient(related, docs.filter((d) => cited.has(d.ref) || d.type === "person")) : null,
+      draftTo: found ? await pickDraftRecipient(scope, related, docs.filter((d) => cited.has(d.ref) || d.type === "person")) : null,
       draft: null,
       bundle: null,
-    };
-  }
+    },
+  };
+}
+
+/** True when the answer cites something that AI tools cannot read without an approval. */
+async function usesConfidential(answer: StoredAnswer): Promise<boolean> {
+  const used = [...new Set([...answer.items.flatMap((i) => i.refs), ...answer.related])];
+  if (!used.length) return false;
+  const open = await visibleRefs(defaultScope(), used);
+  return used.some((r) => !open.has(r));
+}
+
+async function priorFor(parentId: number | null | undefined): Promise<{ prior: PriorTurn[]; carry: string[] }> {
+  if (!parentId) return { prior: [], carry: [] };
+  const chain = (await ancestors(await loadRow(parentId))).slice(-PRIOR_TURNS);
+  return {
+    prior: chain.map((r) => ({ question: r.question, summary: (r.answer as StoredAnswer).summary })),
+    carry: chain[chain.length - 1].citedIds,
+  };
+}
+
+async function askScope(): Promise<AiScope> {
+  return buildScope(await askClient());
+}
+
+export async function ask(question: string, parentId?: number | null): Promise<{ id: number; turns: AskTurnView[] }> {
+  const q = question.trim();
+  if (!q) throw new ValidationError("Ask a question first");
+
+  const { prior, carry } = await priorFor(parentId);
+  const scope = await askScope();
+  const { answer, model } = await computeAnswer(scope, q, prior, carry);
+  const usedConfidential = await usesConfidential(answer);
 
   const citedIds = [...new Set(answer.items.flatMap((i) => i.refs))];
   const row = await db.transaction(async (tx) => {
     const [created] = await tx
       .insert(askThreadsTable)
-      .values({ parentId: parentId ?? null, question: q, answer, citedIds, usedConfidential: false, model })
+      .values({ parentId: parentId ?? null, question: q, answer, citedIds, usedConfidential, model })
       .returning();
     await writeAudit(tx, {
       actor: ACTOR,
       action: "ask",
-      payload: { threadId: created.id, cited: citedIds, retrieved: answer.retrievedRefs.length, hiddenMatches, model },
+      payload: { threadId: created.id, cited: citedIds, retrieved: answer.retrievedRefs.length, hiddenMatches: answer.hiddenMatches, model },
     });
     return created;
   });
+  await recordReads(scope, answer.retrievedRefs, { via: "ask", threadId: row.id, question: q });
   return { id: row.id, ...(await getThread(row.id)) };
+}
+
+/**
+ * "Allow for this question" (build plan question 12): opens the hidden items that matched to
+ * Ask OllieOS for one hour, then answers the same question again in place.
+ */
+export async function allowForTurn(id: number): Promise<{ turns: AskTurnView[] }> {
+  const row = await loadRow(id);
+  const previous = row.answer as StoredAnswer;
+  const refs = previous.hiddenRefs ?? [];
+  if (!refs.length) throw new ConflictError("Nothing was held back from this answer");
+  if (previous.bundle && !previous.bundle.undone) throw new ConflictError("Undo the bundle before asking again");
+
+  const client = await askClient();
+  const labels = await describeRefs(refs);
+  const items = refs
+    .map((r) => parseRef(r))
+    .filter((r): r is NonNullable<typeof r> => !!r && labels.has(`${r.type}:${r.id}`))
+    .map((r) => ({ type: r.type as GrantType, id: r.id, name: labels.get(`${r.type}:${r.id}`)!.name }));
+  await grantDirect(client, items, `Allowed for the question "${row.question.slice(0, 300)}"`);
+
+  const { prior, carry } = await priorFor(row.parentId);
+  const scope = await buildScope(client);
+  const { answer, model } = await computeAnswer(scope, row.question, prior, carry);
+  const usedConfidential = await usesConfidential(answer);
+  const citedIds = [...new Set(answer.items.flatMap((i) => i.refs))];
+  await db.transaction(async (tx) => {
+    await tx.update(askThreadsTable).set({ answer, citedIds, usedConfidential, model }).where(eq(askThreadsTable.id, id));
+    await writeAudit(tx, {
+      actor: ACTOR,
+      action: "ask",
+      payload: { threadId: id, rerun: "allowed", allowed: items.map((i) => `${i.type}:${i.id}`), cited: citedIds, model },
+    });
+  });
+  await recordReads(scope, answer.retrievedRefs, { via: "ask", threadId: id, question: row.question });
+  return getThread(id);
 }
 
 async function updateAnswer(id: number, answer: StoredAnswer, conn: Pick<typeof db, "update"> = db) {
@@ -417,8 +491,10 @@ export async function draftReply(id: number): Promise<{ turns: AskTurnView[] }> 
   if (answer.status !== "answered") throw new ConflictError("There is nothing to reply about in this answer");
   // Re-read through the filter: anything hidden since the answer was made is left out of the draft.
   const refs = [...row.citedIds, ...(answer.draftTo ? [answer.draftTo.ref] : [])];
-  const docs = await loadVisibleDocs(refs);
+  const scope = await askScope();
+  const docs = await loadVisibleDocs(scope, refs);
   if (!docs.length) throw new ConflictError("The items behind this answer are no longer readable by AI");
+  await recordReads(scope, docs.map((d) => d.ref), { via: "ask_draft", threadId: id, question: row.question });
   let text: string;
   try {
     text = await draftReplyFromDocs({ to: answer.draftTo?.name ?? null, question: row.question, summary: answer.summary, docs });

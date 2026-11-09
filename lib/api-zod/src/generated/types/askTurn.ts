@@ -26,6 +26,11 @@ export interface AskTurn {
   sourceCount: number;
   /** Items hidden from AI also matched the question and were not used */
   hiddenMatches: boolean;
+  /** The hidden items that matched, named for Ollie only */
+  hiddenItems: SourceChip[];
+  /** Ollie can allow the hidden items for this question */
+  canAllow: boolean;
+  /** The answer used items that are only readable with an approval */
   usedConfidential: boolean;
   /** @nullable */
   draftTo: string | null;

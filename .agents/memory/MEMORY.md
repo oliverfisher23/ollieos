@@ -1,2 +1,3 @@
 - [Verifying signed-in screens](ui-verification.md) — screenshots behind the allowlist need a test API instance plus Playwright route interception
 - [Focus inside Radix dialogs](radix-dialog-focus.md) — defer focus moves with setTimeout or Radix sends focus back to the dialog
+- [Package firewall blocks](package-firewall.md) — some npm tarballs 403; vitest 3 blocked via tinypool, vitest 4 works

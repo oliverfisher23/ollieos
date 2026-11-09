@@ -8,7 +8,9 @@ import {
   personVisible,
   projectVisible,
   taskVisible,
+  NO_GRANTS,
 } from "./visibility";
+import type { AiScope } from "./scope";
 
 export const SEARCH_TYPES = ["task", "project", "person", "organisation", "decision", "note", "fact"] as const;
 export type SearchType = (typeof SEARCH_TYPES)[number];
@@ -41,6 +43,8 @@ export interface SearchOptions {
   mode: "user" | "ask";
   /** AI-facing reads pass true so hidden rows are never fetched. */
   visibleOnly: boolean;
+  /** The AI client's grants. Without one, nothing hidden is unlocked; hiddenFromAi is always relative to this. */
+  scope?: AiScope;
   limitPerType?: number;
 }
 
@@ -76,9 +80,10 @@ function rankExpr(vector: SQL, tsq: string | null): SQL {
 
 function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchOptions, limit: number): SQL {
   const { mode, visibleOnly } = opts;
+  const g = opts.scope?.grants ?? NO_GRANTS;
   switch (type) {
     case "task": {
-      const v = vis(taskVisible("t"), visibleOnly);
+      const v = vis(taskVisible("t", g), visibleOnly);
       return sql`select 'task' as type, t.id, t.title, coalesce(t.source_subject, t.snippet, t.notes) as snippet, null as slug,
           null as entity_type, null::int as entity_id, ${rankExpr(sql.raw("t.search"), tsq)} as rank,
           ${v.hidden} as hidden_from_ai, t.confidential, t.status::text as status
@@ -87,7 +92,7 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
         order by rank desc, t.updated_at desc limit ${limit}`;
     }
     case "project": {
-      const v = vis(projectVisible("p"), visibleOnly);
+      const v = vis(projectVisible("p", g), visibleOnly);
       return sql`select 'project' as type, p.id, p.name as title, p.summary as snippet, p.slug,
           null as entity_type, null::int as entity_id, ${rankExpr(sql.raw("p.search"), tsq)} as rank,
           ${v.hidden} as hidden_from_ai, p.confidential, p.status
@@ -96,9 +101,9 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
         order by rank desc, p.updated_at desc limit ${limit}`;
     }
     case "person": {
-      const v = vis(personVisible("pe"), visibleOnly);
+      const v = vis(personVisible("pe", g), visibleOnly);
       return sql`select 'person' as type, pe.id, pe.name as title,
-          nullif(concat_ws(' · ', o.name, pe.role), '') as snippet, pe.slug,
+          nullif(concat_ws(' · ', ${sql.raw(visibleOnly ? `case when ${organisationVisible("o", g)} then o.name end` : "o.name")}, pe.role), '') as snippet, pe.slug,
           null as entity_type, null::int as entity_id, ${rankExpr(sql.raw("pe.search"), tsq)} as rank,
           ${v.hidden} as hidden_from_ai, pe.confidential, null as status
         from people pe left join organisations o on o.id = pe.organisation_id
@@ -106,7 +111,7 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
         order by rank desc, pe.updated_at desc limit ${limit}`;
     }
     case "organisation": {
-      const v = vis(organisationVisible("o"), visibleOnly);
+      const v = vis(organisationVisible("o", g), visibleOnly);
       return sql`select 'organisation' as type, o.id, o.name as title, coalesce(o.type, o.summary) as snippet, o.slug,
           null as entity_type, null::int as entity_id, ${rankExpr(sql.raw("o.search"), tsq)} as rank,
           ${v.hidden} as hidden_from_ai, o.confidential, null as status
@@ -115,8 +120,8 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
         order by rank desc, o.updated_at desc limit ${limit}`;
     }
     case "decision": {
-      const v = vis(decisionVisible("d"), visibleOnly);
-      return sql`select 'decision' as type, d.id, d.text as title, p.name as snippet, null as slug,
+      const v = vis(decisionVisible("d", g), visibleOnly);
+      return sql`select 'decision' as type, d.id, d.text as title, ${sql.raw(visibleOnly ? `case when ${projectVisible("p", g)} then p.name end` : "p.name")} as snippet, null as slug,
           'project' as entity_type, d.project_id as entity_id, ${rankExpr(sql.raw("d.search"), tsq)} as rank,
           ${v.hidden} as hidden_from_ai, d.confidential, null as status
         from decisions d join projects p on p.id = d.project_id
@@ -124,7 +129,7 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
         order by rank desc, d.decided_at desc limit ${limit}`;
     }
     case "note": {
-      const v = vis(noteVisible("n"), visibleOnly);
+      const v = vis(noteVisible("n", g), visibleOnly);
       return sql`select 'note' as type, n.id, coalesce(nullif(n.title, ''), left(n.body, 80)) as title, n.body as snippet, null as slug,
           n.entity_type::text as entity_type, n.entity_id, ${rankExpr(sql.raw("n.search"), tsq)} as rank,
           ${v.hidden} as hidden_from_ai, n.confidential, null as status
@@ -133,7 +138,7 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
         order by rank desc, n.updated_at desc limit ${limit}`;
     }
     case "fact": {
-      const v = vis(factVisible("f"), visibleOnly);
+      const v = vis(factVisible("f", g), visibleOnly);
       return sql`select 'fact' as type, f.id, f.text as title, null as snippet, null as slug,
           f.entity_type::text as entity_type, f.entity_id, ${rankExpr(sql.raw("f.search"), tsq)} as rank,
           ${v.hidden} as hidden_from_ai, null::boolean as confidential, null as status

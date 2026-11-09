@@ -88,6 +88,7 @@ export function OrganisationPage() {
         </div>
         <AccessPanel
           kind="organisation"
+          itemId={o.id}
           confidential={o.confidential}
           aiAccess={o.aiAccess}
           testPrefix="org"

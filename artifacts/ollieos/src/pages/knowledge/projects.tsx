@@ -89,6 +89,7 @@ export function ProjectPage() {
         </div>
         <AccessPanel
           kind="project"
+          itemId={project.id}
           confidential={project.confidential}
           aiAccess={project.aiAccess}
           testPrefix="project"

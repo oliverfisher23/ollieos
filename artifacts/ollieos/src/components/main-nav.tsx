@@ -17,7 +17,7 @@ export function navActive(href: string, location: string): boolean {
   const inPeople = location === '/knowledge/people' || location.startsWith('/knowledge/people/');
   if (href === '/knowledge/people') return inPeople;
   if (href === '/knowledge') return !inPeople && (location === '/knowledge' || location.startsWith('/knowledge/'));
-  if (href === '/') return location === '/' || location === '/triage';
+  if (href === '/') return location === '/' || location === '/triage' || location === '/ask' || location.startsWith('/ask/');
   return location === href || location.startsWith(href + '/');
 }
 

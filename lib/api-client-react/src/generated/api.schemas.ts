@@ -181,6 +181,8 @@ export interface Task {
   stale: boolean;
   /** The rule that caught this item, if any */
   noiseRule: NoiseRuleSummary | null;
+  /** AI tools cannot read this task without an approval (own flag or inherited) */
+  hiddenFromAi: boolean;
 }
 
 export interface TaskUpdate {
@@ -298,6 +300,59 @@ export type HomeSummaryDoneThisWeek = {
   latest: Task[];
 };
 
+export type AccessRequestStatus = typeof AccessRequestStatus[keyof typeof AccessRequestStatus];
+
+
+export const AccessRequestStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  declined: 'declined',
+  expired: 'expired',
+} as const;
+
+export interface ItemLabel {
+  ref: string;
+  type: string;
+  id: number;
+  name: string;
+  /** @nullable */
+  path: string | null;
+  /** The item's own confidential flag */
+  confidential: boolean;
+}
+
+export type AccessRequestClient = {
+  id: number;
+  name: string;
+};
+
+export interface AccessRequest {
+  id: number;
+  client: AccessRequestClient;
+  /** What the AI asked for */
+  requestedName: string;
+  /** @nullable */
+  reason: string | null;
+  status: AccessRequestStatus;
+  /** An approval that has not expired yet */
+  open: boolean;
+  /** The matched item. Null when the name matched nothing and Ollie has not picked one. */
+  item: ItemLabel | null;
+  createdAt: string;
+  /** @nullable */
+  decidedAt: string | null;
+  /** @nullable */
+  expiresAt: string | null;
+}
+
+/**
+ * AI access requests waiting for Ollie, and approvals still open
+ */
+export type HomeSummaryAccess = {
+  pending: AccessRequest[];
+  open: AccessRequest[];
+};
+
 export interface HomeSummary {
   /** Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped. */
   doNext: DoNextItem[];
@@ -313,6 +368,8 @@ export interface HomeSummary {
   lastSweepAt: string | null;
   /** Today's calendar events, in start order. Empty until the sweep writes calendar data (milestone 5). */
   today: CalendarEvent[];
+  /** AI access requests waiting for Ollie, and approvals still open */
+  access: HomeSummaryAccess;
 }
 
 export interface NoiseRule {
@@ -929,6 +986,11 @@ export interface AskTurn {
   sourceCount: number;
   /** Items hidden from AI also matched the question and were not used */
   hiddenMatches: boolean;
+  /** The hidden items that matched, named for Ollie only */
+  hiddenItems: SourceChip[];
+  /** Ollie can allow the hidden items for this question */
+  canAllow: boolean;
+  /** The answer used items that are only readable with an approval */
   usedConfidential: boolean;
   /** @nullable */
   draftTo: string | null;
@@ -956,6 +1018,83 @@ export interface BundleInput {
 export interface BundleResult {
   taskId: number;
   turns: AskTurn[];
+}
+
+export interface AccessRequestList {
+  pending: AccessRequest[];
+  open: AccessRequest[];
+  recent: AccessRequest[];
+}
+
+export type ApproveAccessInputEntityType = typeof ApproveAccessInputEntityType[keyof typeof ApproveAccessInputEntityType];
+
+
+export const ApproveAccessInputEntityType = {
+  project: 'project',
+  person: 'person',
+  organisation: 'organisation',
+  task: 'task',
+  decision: 'decision',
+  note: 'note',
+} as const;
+
+export interface ApproveAccessInput {
+  entityType?: ApproveAccessInputEntityType;
+  entityId?: number;
+}
+
+export interface AiClient {
+  id: number;
+  name: string;
+  kind: string;
+  auth: string;
+  builtIn: boolean;
+  scopes: string[];
+  /** @nullable */
+  connectedAt: string | null;
+  /** @nullable */
+  lastUsedAt: string | null;
+  /** @nullable */
+  revokedAt: string | null;
+}
+
+export type AiAccessSummaryHidden = {
+  projects: number;
+  people: number;
+  organisations: number;
+};
+
+export interface AiAccessSummary {
+  connectedTools: number;
+  pendingRequests: number;
+  openGrants: number;
+  readsToday: number;
+  hidden: AiAccessSummaryHidden;
+}
+
+export type AiActivityKind = typeof AiActivityKind[keyof typeof AiActivityKind];
+
+
+export const AiActivityKind = {
+  read: 'read',
+  search: 'search',
+  request: 'request',
+  write: 'write',
+} as const;
+
+export interface AiActivity {
+  key: string;
+  at: string;
+  actor: string;
+  kind: AiActivityKind;
+  action: string;
+  count: number;
+  items: ItemLabel[];
+  /**
+     * The Ask question
+     * @nullable
+     */
+  context: string | null;
 }
 
 /**
@@ -1033,5 +1172,13 @@ q: string;
  * Comma-separated list of task, project, person, organisation, decision, note, fact
  */
 types?: string;
+};
+
+export type ListAiActivityParams = {
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
 };
 

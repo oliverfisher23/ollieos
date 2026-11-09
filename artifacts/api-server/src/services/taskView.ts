@@ -1,5 +1,6 @@
-import { inArray } from "drizzle-orm";
-import { db, noiseRulesTable, peopleTable, projectsTable, type Task as TaskRow } from "@workspace/db";
+import { and, inArray, sql } from "drizzle-orm";
+import { db, noiseRulesTable, peopleTable, projectsTable, tasksTable, type Task as TaskRow } from "@workspace/db";
+import { taskVisible } from "../lib/ai-data/visibility";
 import { noiseRuleLabel } from "./noiseRules";
 import type { DbOrTx } from "../lib/audit";
 
@@ -17,6 +18,8 @@ export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "wait
   /** Backlog item untouched for 30 days or more */
   stale: boolean;
   noiseRule: { id: number; matchType: string; matchValue: string; label: string } | null;
+  /** AI tools cannot read this task without an approval (own flag or inherited) */
+  hiddenFromAi: boolean;
 };
 
 const STALE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -33,7 +36,8 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
     if (r.projectId) projectIds.add(r.projectId);
   }
 
-  const [people, projects, rules] = await Promise.all([
+  const taskIds = rows.map((r) => r.id);
+  const [people, projects, rules, hidden] = await Promise.all([
     personIds.size
       ? conn
           .select({ id: peopleTable.id, name: peopleTable.name, slug: peopleTable.slug, confidential: peopleTable.confidential })
@@ -52,7 +56,14 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
           .from(noiseRulesTable)
           .where(inArray(noiseRulesTable.id, [...ruleIds]))
       : Promise.resolve([]),
+    taskIds.length
+      ? conn
+          .select({ id: tasksTable.id })
+          .from(tasksTable)
+          .where(and(inArray(tasksTable.id, taskIds), sql.raw(`not ${taskVisible("tasks")}`)))
+      : Promise.resolve([] as { id: number }[]),
   ]);
+  const hiddenSet = new Set(hidden.map((h) => h.id));
   const ruleById = new Map(rules.map((r) => [r.id, { ...r, label: noiseRuleLabel(r.matchType, r.matchValue) }]));
   const now = Date.now();
 
@@ -68,6 +79,7 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
       waitingOn: waitingOnPersonId ? (personById.get(waitingOnPersonId) ?? null) : null,
       stale: r.status === "backlog" && now - r.updatedAt.getTime() >= STALE_MS,
       noiseRule: noiseRuleId ? (ruleById.get(noiseRuleId) ?? null) : null,
+      hiddenFromAi: hiddenSet.has(r.id),
     };
   });
 }
