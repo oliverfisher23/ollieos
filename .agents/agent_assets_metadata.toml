@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "cvpKSL6ZozPUyHsm6Q-9P"
+uri = "file://docs/build-plan.md"
+type = "text"
+title = "OllieOS build plan (milestone 0)"
+description = "Structure, Drizzle schema, routes mapped to screens, MCP tools, confidentiality filter, theme file, and 22 open questions with proposals."
+logical_id = "7c0678f8-5906-4f7f-9212-f8a49711abc4"
+content_hash = "sha256:f7086fd7196156128171eb9c63b938c8a490eb4062f166bd8783ca245f3a52d6"
+size = 45224
+mtime_ms = 1794252327373
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:b838c638-39ab-4317-aede-36d8b741262d/7c0678f8-5906-4f7f-9212-f8a49711abc4/442065f9-aa76-4e7e-a07f-8ce9efb64509"
+storage_version_token = "1794252345046572"
+content_type = "text/markdown"

@@ -1,6 +1,6 @@
-# [Project name]
+# OllieOS
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Ollie's private personal operating system for tasks and work knowledge, readable and writable by Claude through a built-in MCP server. Spec: `docs/PRD.md`, `docs/DESIGN.md`, `design/screens/`. Plan: `docs/build-plan.md`.
 
 ## Run & Operate
 
@@ -34,7 +34,11 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Work milestone by milestone (PRD section 15). After each, report against the acceptance criteria and wait for Ollie's approval before starting the next.
+- Never hard-code colours in components; use the theme tokens.
+- British English, dates as ordinals ("Friday 13th November"), no em dashes in any interface text.
+- Never add a delete tool to the MCP server.
+- Keep example content from the screen files out of the real database, except the tasks listed for import in PRD section 14.1.
 
 ## Gotchas
 
