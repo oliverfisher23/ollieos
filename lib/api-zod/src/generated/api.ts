@@ -156,7 +156,14 @@ export const GetHomeResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullable(),
-  "triagedAt": zod.coerce.date().nullable()
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
 }),
   "reason": zod.string().describe('One-line reason, e.g. "Overdue by 2 days" or "High priority, due Friday 13th November"')
 })).describe('Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped.'),
@@ -211,7 +218,14 @@ export const GetHomeResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullable(),
-  "triagedAt": zod.coerce.date().nullable()
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
 }),
   "daysWaiting": zod.number().int().describe('Whole days since waitingSince (or updatedAt if unknown). Amber at 5 or more.')
 })),
@@ -258,7 +272,14 @@ export const GetHomeResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullable(),
-  "triagedAt": zod.coerce.date().nullable()
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
 })).describe('Open tasks with kind promise'),
   "doneThisWeek": zod.object({
   "count": zod.number().int(),
@@ -305,7 +326,14 @@ export const GetHomeResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullable(),
-  "triagedAt": zod.coerce.date().nullable()
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
 })).describe('Up to 5, most recently completed first')
 }),
   "lastSweepAt": zod.coerce.date().nullable().describe('When the last successful sweep finished. Null until the sweep runs (milestone 5).'),
@@ -374,7 +402,14 @@ export const ListTasksResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullable(),
-  "triagedAt": zod.coerce.date().nullable()
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
 })
 export const ListTasksResponse = zod.array(ListTasksResponseItem)
 
@@ -459,7 +494,14 @@ export const QuickAddTaskResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullable(),
-  "triagedAt": zod.coerce.date().nullable()
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
 }),
   "warnings": zod.array(zod.string()).describe('e.g. "No project called @foo, added without a project"')
 })
@@ -516,7 +558,14 @@ export const GetTaskResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullable(),
-  "triagedAt": zod.coerce.date().nullable()
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
 }),
   "history": zod.array(zod.object({
   "id": zod.number().int(),
@@ -594,7 +643,14 @@ export const UpdateTaskResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullable(),
-  "triagedAt": zod.coerce.date().nullable()
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
 })
 
 
@@ -648,7 +704,14 @@ export const SnoozeTaskResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "completedAt": zod.coerce.date().nullable(),
-  "triagedAt": zod.coerce.date().nullable()
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
 })
 
 
@@ -661,6 +724,299 @@ export const GetTaskDraftPromptParams = zod.object({
 
 export const GetTaskDraftPromptResponse = zod.object({
   "text": zod.string()
+})
+
+
+/**
+ * @summary Done items for a week grouped by project, as plain text for the clipboard
+ */
+export const GetWeeklyUpdateQueryParams = zod.object({
+  "weekStart": zod.date().optional()
+})
+
+export const GetWeeklyUpdateResponse = zod.object({
+  "text": zod.string(),
+  "count": zod.number().int(),
+  "weekStart": zod.coerce.date()
+})
+
+
+/**
+ * @summary Triage one item to Now, Backlog, Waiting or Noise, optionally making a noise rule
+ */
+export const TriageTaskParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+
+
+
+export const TriageTaskBody = zod.object({
+  "action": zod.enum(['now', 'backlog', 'waiting', 'noise']),
+  "waitingOnPersonId": zod.number().int().nullish().describe('For waiting. If left out, keeps the current Waiting on, or uses the For person.'),
+  "noiseRule": zod.object({
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string().min(1)
+}).optional().describe('For noise. Makes (or re-enables) a rule so new items like this skip the Inbox.')
+})
+
+export const TriageTaskResponse = zod.object({
+  "task": zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
+}),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string(),
+  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),zod.null()]),
+  "enabled": zod.boolean(),
+  "hitCount": zod.number().int(),
+  "lastHitAt": zod.coerce.date().nullable(),
+  "createdFromTaskId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Undo the last status change, triage, snooze or restore on this task
+ */
+export const UndoTaskParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UndoTaskResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
+})
+
+
+/**
+ * @summary Restore a Noise item to the Inbox
+ */
+export const RestoreTaskParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RestoreTaskResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
+})
+
+
+/**
+ * @summary A short chase message for the person this task is waiting on
+ */
+export const GetTaskChaseLineParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetTaskChaseLineResponse = zod.object({
+  "text": zod.string()
+})
+
+
+/**
+ * @summary Rules that could be made from this item ("Always ignore items like this"). Empty for meeting items.
+ */
+export const GetNoiseRuleOptionsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetNoiseRuleOptionsResponseItem = zod.object({
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string()
+})
+export const GetNoiseRuleOptionsResponse = zod.array(GetNoiseRuleOptionsResponseItem)
+
+
+/**
+ * @summary All noise rules with hit counts
+ */
+export const ListNoiseRulesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string(),
+  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),zod.null()]),
+  "enabled": zod.boolean(),
+  "hitCount": zod.number().int(),
+  "lastHitAt": zod.coerce.date().nullable(),
+  "createdFromTaskId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListNoiseRulesResponse = zod.array(ListNoiseRulesResponseItem)
+
+
+/**
+ * @summary Turn a rule on or off
+ */
+export const UpdateNoiseRuleParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UpdateNoiseRuleBody = zod.object({
+  "enabled": zod.boolean()
+})
+
+export const UpdateNoiseRuleResponse = zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string(),
+  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),zod.null()]),
+  "enabled": zod.boolean(),
+  "hitCount": zod.number().int(),
+  "lastHitAt": zod.coerce.date().nullable(),
+  "createdFromTaskId": zod.number().int().nullable(),
+  "createdAt": zod.coerce.date()
 })
 
 

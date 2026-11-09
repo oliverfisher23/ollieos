@@ -31,6 +31,30 @@ export type TaskTab = "inbox" | "open" | "now" | "backlog" | "waiting" | "done" 
 
 export class NotFoundError extends Error {}
 export class ValidationError extends Error {}
+export class ConflictError extends Error {}
+
+/** The lifecycle fields a status change, triage, snooze or restore touches. Stored in the audit payload so undo can put them back. */
+export interface LifecycleSnapshot {
+  status: TaskStatus;
+  waitingOnPersonId: number | null;
+  waitingSince: string | null;
+  triagedAt: string | null;
+  completedAt: string | null;
+  snoozedUntil: string | null;
+  noiseRuleId: number | null;
+}
+
+export function snapshotOf(t: TaskRow): LifecycleSnapshot {
+  return {
+    status: t.status,
+    waitingOnPersonId: t.waitingOnPersonId,
+    waitingSince: t.waitingSince?.toISOString() ?? null,
+    triagedAt: t.triagedAt?.toISOString() ?? null,
+    completedAt: t.completedAt?.toISOString() ?? null,
+    snoozedUntil: t.snoozedUntil?.toISOString() ?? null,
+    noiseRuleId: t.noiseRuleId,
+  };
+}
 
 const OPEN = [...OPEN_STATUSES] as TaskStatus[];
 
@@ -131,7 +155,7 @@ export async function getTaskSummary(weekStartParam?: string) {
   };
 }
 
-async function loadTask(id: number): Promise<TaskRow> {
+export async function loadTask(id: number): Promise<TaskRow> {
   const [row] = await db.select().from(tasksTable).where(eq(tasksTable.id, id));
   if (!row) throw new NotFoundError("Task not found");
   return row;
@@ -154,7 +178,7 @@ export interface TaskUpdateInput {
   confidential?: boolean | null;
 }
 
-async function personName(id: number | null): Promise<string | null> {
+export async function personName(id: number | null): Promise<string | null> {
   if (!id) return null;
   const [p] = await db.select({ name: peopleTable.name }).from(peopleTable).where(eq(peopleTable.id, id));
   if (!p) throw new ValidationError("That person does not exist");
@@ -253,7 +277,7 @@ export async function updateTask(id: number, input: TaskUpdateInput, actor: stri
       action: statusChanged ? "status" : "update",
       entityType: "task",
       entityId: id,
-      payload: { changes },
+      payload: statusChanged ? { changes, previous: snapshotOf(current) } : { changes },
     });
     return row;
   });
@@ -262,7 +286,7 @@ export async function updateTask(id: number, input: TaskUpdateInput, actor: stri
 }
 
 export async function snoozeTask(id: number, actor: string): Promise<TaskView> {
-  await loadTask(id);
+  const current = await loadTask(id);
   const until = snoozeUntilTomorrow();
   const updated = await db.transaction(async (tx) => {
     const [row] = await tx.update(tasksTable).set({ snoozedUntil: until }).where(eq(tasksTable.id, id)).returning();
@@ -271,7 +295,11 @@ export async function snoozeTask(id: number, actor: string): Promise<TaskView> {
       action: "snooze",
       entityType: "task",
       entityId: id,
-      payload: { until: until.toISOString(), untilLabel: `${formatLong(until)} at ${formatTime(until)}` },
+      payload: {
+        until: until.toISOString(),
+        untilLabel: `${formatLong(until)} at ${formatTime(until)}`,
+        previous: snapshotOf(current),
+      },
     });
     return row;
   });

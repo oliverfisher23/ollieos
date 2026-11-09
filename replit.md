@@ -33,10 +33,16 @@ Ollie's private personal operating system for tasks and work knowledge, readable
 - Single user: Replit Auth plus an allowlist. A non-allowlisted login gets no session and lands on `/not-authorised`; `requireOllie` guards every data route (401/403).
 - Every write records an `audit_events` row in the same transaction; task history is built from those rows.
 - Do next ranking: overdue first, then High by due date, then Medium; undated last; snoozed skipped; Low only when overdue.
+- Undo restores the `previous` snapshot stored on the latest audit event (1 hour window). A follow-up triage to the same status (adding a Noise rule, changing the Waiting person) reuses the earlier snapshot, so one Undo goes back to Inbox and removes a rule it created.
+- Noise rules only apply to new items at capture time; Restore moves an item from Noise back to Inbox.
+- All task state changes in the web app go through `useTaskActions()` so cache invalidation and Undo toasts stay consistent.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Home: add tasks, Do next, Inbox count with "Triage N", Waiting on with chase lines, Done this week with weekly update copy.
+- Triage at `/triage` (keys N/B/W/X, U to undo); Inbox tab has row triage and J/K/N/B/W/X/E keys.
+- Tasks tabs, task detail with history, Noise tab with Restore, Stale marker on Backlog.
+- Settings: Noise rules with hit counts and on/off switches (other sections are placeholders for later milestones).
 
 ## User preferences
 

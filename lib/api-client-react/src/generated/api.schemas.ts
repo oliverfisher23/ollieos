@@ -111,6 +111,24 @@ export interface EntitySummary {
   confidential: boolean;
 }
 
+export type NoiseMatchType = typeof NoiseMatchType[keyof typeof NoiseMatchType];
+
+
+export const NoiseMatchType = {
+  from_address_equals: 'from_address_equals',
+  from_domain_equals: 'from_domain_equals',
+  slack_channel_equals: 'slack_channel_equals',
+  title_contains: 'title_contains',
+} as const;
+
+export interface NoiseRuleSummary {
+  id: number;
+  matchType: NoiseMatchType;
+  matchValue: string;
+  /** Plain description, e.g. "Emails from news@example.com" */
+  label: string;
+}
+
 export interface Task {
   id: number;
   title: string;
@@ -159,6 +177,10 @@ export interface Task {
   completedAt: string | null;
   /** @nullable */
   triagedAt: string | null;
+  /** Backlog item untouched for 30 days or more */
+  stale: boolean;
+  /** The rule that caught this item, if any */
+  noiseRule: NoiseRuleSummary | null;
 }
 
 export interface TaskUpdate {
@@ -293,6 +315,72 @@ export interface HomeSummary {
   today: CalendarEvent[];
 }
 
+export interface NoiseRule {
+  id: number;
+  matchType: NoiseMatchType;
+  matchValue: string;
+  label: string;
+  source: TaskSource | null;
+  enabled: boolean;
+  hitCount: number;
+  /** @nullable */
+  lastHitAt: string | null;
+  /** @nullable */
+  createdFromTaskId: number | null;
+  createdAt: string;
+}
+
+export interface NoiseRuleUpdate {
+  enabled: boolean;
+}
+
+export interface NoiseRuleOption {
+  matchType: NoiseMatchType;
+  matchValue: string;
+  label: string;
+}
+
+export type TriageInputAction = typeof TriageInputAction[keyof typeof TriageInputAction];
+
+
+export const TriageInputAction = {
+  now: 'now',
+  backlog: 'backlog',
+  waiting: 'waiting',
+  noise: 'noise',
+} as const;
+
+/**
+ * For noise. Makes (or re-enables) a rule so new items like this skip the Inbox.
+ */
+export type TriageInputNoiseRule = {
+  matchType: NoiseMatchType;
+  /** @minLength 1 */
+  matchValue: string;
+};
+
+export interface TriageInput {
+  action: TriageInputAction;
+  /**
+     * For waiting. If left out, keeps the current Waiting on, or uses the For person.
+     * @nullable
+     */
+  waitingOnPersonId?: number | null;
+  /** For noise. Makes (or re-enables) a rule so new items like this skip the Inbox. */
+  noiseRule?: TriageInputNoiseRule;
+}
+
+export interface TriageResult {
+  task: Task;
+  noiseRule: NoiseRule | null;
+}
+
+export interface WeeklyUpdate {
+  text: string;
+  count: number;
+  weekStart: string;
+}
+
 /**
  * Signed out, or signed in with an email that is not allowlisted
  */
@@ -338,6 +426,10 @@ export type GetTaskSummaryParams = {
 /**
  * Monday of the week for "Due this week" and "Done this week". Defaults to the current London week.
  */
+weekStart?: string;
+};
+
+export type GetWeeklyUpdateParams = {
 weekStart?: string;
 };
 

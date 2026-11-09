@@ -44,6 +44,21 @@ function describe(event: AuditEvent): string {
       const changes = (payload.changes ?? []) as FieldChange[];
       return changes.length ? changes.map(describeChange).join(". ") : "Updated";
     }
+    case "triage": {
+      const to = payload.to as string | undefined;
+      const label = to === "waiting" ? "Waiting on" : to ? to.charAt(0).toUpperCase() + to.slice(1) : "a new status";
+      const extra = ((payload.changes ?? []) as FieldChange[]).filter((c) => c.field !== "status").map(describeChange);
+      const rule = payload.ruleLabel ? `Rule added to ignore: ${String(payload.ruleLabel)}` : null;
+      return [`Triaged to ${label}`, ...extra, rule].filter(Boolean).join(". ");
+    }
+    case "undo": {
+      const changes = (payload.changes ?? []) as FieldChange[];
+      const status = changes.find((c) => c.field === "status");
+      const base = status ? `Undone. Status back to ${status.to}` : "Undone";
+      return payload.removedRule ? `${base}. The rule made with it was removed` : base;
+    }
+    case "restore":
+      return "Restored from Noise to Inbox";
     case "snooze":
       return `Snoozed until ${String(payload.untilLabel ?? "tomorrow")}`;
     default:

@@ -1,1 +1,2 @@
 - [Verifying signed-in screens](ui-verification.md) — screenshots behind the allowlist need a test API instance plus Playwright route interception
+- [Focus inside Radix dialogs](radix-dialog-focus.md) — defer focus moves with setTimeout or Radix sends focus back to the dialog

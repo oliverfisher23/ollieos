@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
+import { Redirect, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
 import { useAuth } from '@workspace/replit-auth-web';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -11,6 +11,8 @@ import NotFound from '@/pages/not-found';
 import HomePage from '@/pages/home';
 import TasksPage from '@/pages/tasks';
 import Placeholder from '@/pages/placeholder';
+import SettingsPage from '@/pages/settings';
+import { TriageDialog } from '@/components/triage';
 import { NotAuthorised, SignIn, Splash } from '@/pages/auth-screens';
 import { AuthProvider } from '@/lib/auth-context';
 import { isForbiddenError, reportApiError, useForbidden } from '@/lib/forbidden';
@@ -32,19 +34,28 @@ const KnowledgePage = () => (
 const PeoplePage = () => (
   <Placeholder title="People" milestone={3} line="Everyone you work with, what you owe them and what they owe you, gathered on one page each." />
 );
-const SettingsPage = () => (
-  <Placeholder title="Settings" milestone={4} line="AI access, the sweep schedule and your noise rules will be set from here." />
-);
+
+function TriagePage() {
+  const [, navigate] = useLocation();
+  return (
+    <>
+      <HomePage />
+      <TriageDialog onClose={() => navigate('/')} />
+    </>
+  );
+}
 
 function Router() {
   return (
     <RoutedErrorBoundary>
       <Switch>
         <Route path="/" component={HomePage} />
+        <Route path="/triage" component={TriagePage} />
         <Route path="/tasks" component={TasksPage} />
         <Route path="/knowledge" component={KnowledgePage} />
         <Route path="/people" component={PeoplePage} />
-        <Route path="/settings" component={SettingsPage} />
+        <Route path="/settings">{() => <Redirect to="/settings/noise-rules" replace />}</Route>
+        <Route path="/settings/:section" component={SettingsPage} />
         <Route component={NotFound} />
       </Switch>
     </RoutedErrorBoundary>
@@ -53,12 +64,13 @@ function Router() {
 
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  return <ErrorBoundary resetKey={location}>{children}</ErrorBoundary>;
+  // Opening or closing Triage keeps Home mounted underneath.
+  return <ErrorBoundary resetKey={location === '/triage' ? '/' : location}>{children}</ErrorBoundary>;
 }
 
 function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  if (location === '/') return <DarkShell>{children}</DarkShell>;
+  if (location === '/' || location === '/triage') return <DarkShell>{children}</DarkShell>;
   return <LightShell>{children}</LightShell>;
 }
 

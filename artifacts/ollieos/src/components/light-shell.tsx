@@ -24,7 +24,7 @@ export function LightShell({ children }: { children: ReactNode }) {
           </Link>
           <nav aria-label="Main" className="flex flex-wrap items-center gap-1">
             {NAV.map((n) => (
-              <Link key={n.href} href={n.href} className="oo-navpill" aria-current={location === n.href ? 'page' : undefined} data-testid={'link-nav-' + n.label.toLowerCase()}>
+              <Link key={n.href} href={n.href} className="oo-navpill" aria-current={location === n.href || (n.href !== '/' && location.startsWith(n.href + '/')) ? 'page' : undefined} data-testid={'link-nav-' + n.label.toLowerCase()}>
                 {n.label}
               </Link>
             ))}

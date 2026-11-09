@@ -18,6 +18,8 @@ tags:
     description: Tasks, quick add and task detail
   - name: knowledge
     description: Minimal people and project lists used by pickers
+  - name: noise
+    description: Noise rules
 paths:
   /healthz:
     get:
@@ -369,6 +371,219 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /tasks/weekly-update:
+    get:
+      operationId: getWeeklyUpdate
+      tags: [tasks]
+      summary: Done items for a week grouped by project, as plain text for the clipboard
+      parameters:
+        - name: weekStart
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Weekly update text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyUpdate"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /tasks/{id}/triage:
+    post:
+      operationId: triageTask
+      tags: [tasks]
+      summary: Triage one item to Now, Backlog, Waiting or Noise, optionally making a noise rule
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TriageInput"
+      responses:
+        "200":
+          description: Triaged task, and the noise rule if one was made
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriageResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/undo:
+    post:
+      operationId: undoTask
+      tags: [tasks]
+      summary: Undo the last status change, triage, snooze or restore on this task
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Task after undo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "409":
+          description: Nothing to undo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/restore:
+    post:
+      operationId: restoreTask
+      tags: [tasks]
+      summary: Restore a Noise item to the Inbox
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Restored task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "409":
+          description: Not in Noise
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/chase-line:
+    get:
+      operationId: getTaskChaseLine
+      tags: [tasks]
+      summary: A short chase message for the person this task is waiting on
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Chase text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipboardText"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/noise-rule-options:
+    get:
+      operationId: getNoiseRuleOptions
+      tags: [tasks]
+      summary: Rules that could be made from this item ("Always ignore items like this"). Empty for meeting items.
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Options
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NoiseRuleOption"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /noise-rules:
+    get:
+      operationId: listNoiseRules
+      tags: [noise]
+      summary: All noise rules with hit counts
+      responses:
+        "200":
+          description: Rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NoiseRule"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /noise-rules/{id}:
+    patch:
+      operationId: updateNoiseRule
+      tags: [noise]
+      summary: Turn a rule on or off
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoiseRuleUpdate"
+      responses:
+        "200":
+          description: Updated rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoiseRule"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /people:
     get:
       operationId: listPeople
@@ -566,6 +781,8 @@ components:
         - updatedAt
         - completedAt
         - triagedAt
+        - stale
+        - noiseRule
       properties:
         id:
           type: integer
@@ -638,6 +855,14 @@ components:
         triagedAt:
           type: [string, "null"]
           format: date-time
+        stale:
+          type: boolean
+          description: Backlog item untouched for 30 days or more
+        noiseRule:
+          description: The rule that caught this item, if any
+          oneOf:
+            - $ref: "#/components/schemas/NoiseRuleSummary"
+            - type: "null"
 
     TaskUpdate:
       type: object
@@ -843,3 +1068,112 @@ components:
           description: Today's calendar events, in start order. Empty until the sweep writes calendar data (milestone 5).
           items:
             $ref: "#/components/schemas/CalendarEvent"
+
+    NoiseMatchType:
+      type: string
+      enum: [from_address_equals, from_domain_equals, slack_channel_equals, title_contains]
+
+    NoiseRuleSummary:
+      type: object
+      required: [id, matchType, matchValue, label]
+      properties:
+        id:
+          type: integer
+        matchType:
+          $ref: "#/components/schemas/NoiseMatchType"
+        matchValue:
+          type: string
+        label:
+          type: string
+          description: Plain description, e.g. "Emails from news@example.com"
+
+    NoiseRule:
+      type: object
+      required: [id, matchType, matchValue, label, source, enabled, hitCount, lastHitAt, createdFromTaskId, createdAt]
+      properties:
+        id:
+          type: integer
+        matchType:
+          $ref: "#/components/schemas/NoiseMatchType"
+        matchValue:
+          type: string
+        label:
+          type: string
+        source:
+          oneOf:
+            - $ref: "#/components/schemas/TaskSource"
+            - type: "null"
+        enabled:
+          type: boolean
+        hitCount:
+          type: integer
+        lastHitAt:
+          type: [string, "null"]
+          format: date-time
+        createdFromTaskId:
+          type: [integer, "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    NoiseRuleUpdate:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+
+    NoiseRuleOption:
+      type: object
+      required: [matchType, matchValue, label]
+      properties:
+        matchType:
+          $ref: "#/components/schemas/NoiseMatchType"
+        matchValue:
+          type: string
+        label:
+          type: string
+
+    TriageInput:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [now, backlog, waiting, noise]
+        waitingOnPersonId:
+          type: [integer, "null"]
+          description: For waiting. If left out, keeps the current Waiting on, or uses the For person.
+        noiseRule:
+          description: For noise. Makes (or re-enables) a rule so new items like this skip the Inbox.
+          type: object
+          required: [matchType, matchValue]
+          properties:
+            matchType:
+              $ref: "#/components/schemas/NoiseMatchType"
+            matchValue:
+              type: string
+              minLength: 1
+
+    TriageResult:
+      type: object
+      required: [task, noiseRule]
+      properties:
+        task:
+          $ref: "#/components/schemas/Task"
+        noiseRule:
+          oneOf:
+            - $ref: "#/components/schemas/NoiseRule"
+            - type: "null"
+
+    WeeklyUpdate:
+      type: object
+      required: [text, count, weekStart]
+      properties:
+        text:
+          type: string
+        count:
+          type: integer
+        weekStart:
+          type: string
+          format: date

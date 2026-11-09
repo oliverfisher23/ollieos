@@ -31,6 +31,7 @@ import type {
   EntitySummary,
   ErrorEnvelope,
   GetTaskSummaryParams,
+  GetWeeklyUpdateParams,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   HomeSummary,
@@ -39,13 +40,19 @@ import type {
   LogoutSuccess,
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
+  NoiseRule,
+  NoiseRuleOption,
+  NoiseRuleUpdate,
   NotAuthorisedResponse,
   QuickAddInput,
   QuickAddResult,
   Task,
   TaskDetail,
   TaskSummary,
-  TaskUpdate
+  TaskUpdate,
+  TriageInput,
+  TriageResult,
+  WeeklyUpdate
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1533,6 +1540,743 @@ export function useGetTaskDraftPrompt<TData = Awaited<ReturnType<typeof getTaskD
 
 
 
+
+export const getGetWeeklyUpdateUrl = (params?: GetWeeklyUpdateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tasks/weekly-update?${stringifiedParams}` : `/api/tasks/weekly-update`
+}
+
+/**
+ * @summary Done items for a week grouped by project, as plain text for the clipboard
+ */
+export const getWeeklyUpdate = async (params?: GetWeeklyUpdateParams, options?: Parameters<typeof customFetch>[1]): Promise<WeeklyUpdate> => {
+
+  return customFetch<WeeklyUpdate>(getGetWeeklyUpdateUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWeeklyUpdateQueryKey = (params?: GetWeeklyUpdateParams,) => {
+    return [
+    `/api/tasks/weekly-update`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetWeeklyUpdateQueryOptions = <TData = Awaited<ReturnType<typeof getWeeklyUpdate>>, TError = ErrorType<NotAuthorisedResponse>>(params?: GetWeeklyUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWeeklyUpdate>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWeeklyUpdateQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWeeklyUpdate>>> = ({ signal }) => getWeeklyUpdate(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWeeklyUpdate>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetWeeklyUpdateQueryResult = NonNullable<Awaited<ReturnType<typeof getWeeklyUpdate>>>
+export type GetWeeklyUpdateQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetWeeklyUpdate<TData = Awaited<ReturnType<typeof getWeeklyUpdate>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params: undefined |  GetWeeklyUpdateParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWeeklyUpdate>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWeeklyUpdate>>,
+          TError,
+          Awaited<ReturnType<typeof getWeeklyUpdate>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWeeklyUpdate<TData = Awaited<ReturnType<typeof getWeeklyUpdate>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params?: GetWeeklyUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWeeklyUpdate>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWeeklyUpdate>>,
+          TError,
+          Awaited<ReturnType<typeof getWeeklyUpdate>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWeeklyUpdate<TData = Awaited<ReturnType<typeof getWeeklyUpdate>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params?: GetWeeklyUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWeeklyUpdate>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Done items for a week grouped by project, as plain text for the clipboard
+ */
+
+export function useGetWeeklyUpdate<TData = Awaited<ReturnType<typeof getWeeklyUpdate>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params?: GetWeeklyUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWeeklyUpdate>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetWeeklyUpdateQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getTriageTaskUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/triage`
+}
+
+/**
+ * @summary Triage one item to Now, Backlog, Waiting or Noise, optionally making a noise rule
+ */
+export const triageTask = async (id: number,
+    triageInput: TriageInput, options?: Parameters<typeof customFetch>[1]): Promise<TriageResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TriageResult>(getTriageTaskUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(triageInput)
+  }
+);}
+
+
+
+
+
+export const getTriageTaskMutationKey = () => ['triageTask'] as const;
+
+export const getTriageTaskMutationOptions = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof triageTask>>, TError,TriageTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof triageTask>>, TError,TriageTaskMutationVariables, TContext> => {
+
+const mutationKey = getTriageTaskMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof triageTask>>, TriageTaskMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  triageTask(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TriageTaskMutationResult = NonNullable<Awaited<ReturnType<typeof triageTask>>>
+    export type TriageTaskMutationBody = BodyType<TriageInput>
+    export type TriageTaskMutationError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>
+    export type TriageTaskMutationVariables = {id: number;data: BodyType<TriageInput>}
+
+    /**
+ * @summary Triage one item to Now, Backlog, Waiting or Noise, optionally making a noise rule
+ */
+export const useTriageTask = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof triageTask>>, TError,TriageTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof triageTask>>,
+        TError,
+        TriageTaskMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTriageTaskMutationOptions(options), queryClient);
+    }
+
+export const getUndoTaskUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/undo`
+}
+
+/**
+ * @summary Undo the last status change, triage, snooze or restore on this task
+ */
+export const undoTask = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
+
+  return customFetch<Task>(getUndoTaskUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getUndoTaskMutationKey = () => ['undoTask'] as const;
+
+export const getUndoTaskMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoTask>>, TError,UndoTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof undoTask>>, TError,UndoTaskMutationVariables, TContext> => {
+
+const mutationKey = getUndoTaskMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof undoTask>>, UndoTaskMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  undoTask(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UndoTaskMutationResult = NonNullable<Awaited<ReturnType<typeof undoTask>>>
+
+    export type UndoTaskMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+    export type UndoTaskMutationVariables = {id: number}
+
+    /**
+ * @summary Undo the last status change, triage, snooze or restore on this task
+ */
+export const useUndoTask = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoTask>>, TError,UndoTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof undoTask>>,
+        TError,
+        UndoTaskMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUndoTaskMutationOptions(options), queryClient);
+    }
+
+export const getRestoreTaskUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/restore`
+}
+
+/**
+ * @summary Restore a Noise item to the Inbox
+ */
+export const restoreTask = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
+
+  return customFetch<Task>(getRestoreTaskUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRestoreTaskMutationKey = () => ['restoreTask'] as const;
+
+export const getRestoreTaskMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreTask>>, TError,RestoreTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreTask>>, TError,RestoreTaskMutationVariables, TContext> => {
+
+const mutationKey = getRestoreTaskMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreTask>>, RestoreTaskMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  restoreTask(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreTaskMutationResult = NonNullable<Awaited<ReturnType<typeof restoreTask>>>
+
+    export type RestoreTaskMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+    export type RestoreTaskMutationVariables = {id: number}
+
+    /**
+ * @summary Restore a Noise item to the Inbox
+ */
+export const useRestoreTask = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreTask>>, TError,RestoreTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof restoreTask>>,
+        TError,
+        RestoreTaskMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRestoreTaskMutationOptions(options), queryClient);
+    }
+
+export const getGetTaskChaseLineUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/chase-line`
+}
+
+/**
+ * @summary A short chase message for the person this task is waiting on
+ */
+export const getTaskChaseLine = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ClipboardText> => {
+
+  return customFetch<ClipboardText>(getGetTaskChaseLineUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTaskChaseLineQueryKey = (id: number,) => {
+    return [
+    `/api/tasks/${id}/chase-line`
+    ] as const;
+    }
+
+
+export const getGetTaskChaseLineQueryOptions = <TData = Awaited<ReturnType<typeof getTaskChaseLine>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskChaseLine>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTaskChaseLineQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTaskChaseLine>>> = ({ signal }) => getTaskChaseLine(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTaskChaseLine>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTaskChaseLineQueryResult = NonNullable<Awaited<ReturnType<typeof getTaskChaseLine>>>
+export type GetTaskChaseLineQueryError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+
+
+export function useGetTaskChaseLine<TData = Awaited<ReturnType<typeof getTaskChaseLine>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskChaseLine>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskChaseLine>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskChaseLine>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskChaseLine<TData = Awaited<ReturnType<typeof getTaskChaseLine>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskChaseLine>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskChaseLine>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskChaseLine>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskChaseLine<TData = Awaited<ReturnType<typeof getTaskChaseLine>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskChaseLine>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary A short chase message for the person this task is waiting on
+ */
+
+export function useGetTaskChaseLine<TData = Awaited<ReturnType<typeof getTaskChaseLine>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskChaseLine>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTaskChaseLineQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetNoiseRuleOptionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/noise-rule-options`
+}
+
+/**
+ * @summary Rules that could be made from this item ("Always ignore items like this"). Empty for meeting items.
+ */
+export const getNoiseRuleOptions = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<NoiseRuleOption[]> => {
+
+  return customFetch<NoiseRuleOption[]>(getGetNoiseRuleOptionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetNoiseRuleOptionsQueryKey = (id: number,) => {
+    return [
+    `/api/tasks/${id}/noise-rule-options`
+    ] as const;
+    }
+
+
+export const getGetNoiseRuleOptionsQueryOptions = <TData = Awaited<ReturnType<typeof getNoiseRuleOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNoiseRuleOptions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetNoiseRuleOptionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNoiseRuleOptions>>> = ({ signal }) => getNoiseRuleOptions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNoiseRuleOptions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetNoiseRuleOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof getNoiseRuleOptions>>>
+export type GetNoiseRuleOptionsQueryError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+
+
+export function useGetNoiseRuleOptions<TData = Awaited<ReturnType<typeof getNoiseRuleOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNoiseRuleOptions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getNoiseRuleOptions>>,
+          TError,
+          Awaited<ReturnType<typeof getNoiseRuleOptions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetNoiseRuleOptions<TData = Awaited<ReturnType<typeof getNoiseRuleOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNoiseRuleOptions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getNoiseRuleOptions>>,
+          TError,
+          Awaited<ReturnType<typeof getNoiseRuleOptions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetNoiseRuleOptions<TData = Awaited<ReturnType<typeof getNoiseRuleOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNoiseRuleOptions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Rules that could be made from this item ("Always ignore items like this"). Empty for meeting items.
+ */
+
+export function useGetNoiseRuleOptions<TData = Awaited<ReturnType<typeof getNoiseRuleOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNoiseRuleOptions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetNoiseRuleOptionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListNoiseRulesUrl = () => {
+
+
+
+
+  return `/api/noise-rules`
+}
+
+/**
+ * @summary All noise rules with hit counts
+ */
+export const listNoiseRules = async ( options?: Parameters<typeof customFetch>[1]): Promise<NoiseRule[]> => {
+
+  return customFetch<NoiseRule[]>(getListNoiseRulesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListNoiseRulesQueryKey = () => {
+    return [
+    `/api/noise-rules`
+    ] as const;
+    }
+
+
+export const getListNoiseRulesQueryOptions = <TData = Awaited<ReturnType<typeof listNoiseRules>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNoiseRules>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListNoiseRulesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listNoiseRules>>> = ({ signal }) => listNoiseRules({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listNoiseRules>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListNoiseRulesQueryResult = NonNullable<Awaited<ReturnType<typeof listNoiseRules>>>
+export type ListNoiseRulesQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListNoiseRules<TData = Awaited<ReturnType<typeof listNoiseRules>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNoiseRules>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listNoiseRules>>,
+          TError,
+          Awaited<ReturnType<typeof listNoiseRules>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListNoiseRules<TData = Awaited<ReturnType<typeof listNoiseRules>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNoiseRules>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listNoiseRules>>,
+          TError,
+          Awaited<ReturnType<typeof listNoiseRules>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListNoiseRules<TData = Awaited<ReturnType<typeof listNoiseRules>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNoiseRules>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary All noise rules with hit counts
+ */
+
+export function useListNoiseRules<TData = Awaited<ReturnType<typeof listNoiseRules>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listNoiseRules>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListNoiseRulesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateNoiseRuleUrl = (id: number,) => {
+
+
+
+
+  return `/api/noise-rules/${id}`
+}
+
+/**
+ * @summary Turn a rule on or off
+ */
+export const updateNoiseRule = async (id: number,
+    noiseRuleUpdate: NoiseRuleUpdate, options?: Parameters<typeof customFetch>[1]): Promise<NoiseRule> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<NoiseRule>(getUpdateNoiseRuleUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(noiseRuleUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateNoiseRuleMutationKey = () => ['updateNoiseRule'] as const;
+
+export const getUpdateNoiseRuleMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateNoiseRule>>, TError,UpdateNoiseRuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateNoiseRule>>, TError,UpdateNoiseRuleMutationVariables, TContext> => {
+
+const mutationKey = getUpdateNoiseRuleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateNoiseRule>>, UpdateNoiseRuleMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateNoiseRule(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateNoiseRuleMutationResult = NonNullable<Awaited<ReturnType<typeof updateNoiseRule>>>
+    export type UpdateNoiseRuleMutationBody = BodyType<NoiseRuleUpdate>
+    export type UpdateNoiseRuleMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+    export type UpdateNoiseRuleMutationVariables = {id: number;data: BodyType<NoiseRuleUpdate>}
+
+    /**
+ * @summary Turn a rule on or off
+ */
+export const useUpdateNoiseRule = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateNoiseRule>>, TError,UpdateNoiseRuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateNoiseRule>>,
+        TError,
+        UpdateNoiseRuleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateNoiseRuleMutationOptions(options), queryClient);
+    }
 
 export const getListPeopleUrl = () => {
 

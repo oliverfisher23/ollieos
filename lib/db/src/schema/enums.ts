@@ -14,6 +14,7 @@ export const entityTypeEnum = pgEnum("entity_type", [
   "fact",
   "activity",
   "calendar_event",
+  "noise_rule",
 ]);
 export const activityKindEnum = pgEnum("activity_kind", ["email", "meeting", "slack", "note", "task"]);
 export const captureOutcomeEnum = pgEnum("capture_outcome", ["created", "duplicate", "noise", "error"]);

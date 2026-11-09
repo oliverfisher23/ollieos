@@ -3,6 +3,7 @@ import healthRouter from "./health";
 import authRouter from "./auth";
 import homeRouter from "./home";
 import tasksRouter from "./tasks";
+import noiseRulesRouter from "./noiseRules";
 import { requireOllie } from "../middlewares/requireOllie";
 
 const router: IRouter = Router();
@@ -15,5 +16,6 @@ router.use(authRouter);
 router.use(requireOllie);
 router.use(homeRouter);
 router.use(tasksRouter);
+router.use(noiseRulesRouter);
 
 export default router;

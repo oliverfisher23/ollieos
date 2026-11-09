@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { EntitySummary } from './entitySummary';
+import type { NoiseRuleSummary } from './noiseRuleSummary';
 import type { Priority } from './priority';
 import type { TaskKind } from './taskKind';
 import type { TaskSource } from './taskSource';
@@ -59,4 +60,8 @@ export interface Task {
   completedAt: Date | null;
   /** @nullable */
   triagedAt: Date | null;
+  /** Backlog item untouched for 30 days or more */
+  stale: boolean;
+  /** The rule that caught this item, if any */
+  noiseRule: NoiseRuleSummary | null;
 }

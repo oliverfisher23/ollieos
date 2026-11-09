@@ -1,8 +1,7 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'wouter';
 import {
   useGetHome,
-  useSnoozeTask,
-  useUpdateTask,
   type CalendarEvent,
   type DoNextItem,
   type HomeSummary,
@@ -13,9 +12,7 @@ import { AddBox } from '@/components/add-box';
 import { Avatar, PriorityPill, Skel } from '@/components/bits';
 import { IconCheck, IconSettings } from '@/components/icons';
 import { useSession } from '@/lib/auth-context';
-import { useInvalidateTasks } from '@/lib/task-cache';
-import { notify } from '@/lib/notify';
-import { reportApiError } from '@/lib/forbidden';
+import { useTaskActions } from '@/lib/task-actions';
 import { PHONE_QUERY, useMedia } from '@/lib/use-media';
 
 function breakdown(home: HomeSummary): string {
@@ -92,14 +89,14 @@ export default function HomePage() {
     body = (
       <>
         <DoNextCard items={d.doNext} phone />
-        <Link href="/tasks?tab=inbox" className="oo-dark-card oo-glass" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-inbox-phone">
+        <Link href={d.inbox.count ? '/triage' : '/tasks?tab=inbox'} className="oo-dark-card oo-glass" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-inbox-phone">
           <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span className="oo-label" style={{ fontSize: 12 }}>Inbox</span>
             <span className="oo-t2" style={{ fontSize: 13 }}>{breakdown(d)}</span>
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span className="oo-serif-roman" style={{ fontSize: 34, lineHeight: 1 }} data-testid="text-inbox-count">{d.inbox.count}</span>
-            <span className="oo-btn oo-btn-white" style={{ borderRadius: 999, minHeight: 40 }}>Open</span>
+            <span className="oo-btn oo-btn-white" style={{ borderRadius: 999, minHeight: 40 }}>{d.inbox.count ? 'Triage' : 'Open'}</span>
           </span>
         </Link>
         <TodayPhone events={d.today} />
@@ -120,9 +117,11 @@ export default function HomePage() {
             <p className="oo-serif-roman" style={{ margin: 0, fontSize: 48, lineHeight: 1 }} data-testid="text-inbox-count">{d.inbox.count}</p>
             <p className="oo-t2" style={{ margin: 0, fontSize: 13 }} data-testid="text-inbox-breakdown">{breakdown(d)}</p>
             <div style={{ marginTop: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <Link href="/tasks?tab=inbox" className="oo-btn oo-btn-white" data-testid="link-inbox">
-                {d.inbox.count ? 'Review ' + d.inbox.count : 'Open Inbox'}
-              </Link>
+              {d.inbox.count ? (
+                <Link href="/triage" className="oo-btn oo-btn-white" data-testid="link-triage">Triage {d.inbox.count}</Link>
+              ) : (
+                <Link href="/tasks?tab=inbox" className="oo-btn oo-btn-white" data-testid="link-inbox">Open Inbox</Link>
+              )}
             </div>
           </section>
           <WaitingCard items={d.waitingOn} />
@@ -150,11 +149,9 @@ export default function HomePage() {
 }
 
 function DoNextCard({ items, phone = false }: { items: DoNextItem[]; phone?: boolean }) {
-  const update = useUpdateTask();
-  const snooze = useSnoozeTask();
-  const invalidate = useInvalidateTasks();
+  const actions = useTaskActions();
+  const [busy, setBusy] = useState(false);
   const top = items[0];
-  const busy = update.isPending || snooze.isPending;
 
   if (!top) {
     return (
@@ -166,15 +163,13 @@ function DoNextCard({ items, phone = false }: { items: DoNextItem[]; phone?: boo
     );
   }
   const t = top.task;
-  const onErr = (err: unknown) => { reportApiError(err); notify('That did not save', 'Try again in a moment.'); };
-  const done = () => update.mutate({ id: t.id, data: { status: 'done' } }, {
-    onSuccess: () => { invalidate(t.id); notify('Marked done', t.title); },
-    onError: onErr,
-  });
-  const later = () => snooze.mutate({ id: t.id }, {
-    onSuccess: () => { invalidate(t.id); notify('Snoozed to tomorrow', t.title); },
-    onError: onErr,
-  });
+  const run = async (fn: () => Promise<unknown>) => {
+    setBusy(true);
+    await fn();
+    setBusy(false);
+  };
+  const done = () => run(() => actions.markDone(t));
+  const later = () => run(() => actions.snooze(t));
 
   return (
     <section aria-labelledby="h-next" className="oo-dark-card oo-white-card" style={phone ? { padding: 16, gap: 10 } : undefined} data-testid="card-do-next">
@@ -263,10 +258,29 @@ function WaitingCard({ items, phone = false }: { items: WaitingItem[]; phone?: b
               </span>
               <span className="oo-t3" style={{ fontSize: 12 }}>{task.title}</span>
             </div>
+            <ChaseButton task={task} who={who} />
           </div>
         );
       })}
     </section>
+  );
+}
+
+function ChaseButton({ task, who }: { task: WaitingItem['task']; who: string }) {
+  const actions = useTaskActions();
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const id = setTimeout(() => setCopied(false), 2500);
+    return () => clearTimeout(id);
+  }, [copied]);
+  return (
+    <button type="button" className="oo-btn-chase" data-copied={copied}
+      aria-label={copied ? 'Chase line copied' : 'Copy a chase line for ' + who}
+      onClick={async () => { if (await actions.copyChase(task)) setCopied(true); }}
+      data-testid={'button-chase-' + task.id}>
+      {copied ? 'Copied' : 'Chase'}
+    </button>
   );
 }
 
@@ -297,6 +311,18 @@ function PromisesCard({ home }: { home: HomeSummary }) {
   );
 }
 
+function WeeklyCopyButton() {
+  const actions = useTaskActions();
+  const [busy, setBusy] = useState(false);
+  return (
+    <button type="button" className="oo-btn-chase" disabled={busy}
+      onClick={async () => { setBusy(true); await actions.copyWeekly(); setBusy(false); }}
+      data-testid="button-copy-weekly">
+      Copy for weekly update
+    </button>
+  );
+}
+
 function DoneCard({ home }: { home: HomeSummary }) {
   const d = home.doneThisWeek;
   return (
@@ -316,7 +342,10 @@ function DoneCard({ home }: { home: HomeSummary }) {
           ))}
         </div>
       )}
-      <Link href="/tasks?tab=done" style={{ marginTop: 'auto', fontSize: 13 }} data-testid="link-done-all">See everything done</Link>
+      <div style={{ marginTop: 'auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14 }}>
+        <WeeklyCopyButton />
+        <Link href="/tasks?tab=done" style={{ fontSize: 13 }} data-testid="link-done-all">See everything done</Link>
+      </div>
     </section>
   );
 }

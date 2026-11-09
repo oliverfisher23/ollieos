@@ -1,9 +1,8 @@
-import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
+import { Router, type IRouter } from "express";
+import { handle } from "../lib/handle";
 import { z } from "zod";
 import { TASK_SOURCES, TASK_STATUSES, PRIORITIES, TASK_KINDS, isIsoDate } from "@workspace/shared";
 import {
-  NotFoundError,
-  ValidationError,
   buildDraftPrompt,
   getTask,
   getTaskSummary,
@@ -13,6 +12,15 @@ import {
   updateTask,
 } from "../services/tasks";
 import { getTaskHistory } from "../services/history";
+import { NOISE_MATCH_TYPES } from "../services/noiseRules";
+import {
+  buildChaseLine,
+  buildWeeklyUpdate,
+  getNoiseRuleOptionsFor,
+  restoreFromNoise,
+  triageTask,
+  undoLast,
+} from "../services/triage";
 
 const router: IRouter = Router();
 
@@ -52,26 +60,21 @@ const UpdateBody = z
   })
   .strict();
 
-type Handler = (req: Request, res: Response) => Promise<void>;
+const TriageBody = z
+  .object({
+    action: z.enum(["now", "backlog", "waiting", "noise"]),
+    waitingOnPersonId: z.number().int().positive().nullable().optional(),
+    noiseRule: z
+      .object({
+        matchType: z.enum(NOISE_MATCH_TYPES),
+        matchValue: z.string().trim().min(1, "A rule needs something to match").max(200),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
 
-/** Turns validation and not-found errors into clear 4xx responses. */
-function handle(fn: Handler) {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      await fn(req, res);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        res.status(400).json({ error: err.issues.map((i) => i.message).join("; ") });
-      } else if (err instanceof ValidationError) {
-        res.status(400).json({ error: err.message });
-      } else if (err instanceof NotFoundError) {
-        res.status(404).json({ error: err.message });
-      } else {
-        next(err);
-      }
-    }
-  };
-}
+const WeeklyQuery = z.object({ weekStart: isoDate.optional() });
 
 router.get(
   "/tasks",
@@ -94,6 +97,14 @@ router.post(
   handle(async (req, res) => {
     const body = QuickAddBody.parse(req.body);
     res.status(201).json(await quickAddTask(body.text, ACTOR));
+  }),
+);
+
+router.get(
+  "/tasks/weekly-update",
+  handle(async (req, res) => {
+    const q = WeeklyQuery.parse(req.query);
+    res.json(await buildWeeklyUpdate(q.weekStart));
   }),
 );
 
@@ -128,6 +139,47 @@ router.get(
   handle(async (req, res) => {
     const { id } = IdParams.parse(req.params);
     res.json({ text: await buildDraftPrompt(id) });
+  }),
+);
+
+router.post(
+  "/tasks/:id/triage",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    const body = TriageBody.parse(req.body);
+    res.json(await triageTask(id, body, ACTOR));
+  }),
+);
+
+router.post(
+  "/tasks/:id/undo",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    res.json(await undoLast(id, ACTOR));
+  }),
+);
+
+router.post(
+  "/tasks/:id/restore",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    res.json(await restoreFromNoise(id, ACTOR));
+  }),
+);
+
+router.get(
+  "/tasks/:id/chase-line",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    res.json({ text: await buildChaseLine(id) });
+  }),
+);
+
+router.get(
+  "/tasks/:id/noise-rule-options",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    res.json(await getNoiseRuleOptionsFor(id));
   }),
 );
 

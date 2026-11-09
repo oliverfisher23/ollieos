@@ -12,7 +12,9 @@ import {
 import { SOURCE_LABELS, formatDayMonth, formatShort, formatTime } from '@workspace/shared';
 import { Skel, SourceMark } from '@/components/bits';
 import { IconClose } from '@/components/icons';
+import { NoiseRuleChooser } from '@/components/noise-rule-chooser';
 import { useInvalidateTasks } from '@/lib/task-cache';
+import { useTaskActions } from '@/lib/task-actions';
 import { notify } from '@/lib/notify';
 
 const STATUSES: { value: TaskStatus; label: string }[] = [
@@ -41,6 +43,8 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
   const projects = useListProjects();
   const update = useUpdateTask();
   const invalidate = useInvalidateTasks();
+  const actions = useTaskActions();
+  const [acting, setActing] = useState(false);
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [copying, setCopying] = useState(false);
@@ -71,6 +75,19 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
       onSuccess: () => { invalidate(id); if (message) notify(message); },
       onError: () => notify('That did not save', 'Try again in a moment.'),
     });
+  };
+
+  const run = async (fn: () => Promise<unknown>) => {
+    setActing(true);
+    await fn();
+    setActing(false);
+  };
+
+  const setStatus = (status: TaskStatus) => {
+    if (!task) return;
+    if (status === 'done') return void run(() => actions.markDone(task));
+    if (status === 'inbox') return save({ status }, 'Moved to Inbox');
+    void run(() => actions.triage(task, { action: status }));
   };
 
   const copyDraft = async () => {
@@ -124,11 +141,26 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
               <div role="group" aria-labelledby="td-status-l" className="oo-seg">
                 {STATUSES.map((s) => (
                   <button key={s.value} type="button" aria-pressed={task.status === s.value}
-                    onClick={() => task.status !== s.value && save({ status: s.value })} data-testid={'button-status-' + s.value}>{s.label}</button>
+                    onClick={() => task.status !== s.value && setStatus(s.value)} data-testid={'button-status-' + s.value}>{s.label}</button>
                 ))}
               </div>
-              {task.status === 'noise' && <span className="oo-muted" style={{ fontSize: 12 }}>Currently in Noise.</span>}
             </div>
+
+            {task.status === 'noise' && (
+              <div className="oo-source" style={{ gap: 10 }} data-testid="card-noise">
+                <span style={{ fontSize: 13, fontWeight: 500 }}>
+                  In Noise{task.noiseRule ? '' : ', moved there by hand'}
+                </span>
+                {task.noiseRule ? (
+                  <span className="oo-soft" style={{ fontSize: 13 }} data-testid="text-detail-rule">Caught by the rule: {task.noiseRule.label}</span>
+                ) : (
+                  <NoiseRuleChooser task={task} />
+                )}
+                <div>
+                  <button type="button" className="oo-btn oo-btn-outline" disabled={acting} onClick={() => run(() => actions.restore(task))} data-testid="button-detail-restore">Restore to Inbox</button>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -177,6 +209,9 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                   <option value="">Choose a person</option>
                   {(people.data ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
+                <div>
+                  <button type="button" className="oo-btn oo-btn-outline" disabled={acting} onClick={() => run(() => actions.copyChase(task))} data-testid="button-detail-chase">Copy chase line</button>
+                </div>
               </div>
             )}
 
@@ -225,11 +260,14 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingTop: 14, borderTop: '1px solid var(--oo-line-soft)' }}>
-              <button type="button" className="oo-btn oo-btn-ink" disabled={task.status === 'done' || update.isPending}
-                onClick={() => save({ status: 'done' }, 'Marked done')} data-testid="button-mark-done">{task.status === 'done' ? 'Done' : 'Mark done'}</button>
+              <button type="button" className="oo-btn oo-btn-ink" disabled={task.status === 'done' || update.isPending || acting}
+                onClick={() => run(() => actions.markDone(task))} data-testid="button-mark-done">{task.status === 'done' ? 'Done' : 'Mark done'}</button>
               <button type="button" className="oo-btn oo-btn-outline" disabled={copying} onClick={copyDraft} data-testid="button-draft-prompt">Ask Claude to draft</button>
-              <button type="button" className="oo-btn oo-btn-danger" disabled={task.status === 'noise'}
-                onClick={() => save({ status: 'noise' }, 'Moved to Noise')} data-testid="button-move-noise">Move to Noise</button>
+              {task.status === 'now' && (
+                <button type="button" className="oo-btn oo-btn-outline" disabled={acting} onClick={() => run(() => actions.snooze(task))} data-testid="button-detail-snooze">Snooze to tomorrow</button>
+              )}
+              <button type="button" className="oo-btn oo-btn-danger" disabled={task.status === 'noise' || acting}
+                onClick={() => run(() => actions.triage(task, { action: 'noise' }))} data-testid="button-move-noise">Move to Noise</button>
             </div>
           </>
         )}
