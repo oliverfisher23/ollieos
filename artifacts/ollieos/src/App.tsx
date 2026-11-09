@@ -16,6 +16,7 @@ import { PeopleListPage, PersonPage } from '@/pages/knowledge/people';
 import { OrganisationPage, OrganisationsListPage } from '@/pages/knowledge/organisations';
 import { DecisionPage, DecisionsListPage, NotePage, NotesListPage } from '@/pages/knowledge/records';
 import SettingsPage from '@/pages/settings';
+import OauthConsentPage from '@/pages/oauth-consent';
 import { TriageDialog } from '@/components/triage';
 import { NotAuthorised, SignIn, Splash } from '@/pages/auth-screens';
 import { AuthProvider } from '@/lib/auth-context';
@@ -65,6 +66,7 @@ function Router() {
         <Route path="/people/:slug">{(p) => <Redirect to={'/knowledge/people/' + p.slug} replace />}</Route>
         <Route path="/settings">{() => <Redirect to="/settings/noise-rules" replace />}</Route>
         <Route path="/settings/:section" component={SettingsPage} />
+        <Route path="/oauth/consent" component={OauthConsentPage} />
         <Route component={NotFound} />
       </Switch>
     </RoutedErrorBoundary>
@@ -83,6 +85,11 @@ function Shell({ children }: { children: ReactNode }) {
   return <LightShell>{children}</LightShell>;
 }
 
+/** Signs in and comes back to the same page, so a tool's consent link survives the login. */
+function loginHere() {
+  window.location.href = `/api/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+}
+
 function Gate() {
   const auth = useAuth();
   const [location] = useLocation();
@@ -90,7 +97,7 @@ function Gate() {
 
   if (location === '/not-authorised' || forbidden) return <NotAuthorised onLogout={auth.logout} />;
   if (auth.isLoading) return <Splash />;
-  if (!auth.isAuthenticated) return <SignIn onLogin={auth.login} />;
+  if (!auth.isAuthenticated) return <SignIn onLogin={loginHere} />;
 
   return (
     <AuthProvider value={{ user: auth.user, logout: auth.logout }}>

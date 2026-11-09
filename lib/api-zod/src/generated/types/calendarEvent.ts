@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { SlugRef } from './slugRef';
 
 export interface CalendarEvent {
   id: number;
@@ -14,4 +15,9 @@ export interface CalendarEvent {
   personal: boolean;
   /** @nullable */
   location: string | null;
+  /** Attendee names or emails as the calendar gave them */
+  attendees: string[];
+  /** Attendees OllieOS knows, for the Brief me link */
+  people: SlugRef[];
+  project: SlugRef | null;
 }

@@ -283,6 +283,7 @@ body { font-family: var(--oo-font-sans); margin: 0; overflow-x: hidden; }
 .oo-dark .oo-white-card :focus-visible { outline-color: var(--oo-ink); }
 .oo-grain { position: fixed; inset: 0; width: 100%; height: 100%; opacity: var(--oo-grain-opacity); mix-blend-mode: overlay; pointer-events: none; z-index: 0; }
 .oo-dark a { color: var(--oo-text-on-dark); }
+.oo-dark a.oo-amber { color: var(--oo-accent); }
 .oo-glass { background: var(--oo-glass); border: 1px solid var(--oo-glass-border); backdrop-filter: blur(var(--oo-blur)); -webkit-backdrop-filter: blur(var(--oo-blur)); }
 .oo-glass-quiet { background: var(--oo-glass-quiet); border: 1px solid var(--oo-glass-quiet-border); backdrop-filter: blur(var(--oo-blur)); -webkit-backdrop-filter: blur(var(--oo-blur)); }
 .oo-dark-card { box-sizing: border-box; padding: 18px; border-radius: var(--oo-r-dark-card); display: flex; flex-direction: column; gap: 12px; min-width: 0; }

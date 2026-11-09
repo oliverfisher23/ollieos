@@ -279,6 +279,11 @@ export interface WaitingItem {
   daysWaiting: number;
 }
 
+export interface SlugRef {
+  name: string;
+  slug: string;
+}
+
 export interface CalendarEvent {
   id: number;
   title: string;
@@ -287,6 +292,11 @@ export interface CalendarEvent {
   personal: boolean;
   /** @nullable */
   location: string | null;
+  /** Attendee names or emails as the calendar gave them */
+  attendees: string[];
+  /** Attendees OllieOS knows, for the Brief me link */
+  people: SlugRef[];
+  project: SlugRef | null;
 }
 
 export type HomeSummaryInbox = {
@@ -362,11 +372,11 @@ export interface HomeSummary {
   promises: Task[];
   doneThisWeek: HomeSummaryDoneThisWeek;
   /**
-     * When the last successful sweep finished. Null until the sweep runs (milestone 5).
+     * When the last sweep with no errors finished. Null until one has run.
      * @nullable
      */
   lastSweepAt: string | null;
-  /** Today's calendar events, in start order. Empty until the sweep writes calendar data (milestone 5). */
+  /** Today's calendar events, in start order. Empty until the sweep writes calendar data. */
   today: CalendarEvent[];
   /** AI access requests waiting for Ollie, and approvals still open */
   access: HomeSummaryAccess;
@@ -1058,6 +1068,60 @@ export interface AiClient {
   revokedAt: string | null;
 }
 
+export type ReconnectedAiClient = AiClient & {
+  needsSignIn: boolean;
+};
+
+export interface OauthConsentInfo {
+  clientName: string;
+  redirectHost: string;
+  /** True when the tool only sends people back to this computer (localhost) */
+  loopbackOnly: boolean;
+  scopes: string[];
+  reconnecting: boolean;
+}
+
+export interface OauthConsentAnswer {
+  request: string;
+  approve: boolean;
+}
+
+export interface OauthConsentRedirect {
+  redirectTo: string;
+}
+
+export interface SweepRun {
+  id: number;
+  startedAt: string;
+  /** @nullable */
+  finishedAt: string | null;
+  itemsCreated: number;
+  itemsNoise: number;
+  itemsDuplicate: number;
+  activityLogged: number;
+  errors: string[];
+}
+
+export type SweepOverviewClient = {
+  id: number;
+  name: string;
+  /** @nullable */
+  connectedAt: string | null;
+  /** @nullable */
+  lastUsedAt: string | null;
+  /** @nullable */
+  revokedAt: string | null;
+} | null;
+
+export interface SweepOverview {
+  /** Whether the INBOX_API_KEY secret is set */
+  keyConfigured: boolean;
+  client: SweepOverviewClient;
+  /** @nullable */
+  lastSuccessfulAt: string | null;
+  runs: SweepRun[];
+}
+
 export type AiAccessSummaryHidden = {
   projects: number;
   people: number;
@@ -1172,6 +1236,10 @@ q: string;
  * Comma-separated list of task, project, person, organisation, decision, note, fact
  */
 types?: string;
+};
+
+export type GetOauthConsentParams = {
+request: string;
 };
 
 export type ListAiActivityParams = {

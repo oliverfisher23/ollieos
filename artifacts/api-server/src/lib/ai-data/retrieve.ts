@@ -51,7 +51,7 @@ function filters(g: Grants) {
 type Names = Map<string, string>;
 
 /** Visible names for entity refs, so a visible task never leaks the name of a hidden project or person. */
-async function visibleNames(refs: { type: RefType; id: number }[], g: Grants): Promise<Names> {
+export async function visibleNames(refs: { type: RefType; id: number }[], g: Grants): Promise<Names> {
   const v = filters(g);
   const ids = (t: RefType) => [...new Set(refs.filter((r) => r.type === t).map((r) => r.id))];
   const out: Names = new Map();

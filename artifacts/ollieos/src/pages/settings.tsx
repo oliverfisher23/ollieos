@@ -8,6 +8,7 @@ import { useInvalidateTasks } from '@/lib/task-cache';
 import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
 import AiAccessSettings from './settings-ai-access';
+import SweepSettings from './settings-sweep';
 
 const SECTIONS = [
   { slug: 'ai-access', label: 'AI access', milestone: 4, line: 'Which AI tools can read and write OllieOS, what they have looked at, and what they are asking to see.' },
@@ -40,6 +41,8 @@ export default function SettingsPage() {
           <NoiseRules />
         ) : current.slug === 'ai-access' ? (
           <AiAccessSettings />
+        ) : current.slug === 'sweep' ? (
+          <SweepSettings />
         ) : (
           <section className="oo-panel flex flex-col gap-3 px-5 py-8 sm:px-8" data-testid={'page-settings-' + current.slug}>
             <span className="oo-serif oo-muted" style={{ fontSize: 18 }}>Arrives in milestone {current.milestone}</span>

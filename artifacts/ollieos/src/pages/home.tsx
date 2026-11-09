@@ -7,10 +7,10 @@ import {
   type HomeSummary,
   type WaitingItem,
 } from '@workspace/api-client-react';
-import { SOURCE_LABELS, WAITING_AMBER_DAYS, formatLong, formatShort, formatTime, greeting } from '@workspace/shared';
+import { SOURCE_LABELS, WAITING_AMBER_DAYS, formatDayMonthShort, formatLong, formatShort, formatTime, greeting, londonDate, todayLondon } from '@workspace/shared';
 import { AddBox } from '@/components/add-box';
 import { Avatar, PriorityPill, Skel } from '@/components/bits';
-import { IconCheck, IconLock, IconSettings } from '@/components/icons';
+import { IconArrowOut, IconCheck, IconLock, IconSettings } from '@/components/icons';
 import { requestItemName, useAccessActions } from '@/lib/access';
 import { useSession } from '@/lib/auth-context';
 import { useTaskActions } from '@/lib/task-actions';
@@ -22,6 +22,26 @@ function breakdown(home: HomeSummary): string {
     .filter((s) => s.count > 0)
     .map((s) => s.count + ' ' + (s.source === 'slack' ? 'Slack' : SOURCE_LABELS[s.source].toLowerCase()))
     .join(' · ');
+}
+
+/** Time only when the sweep ran today; otherwise the date too, so a stale sweep is obvious. */
+function sweepWhen(at: string): string {
+  return londonDate(at) === todayLondon() ? formatTime(at) : `${formatDayMonthShort(at)}, ${formatTime(at)}`;
+}
+
+/** Who is in the meeting (known people first) and what it is about. */
+function eventLine(e: CalendarEvent): string {
+  if (e.personal) return 'Personal';
+  const names = e.people.length ? e.people.map((p) => p.name) : e.attendees;
+  const who = names.length > 3 ? `${names.slice(0, 3).join(', ')} and ${names.length - 3} more` : names.join(', ');
+  return [who, e.project?.name ?? e.location].filter(Boolean).join(' · ');
+}
+
+/** Knowledge page for the meeting's project or first known attendee; otherwise ask OllieOS. */
+function briefHref(e: CalendarEvent): string {
+  if (e.project) return '/knowledge/projects/' + e.project.slug;
+  if (e.people[0]) return '/knowledge/people/' + e.people[0].slug;
+  return '/ask?q=' + encodeURIComponent('Brief me for ' + e.title);
 }
 
 /** Access requests from AI tools, answered straight from the status line (PRD 10, rule 3). */
@@ -104,7 +124,7 @@ export default function HomePage() {
     <>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} data-testid="text-last-sweep">
         <span aria-hidden="true" className="oo-dot" data-off={!home.data.lastSweepAt} />
-        {home.data.lastSweepAt ? 'Last sweep ' + formatTime(home.data.lastSweepAt) : 'No sweep has run yet'}
+        {home.data.lastSweepAt ? 'Last sweep ' + sweepWhen(home.data.lastSweepAt) : 'No sweep has run yet'}
       </span>
       <span aria-hidden="true" className="oo-t4">·</span>
       <span data-testid="text-inbox-new">{home.data.inbox.count} new</span>
@@ -281,7 +301,12 @@ function TodayStrip({ events }: { events: CalendarEvent[] }) {
                 {e.id === nextId && <span className="oo-next-badge">Next</span>}
               </div>
               <span style={{ fontSize: 14, fontWeight: 500 }}>{e.title}</span>
-              <span className="oo-t2" style={{ fontSize: 12 }}>{e.personal ? 'Personal' : e.location ?? ''}</span>
+              {eventLine(e) && <span className="oo-t2" style={{ fontSize: 12 }} data-testid={'text-event-who-' + e.id}>{eventLine(e)}</span>}
+              {e.id === nextId && !e.personal && (
+                <Link href={briefHref(e)} className="oo-amber" style={{ fontSize: 12, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }} data-testid={'link-brief-' + e.id}>
+                  Brief me <IconArrowOut size={12} />
+                </Link>
+              )}
             </div>
           ))}
         </div>
@@ -300,7 +325,14 @@ function TodayPhone({ events }: { events: CalendarEvent[] }) {
       ) : events.map((e) => (
         <div key={e.id} style={{ display: 'flex', gap: 12 }} data-testid={'row-event-' + e.id}>
           <span className={'oo-num ' + (e.id === nextId ? 'oo-amber' : 'oo-t2')} style={{ flex: 'none', width: 46, fontSize: 13 }}>{formatTime(e.startsAt)}</span>
-          <span style={{ fontSize: 14, fontWeight: e.id === nextId ? 500 : 400 }}>{e.title}{e.location ? ' · ' + e.location : ''}</span>
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 14, fontWeight: e.id === nextId ? 500 : 400 }}>{e.title}{e.project ? ' · ' + e.project.name : e.location ? ' · ' + e.location : ''}</span>
+            {e.id === nextId && !e.personal && (
+              <Link href={briefHref(e)} className="oo-amber" style={{ fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, minHeight: 24 }} data-testid={'link-brief-' + e.id}>
+                Brief me <IconArrowOut size={12} />
+              </Link>
+            )}
+          </span>
         </div>
       ))}
     </section>

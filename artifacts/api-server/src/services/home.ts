@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
-import { calendarEventsTable, db, sweepRunsTable, tasksTable } from "@workspace/db";
+import { calendarEventsTable, db, peopleTable, projectsTable, sweepRunsTable, tasksTable } from "@workspace/db";
 import {
   OPEN_STATUSES,
   daysBetween,
@@ -104,7 +104,8 @@ export async function getHome() {
       db
         .select({ finishedAt: sweepRunsTable.finishedAt })
         .from(sweepRunsTable)
-        .where(isNotNull(sweepRunsTable.finishedAt))
+        // The last clean sweep, the same run the sweep's cursor uses.
+        .where(and(isNotNull(sweepRunsTable.finishedAt), sql`jsonb_array_length(${sweepRunsTable.errors}) = 0`))
         .orderBy(desc(sweepRunsTable.finishedAt))
         .limit(1),
       db
@@ -113,6 +114,19 @@ export async function getHome() {
         .where(and(gte(calendarEventsTable.startsAt, day.start), lt(calendarEventsTable.startsAt, day.end)))
         .orderBy(asc(calendarEventsTable.startsAt)),
     ]);
+
+  const personIds = [...new Set(todayEvents.flatMap((e) => e.personIds))];
+  const projectIds = [...new Set(todayEvents.map((e) => e.projectId).filter((x): x is number => x != null))];
+  const [eventPeople, eventProjects] = await Promise.all([
+    personIds.length
+      ? db.select({ id: peopleTable.id, name: peopleTable.name, slug: peopleTable.slug }).from(peopleTable).where(inArray(peopleTable.id, personIds))
+      : [],
+    projectIds.length
+      ? db.select({ id: projectsTable.id, name: projectsTable.name, slug: projectsTable.slug }).from(projectsTable).where(inArray(projectsTable.id, projectIds))
+      : [],
+  ]);
+  const personById = new Map(eventPeople.map((p) => [p.id, { name: p.name, slug: p.slug }]));
+  const projectById = new Map(eventProjects.map((p) => [p.id, { name: p.name, slug: p.slug }]));
 
   const [candidates, waiting, promises, latestDone, access] = await Promise.all([
     toTaskViews(candidateRows),
@@ -147,6 +161,9 @@ export async function getHome() {
       endsAt: e.endsAt,
       personal: e.personal,
       location: e.location,
+      attendees: e.attendees,
+      people: e.personIds.map((id) => personById.get(id)).filter((p): p is { name: string; slug: string } => !!p),
+      project: e.projectId != null ? projectById.get(e.projectId) ?? null : null,
     })),
     access: { pending: access.pending, open: access.open },
   };
