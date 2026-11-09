@@ -381,6 +381,588 @@ export interface WeeklyUpdate {
   weekStart: string;
 }
 
+export interface ProjectListItem {
+  id: number;
+  name: string;
+  slug: string;
+  confidential: boolean;
+  aiAccess: boolean;
+  /** @nullable */
+  area: string | null;
+  /** @nullable */
+  status: string | null;
+  openTaskCount: number;
+  updatedAt: string;
+}
+
+export interface Project {
+  id: number;
+  name: string;
+  slug: string;
+  /** @nullable */
+  area: string | null;
+  /** @nullable */
+  status: string | null;
+  /** @nullable */
+  summary: string | null;
+  confidential: boolean;
+  /** Readable by AI. Has no effect while confidential is on. */
+  aiAccess: boolean;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /** @nullable */
+  area?: string | null;
+  /** @nullable */
+  status?: string | null;
+  /** @nullable */
+  summary?: string | null;
+  confidential?: boolean;
+  aiAccess?: boolean;
+}
+
+export interface ProjectUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name?: string;
+  /** @nullable */
+  area?: string | null;
+  /** @nullable */
+  status?: string | null;
+  /** @nullable */
+  summary?: string | null;
+  confidential?: boolean;
+  aiAccess?: boolean;
+  archived?: boolean;
+}
+
+export interface LinkedEntity {
+  id: number;
+  name: string;
+  slug: string;
+  confidential: boolean;
+  /** True when joined by a link Ollie can remove */
+  linked: boolean;
+}
+
+export interface PersonChip {
+  id: number;
+  name: string;
+  slug: string;
+  confidential: boolean;
+  /** @nullable */
+  role: string | null;
+  /** @nullable */
+  organisationName: string | null;
+  linked: boolean;
+}
+
+export interface FactVersion {
+  id: number;
+  text: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface Fact {
+  id: number;
+  entityType: string;
+  entityId: number;
+  text: string;
+  /** @nullable */
+  source: string | null;
+  createdBy: string;
+  createdAt: string;
+  /** Earlier versions this fact replaced, newest first */
+  history: FactVersion[];
+}
+
+export type FactInputEntityType = typeof FactInputEntityType[keyof typeof FactInputEntityType];
+
+
+export const FactInputEntityType = {
+  project: 'project',
+  person: 'person',
+  organisation: 'organisation',
+} as const;
+
+export interface FactInput {
+  entityType: FactInputEntityType;
+  entityId: number;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  text: string;
+  /** @nullable */
+  source?: string | null;
+}
+
+export interface FactSupersede {
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  text: string;
+  /** @nullable */
+  source?: string | null;
+}
+
+export interface Decision {
+  id: number;
+  text: string;
+  decidedAt: string;
+  /** @nullable */
+  decidedBy: string | null;
+  /** @nullable */
+  source: string | null;
+  /**
+     * null means it follows its project
+     * @nullable
+     */
+  confidential: boolean | null;
+  hiddenFromAi: boolean;
+  project: EntitySummary;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface DecisionInput {
+  projectId: number;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  text: string;
+  decidedAt: string;
+  /** @nullable */
+  decidedBy?: string | null;
+  /** @nullable */
+  source?: string | null;
+  /** @nullable */
+  confidential?: boolean | null;
+}
+
+export interface DecisionUpdate {
+  projectId?: number;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  text?: string;
+  decidedAt?: string;
+  /** @nullable */
+  decidedBy?: string | null;
+  /** @nullable */
+  source?: string | null;
+  /** @nullable */
+  confidential?: boolean | null;
+}
+
+export interface EntityRef {
+  type: string;
+  id: number;
+  name: string;
+  /** @nullable */
+  slug: string | null;
+}
+
+export interface Note {
+  id: number;
+  /** @nullable */
+  title: string | null;
+  body: string;
+  /**
+     * null means it follows what it is attached to
+     * @nullable
+     */
+  confidential: boolean | null;
+  hiddenFromAi: boolean;
+  entity: EntityRef;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type NoteInputEntityType = typeof NoteInputEntityType[keyof typeof NoteInputEntityType];
+
+
+export const NoteInputEntityType = {
+  project: 'project',
+  person: 'person',
+  organisation: 'organisation',
+  task: 'task',
+  decision: 'decision',
+} as const;
+
+export interface NoteInput {
+  entityType: NoteInputEntityType;
+  entityId: number;
+  /** @nullable */
+  title?: string | null;
+  /** @minLength 1 */
+  body: string;
+  /** @nullable */
+  confidential?: boolean | null;
+}
+
+export interface NoteUpdate {
+  /** @nullable */
+  title?: string | null;
+  /** @minLength 1 */
+  body?: string;
+  /** @nullable */
+  confidential?: boolean | null;
+}
+
+export interface TimelineItem {
+  key: string;
+  kind: string;
+  label: string;
+  text: string;
+  at: string;
+  /**
+     * Item to open, as type:id
+     * @nullable
+     */
+  ref: string | null;
+  /** @nullable */
+  sourceUrl: string | null;
+}
+
+export interface ProjectDetail {
+  project: Project;
+  facts: Fact[];
+  decisions: Decision[];
+  openTasks: Task[];
+  people: PersonChip[];
+  organisations: LinkedEntity[];
+  notes: Note[];
+  activity: TimelineItem[];
+}
+
+export interface PersonListItem {
+  id: number;
+  name: string;
+  slug: string;
+  confidential: boolean;
+  aiAccess: boolean;
+  /** @nullable */
+  role: string | null;
+  organisation: EntitySummary | null;
+  /** @nullable */
+  lastContactAt: string | null;
+  iOweCount: number;
+  theyOweCount: number;
+}
+
+export interface Person {
+  id: number;
+  name: string;
+  slug: string;
+  /** @nullable */
+  role: string | null;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  relationshipSummary: string | null;
+  confidential: boolean;
+  aiAccess: boolean;
+  /** @nullable */
+  lastContactAt: string | null;
+  organisation: EntitySummary | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersonInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /** @nullable */
+  organisationId?: number | null;
+  /** @nullable */
+  role?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  relationshipSummary?: string | null;
+  confidential?: boolean;
+  aiAccess?: boolean;
+}
+
+export interface PersonUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name?: string;
+  /** @nullable */
+  organisationId?: number | null;
+  /** @nullable */
+  role?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  relationshipSummary?: string | null;
+  confidential?: boolean;
+  aiAccess?: boolean;
+}
+
+export interface PersonDetail {
+  person: Person;
+  iOwe: Task[];
+  theyOwe: Task[];
+  projects: LinkedEntity[];
+  facts: Fact[];
+  notes: Note[];
+  timeline: TimelineItem[];
+}
+
+export interface OrganisationListItem {
+  id: number;
+  name: string;
+  slug: string;
+  confidential: boolean;
+  aiAccess: boolean;
+  /** @nullable */
+  type: string | null;
+  peopleCount: number;
+}
+
+export interface Organisation {
+  id: number;
+  name: string;
+  slug: string;
+  /** @nullable */
+  type: string | null;
+  /** @nullable */
+  summary: string | null;
+  confidential: boolean;
+  aiAccess: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrganisationInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /** @nullable */
+  type?: string | null;
+  /** @nullable */
+  summary?: string | null;
+  confidential?: boolean;
+  aiAccess?: boolean;
+}
+
+export interface OrganisationUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name?: string;
+  /** @nullable */
+  type?: string | null;
+  /** @nullable */
+  summary?: string | null;
+  confidential?: boolean;
+  aiAccess?: boolean;
+}
+
+export interface OrganisationDetail {
+  organisation: Organisation;
+  people: PersonChip[];
+  projects: LinkedEntity[];
+  facts: Fact[];
+  notes: Note[];
+  timeline: TimelineItem[];
+}
+
+export type Linkable = typeof Linkable[keyof typeof Linkable];
+
+
+export const Linkable = {
+  task: 'task',
+  project: 'project',
+  person: 'person',
+  organisation: 'organisation',
+  decision: 'decision',
+  note: 'note',
+} as const;
+
+export interface LinkInput {
+  fromType: Linkable;
+  fromId: number;
+  toType: Linkable;
+  toId: number;
+}
+
+export interface LinkResult {
+  linked: boolean;
+}
+
+export type SearchHitType = typeof SearchHitType[keyof typeof SearchHitType];
+
+
+export const SearchHitType = {
+  task: 'task',
+  project: 'project',
+  person: 'person',
+  organisation: 'organisation',
+  decision: 'decision',
+  note: 'note',
+  fact: 'fact',
+} as const;
+
+export interface SearchHit {
+  type: SearchHitType;
+  id: number;
+  title: string;
+  /** @nullable */
+  snippet: string | null;
+  /** @nullable */
+  slug: string | null;
+  /** @nullable */
+  status: string | null;
+  hiddenFromAi: boolean;
+  parent: EntityRef | null;
+}
+
+export interface SearchResult {
+  q: string;
+  hits: SearchHit[];
+}
+
+export interface AskThreadSummary {
+  id: number;
+  question: string;
+  createdAt: string;
+}
+
+export interface AskInput {
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  question: string;
+  /** @nullable */
+  parentId?: number | null;
+}
+
+export interface SourceChip {
+  ref: string;
+  type: string;
+  label: string;
+  /** @nullable */
+  path: string | null;
+  confidential: boolean;
+}
+
+export type AskBadgeTone = typeof AskBadgeTone[keyof typeof AskBadgeTone];
+
+
+export const AskBadgeTone = {
+  high: 'high',
+  neutral: 'neutral',
+  done: 'done',
+} as const;
+
+export interface AskBadge {
+  label: string;
+  tone: AskBadgeTone;
+}
+
+export interface AskItem {
+  text: string;
+  sources: SourceChip[];
+  badge: AskBadge | null;
+}
+
+export interface AskDraft {
+  /** @nullable */
+  to: string | null;
+  text: string;
+}
+
+export interface AskBundle {
+  task: Task | null;
+  title: string;
+  undone: boolean;
+  canUndo: boolean;
+}
+
+export type AskTurnStatus = typeof AskTurnStatus[keyof typeof AskTurnStatus];
+
+
+export const AskTurnStatus = {
+  answered: 'answered',
+  not_found: 'not_found',
+} as const;
+
+export interface AskTurn {
+  id: number;
+  /** @nullable */
+  parentId: number | null;
+  question: string;
+  createdAt: string;
+  /** @nullable */
+  model: string | null;
+  status: AskTurnStatus;
+  summary: string;
+  items: AskItem[];
+  related: SourceChip[];
+  sourceCount: number;
+  /** Items hidden from AI also matched the question and were not used */
+  hiddenMatches: boolean;
+  usedConfidential: boolean;
+  /** @nullable */
+  draftTo: string | null;
+  draft: AskDraft | null;
+  /** @nullable */
+  bundleTitle: string | null;
+  canBundle: boolean;
+  bundle: AskBundle | null;
+}
+
+export interface AskThread {
+  turns: AskTurn[];
+}
+
+export interface AskResult {
+  id: number;
+  turns: AskTurn[];
+}
+
+export interface BundleInput {
+  /** @maxLength 500 */
+  title?: string;
+}
+
+export interface BundleResult {
+  taskId: number;
+  turns: AskTurn[];
+}
+
+/**
+ * Invalid input, not found, conflict or upstream failure
+ */
+export type ErrorResponse = ErrorEnvelope;
+
 /**
  * Signed out, or signed in with an email that is not allowlisted
  */
@@ -431,5 +1013,25 @@ weekStart?: string;
 
 export type GetWeeklyUpdateParams = {
 weekStart?: string;
+};
+
+export type ListProjectsParams = {
+includeArchived?: ListProjectsIncludeArchived;
+};
+
+export type ListProjectsIncludeArchived = typeof ListProjectsIncludeArchived[keyof typeof ListProjectsIncludeArchived];
+
+
+export const ListProjectsIncludeArchived = {
+  true: 'true',
+  false: 'false',
+} as const;
+
+export type SearchKnowledgeParams = {
+q: string;
+/**
+ * Comma-separated list of task, project, person, organisation, decision, note, fact
+ */
+types?: string;
 };
 

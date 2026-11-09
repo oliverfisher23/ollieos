@@ -1021,26 +1021,1600 @@ export const UpdateNoiseRuleResponse = zod.object({
 
 
 /**
- * @summary All people, for the For and Waiting on pickers
+ * @summary Projects with open task counts, for the Knowledge sidebar and pickers
+ */
+export const ListProjectsQueryParams = zod.object({
+  "includeArchived": zod.enum(['true', 'false']).optional()
+})
+
+export const ListProjectsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "area": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "openTaskCount": zod.number().int(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListProjectsResponse = zod.array(ListProjectsResponseItem)
+
+
+/**
+ * @summary New project
+ */
+export const createProjectBodyNameMax = 200;
+
+
+
+export const CreateProjectBody = zod.object({
+  "name": zod.string().min(1).max(createProjectBodyNameMax),
+  "area": zod.string().nullish(),
+  "status": zod.string().nullish(),
+  "summary": zod.string().nullish(),
+  "confidential": zod.boolean().optional(),
+  "aiAccess": zod.boolean().optional()
+})
+
+export const CreateProjectResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "area": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean().describe('Readable by AI. Has no effect while confidential is on.'),
+  "archived": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Project page
+ */
+export const GetProjectParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const GetProjectResponse = zod.object({
+  "project": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "area": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean().describe('Readable by AI. Has no effect while confidential is on.'),
+  "archived": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "facts": zod.array(zod.object({
+  "id": zod.number().int(),
+  "entityType": zod.string(),
+  "entityId": zod.number().int(),
+  "text": zod.string(),
+  "source": zod.string().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "history": zod.array(zod.object({
+  "id": zod.number().int(),
+  "text": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "createdBy": zod.string()
+})).describe('Earlier versions this fact replaced, newest first')
+})),
+  "decisions": zod.array(zod.object({
+  "id": zod.number().int(),
+  "text": zod.string(),
+  "decidedAt": zod.coerce.date(),
+  "decidedBy": zod.string().nullable(),
+  "source": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means it follows its project'),
+  "hiddenFromAi": zod.boolean(),
+  "project": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
+  "openTasks": zod.array(zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
+})),
+  "people": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "role": zod.string().nullable(),
+  "organisationName": zod.string().nullable(),
+  "linked": zod.boolean()
+})),
+  "organisations": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "linked": zod.boolean().describe('True when joined by a link Ollie can remove')
+})),
+  "notes": zod.array(zod.object({
+  "id": zod.number().int(),
+  "title": zod.string().nullable(),
+  "body": zod.string(),
+  "confidential": zod.boolean().nullable().describe('null means it follows what it is attached to'),
+  "hiddenFromAi": zod.boolean(),
+  "entity": zod.object({
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string().nullable()
+}),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "activity": zod.array(zod.object({
+  "key": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "text": zod.string(),
+  "at": zod.coerce.date(),
+  "ref": zod.string().nullable().describe('Item to open, as type:id'),
+  "sourceUrl": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Edit a project, including its AI access switches
+ */
+export const UpdateProjectParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const updateProjectBodyNameMax = 200;
+
+
+
+export const UpdateProjectBody = zod.object({
+  "name": zod.string().min(1).max(updateProjectBodyNameMax).optional(),
+  "area": zod.string().nullish(),
+  "status": zod.string().nullish(),
+  "summary": zod.string().nullish(),
+  "confidential": zod.boolean().optional(),
+  "aiAccess": zod.boolean().optional(),
+  "archived": zod.boolean().optional()
+})
+
+export const UpdateProjectResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "area": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean().describe('Readable by AI. Has no effect while confidential is on.'),
+  "archived": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary People with what is open between Ollie and each of them
  */
 export const ListPeopleResponseItem = zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "role": zod.string().nullable(),
+  "organisation": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
   "confidential": zod.boolean()
+}),zod.null()]),
+  "lastContactAt": zod.coerce.date().nullable(),
+  "iOweCount": zod.number().int(),
+  "theyOweCount": zod.number().int()
 })
 export const ListPeopleResponse = zod.array(ListPeopleResponseItem)
 
 
 /**
- * @summary All projects, for the Project picker and quick add @slug matching
+ * @summary New person
  */
-export const ListProjectsResponseItem = zod.object({
+export const createPersonBodyNameMax = 200;
+
+
+
+export const CreatePersonBody = zod.object({
+  "name": zod.string().min(1).max(createPersonBodyNameMax),
+  "organisationId": zod.number().int().nullish(),
+  "role": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "relationshipSummary": zod.string().nullish(),
+  "confidential": zod.boolean().optional(),
+  "aiAccess": zod.boolean().optional()
+})
+
+export const CreatePersonResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "relationshipSummary": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "lastContactAt": zod.coerce.date().nullable(),
+  "organisation": zod.union([zod.object({
   "id": zod.number().int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
 })
-export const ListProjectsResponse = zod.array(ListProjectsResponseItem)
+
+
+/**
+ * @summary Person page
+ */
+export const GetPersonParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const GetPersonResponse = zod.object({
+  "person": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "relationshipSummary": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "lastContactAt": zod.coerce.date().nullable(),
+  "organisation": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "iOwe": zod.array(zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
+})),
+  "theyOwe": zod.array(zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
+})),
+  "projects": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "linked": zod.boolean().describe('True when joined by a link Ollie can remove')
+})),
+  "facts": zod.array(zod.object({
+  "id": zod.number().int(),
+  "entityType": zod.string(),
+  "entityId": zod.number().int(),
+  "text": zod.string(),
+  "source": zod.string().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "history": zod.array(zod.object({
+  "id": zod.number().int(),
+  "text": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "createdBy": zod.string()
+})).describe('Earlier versions this fact replaced, newest first')
+})),
+  "notes": zod.array(zod.object({
+  "id": zod.number().int(),
+  "title": zod.string().nullable(),
+  "body": zod.string(),
+  "confidential": zod.boolean().nullable().describe('null means it follows what it is attached to'),
+  "hiddenFromAi": zod.boolean(),
+  "entity": zod.object({
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string().nullable()
+}),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "timeline": zod.array(zod.object({
+  "key": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "text": zod.string(),
+  "at": zod.coerce.date(),
+  "ref": zod.string().nullable().describe('Item to open, as type:id'),
+  "sourceUrl": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Edit a person
+ */
+export const UpdatePersonParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const updatePersonBodyNameMax = 200;
+
+
+
+export const UpdatePersonBody = zod.object({
+  "name": zod.string().min(1).max(updatePersonBodyNameMax).optional(),
+  "organisationId": zod.number().int().nullish(),
+  "role": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "relationshipSummary": zod.string().nullish(),
+  "confidential": zod.boolean().optional(),
+  "aiAccess": zod.boolean().optional()
+})
+
+export const UpdatePersonResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "relationshipSummary": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "lastContactAt": zod.coerce.date().nullable(),
+  "organisation": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Organisations
+ */
+export const ListOrganisationsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "type": zod.string().nullable(),
+  "peopleCount": zod.number().int()
+})
+export const ListOrganisationsResponse = zod.array(ListOrganisationsResponseItem)
+
+
+/**
+ * @summary New organisation
+ */
+export const createOrganisationBodyNameMax = 200;
+
+
+
+export const CreateOrganisationBody = zod.object({
+  "name": zod.string().min(1).max(createOrganisationBodyNameMax),
+  "type": zod.string().nullish(),
+  "summary": zod.string().nullish(),
+  "confidential": zod.boolean().optional(),
+  "aiAccess": zod.boolean().optional()
+})
+
+export const CreateOrganisationResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "type": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Organisation page
+ */
+export const GetOrganisationParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const GetOrganisationResponse = zod.object({
+  "organisation": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "type": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "people": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "role": zod.string().nullable(),
+  "organisationName": zod.string().nullable(),
+  "linked": zod.boolean()
+})),
+  "projects": zod.array(zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "linked": zod.boolean().describe('True when joined by a link Ollie can remove')
+})),
+  "facts": zod.array(zod.object({
+  "id": zod.number().int(),
+  "entityType": zod.string(),
+  "entityId": zod.number().int(),
+  "text": zod.string(),
+  "source": zod.string().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "history": zod.array(zod.object({
+  "id": zod.number().int(),
+  "text": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "createdBy": zod.string()
+})).describe('Earlier versions this fact replaced, newest first')
+})),
+  "notes": zod.array(zod.object({
+  "id": zod.number().int(),
+  "title": zod.string().nullable(),
+  "body": zod.string(),
+  "confidential": zod.boolean().nullable().describe('null means it follows what it is attached to'),
+  "hiddenFromAi": zod.boolean(),
+  "entity": zod.object({
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string().nullable()
+}),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "timeline": zod.array(zod.object({
+  "key": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string(),
+  "text": zod.string(),
+  "at": zod.coerce.date(),
+  "ref": zod.string().nullable().describe('Item to open, as type:id'),
+  "sourceUrl": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Edit an organisation
+ */
+export const UpdateOrganisationParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const updateOrganisationBodyNameMax = 200;
+
+
+
+export const UpdateOrganisationBody = zod.object({
+  "name": zod.string().min(1).max(updateOrganisationBodyNameMax).optional(),
+  "type": zod.string().nullish(),
+  "summary": zod.string().nullish(),
+  "confidential": zod.boolean().optional(),
+  "aiAccess": zod.boolean().optional()
+})
+
+export const UpdateOrganisationResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "type": zod.string().nullable(),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary All decisions, newest first
+ */
+export const ListDecisionsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "text": zod.string(),
+  "decidedAt": zod.coerce.date(),
+  "decidedBy": zod.string().nullable(),
+  "source": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means it follows its project'),
+  "hiddenFromAi": zod.boolean(),
+  "project": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListDecisionsResponse = zod.array(ListDecisionsResponseItem)
+
+
+/**
+ * @summary Record a decision on a project
+ */
+export const createDecisionBodyTextMax = 5000;
+
+
+
+export const CreateDecisionBody = zod.object({
+  "projectId": zod.number().int(),
+  "text": zod.string().min(1).max(createDecisionBodyTextMax),
+  "decidedAt": zod.coerce.date(),
+  "decidedBy": zod.string().nullish(),
+  "source": zod.string().nullish(),
+  "confidential": zod.boolean().nullish()
+})
+
+export const CreateDecisionResponse = zod.object({
+  "id": zod.number().int(),
+  "text": zod.string(),
+  "decidedAt": zod.coerce.date(),
+  "decidedBy": zod.string().nullable(),
+  "source": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means it follows its project'),
+  "hiddenFromAi": zod.boolean(),
+  "project": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary One decision
+ */
+export const GetDecisionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetDecisionResponse = zod.object({
+  "id": zod.number().int(),
+  "text": zod.string(),
+  "decidedAt": zod.coerce.date(),
+  "decidedBy": zod.string().nullable(),
+  "source": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means it follows its project'),
+  "hiddenFromAi": zod.boolean(),
+  "project": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Edit a decision
+ */
+export const UpdateDecisionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateDecisionBodyTextMax = 5000;
+
+
+
+export const UpdateDecisionBody = zod.object({
+  "projectId": zod.number().int().optional(),
+  "text": zod.string().min(1).max(updateDecisionBodyTextMax).optional(),
+  "decidedAt": zod.coerce.date().optional(),
+  "decidedBy": zod.string().nullish(),
+  "source": zod.string().nullish(),
+  "confidential": zod.boolean().nullish()
+})
+
+export const UpdateDecisionResponse = zod.object({
+  "id": zod.number().int(),
+  "text": zod.string(),
+  "decidedAt": zod.coerce.date(),
+  "decidedBy": zod.string().nullable(),
+  "source": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means it follows its project'),
+  "hiddenFromAi": zod.boolean(),
+  "project": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary All notes, most recently updated first
+ */
+export const ListNotesResponseItem = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string().nullable(),
+  "body": zod.string(),
+  "confidential": zod.boolean().nullable().describe('null means it follows what it is attached to'),
+  "hiddenFromAi": zod.boolean(),
+  "entity": zod.object({
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string().nullable()
+}),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListNotesResponse = zod.array(ListNotesResponseItem)
+
+
+/**
+ * @summary Add a note to a project, person, organisation, task or decision
+ */
+
+
+
+export const CreateNoteBody = zod.object({
+  "entityType": zod.enum(['project', 'person', 'organisation', 'task', 'decision']),
+  "entityId": zod.number().int(),
+  "title": zod.string().nullish(),
+  "body": zod.string().min(1),
+  "confidential": zod.boolean().nullish()
+})
+
+export const CreateNoteResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string().nullable(),
+  "body": zod.string(),
+  "confidential": zod.boolean().nullable().describe('null means it follows what it is attached to'),
+  "hiddenFromAi": zod.boolean(),
+  "entity": zod.object({
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string().nullable()
+}),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary One note
+ */
+export const GetNoteParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetNoteResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string().nullable(),
+  "body": zod.string(),
+  "confidential": zod.boolean().nullable().describe('null means it follows what it is attached to'),
+  "hiddenFromAi": zod.boolean(),
+  "entity": zod.object({
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string().nullable()
+}),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Edit a note
+ */
+export const UpdateNoteParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+
+
+
+export const UpdateNoteBody = zod.object({
+  "title": zod.string().nullish(),
+  "body": zod.string().min(1).optional(),
+  "confidential": zod.boolean().nullish()
+})
+
+export const UpdateNoteResponse = zod.object({
+  "id": zod.number().int(),
+  "title": zod.string().nullable(),
+  "body": zod.string(),
+  "confidential": zod.boolean().nullable().describe('null means it follows what it is attached to'),
+  "hiddenFromAi": zod.boolean(),
+  "entity": zod.object({
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string().nullable()
+}),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Add a key fact
+ */
+export const createFactBodyTextMax = 2000;
+
+
+
+export const CreateFactBody = zod.object({
+  "entityType": zod.enum(['project', 'person', 'organisation']),
+  "entityId": zod.number().int(),
+  "text": zod.string().min(1).max(createFactBodyTextMax),
+  "source": zod.string().nullish()
+})
+
+export const CreateFactResponse = zod.object({
+  "id": zod.number().int(),
+  "entityType": zod.string(),
+  "entityId": zod.number().int(),
+  "text": zod.string(),
+  "source": zod.string().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "history": zod.array(zod.object({
+  "id": zod.number().int(),
+  "text": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "createdBy": zod.string()
+})).describe('Earlier versions this fact replaced, newest first')
+})
+
+
+/**
+ * @summary Replace a fact with new text. The old version is kept and linked.
+ */
+export const SupersedeFactParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const supersedeFactBodyTextMax = 2000;
+
+
+
+export const SupersedeFactBody = zod.object({
+  "text": zod.string().min(1).max(supersedeFactBodyTextMax),
+  "source": zod.string().nullish()
+})
+
+export const SupersedeFactResponse = zod.object({
+  "id": zod.number().int(),
+  "entityType": zod.string(),
+  "entityId": zod.number().int(),
+  "text": zod.string(),
+  "source": zod.string().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "history": zod.array(zod.object({
+  "id": zod.number().int(),
+  "text": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "createdBy": zod.string()
+})).describe('Earlier versions this fact replaced, newest first')
+})
+
+
+/**
+ * @summary Link two items
+ */
+export const CreateLinkBody = zod.object({
+  "fromType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note']),
+  "fromId": zod.number().int(),
+  "toType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note']),
+  "toId": zod.number().int()
+})
+
+export const CreateLinkResponse = zod.object({
+  "linked": zod.boolean()
+})
+
+
+/**
+ * @summary Remove a link between two items
+ */
+export const RemoveLinkBody = zod.object({
+  "fromType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note']),
+  "fromId": zod.number().int(),
+  "toType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note']),
+  "toId": zod.number().int()
+})
+
+export const RemoveLinkResponse = zod.object({
+  "linked": zod.boolean()
+})
+
+
+/**
+ * @summary Search tasks and Knowledge. Ollie sees everything; hidden-from-AI items are marked.
+ */
+export const SearchKnowledgeQueryParams = zod.object({
+  "q": zod.coerce.string(),
+  "types": zod.coerce.string().optional().describe('Comma-separated list of task, project, person, organisation, decision, note, fact')
+})
+
+export const SearchKnowledgeResponse = zod.object({
+  "q": zod.string(),
+  "hits": zod.array(zod.object({
+  "type": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note', 'fact']),
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "snippet": zod.string().nullable(),
+  "slug": zod.string().nullable(),
+  "status": zod.string().nullable(),
+  "hiddenFromAi": zod.boolean(),
+  "parent": zod.union([zod.object({
+  "type": zod.string(),
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string().nullable()
+}),zod.null()])
+}))
+})
+
+
+/**
+ * @summary Recent questions
+ */
+export const ListAskThreadsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "question": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListAskThreadsResponse = zod.array(ListAskThreadsResponseItem)
+
+
+/**
+ * @summary Ask a question, or a follow-up when parentId is set. Answers only from items AI may read.
+ */
+export const askOllieOSBodyQuestionMax = 1000;
+
+
+
+export const AskOllieOSBody = zod.object({
+  "question": zod.string().min(1).max(askOllieOSBodyQuestionMax),
+  "parentId": zod.number().int().nullish()
+})
+
+export const AskOllieOSResponse = zod.object({
+  "id": zod.number().int(),
+  "turns": zod.array(zod.object({
+  "id": zod.number().int(),
+  "parentId": zod.number().int().nullable(),
+  "question": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "model": zod.string().nullable(),
+  "status": zod.enum(['answered', 'not_found']),
+  "summary": zod.string(),
+  "items": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "badge": zod.union([zod.object({
+  "label": zod.string(),
+  "tone": zod.enum(['high', 'neutral', 'done'])
+}),zod.null()])
+})),
+  "related": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "sourceCount": zod.number().int(),
+  "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
+  "usedConfidential": zod.boolean(),
+  "draftTo": zod.string().nullable(),
+  "draft": zod.union([zod.object({
+  "to": zod.string().nullable(),
+  "text": zod.string()
+}),zod.null()]),
+  "bundleTitle": zod.string().nullable(),
+  "canBundle": zod.boolean(),
+  "bundle": zod.union([zod.object({
+  "task": zod.union([zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]),
+  "title": zod.string(),
+  "undone": zod.boolean(),
+  "canUndo": zod.boolean()
+}),zod.null()])
+}))
+})
+
+
+/**
+ * @summary A conversation, from its first question to the latest follow-up
+ */
+export const GetAskThreadParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetAskThreadResponse = zod.object({
+  "turns": zod.array(zod.object({
+  "id": zod.number().int(),
+  "parentId": zod.number().int().nullable(),
+  "question": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "model": zod.string().nullable(),
+  "status": zod.enum(['answered', 'not_found']),
+  "summary": zod.string(),
+  "items": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "badge": zod.union([zod.object({
+  "label": zod.string(),
+  "tone": zod.enum(['high', 'neutral', 'done'])
+}),zod.null()])
+})),
+  "related": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "sourceCount": zod.number().int(),
+  "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
+  "usedConfidential": zod.boolean(),
+  "draftTo": zod.string().nullable(),
+  "draft": zod.union([zod.object({
+  "to": zod.string().nullable(),
+  "text": zod.string()
+}),zod.null()]),
+  "bundleTitle": zod.string().nullable(),
+  "canBundle": zod.boolean(),
+  "bundle": zod.union([zod.object({
+  "task": zod.union([zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]),
+  "title": zod.string(),
+  "undone": zod.boolean(),
+  "canUndo": zod.boolean()
+}),zod.null()])
+}))
+})
+
+
+/**
+ * @summary Draft a reply from an answer. Never sent.
+ */
+export const DraftAskReplyParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DraftAskReplyResponse = zod.object({
+  "turns": zod.array(zod.object({
+  "id": zod.number().int(),
+  "parentId": zod.number().int().nullable(),
+  "question": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "model": zod.string().nullable(),
+  "status": zod.enum(['answered', 'not_found']),
+  "summary": zod.string(),
+  "items": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "badge": zod.union([zod.object({
+  "label": zod.string(),
+  "tone": zod.enum(['high', 'neutral', 'done'])
+}),zod.null()])
+})),
+  "related": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "sourceCount": zod.number().int(),
+  "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
+  "usedConfidential": zod.boolean(),
+  "draftTo": zod.string().nullable(),
+  "draft": zod.union([zod.object({
+  "to": zod.string().nullable(),
+  "text": zod.string()
+}),zod.null()]),
+  "bundleTitle": zod.string().nullable(),
+  "canBundle": zod.boolean(),
+  "bundle": zod.union([zod.object({
+  "task": zod.union([zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]),
+  "title": zod.string(),
+  "undone": zod.boolean(),
+  "canUndo": zod.boolean()
+}),zod.null()])
+}))
+})
+
+
+/**
+ * @summary Turn the open tasks in an answer into one task
+ */
+export const BundleAskTasksParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const bundleAskTasksBodyTitleMax = 500;
+
+
+
+export const BundleAskTasksBody = zod.object({
+  "title": zod.string().max(bundleAskTasksBodyTitleMax).optional()
+})
+
+export const BundleAskTasksResponse = zod.object({
+  "taskId": zod.number().int(),
+  "turns": zod.array(zod.object({
+  "id": zod.number().int(),
+  "parentId": zod.number().int().nullable(),
+  "question": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "model": zod.string().nullable(),
+  "status": zod.enum(['answered', 'not_found']),
+  "summary": zod.string(),
+  "items": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "badge": zod.union([zod.object({
+  "label": zod.string(),
+  "tone": zod.enum(['high', 'neutral', 'done'])
+}),zod.null()])
+})),
+  "related": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "sourceCount": zod.number().int(),
+  "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
+  "usedConfidential": zod.boolean(),
+  "draftTo": zod.string().nullable(),
+  "draft": zod.union([zod.object({
+  "to": zod.string().nullable(),
+  "text": zod.string()
+}),zod.null()]),
+  "bundleTitle": zod.string().nullable(),
+  "canBundle": zod.boolean(),
+  "bundle": zod.union([zod.object({
+  "task": zod.union([zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]),
+  "title": zod.string(),
+  "undone": zod.boolean(),
+  "canUndo": zod.boolean()
+}),zod.null()])
+}))
+})
+
+
+/**
+ * @summary Put the original tasks back and remove the bundled one
+ */
+export const UndoAskBundleParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UndoAskBundleResponse = zod.object({
+  "turns": zod.array(zod.object({
+  "id": zod.number().int(),
+  "parentId": zod.number().int().nullable(),
+  "question": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "model": zod.string().nullable(),
+  "status": zod.enum(['answered', 'not_found']),
+  "summary": zod.string(),
+  "items": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "badge": zod.union([zod.object({
+  "label": zod.string(),
+  "tone": zod.enum(['high', 'neutral', 'done'])
+}),zod.null()])
+})),
+  "related": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "sourceCount": zod.number().int(),
+  "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
+  "usedConfidential": zod.boolean(),
+  "draftTo": zod.string().nullable(),
+  "draft": zod.union([zod.object({
+  "to": zod.string().nullable(),
+  "text": zod.string()
+}),zod.null()]),
+  "bundleTitle": zod.string().nullable(),
+  "canBundle": zod.boolean(),
+  "bundle": zod.union([zod.object({
+  "task": zod.union([zod.object({
+  "id": zod.number().int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.number().int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any')
+}),zod.null()]),
+  "title": zod.string(),
+  "undone": zod.boolean(),
+  "canUndo": zod.boolean()
+}),zod.null()])
+}))
+})
 
 

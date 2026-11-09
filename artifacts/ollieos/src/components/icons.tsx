@@ -24,3 +24,4 @@ export const IconRight = (p: P) => <Base strokeWidth={2} {...p}><path d="m9 18 6
 export const IconSearch = (p: P) => <Base strokeWidth={2} {...p}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></Base>;
 export const IconArrowOut = (p: P) => <Base strokeWidth={2} {...p}><path d="M7 17 17 7M8 7h9v9" /></Base>;
 export const IconLock = (p: P) => <Base strokeWidth={2} {...p}><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></Base>;
+export const IconLogout = (p: P) => <Base {...p}><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3" /></Base>;

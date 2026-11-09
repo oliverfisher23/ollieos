@@ -131,6 +131,13 @@ export function formatDayMonth(input: DateInput): string {
   return `${ordinal(d)} ${MONTHS_LONG[m - 1]}`;
 }
 
+/** "5th Nov", as used in timelines and source chips. */
+export function formatDayMonthShort(input: DateInput): string {
+  const date = londonDate(input);
+  const [, m, d] = splitIso(date);
+  return `${ordinal(d)} ${MONTHS_SHORT[m - 1]}`;
+}
+
 /** 24-hour time in London, "07:42". */
 export function formatTime(input: DateInput): string {
   const p = londonParts(input);

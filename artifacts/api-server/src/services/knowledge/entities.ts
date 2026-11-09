@@ -1,0 +1,544 @@
+import { and, asc, desc, eq, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
+import {
+  db,
+  organisationsTable,
+  peopleTable,
+  projectsTable,
+  tasksTable,
+  type Organisation as OrgRow,
+  type Person as PersonRow,
+  type Project as ProjectRow,
+} from "@workspace/db";
+import { OPEN_STATUSES, type TaskStatus } from "@workspace/shared";
+import { writeAudit } from "../../lib/audit";
+import { ConflictError, NotFoundError, ValidationError } from "../tasks";
+import { toTaskViews, type TaskView } from "../taskView";
+import { ACTOR, cleanText, uniqueSlug, type EntitySummary } from "./common";
+import { factsFor, linkedIds, listDecisions, notesFor, type DecisionView, type FactView, type NoteView } from "./items";
+import { timelineFor, type TimelineItem } from "./timeline";
+
+const OPEN = [...OPEN_STATUSES] as TaskStatus[];
+const priorityRank = sql`case ${tasksTable.priority} when 'high' then 0 when 'medium' then 1 else 2 end`;
+
+function stripSearch<T extends { search?: unknown }>(row: T): Omit<T, "search"> {
+  const { search: _s, ...rest } = row;
+  return rest;
+}
+
+async function openTasksWhere(where: ReturnType<typeof and>): Promise<TaskView[]> {
+  const rows = await db
+    .select()
+    .from(tasksTable)
+    .where(and(where, inArray(tasksTable.status, OPEN)))
+    .orderBy(priorityRank, sql`${tasksTable.dueDate} asc nulls last`, desc(tasksTable.createdAt));
+  return toTaskViews(rows);
+}
+
+/* ---------- Projects ---------- */
+
+export type ProjectView = Omit<ProjectRow, "search">;
+
+export interface ProjectListItem extends EntitySummary {
+  aiAccess: boolean;
+  area: string | null;
+  status: string | null;
+  openTaskCount: number;
+  updatedAt: Date;
+}
+
+export async function listProjects(includeArchived = false): Promise<ProjectListItem[]> {
+  const counts = db
+    .select({ projectId: tasksTable.projectId, n: sql<number>`count(*)::int`.as("n") })
+    .from(tasksTable)
+    .where(and(isNotNull(tasksTable.projectId), inArray(tasksTable.status, OPEN)))
+    .groupBy(tasksTable.projectId)
+    .as("c");
+  const rows = await db
+    .select({
+      id: projectsTable.id,
+      name: projectsTable.name,
+      slug: projectsTable.slug,
+      confidential: projectsTable.confidential,
+      aiAccess: projectsTable.aiAccess,
+      area: projectsTable.area,
+      status: projectsTable.status,
+      updatedAt: projectsTable.updatedAt,
+      openTaskCount: sql<number>`coalesce(${counts.n}, 0)`,
+    })
+    .from(projectsTable)
+    .leftJoin(counts, eq(counts.projectId, projectsTable.id))
+    .where(includeArchived ? undefined : eq(projectsTable.archived, false))
+    .orderBy(asc(projectsTable.name));
+  return rows.map((r) => ({ ...r, openTaskCount: Number(r.openTaskCount) }));
+}
+
+export interface PersonChip extends EntitySummary {
+  role: string | null;
+  organisationName: string | null;
+  /** True when joined through a link Ollie can remove; false when it only comes from tasks */
+  linked: boolean;
+}
+
+export interface LinkedEntity extends EntitySummary {
+  linked: boolean;
+}
+
+export interface ProjectDetail {
+  project: ProjectView;
+  facts: FactView[];
+  decisions: DecisionView[];
+  openTasks: TaskView[];
+  people: PersonChip[];
+  organisations: LinkedEntity[];
+  notes: NoteView[];
+  activity: TimelineItem[];
+}
+
+async function personChips(ids: number[], linkedSet: Set<number>): Promise<PersonChip[]> {
+  if (!ids.length) return [];
+  const rows = await db
+    .select({
+      id: peopleTable.id,
+      name: peopleTable.name,
+      slug: peopleTable.slug,
+      confidential: peopleTable.confidential,
+      role: peopleTable.role,
+      organisationName: organisationsTable.name,
+    })
+    .from(peopleTable)
+    .leftJoin(organisationsTable, eq(organisationsTable.id, peopleTable.organisationId))
+    .where(inArray(peopleTable.id, ids))
+    .orderBy(asc(peopleTable.name));
+  return rows.map((r) => ({ ...r, linked: linkedSet.has(r.id) }));
+}
+
+async function summaries(table: typeof projectsTable | typeof organisationsTable, ids: number[], linkedSet: Set<number>): Promise<LinkedEntity[]> {
+  if (!ids.length) return [];
+  const rows = await db
+    .select({ id: table.id, name: table.name, slug: table.slug, confidential: table.confidential })
+    .from(table)
+    .where(inArray(table.id, ids))
+    .orderBy(asc(table.name));
+  return rows.map((r) => ({ ...r, linked: linkedSet.has(r.id) }));
+}
+
+async function loadProject(slug: string): Promise<ProjectRow> {
+  const [row] = await db.select().from(projectsTable).where(eq(projectsTable.slug, slug));
+  if (!row) throw new NotFoundError("That project does not exist");
+  return row;
+}
+
+export async function getProject(slug: string): Promise<ProjectDetail> {
+  const project = await loadProject(slug);
+  const id = project.id;
+  const [facts, decisions, openTasks, linkedPeople, linkedOrgs, notes, taskPeople] = await Promise.all([
+    factsFor("project", id),
+    listDecisions(id),
+    openTasksWhere(eq(tasksTable.projectId, id)),
+    linkedIds("project", id, "person"),
+    linkedIds("project", id, "organisation"),
+    notesFor("project", id),
+    db
+      .selectDistinct({ id: tasksTable.personId })
+      .from(tasksTable)
+      .where(and(eq(tasksTable.projectId, id), isNotNull(tasksTable.personId), ne(tasksTable.status, "noise"))),
+  ]);
+  const peopleIds = [...new Set([...linkedPeople, ...taskPeople.map((p) => p.id!)])];
+  const [people, organisations, activity] = await Promise.all([
+    personChips(peopleIds, new Set(linkedPeople)),
+    summaries(organisationsTable, linkedOrgs, new Set(linkedOrgs)),
+    timelineFor("project", id, notes),
+  ]);
+  return { project: stripSearch(project), facts, decisions, openTasks, people, organisations, notes, activity };
+}
+
+export interface ProjectInput {
+  name: string;
+  area?: string | null;
+  status?: string | null;
+  summary?: string | null;
+  confidential?: boolean;
+  aiAccess?: boolean;
+}
+
+export async function createProject(input: ProjectInput): Promise<ProjectView> {
+  const name = cleanText(input.name);
+  if (!name) throw new ValidationError("A project needs a name");
+  const row = await db.transaction(async (tx) => {
+    const slug = await uniqueSlug(tx, "project", name);
+    const [created] = await tx
+      .insert(projectsTable)
+      .values({
+        name,
+        slug,
+        area: cleanText(input.area),
+        status: cleanText(input.status),
+        summary: cleanText(input.summary),
+        confidential: input.confidential ?? false,
+        aiAccess: input.aiAccess ?? true,
+      })
+      .returning();
+    await writeAudit(tx, { actor: ACTOR, action: "create", entityType: "project", entityId: created.id, payload: { name } });
+    return created;
+  });
+  return stripSearch(row);
+}
+
+export type ProjectUpdate = Partial<ProjectInput> & { archived?: boolean };
+
+export async function updateProject(slug: string, input: ProjectUpdate): Promise<ProjectView> {
+  const current = await loadProject(slug);
+  const set: Partial<ProjectRow> = {};
+  if (input.name !== undefined) {
+    const name = cleanText(input.name);
+    if (!name) throw new ValidationError("A project needs a name");
+    set.name = name;
+  }
+  if (input.area !== undefined) set.area = cleanText(input.area);
+  if (input.status !== undefined) set.status = cleanText(input.status);
+  if (input.summary !== undefined) set.summary = cleanText(input.summary);
+  if (input.confidential !== undefined) set.confidential = input.confidential;
+  if (input.aiAccess !== undefined) set.aiAccess = input.aiAccess;
+  if (input.archived !== undefined) set.archived = input.archived;
+  if (!Object.keys(set).length) return stripSearch(current);
+  const row = await db.transaction(async (tx) => {
+    const [updated] = await tx.update(projectsTable).set(set).where(eq(projectsTable.id, current.id)).returning();
+    await writeAudit(tx, {
+      actor: ACTOR,
+      action: "update",
+      entityType: "project",
+      entityId: current.id,
+      payload: { fields: Object.keys(set), ...accessChange(current, set) },
+    });
+    return updated;
+  });
+  return stripSearch(row);
+}
+
+/** Access switches are recorded with before and after, so the audit shows exactly when something was hidden. */
+function accessChange(current: { confidential: boolean; aiAccess: boolean }, set: { confidential?: boolean; aiAccess?: boolean }) {
+  const out: Record<string, unknown> = {};
+  if (set.confidential !== undefined && set.confidential !== current.confidential) out.confidential = { from: current.confidential, to: set.confidential };
+  if (set.aiAccess !== undefined && set.aiAccess !== current.aiAccess) out.aiAccess = { from: current.aiAccess, to: set.aiAccess };
+  return out;
+}
+
+/* ---------- People ---------- */
+
+export interface PersonListItem extends EntitySummary {
+  aiAccess: boolean;
+  role: string | null;
+  organisation: EntitySummary | null;
+  lastContactAt: Date | null;
+  iOweCount: number;
+  theyOweCount: number;
+}
+
+export async function listPeople(): Promise<PersonListItem[]> {
+  const [rows, owe] = await Promise.all([
+    db
+      .select({
+        id: peopleTable.id,
+        name: peopleTable.name,
+        slug: peopleTable.slug,
+        confidential: peopleTable.confidential,
+        aiAccess: peopleTable.aiAccess,
+        role: peopleTable.role,
+        lastContactAt: peopleTable.lastContactAt,
+        orgId: organisationsTable.id,
+        orgName: organisationsTable.name,
+        orgSlug: organisationsTable.slug,
+        orgConfidential: organisationsTable.confidential,
+      })
+      .from(peopleTable)
+      .leftJoin(organisationsTable, eq(organisationsTable.id, peopleTable.organisationId))
+      .orderBy(asc(peopleTable.name)),
+    db
+      .select({ personId: tasksTable.personId, waitingOn: tasksTable.waitingOnPersonId, status: tasksTable.status })
+      .from(tasksTable)
+      .where(and(inArray(tasksTable.status, OPEN), or(isNotNull(tasksTable.personId), isNotNull(tasksTable.waitingOnPersonId)))),
+  ]);
+  const iOwe = new Map<number, number>();
+  const theyOwe = new Map<number, number>();
+  for (const t of owe) {
+    if (t.status === "waiting" && t.waitingOn) theyOwe.set(t.waitingOn, (theyOwe.get(t.waitingOn) ?? 0) + 1);
+    else if (t.status !== "waiting" && t.personId) iOwe.set(t.personId, (iOwe.get(t.personId) ?? 0) + 1);
+  }
+  const last = await lastContactFor(rows.map((r) => r.id));
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    slug: r.slug,
+    confidential: r.confidential,
+    aiAccess: r.aiAccess,
+    role: r.role,
+    organisation: r.orgId ? { id: r.orgId, name: r.orgName!, slug: r.orgSlug!, confidential: r.orgConfidential! } : null,
+    lastContactAt: r.lastContactAt ?? last.get(r.id) ?? null,
+    iOweCount: iOwe.get(r.id) ?? 0,
+    theyOweCount: theyOwe.get(r.id) ?? 0,
+  }));
+}
+
+/** Until the sweep records contact directly, the latest captured email, Slack or meeting item linked to the person. */
+async function lastContactFor(ids: number[]): Promise<Map<number, Date>> {
+  if (!ids.length) return new Map();
+  const rows = await db
+    .select({ personId: tasksTable.personId, at: sql<string>`max(coalesce(${tasksTable.capturedAt}, ${tasksTable.createdAt}))` })
+    .from(tasksTable)
+    .where(and(inArray(tasksTable.personId, ids), ne(tasksTable.source, "manual")))
+    .groupBy(tasksTable.personId);
+  return new Map(rows.map((r) => [r.personId!, new Date(r.at)]));
+}
+
+export type PersonView = Omit<PersonRow, "search" | "organisationId"> & { organisation: EntitySummary | null };
+
+export interface PersonDetail {
+  person: PersonView;
+  iOwe: TaskView[];
+  theyOwe: TaskView[];
+  projects: LinkedEntity[];
+  facts: FactView[];
+  notes: NoteView[];
+  timeline: TimelineItem[];
+}
+
+async function loadPerson(slug: string): Promise<PersonRow> {
+  const [row] = await db.select().from(peopleTable).where(eq(peopleTable.slug, slug));
+  if (!row) throw new NotFoundError("That person does not exist");
+  return row;
+}
+
+async function toPersonView(row: PersonRow): Promise<PersonView> {
+  const { search: _s, organisationId, ...rest } = row;
+  let organisation: EntitySummary | null = null;
+  if (organisationId) {
+    const [o] = await db
+      .select({ id: organisationsTable.id, name: organisationsTable.name, slug: organisationsTable.slug, confidential: organisationsTable.confidential })
+      .from(organisationsTable)
+      .where(eq(organisationsTable.id, organisationId));
+    organisation = o ?? null;
+  }
+  const last = rest.lastContactAt ?? (await lastContactFor([row.id])).get(row.id) ?? null;
+  return { ...rest, lastContactAt: last, organisation };
+}
+
+export async function getPerson(slug: string): Promise<PersonDetail> {
+  const row = await loadPerson(slug);
+  const id = row.id;
+  const [person, iOwe, theyOwe, linkedProjects, taskProjects, facts, notes] = await Promise.all([
+    toPersonView(row),
+    openTasksWhere(and(eq(tasksTable.personId, id), ne(tasksTable.status, "waiting"))),
+    openTasksWhere(and(eq(tasksTable.waitingOnPersonId, id), eq(tasksTable.status, "waiting"))),
+    linkedIds("person", id, "project"),
+    db
+      .selectDistinct({ id: tasksTable.projectId })
+      .from(tasksTable)
+      .where(and(or(eq(tasksTable.personId, id), eq(tasksTable.waitingOnPersonId, id)), isNotNull(tasksTable.projectId), ne(tasksTable.status, "noise"))),
+    factsFor("person", id),
+    notesFor("person", id),
+  ]);
+  const projectIds = [...new Set([...linkedProjects, ...taskProjects.map((p) => p.id!)])];
+  const [projects, timeline] = await Promise.all([summaries(projectsTable, projectIds, new Set(linkedProjects)), timelineFor("person", id, notes)]);
+  return { person, iOwe, theyOwe, projects, facts, notes, timeline };
+}
+
+export interface PersonInput {
+  name: string;
+  organisationId?: number | null;
+  role?: string | null;
+  email?: string | null;
+  relationshipSummary?: string | null;
+  confidential?: boolean;
+  aiAccess?: boolean;
+}
+
+async function assertOrg(id: number | null | undefined) {
+  if (!id) return;
+  const [o] = await db.select({ id: organisationsTable.id }).from(organisationsTable).where(eq(organisationsTable.id, id));
+  if (!o) throw new NotFoundError("That organisation does not exist");
+}
+
+async function assertEmailFree(email: string | null, exceptId?: number) {
+  if (!email) return;
+  const [p] = await db.select({ id: peopleTable.id, name: peopleTable.name }).from(peopleTable).where(sql`lower(${peopleTable.email}) = ${email.toLowerCase()}`);
+  if (p && p.id !== exceptId) throw new ConflictError(`${p.name} already has that email address`);
+}
+
+export async function createPerson(input: PersonInput): Promise<PersonView> {
+  const name = cleanText(input.name);
+  if (!name) throw new ValidationError("A person needs a name");
+  const email = cleanText(input.email)?.toLowerCase() ?? null;
+  await Promise.all([assertOrg(input.organisationId), assertEmailFree(email)]);
+  const row = await db.transaction(async (tx) => {
+    const slug = await uniqueSlug(tx, "person", name);
+    const [created] = await tx
+      .insert(peopleTable)
+      .values({
+        name,
+        slug,
+        organisationId: input.organisationId ?? null,
+        role: cleanText(input.role),
+        email,
+        relationshipSummary: cleanText(input.relationshipSummary),
+        confidential: input.confidential ?? false,
+        aiAccess: input.aiAccess ?? true,
+      })
+      .returning();
+    await writeAudit(tx, { actor: ACTOR, action: "create", entityType: "person", entityId: created.id, payload: { name } });
+    return created;
+  });
+  return toPersonView(row);
+}
+
+export async function updatePerson(slug: string, input: Partial<PersonInput>): Promise<PersonView> {
+  const current = await loadPerson(slug);
+  const set: Partial<PersonRow> = {};
+  if (input.name !== undefined) {
+    const name = cleanText(input.name);
+    if (!name) throw new ValidationError("A person needs a name");
+    set.name = name;
+  }
+  if (input.organisationId !== undefined) {
+    await assertOrg(input.organisationId);
+    set.organisationId = input.organisationId;
+  }
+  if (input.role !== undefined) set.role = cleanText(input.role);
+  if (input.email !== undefined) {
+    const email = cleanText(input.email)?.toLowerCase() ?? null;
+    await assertEmailFree(email, current.id);
+    set.email = email;
+  }
+  if (input.relationshipSummary !== undefined) set.relationshipSummary = cleanText(input.relationshipSummary);
+  if (input.confidential !== undefined) set.confidential = input.confidential;
+  if (input.aiAccess !== undefined) set.aiAccess = input.aiAccess;
+  if (!Object.keys(set).length) return toPersonView(current);
+  const row = await db.transaction(async (tx) => {
+    const [updated] = await tx.update(peopleTable).set(set).where(eq(peopleTable.id, current.id)).returning();
+    await writeAudit(tx, {
+      actor: ACTOR,
+      action: "update",
+      entityType: "person",
+      entityId: current.id,
+      payload: { fields: Object.keys(set), ...accessChange(current, set) },
+    });
+    return updated;
+  });
+  return toPersonView(row);
+}
+
+/* ---------- Organisations ---------- */
+
+export type OrganisationView = Omit<OrgRow, "search">;
+
+export interface OrganisationListItem extends EntitySummary {
+  aiAccess: boolean;
+  type: string | null;
+  peopleCount: number;
+}
+
+export async function listOrganisations(): Promise<OrganisationListItem[]> {
+  const rows = await db
+    .select({
+      id: organisationsTable.id,
+      name: organisationsTable.name,
+      slug: organisationsTable.slug,
+      confidential: organisationsTable.confidential,
+      aiAccess: organisationsTable.aiAccess,
+      type: organisationsTable.type,
+      peopleCount: sql<number>`(select count(*)::int from people p where p.organisation_id = organisations.id)`,
+    })
+    .from(organisationsTable)
+    .orderBy(asc(organisationsTable.name));
+  return rows.map((r) => ({ ...r, peopleCount: Number(r.peopleCount) }));
+}
+
+export interface OrganisationDetail {
+  organisation: OrganisationView;
+  people: PersonChip[];
+  projects: LinkedEntity[];
+  facts: FactView[];
+  notes: NoteView[];
+  timeline: TimelineItem[];
+}
+
+async function loadOrg(slug: string): Promise<OrgRow> {
+  const [row] = await db.select().from(organisationsTable).where(eq(organisationsTable.slug, slug));
+  if (!row) throw new NotFoundError("That organisation does not exist");
+  return row;
+}
+
+export async function getOrganisation(slug: string): Promise<OrganisationDetail> {
+  const org = await loadOrg(slug);
+  const id = org.id;
+  const [members, linkedPeople, linkedProjects, facts, notes] = await Promise.all([
+    db.select({ id: peopleTable.id }).from(peopleTable).where(eq(peopleTable.organisationId, id)),
+    linkedIds("organisation", id, "person"),
+    linkedIds("organisation", id, "project"),
+    factsFor("organisation", id),
+    notesFor("organisation", id),
+  ]);
+  const memberIds = members.map((m) => m.id);
+  const [people, projects, timeline] = await Promise.all([
+    personChips([...new Set([...memberIds, ...linkedPeople])], new Set(linkedPeople)),
+    summaries(projectsTable, linkedProjects, new Set(linkedProjects)),
+    timelineFor("organisation", id, notes, memberIds),
+  ]);
+  return { organisation: stripSearch(org), people, projects, facts, notes, timeline };
+}
+
+export interface OrganisationInput {
+  name: string;
+  type?: string | null;
+  summary?: string | null;
+  confidential?: boolean;
+  aiAccess?: boolean;
+}
+
+export async function createOrganisation(input: OrganisationInput): Promise<OrganisationView> {
+  const name = cleanText(input.name);
+  if (!name) throw new ValidationError("An organisation needs a name");
+  const row = await db.transaction(async (tx) => {
+    const slug = await uniqueSlug(tx, "organisation", name);
+    const [created] = await tx
+      .insert(organisationsTable)
+      .values({
+        name,
+        slug,
+        type: cleanText(input.type),
+        summary: cleanText(input.summary),
+        confidential: input.confidential ?? false,
+        aiAccess: input.aiAccess ?? true,
+      })
+      .returning();
+    await writeAudit(tx, { actor: ACTOR, action: "create", entityType: "organisation", entityId: created.id, payload: { name } });
+    return created;
+  });
+  return stripSearch(row);
+}
+
+export async function updateOrganisation(slug: string, input: Partial<OrganisationInput>): Promise<OrganisationView> {
+  const current = await loadOrg(slug);
+  const set: Partial<OrgRow> = {};
+  if (input.name !== undefined) {
+    const name = cleanText(input.name);
+    if (!name) throw new ValidationError("An organisation needs a name");
+    set.name = name;
+  }
+  if (input.type !== undefined) set.type = cleanText(input.type);
+  if (input.summary !== undefined) set.summary = cleanText(input.summary);
+  if (input.confidential !== undefined) set.confidential = input.confidential;
+  if (input.aiAccess !== undefined) set.aiAccess = input.aiAccess;
+  if (!Object.keys(set).length) return stripSearch(current);
+  const row = await db.transaction(async (tx) => {
+    const [updated] = await tx.update(organisationsTable).set(set).where(eq(organisationsTable.id, current.id)).returning();
+    await writeAudit(tx, {
+      actor: ACTOR,
+      action: "update",
+      entityType: "organisation",
+      entityId: current.id,
+      payload: { fields: Object.keys(set), ...accessChange(current, set) },
+    });
+    return updated;
+  });
+  return stripSearch(row);
+}

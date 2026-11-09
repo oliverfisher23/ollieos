@@ -37,6 +37,7 @@ function describe(event: AuditEvent): string {
       const via = payload.via as string | undefined;
       if (via === "quick_add") return "Added with quick add";
       if (via === "seed") return "Imported from Notion";
+      if (via === "bundle") return "Created by bundling tasks in Ask OllieOS";
       return "Created";
     }
     case "update":
@@ -57,6 +58,8 @@ function describe(event: AuditEvent): string {
       const base = status ? `Undone. Status back to ${status.to}` : "Undone";
       return payload.removedRule ? `${base}. The rule made with it was removed` : base;
     }
+    case "bundle":
+      return `Bundled into "${String(payload.title ?? "a new task")}" and marked done`;
     case "restore":
       return "Restored from Noise to Inbox";
     case "snooze":

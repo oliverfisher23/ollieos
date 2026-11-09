@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useLocation } from 'wouter';
 import { useListProjects, useQuickAddTask } from '@workspace/api-client-react';
 import { formatShort, parseQuickAdd, type QuickAddToken } from '@workspace/shared';
 import { IconUp } from '@/components/icons';
@@ -18,6 +19,8 @@ function tokenLabel(t: QuickAddToken): string {
 export function AddBox({ idPrefix = 'home', autoFocus = false, onAdded }: { idPrefix?: string; autoFocus?: boolean; onAdded?: () => void }) {
   const [mode, setMode] = useState<'add' | 'ask'>('add');
   const [text, setText] = useState('');
+  const [question, setQuestion] = useState('');
+  const [, navigate] = useLocation();
   const projects = useListProjects();
   const quickAdd = useQuickAddTask();
   const invalidate = useInvalidateTasks();
@@ -27,11 +30,18 @@ export function AddBox({ idPrefix = 'home', autoFocus = false, onAdded }: { idPr
   const projectMissing =
     !!parsed?.projectSlug && !!projects.data && !projects.data.some((p) => p.slug === parsed.projectSlug);
 
-  const canSubmit = add && !!parsed && parsed.title.length > 0 && !quickAdd.isPending;
+  const canSubmit = add ? !!parsed && parsed.title.length > 0 && !quickAdd.isPending : question.trim().length > 0;
 
   const submit = (e?: FormEvent) => {
     e?.preventDefault();
     if (!canSubmit) return;
+    if (!add) {
+      const q = question.trim().slice(0, 1000);
+      setQuestion('');
+      onAdded?.();
+      navigate('/ask?q=' + encodeURIComponent(q));
+      return;
+    }
     quickAdd.mutate(
       { data: { text: text.trim() } },
       {
@@ -68,17 +78,17 @@ export function AddBox({ idPrefix = 'home', autoFocus = false, onAdded }: { idPr
         id={boxId}
         rows={2}
         autoFocus={autoFocus}
-        value={add ? text : ''}
-        disabled={!add}
-        onChange={(e) => setText(e.target.value)}
+        value={add ? text : question}
+        maxLength={add ? undefined : 1000}
+        onChange={(e) => (add ? setText(e.target.value) : setQuestion(e.target.value))}
         onKeyDown={onKey}
-        placeholder={add ? 'Add a task…  e.g. Chase the demo date !high due:fri @project' : 'Ask anything you know…'}
+        placeholder={add ? 'Add a task…  e.g. Chase the demo date !high due:fri @project' : 'Ask anything you know…  e.g. What do I owe Paul?'}
         data-testid={'input-add-' + idPrefix}
       />
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '2px 6px 4px 10px' }}>
         {!add ? (
-          <span className="oo-t2" style={{ fontSize: 13 }} data-testid={'text-ask-soon-' + idPrefix}>
-            Ask OllieOS is coming soon. For now, switch to Add a task.
+          <span className="oo-t2" style={{ fontSize: 13 }} data-testid={'text-ask-hint-' + idPrefix}>
+            Answers only from OllieOS, with sources. Confidential items are never used.
           </span>
         ) : parsed && parsed.tokens.length + (parsed.title ? 1 : 0) > 0 ? (
           <>

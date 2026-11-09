@@ -32,6 +32,8 @@ export type TaskTab = "inbox" | "open" | "now" | "backlog" | "waiting" | "done" 
 export class NotFoundError extends Error {}
 export class ValidationError extends Error {}
 export class ConflictError extends Error {}
+/** A service OllieOS depends on (the model) failed; nothing was saved. */
+export class UpstreamError extends Error {}
 
 /** The lifecycle fields a status change, triage, snooze or restore touches. Stored in the audit payload so undo can put them back. */
 export interface LifecycleSnapshot {

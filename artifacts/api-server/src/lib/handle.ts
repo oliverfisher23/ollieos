@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { z } from "zod";
-import { ConflictError, NotFoundError, ValidationError } from "../services/tasks";
+import { ConflictError, NotFoundError, UpstreamError, ValidationError } from "../services/tasks";
 
 type Handler = (req: Request, res: Response) => Promise<void>;
 
@@ -18,6 +18,9 @@ export function handle(fn: Handler) {
         res.status(409).json({ error: err.message });
       } else if (err instanceof NotFoundError) {
         res.status(404).json({ error: err.message });
+      } else if (err instanceof UpstreamError) {
+        req.log?.error({ err }, "upstream failure");
+        res.status(502).json({ error: err.message });
       } else {
         next(err);
       }

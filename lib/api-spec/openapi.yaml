@@ -17,7 +17,9 @@ tags:
   - name: tasks
     description: Tasks, quick add and task detail
   - name: knowledge
-    description: Minimal people and project lists used by pickers
+    description: Projects, people, organisations, decisions, notes, facts, links and search
+  - name: ask
+    description: Ask OllieOS
   - name: noise
     description: Noise rules
 paths:
@@ -584,39 +586,542 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
-  /people:
-    get:
-      operationId: listPeople
-      tags: [knowledge]
-      summary: All people, for the For and Waiting on pickers
-      responses:
-        "200":
-          description: People
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/EntitySummary"
-        "403":
-          $ref: "#/components/responses/NotAuthorised"
-
   /projects:
     get:
       operationId: listProjects
       tags: [knowledge]
-      summary: All projects, for the Project picker and quick add @slug matching
+      summary: Projects with open task counts, for the Knowledge sidebar and pickers
+      parameters:
+        - name: includeArchived
+          in: query
+          required: false
+          schema: { type: string, enum: ["true", "false"] }
       responses:
         "200":
           description: Projects
           content:
             application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/EntitySummary"
-        "403":
-          $ref: "#/components/responses/NotAuthorised"
+              schema: { type: array, items: { $ref: "#/components/schemas/ProjectListItem" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: createProject
+      tags: [knowledge]
+      summary: New project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /projects/{slug}:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    get:
+      operationId: getProject
+      tags: [knowledge]
+      summary: Project page
+      responses:
+        "200":
+          description: Project detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectDetail" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      operationId: updateProject
+      tags: [knowledge]
+      summary: Edit a project, including its AI access switches
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /people:
+    get:
+      operationId: listPeople
+      tags: [knowledge]
+      summary: People with what is open between Ollie and each of them
+      responses:
+        "200":
+          description: People
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/PersonListItem" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: createPerson
+      tags: [knowledge]
+      summary: New person
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PersonInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Person" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /people/{slug}:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    get:
+      operationId: getPerson
+      tags: [knowledge]
+      summary: Person page
+      responses:
+        "200":
+          description: Person detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PersonDetail" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      operationId: updatePerson
+      tags: [knowledge]
+      summary: Edit a person
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PersonUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Person" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /organisations:
+    get:
+      operationId: listOrganisations
+      tags: [knowledge]
+      summary: Organisations
+      responses:
+        "200":
+          description: Organisations
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/OrganisationListItem" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: createOrganisation
+      tags: [knowledge]
+      summary: New organisation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrganisationInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Organisation" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /organisations/{slug}:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    get:
+      operationId: getOrganisation
+      tags: [knowledge]
+      summary: Organisation page
+      responses:
+        "200":
+          description: Organisation detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganisationDetail" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      operationId: updateOrganisation
+      tags: [knowledge]
+      summary: Edit an organisation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrganisationUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Organisation" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /decisions:
+    get:
+      operationId: listDecisions
+      tags: [knowledge]
+      summary: All decisions, newest first
+      responses:
+        "200":
+          description: Decisions
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Decision" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: createDecision
+      tags: [knowledge]
+      summary: Record a decision on a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DecisionInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Decision" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /decisions/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      operationId: getDecision
+      tags: [knowledge]
+      summary: One decision
+      responses:
+        "200":
+          description: Decision
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Decision" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      operationId: updateDecision
+      tags: [knowledge]
+      summary: Edit a decision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DecisionUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Decision" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /notes:
+    get:
+      operationId: listNotes
+      tags: [knowledge]
+      summary: All notes, most recently updated first
+      responses:
+        "200":
+          description: Notes
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Note" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: createNote
+      tags: [knowledge]
+      summary: Add a note to a project, person, organisation, task or decision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NoteInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Note" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /notes/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      operationId: getNote
+      tags: [knowledge]
+      summary: One note
+      responses:
+        "200":
+          description: Note
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Note" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      operationId: updateNote
+      tags: [knowledge]
+      summary: Edit a note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NoteUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Note" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /facts:
+    post:
+      operationId: createFact
+      tags: [knowledge]
+      summary: Add a key fact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FactInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Fact" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /facts/{id}/supersede:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: supersedeFact
+      tags: [knowledge]
+      summary: Replace a fact with new text. The old version is kept and linked.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FactSupersede" }
+      responses:
+        "200":
+          description: The new current fact, with its history
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Fact" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /links:
+    post:
+      operationId: createLink
+      tags: [knowledge]
+      summary: Link two items
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LinkInput" }
+      responses:
+        "200":
+          description: Linked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LinkResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: removeLink
+      tags: [knowledge]
+      summary: Remove a link between two items
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LinkInput" }
+      responses:
+        "200":
+          description: Unlinked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LinkResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /search:
+    get:
+      operationId: searchKnowledge
+      tags: [knowledge]
+      summary: Search tasks and Knowledge. Ollie sees everything; hidden-from-AI items are marked.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+        - name: types
+          in: query
+          required: false
+          description: Comma-separated list of task, project, person, organisation, decision, note, fact
+          schema: { type: string }
+      responses:
+        "200":
+          description: Results
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SearchResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /ask:
+    get:
+      operationId: listAskThreads
+      tags: [ask]
+      summary: Recent questions
+      responses:
+        "200":
+          description: Recent first questions
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AskThreadSummary" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: askOllieOS
+      tags: [ask]
+      summary: Ask a question, or a follow-up when parentId is set. Answers only from items AI may read.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AskInput" }
+      responses:
+        "201":
+          description: The answer and the conversation it belongs to
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AskResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /ask/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      operationId: getAskThread
+      tags: [ask]
+      summary: A conversation, from its first question to the latest follow-up
+      responses:
+        "200":
+          description: Conversation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AskThread" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /ask/{id}/draft:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: draftAskReply
+      tags: [ask]
+      summary: Draft a reply from an answer. Never sent.
+      responses:
+        "200":
+          description: Conversation with the draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AskThread" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /ask/{id}/bundle:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: bundleAskTasks
+      tags: [ask]
+      summary: Turn the open tasks in an answer into one task
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BundleInput" }
+      responses:
+        "200":
+          description: Conversation with the bundle
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BundleResult" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /ask/{id}/bundle/undo:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: undoAskBundle
+      tags: [ask]
+      summary: Put the original tasks back and remove the bundled one
+      responses:
+        "200":
+          description: Conversation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AskThread" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
 
 components:
   parameters:
@@ -634,6 +1139,18 @@ components:
       description: Browser session cookie.
       schema:
         type: string
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+    ItemId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
     TaskId:
       name: id
       in: path
@@ -642,6 +1159,12 @@ components:
         type: integer
 
   responses:
+    Error:
+      description: Invalid input, not found, conflict or upstream failure
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
     NotAuthorised:
       description: Signed out, or signed in with an email that is not allowlisted
       content:
@@ -1177,3 +1700,505 @@ components:
         weekStart:
           type: string
           format: date
+
+    ProjectListItem:
+      type: object
+      required: [id, name, slug, confidential, aiAccess, area, status, openTaskCount, updatedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+        area: { type: [string, "null"] }
+        status: { type: [string, "null"] }
+        openTaskCount: { type: integer }
+        updatedAt: { type: string, format: date-time }
+
+    Project:
+      type: object
+      required: [id, name, slug, area, status, summary, confidential, aiAccess, archived, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        area: { type: [string, "null"] }
+        status: { type: [string, "null"] }
+        summary: { type: [string, "null"] }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean, description: Readable by AI. Has no effect while confidential is on. }
+        archived: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ProjectInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        area: { type: [string, "null"] }
+        status: { type: [string, "null"] }
+        summary: { type: [string, "null"] }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+
+    ProjectUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        area: { type: [string, "null"] }
+        status: { type: [string, "null"] }
+        summary: { type: [string, "null"] }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+        archived: { type: boolean }
+
+    LinkedEntity:
+      type: object
+      required: [id, name, slug, confidential, linked]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        confidential: { type: boolean }
+        linked: { type: boolean, description: True when joined by a link Ollie can remove, false when it only comes from tasks or membership }
+
+    PersonChip:
+      type: object
+      required: [id, name, slug, confidential, role, organisationName, linked]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        confidential: { type: boolean }
+        role: { type: [string, "null"] }
+        organisationName: { type: [string, "null"] }
+        linked: { type: boolean }
+
+    FactVersion:
+      type: object
+      required: [id, text, createdAt, createdBy]
+      properties:
+        id: { type: integer }
+        text: { type: string }
+        createdAt: { type: string, format: date-time }
+        createdBy: { type: string }
+
+    Fact:
+      type: object
+      required: [id, entityType, entityId, text, source, createdBy, createdAt, history]
+      properties:
+        id: { type: integer }
+        entityType: { type: string }
+        entityId: { type: integer }
+        text: { type: string }
+        source: { type: [string, "null"] }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        history:
+          type: array
+          description: Earlier versions this fact replaced, newest first
+          items: { $ref: "#/components/schemas/FactVersion" }
+
+    FactInput:
+      type: object
+      required: [entityType, entityId, text]
+      properties:
+        entityType: { type: string, enum: [project, person, organisation] }
+        entityId: { type: integer }
+        text: { type: string, minLength: 1, maxLength: 2000 }
+        source: { type: [string, "null"] }
+
+    FactSupersede:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string, minLength: 1, maxLength: 2000 }
+        source: { type: [string, "null"] }
+
+    Decision:
+      type: object
+      required: [id, text, decidedAt, decidedBy, source, confidential, hiddenFromAi, project, createdBy, createdAt]
+      properties:
+        id: { type: integer }
+        text: { type: string }
+        decidedAt: { type: string, format: date }
+        decidedBy: { type: [string, "null"] }
+        source: { type: [string, "null"] }
+        confidential: { type: [boolean, "null"], description: null means it follows its project }
+        hiddenFromAi: { type: boolean }
+        project: { $ref: "#/components/schemas/EntitySummary" }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    DecisionInput:
+      type: object
+      required: [projectId, text, decidedAt]
+      properties:
+        projectId: { type: integer }
+        text: { type: string, minLength: 1, maxLength: 5000 }
+        decidedAt: { type: string, format: date }
+        decidedBy: { type: [string, "null"] }
+        source: { type: [string, "null"] }
+        confidential: { type: [boolean, "null"] }
+
+    DecisionUpdate:
+      type: object
+      properties:
+        projectId: { type: integer }
+        text: { type: string, minLength: 1, maxLength: 5000 }
+        decidedAt: { type: string, format: date }
+        decidedBy: { type: [string, "null"] }
+        source: { type: [string, "null"] }
+        confidential: { type: [boolean, "null"] }
+
+    EntityRef:
+      type: object
+      required: [type, id, name, slug]
+      properties:
+        type: { type: string }
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: [string, "null"] }
+
+    Note:
+      type: object
+      required: [id, title, body, confidential, hiddenFromAi, entity, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        title: { type: [string, "null"] }
+        body: { type: string }
+        confidential: { type: [boolean, "null"], description: null means it follows what it is attached to }
+        hiddenFromAi: { type: boolean }
+        entity: { $ref: "#/components/schemas/EntityRef" }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    NoteInput:
+      type: object
+      required: [entityType, entityId, body]
+      properties:
+        entityType: { type: string, enum: [project, person, organisation, task, decision] }
+        entityId: { type: integer }
+        title: { type: [string, "null"] }
+        body: { type: string, minLength: 1 }
+        confidential: { type: [boolean, "null"] }
+
+    NoteUpdate:
+      type: object
+      properties:
+        title: { type: [string, "null"] }
+        body: { type: string, minLength: 1 }
+        confidential: { type: [boolean, "null"] }
+
+    TimelineItem:
+      type: object
+      required: [key, kind, label, text, at, ref, sourceUrl]
+      properties:
+        key: { type: string }
+        kind: { type: string }
+        label: { type: string }
+        text: { type: string }
+        at: { type: string, format: date-time }
+        ref: { type: [string, "null"], description: "Item to open, as type:id" }
+        sourceUrl: { type: [string, "null"] }
+
+    ProjectDetail:
+      type: object
+      required: [project, facts, decisions, openTasks, people, organisations, notes, activity]
+      properties:
+        project: { $ref: "#/components/schemas/Project" }
+        facts: { type: array, items: { $ref: "#/components/schemas/Fact" } }
+        decisions: { type: array, items: { $ref: "#/components/schemas/Decision" } }
+        openTasks: { type: array, items: { $ref: "#/components/schemas/Task" } }
+        people: { type: array, items: { $ref: "#/components/schemas/PersonChip" } }
+        organisations: { type: array, items: { $ref: "#/components/schemas/LinkedEntity" } }
+        notes: { type: array, items: { $ref: "#/components/schemas/Note" } }
+        activity: { type: array, items: { $ref: "#/components/schemas/TimelineItem" } }
+
+    PersonListItem:
+      type: object
+      required: [id, name, slug, confidential, aiAccess, role, organisation, lastContactAt, iOweCount, theyOweCount]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+        role: { type: [string, "null"] }
+        organisation:
+          oneOf:
+            - $ref: "#/components/schemas/EntitySummary"
+            - type: "null"
+        lastContactAt: { type: [string, "null"], format: date-time }
+        iOweCount: { type: integer }
+        theyOweCount: { type: integer }
+
+    Person:
+      type: object
+      required: [id, name, slug, role, email, relationshipSummary, confidential, aiAccess, lastContactAt, organisation, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        role: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        relationshipSummary: { type: [string, "null"] }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+        lastContactAt: { type: [string, "null"], format: date-time }
+        organisation:
+          oneOf:
+            - $ref: "#/components/schemas/EntitySummary"
+            - type: "null"
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    PersonInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        organisationId: { type: [integer, "null"] }
+        role: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        relationshipSummary: { type: [string, "null"] }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+
+    PersonUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        organisationId: { type: [integer, "null"] }
+        role: { type: [string, "null"] }
+        email: { type: [string, "null"] }
+        relationshipSummary: { type: [string, "null"] }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+
+    PersonDetail:
+      type: object
+      required: [person, iOwe, theyOwe, projects, facts, notes, timeline]
+      properties:
+        person: { $ref: "#/components/schemas/Person" }
+        iOwe: { type: array, items: { $ref: "#/components/schemas/Task" } }
+        theyOwe: { type: array, items: { $ref: "#/components/schemas/Task" } }
+        projects: { type: array, items: { $ref: "#/components/schemas/LinkedEntity" } }
+        facts: { type: array, items: { $ref: "#/components/schemas/Fact" } }
+        notes: { type: array, items: { $ref: "#/components/schemas/Note" } }
+        timeline: { type: array, items: { $ref: "#/components/schemas/TimelineItem" } }
+
+    OrganisationListItem:
+      type: object
+      required: [id, name, slug, confidential, aiAccess, type, peopleCount]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+        type: { type: [string, "null"] }
+        peopleCount: { type: integer }
+
+    Organisation:
+      type: object
+      required: [id, name, slug, type, summary, confidential, aiAccess, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        type: { type: [string, "null"] }
+        summary: { type: [string, "null"] }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    OrganisationInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        type: { type: [string, "null"] }
+        summary: { type: [string, "null"] }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+
+    OrganisationUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        type: { type: [string, "null"] }
+        summary: { type: [string, "null"] }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+
+    OrganisationDetail:
+      type: object
+      required: [organisation, people, projects, facts, notes, timeline]
+      properties:
+        organisation: { $ref: "#/components/schemas/Organisation" }
+        people: { type: array, items: { $ref: "#/components/schemas/PersonChip" } }
+        projects: { type: array, items: { $ref: "#/components/schemas/LinkedEntity" } }
+        facts: { type: array, items: { $ref: "#/components/schemas/Fact" } }
+        notes: { type: array, items: { $ref: "#/components/schemas/Note" } }
+        timeline: { type: array, items: { $ref: "#/components/schemas/TimelineItem" } }
+
+    Linkable:
+      type: string
+      enum: [task, project, person, organisation, decision, note]
+
+    LinkInput:
+      type: object
+      required: [fromType, fromId, toType, toId]
+      properties:
+        fromType: { $ref: "#/components/schemas/Linkable" }
+        fromId: { type: integer }
+        toType: { $ref: "#/components/schemas/Linkable" }
+        toId: { type: integer }
+
+    LinkResult:
+      type: object
+      required: [linked]
+      properties:
+        linked: { type: boolean }
+
+    SearchHit:
+      type: object
+      required: [type, id, title, snippet, slug, status, hiddenFromAi, parent]
+      properties:
+        type: { type: string, enum: [task, project, person, organisation, decision, note, fact] }
+        id: { type: integer }
+        title: { type: string }
+        snippet: { type: [string, "null"] }
+        slug: { type: [string, "null"] }
+        status: { type: [string, "null"] }
+        hiddenFromAi: { type: boolean }
+        parent:
+          oneOf:
+            - $ref: "#/components/schemas/EntityRef"
+            - type: "null"
+
+    SearchResult:
+      type: object
+      required: [q, hits]
+      properties:
+        q: { type: string }
+        hits: { type: array, items: { $ref: "#/components/schemas/SearchHit" } }
+
+    AskThreadSummary:
+      type: object
+      required: [id, question, createdAt]
+      properties:
+        id: { type: integer }
+        question: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    AskInput:
+      type: object
+      required: [question]
+      properties:
+        question: { type: string, minLength: 1, maxLength: 1000 }
+        parentId: { type: [integer, "null"] }
+
+    SourceChip:
+      type: object
+      required: [ref, type, label, path, confidential]
+      properties:
+        ref: { type: string }
+        type: { type: string }
+        label: { type: string }
+        path: { type: [string, "null"] }
+        confidential: { type: boolean }
+
+    AskBadge:
+      type: object
+      required: [label, tone]
+      properties:
+        label: { type: string }
+        tone: { type: string, enum: [high, neutral, done] }
+
+    AskItem:
+      type: object
+      required: [text, sources, badge]
+      properties:
+        text: { type: string }
+        sources: { type: array, items: { $ref: "#/components/schemas/SourceChip" } }
+        badge:
+          oneOf:
+            - $ref: "#/components/schemas/AskBadge"
+            - type: "null"
+
+    AskDraft:
+      type: object
+      required: [to, text]
+      properties:
+        to: { type: [string, "null"] }
+        text: { type: string }
+
+    AskBundle:
+      type: object
+      required: [task, title, undone, canUndo]
+      properties:
+        task:
+          oneOf:
+            - $ref: "#/components/schemas/Task"
+            - type: "null"
+        title: { type: string }
+        undone: { type: boolean }
+        canUndo: { type: boolean }
+
+    AskTurn:
+      type: object
+      required: [id, parentId, question, createdAt, model, status, summary, items, related, sourceCount, hiddenMatches, usedConfidential, draftTo, draft, bundleTitle, canBundle, bundle]
+      properties:
+        id: { type: integer }
+        parentId: { type: [integer, "null"] }
+        question: { type: string }
+        createdAt: { type: string, format: date-time }
+        model: { type: [string, "null"] }
+        status: { type: string, enum: [answered, not_found] }
+        summary: { type: string }
+        items: { type: array, items: { $ref: "#/components/schemas/AskItem" } }
+        related: { type: array, items: { $ref: "#/components/schemas/SourceChip" } }
+        sourceCount: { type: integer }
+        hiddenMatches: { type: boolean, description: Items hidden from AI also matched the question and were not used }
+        usedConfidential: { type: boolean }
+        draftTo: { type: [string, "null"] }
+        draft:
+          oneOf:
+            - $ref: "#/components/schemas/AskDraft"
+            - type: "null"
+        bundleTitle: { type: [string, "null"] }
+        canBundle: { type: boolean }
+        bundle:
+          oneOf:
+            - $ref: "#/components/schemas/AskBundle"
+            - type: "null"
+
+    AskThread:
+      type: object
+      required: [turns]
+      properties:
+        turns: { type: array, items: { $ref: "#/components/schemas/AskTurn" } }
+
+    AskResult:
+      type: object
+      required: [id, turns]
+      properties:
+        id: { type: integer }
+        turns: { type: array, items: { $ref: "#/components/schemas/AskTurn" } }
+
+    BundleInput:
+      type: object
+      properties:
+        title: { type: string, maxLength: 500 }
+
+    BundleResult:
+      type: object
+      required: [taskId, turns]
+      properties:
+        taskId: { type: integer }
+        turns: { type: array, items: { $ref: "#/components/schemas/AskTurn" } }

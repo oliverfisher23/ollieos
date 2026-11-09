@@ -17,6 +17,9 @@
     },
     {
       "path": "./lib/replit-auth-web"
+    },
+    {
+      "path": "./lib/integrations-anthropic-ai"
     }
   ]
 }

@@ -10,7 +10,11 @@ import { LightShell } from '@/components/light-shell';
 import NotFound from '@/pages/not-found';
 import HomePage from '@/pages/home';
 import TasksPage from '@/pages/tasks';
-import Placeholder from '@/pages/placeholder';
+import AskPage from '@/pages/ask';
+import { KnowledgeIndexPage, ProjectPage } from '@/pages/knowledge/projects';
+import { PeopleListPage, PersonPage } from '@/pages/knowledge/people';
+import { OrganisationPage, OrganisationsListPage } from '@/pages/knowledge/organisations';
+import { DecisionPage, DecisionsListPage, NotePage, NotesListPage } from '@/pages/knowledge/records';
 import SettingsPage from '@/pages/settings';
 import { TriageDialog } from '@/components/triage';
 import { NotAuthorised, SignIn, Splash } from '@/pages/auth-screens';
@@ -22,18 +26,11 @@ const queryClient = new QueryClient({
   mutationCache: new MutationCache({ onError: reportApiError }),
   defaultOptions: {
     queries: {
-      retry: (count, err) => !isForbiddenError(err) && count < 2,
+      retry: (count, err) => !isForbiddenError(err) && (err as { status?: number } | null)?.status !== 404 && count < 2,
       refetchOnWindowFocus: true,
     },
   },
 });
-
-const KnowledgePage = () => (
-  <Placeholder title="Knowledge" milestone={3} line="Projects, notes and the context Claude reads from will live here, with clear control over what it can see." />
-);
-const PeoplePage = () => (
-  <Placeholder title="People" milestone={3} line="Everyone you work with, what you owe them and what they owe you, gathered on one page each." />
-);
 
 function TriagePage() {
   const [, navigate] = useLocation();
@@ -52,8 +49,20 @@ function Router() {
         <Route path="/" component={HomePage} />
         <Route path="/triage" component={TriagePage} />
         <Route path="/tasks" component={TasksPage} />
-        <Route path="/knowledge" component={KnowledgePage} />
-        <Route path="/people" component={PeoplePage} />
+        <Route path="/ask" component={AskPage} />
+        <Route path="/ask/:threadId" component={AskPage} />
+        <Route path="/knowledge" component={KnowledgeIndexPage} />
+        <Route path="/knowledge/projects/:slug" component={ProjectPage} />
+        <Route path="/knowledge/people" component={PeopleListPage} />
+        <Route path="/knowledge/people/:slug" component={PersonPage} />
+        <Route path="/knowledge/organisations" component={OrganisationsListPage} />
+        <Route path="/knowledge/organisations/:slug" component={OrganisationPage} />
+        <Route path="/knowledge/decisions" component={DecisionsListPage} />
+        <Route path="/knowledge/decisions/:id" component={DecisionPage} />
+        <Route path="/knowledge/notes" component={NotesListPage} />
+        <Route path="/knowledge/notes/:id" component={NotePage} />
+        <Route path="/people">{() => <Redirect to="/knowledge/people" replace />}</Route>
+        <Route path="/people/:slug">{(p) => <Redirect to={'/knowledge/people/' + p.slug} replace />}</Route>
         <Route path="/settings">{() => <Redirect to="/settings/noise-rules" replace />}</Route>
         <Route path="/settings/:section" component={SettingsPage} />
         <Route component={NotFound} />
@@ -70,7 +79,7 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
 
 function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  if (location === '/' || location === '/triage') return <DarkShell>{children}</DarkShell>;
+  if (location === '/' || location === '/triage' || location === '/ask' || location.startsWith('/ask/')) return <DarkShell>{children}</DarkShell>;
   return <LightShell>{children}</LightShell>;
 }
 
