@@ -147,20 +147,3 @@ export async function recordReads(scope: AiScope, refs: readonly string[], conte
   );
   await db.update(aiClientsTable).set({ lastUsedAt: new Date() }).where(eq(aiClientsTable.id, scope.clientId));
 }
-
-/** One audit row per AI search (action "search"), with the query and the refs it returned (build plan 6, step 5). */
-export async function recordSearch(scope: AiScope, query: string, refs: readonly string[], context: Record<string, unknown> = {}): Promise<void> {
-  await db.insert(auditEventsTable).values({
-    actor: scope.actor,
-    clientId: scope.clientId,
-    action: "search",
-    entityType: null,
-    entityId: null,
-    payload: { query, results: [...refs], ...context },
-  });
-}
-
-/** Stamps a client's last use, shown in Settings. */
-export async function markClientUsed(clientId: number): Promise<void> {
-  await db.update(aiClientsTable).set({ lastUsedAt: new Date() }).where(eq(aiClientsTable.id, clientId));
-}

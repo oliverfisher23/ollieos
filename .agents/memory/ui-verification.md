@@ -12,6 +12,4 @@ The test session's `sess.user` must include `lastName` and `profileImageUrl` (nu
 
 Task lists render both a table (desktop) and cards (phone) with the same testids, so scope Playwright locators to `table` or a row. Grant `clipboard-read`/`clipboard-write` on the context to check copy buttons.
 
-Better option since the AI access milestone: point the test API instance at the `ollieos_test` database (use `$OLLIEOS_TEST_DATABASE_URL` directly; never build the URL with sed, a failed substitution once truncated Ollie's real dev database) and seed it by SQL, so Ollie's real data is untouched while he uses the app. Vitest leaves the last test's rows in that database, so truncate or account for them before seeding. Drop `ollieos_test` afterwards.
-
-**Before any truncate or seed, run `select current_database()` on that URL and refuse unless it is `ollieos_test`.**
+Better option since the AI access milestone: point the test API instance at the `ollieos_test` database (`DATABASE_URL` with the db name swapped) and seed it by SQL, so Ollie's real data is untouched while he uses the app. Vitest leaves the last test's rows in that database, so truncate or account for them before seeding. Drop `ollieos_test` afterwards.

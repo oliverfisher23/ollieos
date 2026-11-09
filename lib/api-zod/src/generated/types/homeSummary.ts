@@ -22,11 +22,11 @@ export interface HomeSummary {
   promises: Task[];
   doneThisWeek: HomeSummaryDoneThisWeek;
   /**
-     * When the last sweep with no errors finished. Null until one has run.
+     * When the last successful sweep finished. Null until the sweep runs (milestone 5).
      * @nullable
      */
   lastSweepAt: Date | null;
-  /** Today's calendar events, in start order. Empty until the sweep writes calendar data. */
+  /** Today's calendar events, in start order. Empty until the sweep writes calendar data (milestone 5). */
   today: CalendarEvent[];
   /** AI access requests waiting for Ollie, and approvals still open */
   access: HomeSummaryAccess;

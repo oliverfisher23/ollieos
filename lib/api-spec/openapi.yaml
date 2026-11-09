@@ -1228,89 +1228,6 @@ paths:
                 items: { $ref: "#/components/schemas/AiClient" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
-  /ai-clients/{id}/revoke:
-    parameters:
-      - $ref: "#/components/parameters/ItemId"
-    post:
-      operationId: revokeAiClient
-      tags: [access]
-      summary: Cut a tool off at once
-      responses:
-        "200":
-          description: The revoked tool
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/AiClient" }
-        "400": { $ref: "#/components/responses/Error" }
-        "403": { $ref: "#/components/responses/NotAuthorised" }
-        "404": { $ref: "#/components/responses/Error" }
-
-  /ai-clients/{id}/reconnect:
-    parameters:
-      - $ref: "#/components/parameters/ItemId"
-    post:
-      operationId: reconnectAiClient
-      tags: [access]
-      summary: Let a revoked tool back in
-      responses:
-        "200":
-          description: The tool. needsSignIn is true when it must go through the consent screen again.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ReconnectedAiClient" }
-        "400": { $ref: "#/components/responses/Error" }
-        "403": { $ref: "#/components/responses/NotAuthorised" }
-        "404": { $ref: "#/components/responses/Error" }
-
-  /sweep-runs:
-    get:
-      operationId: getSweepOverview
-      tags: [access]
-      summary: The Capture sweep's key, client and last 30 runs
-      responses:
-        "200":
-          description: Overview
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/SweepOverview" }
-        "403": { $ref: "#/components/responses/NotAuthorised" }
-
-  /oauth/consent:
-    get:
-      operationId: getOauthConsent
-      tags: [access]
-      summary: What a tool is asking to connect
-      parameters:
-        - name: request
-          in: query
-          required: true
-          schema: { type: string }
-      responses:
-        "200":
-          description: The request
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/OauthConsentInfo" }
-        "400": { $ref: "#/components/responses/Error" }
-        "403": { $ref: "#/components/responses/NotAuthorised" }
-    post:
-      operationId: answerOauthConsent
-      tags: [access]
-      summary: Approve or decline a tool's connection
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/OauthConsentAnswer" }
-      responses:
-        "200":
-          description: Where to send the browser next
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/OauthConsentRedirect" }
-        "400": { $ref: "#/components/responses/Error" }
-        "403": { $ref: "#/components/responses/NotAuthorised" }
-
   /ai-access/summary:
     get:
       operationId: getAiAccessSummary
@@ -1751,7 +1668,7 @@ components:
 
     CalendarEvent:
       type: object
-      required: [id, title, startsAt, endsAt, personal, location, attendees, people, project]
+      required: [id, title, startsAt, endsAt, personal, location]
       properties:
         id:
           type: integer
@@ -1767,25 +1684,6 @@ components:
           type: boolean
         location:
           type: [string, "null"]
-        attendees:
-          type: array
-          description: Attendee names or emails as the calendar gave them
-          items: { type: string }
-        people:
-          type: array
-          description: Attendees OllieOS knows, for the Brief me link
-          items: { $ref: "#/components/schemas/SlugRef" }
-        project:
-          oneOf:
-            - $ref: "#/components/schemas/SlugRef"
-            - type: "null"
-
-    SlugRef:
-      type: object
-      required: [name, slug]
-      properties:
-        name: { type: string }
-        slug: { type: string }
 
     HomeSummary:
       type: object
@@ -1829,10 +1727,10 @@ components:
         lastSweepAt:
           type: [string, "null"]
           format: date-time
-          description: When the last sweep with no errors finished. Null until one has run.
+          description: When the last successful sweep finished. Null until the sweep runs (milestone 5).
         today:
           type: array
-          description: Today's calendar events, in start order. Empty until the sweep writes calendar data.
+          description: Today's calendar events, in start order. Empty until the sweep writes calendar data (milestone 5).
           items:
             $ref: "#/components/schemas/CalendarEvent"
         access:
@@ -2521,73 +2419,6 @@ components:
         connectedAt: { type: [string, "null"], format: date-time }
         lastUsedAt: { type: [string, "null"], format: date-time }
         revokedAt: { type: [string, "null"], format: date-time }
-
-    ReconnectedAiClient:
-      allOf:
-        - $ref: "#/components/schemas/AiClient"
-        - type: object
-          required: [needsSignIn]
-          properties:
-            needsSignIn: { type: boolean }
-
-    OauthConsentInfo:
-      type: object
-      required: [clientName, redirectHost, loopbackOnly, scopes, reconnecting]
-      properties:
-        clientName: { type: string }
-        redirectHost: { type: string }
-        loopbackOnly:
-          type: boolean
-          description: True when the tool only sends people back to this computer (localhost)
-        scopes: { type: array, items: { type: string } }
-        reconnecting: { type: boolean }
-
-    OauthConsentAnswer:
-      type: object
-      required: [request, approve]
-      properties:
-        request: { type: string }
-        approve: { type: boolean }
-
-    OauthConsentRedirect:
-      type: object
-      required: [redirectTo]
-      properties:
-        redirectTo: { type: string }
-
-    SweepRun:
-      type: object
-      required: [id, startedAt, finishedAt, itemsCreated, itemsNoise, itemsDuplicate, activityLogged, errors]
-      properties:
-        id: { type: integer }
-        startedAt: { type: string, format: date-time }
-        finishedAt: { type: [string, "null"], format: date-time }
-        itemsCreated: { type: integer }
-        itemsNoise: { type: integer }
-        itemsDuplicate: { type: integer }
-        activityLogged: { type: integer }
-        errors: { type: array, items: { type: string } }
-
-    SweepOverview:
-      type: object
-      required: [keyConfigured, client, lastSuccessfulAt, runs]
-      properties:
-        keyConfigured:
-          type: boolean
-          description: Whether the INBOX_API_KEY secret is set
-        client:
-          oneOf:
-            - type: object
-              required: [id, name, connectedAt, lastUsedAt, revokedAt]
-              properties:
-                id: { type: integer }
-                name: { type: string }
-                connectedAt: { type: [string, "null"], format: date-time }
-                lastUsedAt: { type: [string, "null"], format: date-time }
-                revokedAt: { type: [string, "null"], format: date-time }
-            - type: "null"
-        lastSuccessfulAt: { type: [string, "null"], format: date-time }
-        runs: { type: array, items: { $ref: "#/components/schemas/SweepRun" } }
 
     AiAccessSummary:
       type: object

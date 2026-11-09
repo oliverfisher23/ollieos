@@ -315,11 +315,8 @@ export interface AiClientView {
   revokedAt: Date | null;
 }
 
-export const CONSENTED = sql`(${aiClientsTable.auth} <> 'oauth' or ${aiClientsTable.connectedAt} is not null)`;
-
 export async function listAiClients(): Promise<AiClientView[]> {
-  // An OAuth registration nobody approved on the consent screen is not a connected tool, so it is left out.
-  const rows = await db.select().from(aiClientsTable).where(CONSENTED).orderBy(aiClientsTable.id);
+  const rows = await db.select().from(aiClientsTable).orderBy(aiClientsTable.id);
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
@@ -350,7 +347,7 @@ export async function aiAccessSummary(): Promise<AiAccessSummary> {
       .from(t)
       .where(sql`${t.confidential} or not ${t.aiAccess}`);
   const [clients, pending, open, reads, hp, hpe, ho] = await Promise.all([
-    db.select({ n: sql<number>`count(*)::int` }).from(aiClientsTable).where(and(isNull(aiClientsTable.revokedAt), CONSENTED)),
+    db.select({ n: sql<number>`count(*)::int` }).from(aiClientsTable).where(isNull(aiClientsTable.revokedAt)),
     db.select({ n: sql<number>`count(*)::int` }).from(accessRequestsTable).where(eq(accessRequestsTable.status, "pending")),
     db
       .select({ n: sql<number>`count(*)::int` })
@@ -396,18 +393,13 @@ const KIND: Record<string, AiActivityView["kind"]> = { read: "read", search: "se
 /** The last AI actions, newest first. Reads from one call are grouped into one action. */
 export async function listAiActivity(limit = 100): Promise<AiActivityView[]> {
   const n = Math.min(Math.max(Math.trunc(limit) || 100, 1), 100);
-  // Ingest writes are audited as "ingest"; the log names the client instead. Searches share a batch with
-  // their read rows, so one search shows as one line.
   const res = await db.execute(sql`
-    select coalesce(a.payload->>'batch', 'e' || a.id::text) as grp,
-      max(a.created_at) as at, min(coalesce(c.name, a.actor)) as actor,
-      case when bool_or(a.action = 'search') then 'search' else min(a.action) end as action,
-      (count(*) filter (where a.entity_id is not null))::int as count,
-      (array_agg(a.entity_type::text || ':' || a.entity_id order by a.id) filter (where a.entity_id is not null))[1:3] as refs,
-      min(coalesce(a.payload->>'question', a.payload->>'query', a.payload->>'requested',
-        case when a.action = 'replace_calendar' then 'Calendar, ' || (a.payload->>'events') || ' events' end)) as context
-    from audit_events a left join ai_clients c on c.id = a.client_id
-    where a.client_id is not null and a.actor <> ${ACTOR} and a.action not in ('sweep_start', 'sweep_finish')
+    select coalesce(payload->>'batch', 'e' || id::text) as grp,
+      max(created_at) as at, min(actor) as actor, min(action) as action, count(*)::int as count,
+      (array_agg(entity_type::text || ':' || entity_id order by id) filter (where entity_id is not null))[1:3] as refs,
+      min(coalesce(payload->>'question', payload->>'query', payload->>'requested')) as context
+    from audit_events
+    where client_id is not null and actor <> ${ACTOR}
     group by grp
     order by at desc
     limit ${n}`);

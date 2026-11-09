@@ -340,24 +340,15 @@ export const GetHomeResponse = zod.object({
   "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 })).describe('Up to 5, most recently completed first')
 }),
-  "lastSweepAt": zod.coerce.date().nullable().describe('When the last sweep with no errors finished. Null until one has run.'),
+  "lastSweepAt": zod.coerce.date().nullable().describe('When the last successful sweep finished. Null until the sweep runs (milestone 5).'),
   "today": zod.array(zod.object({
   "id": zod.number().int(),
   "title": zod.string(),
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date(),
   "personal": zod.boolean(),
-  "location": zod.string().nullable(),
-  "attendees": zod.array(zod.string()).describe('Attendee names or emails as the calendar gave them'),
-  "people": zod.array(zod.object({
-  "name": zod.string(),
-  "slug": zod.string()
-})).describe('Attendees OllieOS knows, for the Brief me link'),
-  "project": zod.union([zod.object({
-  "name": zod.string(),
-  "slug": zod.string()
-}),zod.null()])
-})).describe('Today\'s calendar events, in start order. Empty until the sweep writes calendar data.'),
+  "location": zod.string().nullable()
+})).describe('Today\'s calendar events, in start order. Empty until the sweep writes calendar data (milestone 5).'),
   "access": zod.object({
   "pending": zod.array(zod.object({
   "id": zod.number().int(),
@@ -3036,103 +3027,6 @@ export const ListAiClientsResponseItem = zod.object({
   "revokedAt": zod.coerce.date().nullable()
 })
 export const ListAiClientsResponse = zod.array(ListAiClientsResponseItem)
-
-
-/**
- * @summary Cut a tool off at once
- */
-export const RevokeAiClientParams = zod.object({
-  "id": zod.coerce.number().int()
-})
-
-export const RevokeAiClientResponse = zod.object({
-  "id": zod.number().int(),
-  "name": zod.string(),
-  "kind": zod.string(),
-  "auth": zod.string(),
-  "builtIn": zod.boolean(),
-  "scopes": zod.array(zod.string()),
-  "connectedAt": zod.coerce.date().nullable(),
-  "lastUsedAt": zod.coerce.date().nullable(),
-  "revokedAt": zod.coerce.date().nullable()
-})
-
-
-/**
- * @summary Let a revoked tool back in
- */
-export const ReconnectAiClientParams = zod.object({
-  "id": zod.coerce.number().int()
-})
-
-export const ReconnectAiClientResponse = zod.object({
-  "id": zod.number().int(),
-  "name": zod.string(),
-  "kind": zod.string(),
-  "auth": zod.string(),
-  "builtIn": zod.boolean(),
-  "scopes": zod.array(zod.string()),
-  "connectedAt": zod.coerce.date().nullable(),
-  "lastUsedAt": zod.coerce.date().nullable(),
-  "revokedAt": zod.coerce.date().nullable()
-}).and(zod.object({
-  "needsSignIn": zod.boolean()
-}))
-
-
-/**
- * @summary The Capture sweep's key, client and last 30 runs
- */
-export const GetSweepOverviewResponse = zod.object({
-  "keyConfigured": zod.boolean().describe('Whether the INBOX_API_KEY secret is set'),
-  "client": zod.union([zod.object({
-  "id": zod.number().int(),
-  "name": zod.string(),
-  "connectedAt": zod.coerce.date().nullable(),
-  "lastUsedAt": zod.coerce.date().nullable(),
-  "revokedAt": zod.coerce.date().nullable()
-}),zod.null()]),
-  "lastSuccessfulAt": zod.coerce.date().nullable(),
-  "runs": zod.array(zod.object({
-  "id": zod.number().int(),
-  "startedAt": zod.coerce.date(),
-  "finishedAt": zod.coerce.date().nullable(),
-  "itemsCreated": zod.number().int(),
-  "itemsNoise": zod.number().int(),
-  "itemsDuplicate": zod.number().int(),
-  "activityLogged": zod.number().int(),
-  "errors": zod.array(zod.string())
-}))
-})
-
-
-/**
- * @summary What a tool is asking to connect
- */
-export const GetOauthConsentQueryParams = zod.object({
-  "request": zod.coerce.string()
-})
-
-export const GetOauthConsentResponse = zod.object({
-  "clientName": zod.string(),
-  "redirectHost": zod.string(),
-  "loopbackOnly": zod.boolean().describe('True when the tool only sends people back to this computer (localhost)'),
-  "scopes": zod.array(zod.string()),
-  "reconnecting": zod.boolean()
-})
-
-
-/**
- * @summary Approve or decline a tool's connection
- */
-export const AnswerOauthConsentBody = zod.object({
-  "request": zod.string(),
-  "approve": zod.boolean()
-})
-
-export const AnswerOauthConsentResponse = zod.object({
-  "redirectTo": zod.string()
-})
 
 
 /**

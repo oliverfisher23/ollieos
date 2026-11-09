@@ -1,12 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
-import { useQueryClient } from '@tanstack/react-query';
 import {
-  getGetAiAccessSummaryQueryKey,
-  getGetSweepOverviewQueryKey,
-  getListAiClientsQueryKey,
-  reconnectAiClient,
-  revokeAiClient,
   useGetAiAccessSummary,
   useListAccessRequests,
   useListAiActivity,
@@ -22,8 +16,6 @@ import {
 import { formatDayMonthShort, formatTime } from '@workspace/shared';
 import { Skel } from '@/components/bits';
 import { LockMark } from '@/components/knowledge/parts';
-import { errorMessage, notify } from '@/lib/notify';
-import { reportApiError } from '@/lib/forbidden';
 import { hiddenSummary, requestItemName, useAccessActions, whenLabel } from '@/lib/access';
 
 const H1 = { margin: 0, fontSize: 30, fontWeight: 600, letterSpacing: '-0.015em' } as const;
@@ -193,33 +185,7 @@ function OpenGrant({ req }: { req: AccessRequest }) {
 
 function canLabel(c: AiClient): string {
   if (c.builtIn) return 'Read, with your approval for hidden items';
-  if (c.kind === 'scheduled_task') return 'Add to Inbox, log activity';
   return c.scopes.includes('write') ? 'Read and write' : 'Read only';
-}
-
-function kindLabel(c: AiClient): string {
-  if (c.builtIn) return 'Built into OllieOS';
-  return c.kind === 'scheduled_task' ? 'Scheduled Claude task' : 'claude.ai connector';
-}
-
-export const MCP_URL = `${window.location.origin}/mcp`;
-
-export function CopyButton({ text, label, testId }: { text: string; label: string; testId: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      notify('Could not copy', 'Select the address and copy it by hand.');
-    }
-  };
-  return (
-    <button type="button" className="oo-btn oo-btn-outline" style={{ fontSize: 13, padding: '4px 10px' }} onClick={copy} aria-label={label} data-testid={testId}>
-      {copied ? 'Copied' : 'Copy'}
-    </button>
-  );
 }
 
 function Tools() {
@@ -227,16 +193,8 @@ function Tools() {
   const list = clients.data ?? [];
   return (
     <section className="oo-panel flex flex-col gap-2 px-5 py-6 sm:px-8" aria-labelledby="tools-h">
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <h2 id="tools-h" style={H2}>Connected tools</h2>
-        <span className="oo-soft" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          Server address: <code style={{ fontFamily: 'var(--oo-font-mono)', fontSize: 12 }} data-testid="text-mcp-url">{MCP_URL}</code>
-          <CopyButton text={MCP_URL} label="Copy the server address" testId="button-copy-mcp-url" />
-        </span>
-      </div>
-      <p className="oo-soft" style={{ margin: 0, fontSize: 13 }}>
-        To connect Claude, add a custom connector in Claude with this address and approve it here. Ask OllieOS is built in and follows the same rules.
-      </p>
+      <h2 id="tools-h" style={H2}>Connected tools</h2>
+      <p className="oo-soft" style={{ margin: 0, fontSize: 13 }}>The Claude connector and the capture sweep connect in milestone 5. Ask OllieOS is built in and follows the same rules.</p>
       {clients.isLoading ? (
         <Skel h={40} />
       ) : clients.error ? (
@@ -245,72 +203,28 @@ function Tools() {
         <p className="oo-muted" style={{ margin: 0, fontSize: 14 }} data-testid="state-tools-empty">No tools have connected yet.</p>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table className="oo-table" style={{ minWidth: 640 }}>
+          <table className="oo-table" style={{ minWidth: 620 }}>
             <thead>
-              <tr>
-                <th scope="col">Tool</th><th scope="col">Can</th><th scope="col">Connected</th><th scope="col">Last used</th>
-                <th scope="col"><span className="oo-sr">Action</span></th>
-              </tr>
+              <tr><th scope="col">Tool</th><th scope="col">Can</th><th scope="col">Connected</th><th scope="col">Last used</th><th scope="col">Action</th></tr>
             </thead>
             <tbody>
-              {list.map((c) => <ToolRow key={c.id} c={c} />)}
+              {list.map((c) => (
+                <tr key={c.id} data-testid={'row-tool-' + c.id}>
+                  <td>
+                    <span style={{ fontWeight: 500 }}>{c.name}</span>{' '}
+                    <span className="oo-muted" style={{ fontSize: 12 }}>{c.builtIn ? 'Built into OllieOS' : c.kind === 'connector' ? 'claude.ai connector' : 'Scheduled Claude task'}</span>
+                  </td>
+                  <td className="oo-soft">{canLabel(c)}</td>
+                  <td className="oo-num oo-soft">{c.connectedAt ? formatDayMonthShort(c.connectedAt) : 'Not yet'}</td>
+                  <td className="oo-num oo-soft">{c.revokedAt ? 'Revoked' : c.lastUsedAt ? whenLabel(c.lastUsedAt) : 'Not yet'}</td>
+                  <td className="oo-muted" style={{ fontSize: 13 }}>{c.builtIn ? 'Always on' : 'Arrives in milestone 5'}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       )}
     </section>
-  );
-}
-
-function ToolRow({ c }: { c: AiClient }) {
-  const qc = useQueryClient();
-  const [busy, setBusy] = useState(false);
-  const off = !!c.revokedAt;
-
-  const toggle = async () => {
-    setBusy(true);
-    try {
-      if (off) {
-        const r = await reconnectAiClient(c.id);
-        notify(
-          `${c.name} can connect again`,
-          r.needsSignIn ? 'Open the connector in Claude and choose Connect. You will approve it here once more.' : 'Its next run will be accepted.',
-        );
-      } else {
-        await revokeAiClient(c.id);
-        notify(`${c.name} is cut off`, 'It cannot read or write anything until you reconnect it.');
-      }
-      for (const key of [getListAiClientsQueryKey(), getGetAiAccessSummaryQueryKey(), getGetSweepOverviewQueryKey()]) {
-        void qc.invalidateQueries({ queryKey: [key[0]] });
-      }
-    } catch (err) {
-      reportApiError(err);
-      notify('That did not save', errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <tr data-testid={'row-tool-' + c.id}>
-      <td>
-        <span style={{ fontWeight: 500 }}>{c.name}</span>
-        <br />
-        <span className="oo-soft" style={{ fontSize: 12 }}>{kindLabel(c)}</span>
-      </td>
-      <td className="oo-soft">{canLabel(c)}</td>
-      <td className="oo-num oo-soft">{c.connectedAt ? formatDayMonthShort(c.connectedAt) : 'Not yet'}</td>
-      <td className="oo-num oo-soft" data-testid={'text-tool-last-' + c.id}>{off ? 'Revoked' : c.lastUsedAt ? whenLabel(c.lastUsedAt) : 'Not yet'}</td>
-      <td style={{ textAlign: 'right' }}>
-        {c.builtIn ? (
-          <span className="oo-muted" style={{ fontSize: 13 }}>Always on</span>
-        ) : off ? (
-          <button type="button" className="oo-btn oo-btn-ink" style={{ fontSize: 13 }} disabled={busy} onClick={toggle} data-testid={'button-reconnect-' + c.id}>Reconnect</button>
-        ) : (
-          <button type="button" className="oo-btn oo-btn-outline" style={{ fontSize: 13, color: 'var(--oo-danger)' }} disabled={busy} onClick={toggle} data-testid={'button-revoke-' + c.id}>Revoke</button>
-        )}
-      </td>
-    </tr>
   );
 }
 
@@ -328,8 +242,6 @@ function ActivityItems({ a }: { a: AiActivity }) {
       </span>
     );
   }
-  // Writes with no single item, such as a calendar refresh, say what they were instead.
-  if (a.items.length === 0 && a.context) return <span>{a.context}</span>;
   const extra = a.count - a.items.length;
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
@@ -372,7 +284,7 @@ function Activity() {
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                       <ActivityItems a={a} />
-                      {a.kind !== 'request' && a.context && a.items.length > 0 && <span className="oo-muted" style={{ fontSize: 12 }}>For “{a.context}”</span>}
+                      {a.kind !== 'request' && a.context && <span className="oo-muted" style={{ fontSize: 12 }}>For “{a.context}”</span>}
                     </div>
                   </td>
                 </tr>

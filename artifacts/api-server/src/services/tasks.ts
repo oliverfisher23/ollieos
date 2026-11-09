@@ -195,7 +195,7 @@ async function projectName(id: number | null): Promise<string | null> {
 }
 
 /** Applies an edit, keeps the lifecycle timestamps right, and records each change in the audit trail. */
-export async function updateTask(id: number, input: TaskUpdateInput, actor: string, clientId: number | null = null): Promise<TaskView> {
+export async function updateTask(id: number, input: TaskUpdateInput, actor: string): Promise<TaskView> {
   const current = await loadTask(id);
   const set: Partial<InsertTask> = {};
   const changes: FieldChange[] = [];
@@ -276,7 +276,6 @@ export async function updateTask(id: number, input: TaskUpdateInput, actor: stri
     const [row] = await tx.update(tasksTable).set(set).where(eq(tasksTable.id, id)).returning();
     await writeAudit(tx, {
       actor,
-      clientId,
       action: statusChanged ? "status" : "update",
       entityType: "task",
       entityId: id,
