@@ -347,7 +347,12 @@ export const GetHomeResponse = zod.object({
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date(),
   "personal": zod.boolean(),
-  "location": zod.string().nullable()
+  "location": zod.string().nullable(),
+  "brief": zod.union([zod.object({
+  "type": zod.enum(['project', 'person']),
+  "slug": zod.string(),
+  "name": zod.string()
+}),zod.null()]).describe('The project or person to read up on before this meeting (Brief me). Null when none is linked.')
 })).describe('Today\'s calendar events, in start order. Empty until the sweep writes calendar data (milestone 5).'),
   "access": zod.object({
   "pending": zod.array(zod.object({
@@ -3027,6 +3032,95 @@ export const ListAiClientsResponseItem = zod.object({
   "revokedAt": zod.coerce.date().nullable()
 })
 export const ListAiClientsResponse = zod.array(ListAiClientsResponseItem)
+
+
+/**
+ * @summary Cut a connected tool off at once. Its tokens or key stop working until Reconnect.
+ */
+export const RevokeAiClientParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RevokeAiClientResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "kind": zod.string(),
+  "auth": zod.string(),
+  "connectedAt": zod.coerce.date().nullable(),
+  "lastUsedAt": zod.coerce.date().nullable(),
+  "revokedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Lift a revoke. OAuth tools must still pass the consent screen again.
+ */
+export const ReconnectAiClientParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ReconnectAiClientResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "kind": zod.string(),
+  "auth": zod.string(),
+  "connectedAt": zod.coerce.date().nullable(),
+  "lastUsedAt": zod.coerce.date().nullable(),
+  "revokedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Capture sweep key status, cursor and recent runs
+ */
+export const GetSweepStatusResponse = zod.object({
+  "keyConfigured": zod.boolean(),
+  "client": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "lastUsedAt": zod.coerce.date().nullable(),
+  "revokedAt": zod.coerce.date().nullable()
+}),
+  "cursor": zod.coerce.date().nullable(),
+  "runs": zod.array(zod.object({
+  "id": zod.number().int(),
+  "startedAt": zod.coerce.date(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "itemsCreated": zod.number().int(),
+  "itemsNoise": zod.number().int(),
+  "itemsDuplicate": zod.number().int(),
+  "activityLogged": zod.number().int(),
+  "errors": zod.array(zod.string())
+}))
+})
+
+
+/**
+ * @summary What a tool asking to connect wants, for the consent screen
+ */
+export const GetOAuthConsentQueryParams = zod.object({
+  "req": zod.coerce.string()
+})
+
+export const GetOAuthConsentResponse = zod.object({
+  "clientName": zod.string(),
+  "redirectHost": zod.string(),
+  "scopes": zod.array(zod.string()),
+  "reconnecting": zod.boolean()
+})
+
+
+/**
+ * @summary Approve or deny a connection. Returns where to send the browser next.
+ */
+export const DecideOAuthConsentBody = zod.object({
+  "req": zod.string(),
+  "decision": zod.enum(['approve', 'deny'])
+})
+
+export const DecideOAuthConsentResponse = zod.object({
+  "redirectTo": zod.string()
+})
 
 
 /**

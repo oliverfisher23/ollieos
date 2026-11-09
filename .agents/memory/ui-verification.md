@@ -13,3 +13,5 @@ The test session's `sess.user` must include `lastName` and `profileImageUrl` (nu
 Task lists render both a table (desktop) and cards (phone) with the same testids, so scope Playwright locators to `table` or a row. Grant `clipboard-read`/`clipboard-write` on the context to check copy buttons.
 
 Better option since the AI access milestone: point the test API instance at the `ollieos_test` database (`DATABASE_URL` with the db name swapped) and seed it by SQL, so Ollie's real data is untouched while he uses the app. Vitest leaves the last test's rows in that database, so truncate or account for them before seeding. Drop `ollieos_test` afterwards.
+
+For the OAuth consent page, get a real signed `req` by calling `/api/oauth/register` then `/api/oauth/authorize` on the test instance and reading the `Location` header. After clicking Approve the browser follows a redirect to a dead loopback address; wait about a second before the next `goto` or Playwright reports an interrupted navigation.

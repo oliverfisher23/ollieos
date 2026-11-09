@@ -10,8 +10,8 @@ import {
 import { SOURCE_LABELS, WAITING_AMBER_DAYS, formatLong, formatShort, formatTime, greeting } from '@workspace/shared';
 import { AddBox } from '@/components/add-box';
 import { Avatar, PriorityPill, Skel } from '@/components/bits';
-import { IconCheck, IconLock, IconSettings } from '@/components/icons';
-import { requestItemName, useAccessActions } from '@/lib/access';
+import { IconArrowOut, IconCheck, IconLock, IconSettings } from '@/components/icons';
+import { requestItemName, useAccessActions, whenLabel } from '@/lib/access';
 import { useSession } from '@/lib/auth-context';
 import { useTaskActions } from '@/lib/task-actions';
 import { PHONE_QUERY, useMedia } from '@/lib/use-media';
@@ -104,7 +104,7 @@ export default function HomePage() {
     <>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} data-testid="text-last-sweep">
         <span aria-hidden="true" className="oo-dot" data-off={!home.data.lastSweepAt} />
-        {home.data.lastSweepAt ? 'Last sweep ' + formatTime(home.data.lastSweepAt) : 'No sweep has run yet'}
+        {home.data.lastSweepAt ? 'Last sweep ' + sweepWhen(home.data.lastSweepAt) : 'No sweep has run yet'}
       </span>
       <span aria-hidden="true" className="oo-t4">·</span>
       <span data-testid="text-inbox-new">{home.data.inbox.count} new</span>
@@ -265,6 +265,31 @@ function nextEventId(events: CalendarEvent[]): number | null {
 
 const EMPTY_CAL = 'Nothing on your calendar yet. The sweep fills this in.';
 
+/** The time alone when the last sweep was today, otherwise the day as well. */
+function sweepWhen(at: string): string {
+  const label = whenLabel(at);
+  return label.endsWith(' today') ? formatTime(at) : label;
+}
+
+function briefHref(brief: NonNullable<CalendarEvent['brief']>): string {
+  return (brief.type === 'project' ? '/knowledge/projects/' : '/knowledge/people/') + brief.slug;
+}
+
+function BriefLink({ e, phone = false }: { e: CalendarEvent; phone?: boolean }) {
+  if (!e.brief) return null;
+  return (
+    <Link
+      href={briefHref(e.brief)}
+      className="oo-amber"
+      style={{ color: 'var(--oo-accent)', fontSize: phone ? 13 : 12, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+      aria-label={'Brief me on ' + e.brief.name}
+      data-testid={'link-brief-' + e.id}
+    >
+      Brief me{!phone && <IconArrowOut size={12} />}
+    </Link>
+  );
+}
+
 function TodayStrip({ events }: { events: CalendarEvent[] }) {
   const nextId = nextEventId(events);
   return (
@@ -282,6 +307,7 @@ function TodayStrip({ events }: { events: CalendarEvent[] }) {
               </div>
               <span style={{ fontSize: 14, fontWeight: 500 }}>{e.title}</span>
               <span className="oo-t2" style={{ fontSize: 12 }}>{e.personal ? 'Personal' : e.location ?? ''}</span>
+              {e.id === nextId && <BriefLink e={e} />}
             </div>
           ))}
         </div>
@@ -300,7 +326,10 @@ function TodayPhone({ events }: { events: CalendarEvent[] }) {
       ) : events.map((e) => (
         <div key={e.id} style={{ display: 'flex', gap: 12 }} data-testid={'row-event-' + e.id}>
           <span className={'oo-num ' + (e.id === nextId ? 'oo-amber' : 'oo-t2')} style={{ flex: 'none', width: 46, fontSize: 13 }}>{formatTime(e.startsAt)}</span>
-          <span style={{ fontSize: 14, fontWeight: e.id === nextId ? 500 : 400 }}>{e.title}{e.location ? ' · ' + e.location : ''}</span>
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 14, fontWeight: e.id === nextId ? 500 : 400 }}>{e.title}{e.location ? ' · ' + e.location : ''}</span>
+            {e.id === nextId && <BriefLink e={e} phone />}
+          </span>
         </div>
       ))}
     </section>

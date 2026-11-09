@@ -279,6 +279,20 @@ export interface WaitingItem {
   daysWaiting: number;
 }
 
+export type CalendarBriefType = typeof CalendarBriefType[keyof typeof CalendarBriefType];
+
+
+export const CalendarBriefType = {
+  project: 'project',
+  person: 'person',
+} as const;
+
+export interface CalendarBrief {
+  type: CalendarBriefType;
+  slug: string;
+  name: string;
+}
+
 export interface CalendarEvent {
   id: number;
   title: string;
@@ -287,6 +301,8 @@ export interface CalendarEvent {
   personal: boolean;
   /** @nullable */
   location: string | null;
+  /** The project or person to read up on before this meeting (Brief me). Null when none is linked. */
+  brief: CalendarBrief | null;
 }
 
 export type HomeSummaryInbox = {
@@ -1058,6 +1074,68 @@ export interface AiClient {
   revokedAt: string | null;
 }
 
+export interface AiClientRow {
+  id: number;
+  name: string;
+  kind: string;
+  auth: string;
+  /** @nullable */
+  connectedAt: string | null;
+  /** @nullable */
+  lastUsedAt: string | null;
+  /** @nullable */
+  revokedAt: string | null;
+}
+
+export interface SweepRun {
+  id: number;
+  startedAt: string;
+  /** @nullable */
+  finishedAt: string | null;
+  itemsCreated: number;
+  itemsNoise: number;
+  itemsDuplicate: number;
+  activityLogged: number;
+  errors: string[];
+}
+
+export type SweepStatusClient = {
+  id: number;
+  name: string;
+  /** @nullable */
+  lastUsedAt: string | null;
+  /** @nullable */
+  revokedAt: string | null;
+};
+
+export interface SweepStatus {
+  keyConfigured: boolean;
+  client: SweepStatusClient;
+  /** @nullable */
+  cursor: string | null;
+  runs: SweepRun[];
+}
+
+export interface OAuthConsent {
+  clientName: string;
+  redirectHost: string;
+  scopes: string[];
+  reconnecting: boolean;
+}
+
+export type OAuthConsentDecisionDecision = typeof OAuthConsentDecisionDecision[keyof typeof OAuthConsentDecisionDecision];
+
+
+export const OAuthConsentDecisionDecision = {
+  approve: 'approve',
+  deny: 'deny',
+} as const;
+
+export interface OAuthConsentDecision {
+  req: string;
+  decision: OAuthConsentDecisionDecision;
+}
+
 export type AiAccessSummaryHidden = {
   projects: number;
   people: number;
@@ -1172,6 +1250,14 @@ q: string;
  * Comma-separated list of task, project, person, organisation, decision, note, fact
  */
 types?: string;
+};
+
+export type GetOAuthConsentParams = {
+req: string;
+};
+
+export type DecideOAuthConsent200 = {
+  redirectTo: string;
 };
 
 export type ListAiActivityParams = {

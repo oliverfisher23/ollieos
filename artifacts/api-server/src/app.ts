@@ -5,6 +5,8 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { authMiddleware } from "./middlewares/authMiddleware";
+import mcpRouter from "./mcp/route";
+import { wellKnownRouter } from "./oauth/routes";
 
 const app: Express = express();
 
@@ -31,11 +33,14 @@ app.use(
 );
 app.use(cors({ credentials: true, origin: true }));
 app.use(cookieParser());
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(authMiddleware);
 
 app.use("/api", router);
+// AI connectors: OAuth discovery at the root, and the MCP endpoint (bearer tokens, no cookies).
+app.use(wellKnownRouter);
+app.use(mcpRouter);
 
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   req.log.error({ err }, "Unhandled error");

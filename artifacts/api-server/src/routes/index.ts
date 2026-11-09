@@ -7,6 +7,8 @@ import noiseRulesRouter from "./noiseRules";
 import knowledgeRouter from "./knowledge";
 import askRouter from "./ask";
 import accessRouter from "./access";
+import ingestRouter from "./ingest";
+import { oauthConsentRouter, oauthPublicRouter } from "../oauth/routes";
 import { requireOllie } from "../middlewares/requireOllie";
 
 const router: IRouter = Router();
@@ -14,6 +16,10 @@ const router: IRouter = Router();
 // Open routes: health check and the sign-in flow.
 router.use(healthRouter);
 router.use(authRouter);
+// OAuth for AI connectors (open by design; the consent step below needs Ollie).
+router.use(oauthPublicRouter);
+// Ingest has its own key check (INBOX_API_KEY).
+router.use(ingestRouter);
 
 // Everything below holds Ollie's data and is allowlist-only.
 router.use(requireOllie);
@@ -23,5 +29,6 @@ router.use(noiseRulesRouter);
 router.use(knowledgeRouter);
 router.use(askRouter);
 router.use(accessRouter);
+router.use(oauthConsentRouter);
 
 export default router;

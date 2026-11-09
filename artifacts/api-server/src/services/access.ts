@@ -316,7 +316,12 @@ export interface AiClientView {
 }
 
 export async function listAiClients(): Promise<AiClientView[]> {
-  const rows = await db.select().from(aiClientsTable).orderBy(aiClientsTable.id);
+  // Tools that registered but were never approved on the consent screen are not shown.
+  const rows = await db
+    .select()
+    .from(aiClientsTable)
+    .where(sql`${aiClientsTable.connectedAt} is not null`)
+    .orderBy(aiClientsTable.id);
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
@@ -347,7 +352,10 @@ export async function aiAccessSummary(): Promise<AiAccessSummary> {
       .from(t)
       .where(sql`${t.confidential} or not ${t.aiAccess}`);
   const [clients, pending, open, reads, hp, hpe, ho] = await Promise.all([
-    db.select({ n: sql<number>`count(*)::int` }).from(aiClientsTable).where(isNull(aiClientsTable.revokedAt)),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(aiClientsTable)
+      .where(and(isNull(aiClientsTable.revokedAt), sql`${aiClientsTable.connectedAt} is not null`)),
     db.select({ n: sql<number>`count(*)::int` }).from(accessRequestsTable).where(eq(accessRequestsTable.status, "pending")),
     db
       .select({ n: sql<number>`count(*)::int` })
@@ -394,16 +402,18 @@ const KIND: Record<string, AiActivityView["kind"]> = { read: "read", search: "se
 export async function listAiActivity(limit = 100): Promise<AiActivityView[]> {
   const n = Math.min(Math.max(Math.trunc(limit) || 100, 1), 100);
   const res = await db.execute(sql`
-    select coalesce(payload->>'batch', 'e' || id::text) as grp,
-      max(created_at) as at, min(actor) as actor, min(action) as action, count(*)::int as count,
-      (array_agg(entity_type::text || ':' || entity_id order by id) filter (where entity_id is not null))[1:3] as refs,
-      min(coalesce(payload->>'question', payload->>'query', payload->>'requested')) as context
-    from audit_events
-    where client_id is not null and actor <> ${ACTOR}
+    select coalesce(a.payload->>'batch', 'e' || a.id::text) as grp,
+      max(a.created_at) as at, coalesce(min(c.name), min(a.actor)) as actor, min(a.action) as action, count(*)::int as count,
+      (array_agg(a.entity_type::text || ':' || a.entity_id order by a.id) filter (where a.entity_id is not null))[1:3] as refs,
+      min(coalesce(a.payload->>'question', a.payload->>'query', a.payload->>'requested')) as context,
+      max(a.payload->>'count') as n
+    from audit_events a
+    left join ai_clients c on c.id = a.client_id
+    where a.client_id is not null and a.actor <> ${ACTOR}
     group by grp
     order by at desc
     limit ${n}`);
-  const rows = res.rows as { grp: string; at: string | Date; actor: string; action: string; count: number; refs: string[] | null; context: string | null }[];
+  const rows = res.rows as { grp: string; at: string | Date; actor: string; action: string; count: number; refs: string[] | null; context: string | null; n: string | null }[];
   const labels = await describeRefs(rows.flatMap((r) => r.refs ?? []));
   return rows.map((r) => ({
     key: r.grp,
@@ -413,6 +423,14 @@ export async function listAiActivity(limit = 100): Promise<AiActivityView[]> {
     action: r.action,
     count: Number(r.count),
     items: (r.refs ?? []).map((ref) => labels.get(ref)).filter((x): x is ItemView => !!x),
-    context: r.context,
+    context: r.context ?? actionLabel(r.action, r.n),
   }));
+}
+
+/** Words for writes that have no single item to name. */
+function actionLabel(action: string, n: string | null): string | null {
+  if (action === "sweep_start") return "Started a sweep";
+  if (action === "sweep_finish") return "Finished a sweep";
+  if (action === "replace") return n == null ? "Replaced the calendar" : `Replaced the calendar with ${n} ${n === "1" ? "event" : "events"}`;
+  return null;
 }

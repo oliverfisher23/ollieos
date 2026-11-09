@@ -10,6 +10,7 @@ import {
   listAiActivity,
   listAiClients,
 } from "../services/access";
+import { reconnectClient, revokeClient, sweepStatus } from "../services/clients";
 
 const router: IRouter = Router();
 
@@ -30,6 +31,9 @@ router.post(
 router.post("/access-requests/:id/decline", handle(async (req, res) => void res.json(await declineRequest(IdParams.parse(req.params).id))));
 router.post("/access-requests/:id/end", handle(async (req, res) => void res.json(await endAccess(IdParams.parse(req.params).id))));
 router.get("/ai-clients", handle(async (_req, res) => void res.json(await listAiClients())));
+router.post("/ai-clients/:id/revoke", handle(async (req, res) => void res.json(await revokeClient(IdParams.parse(req.params).id))));
+router.post("/ai-clients/:id/reconnect", handle(async (req, res) => void res.json(await reconnectClient(IdParams.parse(req.params).id))));
+router.get("/sweep", handle(async (_req, res) => void res.json(await sweepStatus())));
 router.get("/ai-access/summary", handle(async (_req, res) => void res.json(await aiAccessSummary())));
 router.get("/ai-activity", handle(async (req, res) => void res.json(await listAiActivity(ActivityQuery.parse(req.query).limit ?? 100))));
 

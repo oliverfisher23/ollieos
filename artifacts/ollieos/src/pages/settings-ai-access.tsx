@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'wouter';
+import { useQueryClient } from '@tanstack/react-query';
 import {
+  getGetAiAccessSummaryQueryKey,
+  getGetSweepStatusQueryKey,
+  getListAiClientsQueryKey,
+  reconnectAiClient,
+  revokeAiClient,
   useGetAiAccessSummary,
   useListAccessRequests,
   useListAiActivity,
@@ -17,6 +23,9 @@ import { formatDayMonthShort, formatTime } from '@workspace/shared';
 import { Skel } from '@/components/bits';
 import { LockMark } from '@/components/knowledge/parts';
 import { hiddenSummary, requestItemName, useAccessActions, whenLabel } from '@/lib/access';
+import { errorMessage, notify } from '@/lib/notify';
+import { reportApiError } from '@/lib/forbidden';
+import { CopyField } from '@/components/copy-field';
 
 const H1 = { margin: 0, fontSize: 30, fontWeight: 600, letterSpacing: '-0.015em' } as const;
 const H2 = { margin: 0, fontSize: 16, fontWeight: 600 } as const;
@@ -185,7 +194,18 @@ function OpenGrant({ req }: { req: AccessRequest }) {
 
 function canLabel(c: AiClient): string {
   if (c.builtIn) return 'Read, with your approval for hidden items';
+  if (c.kind === 'scheduled_task') return 'Add to Inbox, log activity';
   return c.scopes.includes('write') ? 'Read and write' : 'Read only';
+}
+
+function kindLabel(c: AiClient): string {
+  if (c.builtIn) return 'Built into OllieOS';
+  return c.kind === 'connector' ? 'Claude connector' : c.kind === 'scheduled_task' ? 'Scheduled Claude task' : 'Other tool';
+}
+
+/** The address Claude needs for a custom connector. */
+function mcpAddress(): string {
+  return window.location.origin + '/mcp';
 }
 
 function Tools() {
@@ -194,7 +214,10 @@ function Tools() {
   return (
     <section className="oo-panel flex flex-col gap-2 px-5 py-6 sm:px-8" aria-labelledby="tools-h">
       <h2 id="tools-h" style={H2}>Connected tools</h2>
-      <p className="oo-soft" style={{ margin: 0, fontSize: 13 }}>The Claude connector and the capture sweep connect in milestone 5. Ask OllieOS is built in and follows the same rules.</p>
+      <p className="oo-soft" style={{ margin: 0, fontSize: 13, maxWidth: '70ch', lineHeight: 1.6 }}>
+        To connect Claude, add a custom connector in Claude's settings with this address, then approve it here when asked. Revoke cuts a tool off at once.
+      </p>
+      <CopyField value={mcpAddress()} label="Connector address" testId="mcp-address" />
       {clients.isLoading ? (
         <Skel h={40} />
       ) : clients.error ? (
@@ -203,28 +226,77 @@ function Tools() {
         <p className="oo-muted" style={{ margin: 0, fontSize: 14 }} data-testid="state-tools-empty">No tools have connected yet.</p>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table className="oo-table" style={{ minWidth: 620 }}>
+          <table className="oo-table" style={{ minWidth: 640 }}>
             <thead>
-              <tr><th scope="col">Tool</th><th scope="col">Can</th><th scope="col">Connected</th><th scope="col">Last used</th><th scope="col">Action</th></tr>
+              <tr><th scope="col">Tool</th><th scope="col">Can</th><th scope="col">Connected</th><th scope="col">Last used</th><th scope="col"><span className="sr-only">Action</span></th></tr>
             </thead>
             <tbody>
-              {list.map((c) => (
-                <tr key={c.id} data-testid={'row-tool-' + c.id}>
-                  <td>
-                    <span style={{ fontWeight: 500 }}>{c.name}</span>{' '}
-                    <span className="oo-muted" style={{ fontSize: 12 }}>{c.builtIn ? 'Built into OllieOS' : c.kind === 'connector' ? 'claude.ai connector' : 'Scheduled Claude task'}</span>
-                  </td>
-                  <td className="oo-soft">{canLabel(c)}</td>
-                  <td className="oo-num oo-soft">{c.connectedAt ? formatDayMonthShort(c.connectedAt) : 'Not yet'}</td>
-                  <td className="oo-num oo-soft">{c.revokedAt ? 'Revoked' : c.lastUsedAt ? whenLabel(c.lastUsedAt) : 'Not yet'}</td>
-                  <td className="oo-muted" style={{ fontSize: 13 }}>{c.builtIn ? 'Always on' : 'Arrives in milestone 5'}</td>
-                </tr>
-              ))}
+              {list.map((c) => <ToolRow key={c.id} c={c} />)}
             </tbody>
           </table>
         </div>
       )}
     </section>
+  );
+}
+
+function ToolRow({ c }: { c: AiClient }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const off = !!c.revokedAt;
+  const toggle = async () => {
+    setBusy(true);
+    try {
+      if (off) {
+        await reconnectAiClient(c.id);
+        notify(
+          `${c.name} reconnected`,
+          c.auth === 'oauth' ? `Open ${c.name} and connect again. You will be asked to approve it here.` : 'The sweep can write to OllieOS again.',
+        );
+      } else {
+        await revokeAiClient(c.id);
+        notify(`${c.name} revoked`, 'It can no longer read or write OllieOS.');
+      }
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: getListAiClientsQueryKey() }),
+        qc.invalidateQueries({ queryKey: getGetAiAccessSummaryQueryKey() }),
+        qc.invalidateQueries({ queryKey: getGetSweepStatusQueryKey() }),
+      ]);
+    } catch (err) {
+      reportApiError(err);
+      notify('That did not save', errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <tr data-testid={'row-tool-' + c.id}>
+      <td>
+        <span style={{ fontWeight: 500 }}>{c.name}</span>
+        <br />
+        <span className="oo-soft" style={{ fontSize: 12 }}>{kindLabel(c)}</span>
+      </td>
+      <td className="oo-soft">{canLabel(c)}</td>
+      <td className="oo-num oo-soft">{c.connectedAt ? formatDayMonthShort(c.connectedAt) : 'Not yet'}</td>
+      <td className="oo-num oo-soft" data-testid={'text-tool-last-' + c.id}>{off ? 'Revoked' : c.lastUsedAt ? whenLabel(c.lastUsedAt) : 'Not yet'}</td>
+      <td style={{ textAlign: 'right' }}>
+        {c.builtIn ? (
+          <span className="oo-muted" style={{ fontSize: 13 }}>Always on</span>
+        ) : (
+          <button
+            type="button"
+            className={off ? 'oo-btn oo-btn-ink' : 'oo-btn oo-btn-outline'}
+            style={off ? undefined : { color: 'var(--oo-danger)' }}
+            disabled={busy}
+            onClick={toggle}
+            aria-label={(off ? 'Reconnect ' : 'Revoke ') + c.name}
+            data-testid={(off ? 'button-reconnect-' : 'button-revoke-') + c.id}
+          >
+            {off ? 'Reconnect' : 'Revoke'}
+          </button>
+        )}
+      </td>
+    </tr>
   );
 }
 
@@ -241,6 +313,9 @@ function ActivityItems({ a }: { a: AiActivity }) {
         {item?.confidential && <span className="oo-muted">(confidential)</span>}
       </span>
     );
+  }
+  if (a.items.length === 0) {
+    return <span className="oo-soft">{a.context ? (a.kind === 'search' ? `“${a.context}”` : a.context) : a.count === 1 ? 'One item' : `${a.count} items`}</span>;
   }
   const extra = a.count - a.items.length;
   return (
@@ -284,7 +359,7 @@ function Activity() {
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                       <ActivityItems a={a} />
-                      {a.kind !== 'request' && a.context && <span className="oo-muted" style={{ fontSize: 12 }}>For “{a.context}”</span>}
+                      {a.kind !== 'request' && a.context && a.items.length > 0 && <span className="oo-muted" style={{ fontSize: 12 }}>For “{a.context}”</span>}
                     </div>
                   </td>
                 </tr>

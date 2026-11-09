@@ -11,7 +11,7 @@ Ollie's private personal operating system for tasks and work knowledge, readable
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - `pnpm --filter @workspace/api-server run test` — vitest for the AI access rules; rebuilds a throwaway `ollieos_test` database each run, never touches the real one
 - `pnpm --filter @workspace/scripts run seed-tasks` — seed the 10 starting tasks and their people (runs once per database)
-- Required env: `DATABASE_URL`; secret `ALLOWED_EMAIL` (the only email allowed to sign in; if unset, nobody can)
+- Required env: `DATABASE_URL`; secrets `ALLOWED_EMAIL` (the only email allowed to sign in; if unset, nobody can), `SESSION_SECRET` (also signs OAuth consent requests), `INBOX_API_KEY` (bearer key for `/api/ingest/*`; ingest answers 503 until it is set)
 
 ## Stack
 
@@ -42,6 +42,10 @@ Ollie's private personal operating system for tasks and work knowledge, readable
 - Ask OllieOS is its own AI client (`ai_clients` row, auth internal). Its "Allow for this question" grants the held-back items to Ask only, then re-answers the turn. Ollie's own views use no grants.
 - Knowledge writes in the web app go through `useKnowledgeWrite()` (`src/lib/knowledge.ts`), which refreshes every Knowledge query plus the task caches.
 - Facts are never edited in place; replacing one supersedes it and keeps the history.
+- MCP server at `POST /mcp` (stateless, JSON responses) with OAuth 2.1: discovery at `/.well-known/oauth-protected-resource/mcp` and `/.well-known/oauth-authorization-server`, endpoints under `/api/oauth/*` (dynamic registration, public clients, PKCE S256 only). Consent is the web page `/oauth/consent?req=` behind Ollie's sign-in. Access tokens last 1 hour, refresh tokens 30 days and rotate on use; a failed code or refresh attempt still spends it.
+- `src/mcp/` and `src/routes/ingest/` never import the database (boundary test): reads go through `lib/ai-data` (visible items only; hidden ones answer `not_found`), writes through `services/aiWrites`. Ingest acts as the "Capture sweep" client with actor `ingest`; the AI log shows the client name.
+- Capture dedupes on source + source_ref through the `capture_log` unique index, so the same item sent twice, even at once, makes one task. Noise rules apply only when no status is given and never to meeting items. A confidential item is saved but the reply never names it or returns its id.
+- Revoke on a connected tool cuts it off at once (tokens revoked, ingest key refused with 403). Reconnect lets the sweep back in; an OAuth tool must go through consent again. Ask OllieOS cannot be revoked.
 - Ask OllieOS uses Anthropic `claude-sonnet-5-5` through Replit AI Integrations (no own key, billed to Replit credits); structured output via `output_config.format` json_schema, no temperature, forced tool_choice is rejected.
 
 ## Product
@@ -49,7 +53,8 @@ Ollie's private personal operating system for tasks and work knowledge, readable
 - Home: add tasks, Do next, Inbox count with "Triage N", Waiting on with chase lines, Done this week with weekly update copy.
 - Triage at `/triage` (keys N/B/W/X, U to undo); Inbox tab has row triage and J/K/N/B/W/X/E keys.
 - Tasks tabs, task detail with history, Noise tab with Restore, Stale marker on Backlog.
-- Settings: Noise rules with hit counts and on/off switches; AI access (stats, request queue with item picker for unmatched names, open approvals with End now, connected tools, "What AI looked at" log). Sweep, Imports and Export are placeholders.
+- Settings: Noise rules with hit counts and on/off switches; AI access (stats, request queue with item picker for unmatched names, open approvals with End now, connected tools with Revoke/Reconnect and the connector address, "What AI looked at" log); Capture sweep (last clean run, key status, what it reads, last runs). Imports and Export are placeholders.
+- Home Today strip comes from the sweep's calendar; the Next meeting has Brief me, linking to its project or else its first person.
 - Home status line shows the newest AI access request with Allow 1 hour / Decline, or the live approval.
 - Knowledge at `/knowledge/*`: projects (summary, facts, decisions, open tasks, people, activity, AI access panel), people (`/knowledge/people`, owe lists, timeline, Ask Claude prompt copy), organisations, decisions and notes, with search and in-place editing. `/people` redirects there.
 - Ask OllieOS at `/ask` and `/ask/:id` (dark shell): cited answers, draft a reply, bundle into one task with Undo, follow-ups. Home's Ask mode opens `/ask?q=`.

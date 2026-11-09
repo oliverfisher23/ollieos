@@ -131,15 +131,27 @@ export async function sanitiseRefs(scope: AiScope, refs: readonly string[]): Pro
  * Writes one audit_events row per item an AI client was given (PRD 10, rule 4).
  * Rows from one call share a batch id so the read log can show them as one action.
  */
-export async function recordReads(scope: AiScope, refs: readonly string[], context: Record<string, unknown> = {}): Promise<void> {
+export async function recordReads(
+  scope: AiScope,
+  refs: readonly string[],
+  context: Record<string, unknown> = {},
+  action: "read" | "search" = "read",
+): Promise<void> {
   const unique = [...new Set(refs)].map(parseRef).filter((r): r is NonNullable<typeof r> => !!r);
-  if (!unique.length) return;
   const batch = crypto.randomUUID();
+  if (!unique.length) {
+    // A search that found nothing is still logged, so Ollie can see what was asked.
+    if (action === "search") {
+      await db.insert(auditEventsTable).values({ actor: scope.actor, clientId: scope.clientId, action, payload: { batch, ...context } });
+      await db.update(aiClientsTable).set({ lastUsedAt: new Date() }).where(eq(aiClientsTable.id, scope.clientId));
+    }
+    return;
+  }
   await db.insert(auditEventsTable).values(
     unique.map((r) => ({
       actor: scope.actor,
       clientId: scope.clientId,
-      action: "read",
+      action,
       entityType: r.type,
       entityId: r.id,
       payload: { batch, ...context },

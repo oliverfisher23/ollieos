@@ -30,6 +30,7 @@ import type {
   AiAccessSummary,
   AiActivity,
   AiClient,
+  AiClientRow,
   ApproveAccessInput,
   AskInput,
   AskResult,
@@ -40,6 +41,7 @@ import type {
   BundleInput,
   BundleResult,
   ClipboardText,
+  DecideOAuthConsent200,
   Decision,
   DecisionInput,
   DecisionUpdate,
@@ -48,6 +50,7 @@ import type {
   Fact,
   FactInput,
   FactSupersede,
+  GetOAuthConsentParams,
   GetTaskSummaryParams,
   GetWeeklyUpdateParams,
   HandleBrowserLoginCallbackParams,
@@ -69,6 +72,8 @@ import type {
   Note,
   NoteInput,
   NoteUpdate,
+  OAuthConsent,
+  OAuthConsentDecision,
   Organisation,
   OrganisationDetail,
   OrganisationInput,
@@ -88,6 +93,7 @@ import type {
   QuickAddResult,
   SearchKnowledgeParams,
   SearchResult,
+  SweepStatus,
   Task,
   TaskDetail,
   TaskSummary,
@@ -5722,6 +5728,451 @@ export function useListAiClients<TData = Awaited<ReturnType<typeof listAiClients
 
 
 
+
+export const getRevokeAiClientUrl = (id: number,) => {
+
+
+
+
+  return `/api/ai-clients/${id}/revoke`
+}
+
+/**
+ * @summary Cut a connected tool off at once. Its tokens or key stop working until Reconnect.
+ */
+export const revokeAiClient = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<AiClientRow> => {
+
+  return customFetch<AiClientRow>(getRevokeAiClientUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeAiClientMutationKey = () => ['revokeAiClient'] as const;
+
+export const getRevokeAiClientMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeAiClient>>, TError,RevokeAiClientMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeAiClient>>, TError,RevokeAiClientMutationVariables, TContext> => {
+
+const mutationKey = getRevokeAiClientMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeAiClient>>, RevokeAiClientMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  revokeAiClient(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeAiClientMutationResult = NonNullable<Awaited<ReturnType<typeof revokeAiClient>>>
+
+    export type RevokeAiClientMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type RevokeAiClientMutationVariables = {id: number}
+
+    /**
+ * @summary Cut a connected tool off at once. Its tokens or key stop working until Reconnect.
+ */
+export const useRevokeAiClient = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeAiClient>>, TError,RevokeAiClientMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof revokeAiClient>>,
+        TError,
+        RevokeAiClientMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRevokeAiClientMutationOptions(options), queryClient);
+    }
+
+export const getReconnectAiClientUrl = (id: number,) => {
+
+
+
+
+  return `/api/ai-clients/${id}/reconnect`
+}
+
+/**
+ * @summary Lift a revoke. OAuth tools must still pass the consent screen again.
+ */
+export const reconnectAiClient = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<AiClientRow> => {
+
+  return customFetch<AiClientRow>(getReconnectAiClientUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReconnectAiClientMutationKey = () => ['reconnectAiClient'] as const;
+
+export const getReconnectAiClientMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconnectAiClient>>, TError,ReconnectAiClientMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reconnectAiClient>>, TError,ReconnectAiClientMutationVariables, TContext> => {
+
+const mutationKey = getReconnectAiClientMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reconnectAiClient>>, ReconnectAiClientMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  reconnectAiClient(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReconnectAiClientMutationResult = NonNullable<Awaited<ReturnType<typeof reconnectAiClient>>>
+
+    export type ReconnectAiClientMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type ReconnectAiClientMutationVariables = {id: number}
+
+    /**
+ * @summary Lift a revoke. OAuth tools must still pass the consent screen again.
+ */
+export const useReconnectAiClient = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reconnectAiClient>>, TError,ReconnectAiClientMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reconnectAiClient>>,
+        TError,
+        ReconnectAiClientMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReconnectAiClientMutationOptions(options), queryClient);
+    }
+
+export const getGetSweepStatusUrl = () => {
+
+
+
+
+  return `/api/sweep`
+}
+
+/**
+ * @summary Capture sweep key status, cursor and recent runs
+ */
+export const getSweepStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<SweepStatus> => {
+
+  return customFetch<SweepStatus>(getGetSweepStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSweepStatusQueryKey = () => {
+    return [
+    `/api/sweep`
+    ] as const;
+    }
+
+
+export const getGetSweepStatusQueryOptions = <TData = Awaited<ReturnType<typeof getSweepStatus>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSweepStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSweepStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSweepStatus>>> = ({ signal }) => getSweepStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSweepStatus>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSweepStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getSweepStatus>>>
+export type GetSweepStatusQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetSweepStatus<TData = Awaited<ReturnType<typeof getSweepStatus>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSweepStatus>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSweepStatus>>,
+          TError,
+          Awaited<ReturnType<typeof getSweepStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSweepStatus<TData = Awaited<ReturnType<typeof getSweepStatus>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSweepStatus>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSweepStatus>>,
+          TError,
+          Awaited<ReturnType<typeof getSweepStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSweepStatus<TData = Awaited<ReturnType<typeof getSweepStatus>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSweepStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Capture sweep key status, cursor and recent runs
+ */
+
+export function useGetSweepStatus<TData = Awaited<ReturnType<typeof getSweepStatus>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSweepStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSweepStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetOAuthConsentUrl = (params: GetOAuthConsentParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/oauth/consent?${stringifiedParams}` : `/api/oauth/consent`
+}
+
+/**
+ * @summary What a tool asking to connect wants, for the consent screen
+ */
+export const getOAuthConsent = async (params: GetOAuthConsentParams, options?: Parameters<typeof customFetch>[1]): Promise<OAuthConsent> => {
+
+  return customFetch<OAuthConsent>(getGetOAuthConsentUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOAuthConsentQueryKey = (params?: GetOAuthConsentParams,) => {
+    return [
+    `/api/oauth/consent`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetOAuthConsentQueryOptions = <TData = Awaited<ReturnType<typeof getOAuthConsent>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(params: GetOAuthConsentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOAuthConsent>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOAuthConsentQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOAuthConsent>>> = ({ signal }) => getOAuthConsent(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOAuthConsent>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetOAuthConsentQueryResult = NonNullable<Awaited<ReturnType<typeof getOAuthConsent>>>
+export type GetOAuthConsentQueryError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+export function useGetOAuthConsent<TData = Awaited<ReturnType<typeof getOAuthConsent>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: GetOAuthConsentParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOAuthConsent>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOAuthConsent>>,
+          TError,
+          Awaited<ReturnType<typeof getOAuthConsent>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetOAuthConsent<TData = Awaited<ReturnType<typeof getOAuthConsent>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: GetOAuthConsentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOAuthConsent>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOAuthConsent>>,
+          TError,
+          Awaited<ReturnType<typeof getOAuthConsent>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetOAuthConsent<TData = Awaited<ReturnType<typeof getOAuthConsent>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: GetOAuthConsentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOAuthConsent>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary What a tool asking to connect wants, for the consent screen
+ */
+
+export function useGetOAuthConsent<TData = Awaited<ReturnType<typeof getOAuthConsent>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: GetOAuthConsentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOAuthConsent>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetOAuthConsentQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDecideOAuthConsentUrl = () => {
+
+
+
+
+  return `/api/oauth/consent`
+}
+
+/**
+ * @summary Approve or deny a connection. Returns where to send the browser next.
+ */
+export const decideOAuthConsent = async (oAuthConsentDecision: OAuthConsentDecision, options?: Parameters<typeof customFetch>[1]): Promise<DecideOAuthConsent200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DecideOAuthConsent200>(getDecideOAuthConsentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(oAuthConsentDecision)
+  }
+);}
+
+
+
+
+
+export const getDecideOAuthConsentMutationKey = () => ['decideOAuthConsent'] as const;
+
+export const getDecideOAuthConsentMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideOAuthConsent>>, TError,DecideOAuthConsentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideOAuthConsent>>, TError,DecideOAuthConsentMutationVariables, TContext> => {
+
+const mutationKey = getDecideOAuthConsentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideOAuthConsent>>, DecideOAuthConsentMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  decideOAuthConsent(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideOAuthConsentMutationResult = NonNullable<Awaited<ReturnType<typeof decideOAuthConsent>>>
+    export type DecideOAuthConsentMutationBody = BodyType<OAuthConsentDecision>
+    export type DecideOAuthConsentMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type DecideOAuthConsentMutationVariables = {data: BodyType<OAuthConsentDecision>}
+
+    /**
+ * @summary Approve or deny a connection. Returns where to send the browser next.
+ */
+export const useDecideOAuthConsent = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideOAuthConsent>>, TError,DecideOAuthConsentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof decideOAuthConsent>>,
+        TError,
+        DecideOAuthConsentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDecideOAuthConsentMutationOptions(options), queryClient);
+    }
 
 export const getGetAiAccessSummaryUrl = () => {
 

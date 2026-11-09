@@ -1228,6 +1228,92 @@ paths:
                 items: { $ref: "#/components/schemas/AiClient" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /ai-clients/{id}/revoke:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: revokeAiClient
+      tags: [access]
+      summary: Cut a connected tool off at once. Its tokens or key stop working until Reconnect.
+      responses:
+        "200":
+          description: The revoked client
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiClientRow" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /ai-clients/{id}/reconnect:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: reconnectAiClient
+      tags: [access]
+      summary: Lift a revoke. OAuth tools must still pass the consent screen again.
+      responses:
+        "200":
+          description: The client
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiClientRow" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /sweep:
+    get:
+      operationId: getSweepStatus
+      tags: [access]
+      summary: Capture sweep key status, cursor and recent runs
+      responses:
+        "200":
+          description: Sweep status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SweepStatus" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /oauth/consent:
+    get:
+      operationId: getOAuthConsent
+      tags: [access]
+      summary: What a tool asking to connect wants, for the consent screen
+      parameters:
+        - name: req
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Consent details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OAuthConsent" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: decideOAuthConsent
+      tags: [access]
+      summary: Approve or deny a connection. Returns where to send the browser next.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OAuthConsentDecision" }
+      responses:
+        "200":
+          description: Redirect target
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [redirectTo]
+                properties:
+                  redirectTo: { type: string }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /ai-access/summary:
     get:
       operationId: getAiAccessSummary
@@ -1668,7 +1754,7 @@ components:
 
     CalendarEvent:
       type: object
-      required: [id, title, startsAt, endsAt, personal, location]
+      required: [id, title, startsAt, endsAt, personal, location, brief]
       properties:
         id:
           type: integer
@@ -1684,6 +1770,19 @@ components:
           type: boolean
         location:
           type: [string, "null"]
+        brief:
+          description: The project or person to read up on before this meeting (Brief me). Null when none is linked.
+          oneOf:
+            - $ref: "#/components/schemas/CalendarBrief"
+            - type: "null"
+
+    CalendarBrief:
+      type: object
+      required: [type, slug, name]
+      properties:
+        type: { type: string, enum: [project, person] }
+        slug: { type: string }
+        name: { type: string }
 
     HomeSummary:
       type: object
@@ -2419,6 +2518,64 @@ components:
         connectedAt: { type: [string, "null"], format: date-time }
         lastUsedAt: { type: [string, "null"], format: date-time }
         revokedAt: { type: [string, "null"], format: date-time }
+
+    AiClientRow:
+      type: object
+      required: [id, name, kind, auth, connectedAt, lastUsedAt, revokedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        kind: { type: string }
+        auth: { type: string }
+        connectedAt: { type: [string, "null"], format: date-time }
+        lastUsedAt: { type: [string, "null"], format: date-time }
+        revokedAt: { type: [string, "null"], format: date-time }
+
+    SweepRun:
+      type: object
+      required: [id, startedAt, finishedAt, itemsCreated, itemsNoise, itemsDuplicate, activityLogged, errors]
+      properties:
+        id: { type: integer }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: [string, "null"], format: date-time }
+        itemsCreated: { type: integer }
+        itemsNoise: { type: integer }
+        itemsDuplicate: { type: integer }
+        activityLogged: { type: integer }
+        errors: { type: array, items: { type: string } }
+
+    SweepStatus:
+      type: object
+      required: [keyConfigured, client, cursor, runs]
+      properties:
+        keyConfigured: { type: boolean }
+        client:
+          type: object
+          required: [id, name, lastUsedAt, revokedAt]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            lastUsedAt: { type: [string, "null"], format: date-time }
+            revokedAt: { type: [string, "null"], format: date-time }
+        cursor: { type: [string, "null"], format: date-time }
+        runs: { type: array, items: { $ref: "#/components/schemas/SweepRun" } }
+
+    OAuthConsent:
+      type: object
+      required: [clientName, redirectHost, scopes, reconnecting]
+      properties:
+        clientName: { type: string }
+        redirectHost: { type: string }
+        scopes: { type: array, items: { type: string } }
+        reconnecting: { type: boolean }
+
+    OAuthConsentDecision:
+      type: object
+      required: [req, decision]
+      additionalProperties: false
+      properties:
+        req: { type: string }
+        decision: { type: string, enum: [approve, deny] }
 
     AiAccessSummary:
       type: object
