@@ -1,0 +1,322 @@
+import { Link } from 'wouter';
+import {
+  useGetHome,
+  useSnoozeTask,
+  useUpdateTask,
+  type CalendarEvent,
+  type DoNextItem,
+  type HomeSummary,
+  type WaitingItem,
+} from '@workspace/api-client-react';
+import { SOURCE_LABELS, WAITING_AMBER_DAYS, formatLong, formatShort, formatTime, greeting } from '@workspace/shared';
+import { AddBox } from '@/components/add-box';
+import { Avatar, PriorityPill, Skel } from '@/components/bits';
+import { IconCheck, IconSettings } from '@/components/icons';
+import { useSession } from '@/lib/auth-context';
+import { useInvalidateTasks } from '@/lib/task-cache';
+import { notify } from '@/lib/notify';
+import { reportApiError } from '@/lib/forbidden';
+import { PHONE_QUERY, useMedia } from '@/lib/use-media';
+
+function breakdown(home: HomeSummary): string {
+  if (!home.inbox.count) return 'Inbox clear';
+  return home.inbox.bySource
+    .filter((s) => s.count > 0)
+    .map((s) => s.count + ' ' + (s.source === 'slack' ? 'Slack' : SOURCE_LABELS[s.source].toLowerCase()))
+    .join(' · ');
+}
+
+function daysLabel(d: number) {
+  return d <= 0 ? 'today' : d === 1 ? '1 day' : d + ' days';
+}
+
+export default function HomePage() {
+  const { user } = useSession();
+  const phone = useMedia(PHONE_QUERY);
+  const home = useGetHome();
+  const now = new Date();
+  const name = user?.firstName || 'Ollie';
+
+
+  const statusLine = home.data ? (
+    <>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} data-testid="text-last-sweep">
+        <span aria-hidden="true" className="oo-dot" data-off={!home.data.lastSweepAt} />
+        {home.data.lastSweepAt ? 'Last sweep ' + formatTime(home.data.lastSweepAt) : 'No sweep has run yet'}
+      </span>
+      <span aria-hidden="true" className="oo-t4">·</span>
+      <span data-testid="text-inbox-new">{home.data.inbox.count} new</span>
+    </>
+  ) : (
+    <span className="oo-t2">Loading your morning</span>
+  );
+
+  const header = phone ? (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <p className="oo-serif" style={{ margin: 0, fontSize: 16, color: 'var(--oo-text-on-dark-2)' }} data-testid="text-date">{formatLong(now)}</p>
+        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 500 }} data-testid="text-greeting">{greeting(now)}, {name}</h1>
+        <p role="status" className="oo-t2" style={{ margin: 0, fontSize: 13, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>{statusLine}</p>
+      </div>
+      <Link href="/settings" aria-label="Settings" className="oo-btn oo-btn-ghost" style={{ width: 44, padding: 0, flex: 'none' }} data-testid="link-settings-phone">
+        <IconSettings />
+      </Link>
+    </div>
+  ) : (
+    <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+      <p className="oo-serif" style={{ margin: 0, fontSize: 17, color: 'var(--oo-text-on-dark-2)' }} data-testid="text-date">{formatLong(now)}</p>
+      <h1 style={{ margin: 0, fontSize: 34, fontWeight: 500, letterSpacing: '-0.01em' }} data-testid="text-greeting">{greeting(now)}, {name}</h1>
+      <div role="status" className="oo-status">{statusLine}</div>
+    </div>
+  );
+
+  let body;
+  if (home.isLoading) {
+    body = (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, width: '100%' }} aria-busy="true">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="oo-dark-card oo-glass"><Skel h={12} w={90} /><Skel h={28} w="70%" /><Skel h={12} /><Skel h={36} w={140} /></div>
+        ))}
+      </div>
+    );
+  } else if (home.error || !home.data) {
+    body = (
+      <div className="oo-dark-card oo-glass" style={{ width: '100%', alignItems: 'flex-start' }} data-testid="state-home-error">
+        <h2 className="oo-label">Could not load Home</h2>
+        <p className="oo-t2" style={{ margin: 0, fontSize: 14 }}>Something went wrong reaching OllieOS.</p>
+        <button type="button" className="oo-btn oo-btn-white" onClick={() => home.refetch()} data-testid="button-retry-home">Try again</button>
+      </div>
+    );
+  } else if (phone) {
+    const d = home.data;
+    body = (
+      <>
+        <DoNextCard items={d.doNext} phone />
+        <Link href="/tasks?tab=inbox" className="oo-dark-card oo-glass" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-inbox-phone">
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span className="oo-label" style={{ fontSize: 12 }}>Inbox</span>
+            <span className="oo-t2" style={{ fontSize: 13 }}>{breakdown(d)}</span>
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span className="oo-serif-roman" style={{ fontSize: 34, lineHeight: 1 }} data-testid="text-inbox-count">{d.inbox.count}</span>
+            <span className="oo-btn oo-btn-white" style={{ borderRadius: 999, minHeight: 40 }}>Open</span>
+          </span>
+        </Link>
+        <TodayPhone events={d.today} />
+        <WaitingCard items={d.waitingOn} phone />
+        <PromisesCard home={d} />
+        <DoneCard home={d} />
+      </>
+    );
+  } else {
+    const d = home.data;
+    body = (
+      <>
+        <TodayStrip events={d.today} />
+        <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, alignItems: 'stretch' }}>
+          <DoNextCard items={d.doNext} />
+          <section aria-labelledby="h-inbox" className="oo-dark-card oo-glass" data-testid="card-inbox">
+            <h2 id="h-inbox" className="oo-label">Inbox</h2>
+            <p className="oo-serif-roman" style={{ margin: 0, fontSize: 48, lineHeight: 1 }} data-testid="text-inbox-count">{d.inbox.count}</p>
+            <p className="oo-t2" style={{ margin: 0, fontSize: 13 }} data-testid="text-inbox-breakdown">{breakdown(d)}</p>
+            <div style={{ marginTop: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Link href="/tasks?tab=inbox" className="oo-btn oo-btn-white" data-testid="link-inbox">
+                {d.inbox.count ? 'Review ' + d.inbox.count : 'Open Inbox'}
+              </Link>
+            </div>
+          </section>
+          <WaitingCard items={d.waitingOn} />
+        </div>
+        <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+          <PromisesCard home={d} />
+          <DoneCard home={d} />
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <main
+      className="oo-fade-in"
+      style={phone
+        ? { display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 40, paddingBottom: 20 }
+        : { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 22, padding: '48px 0', maxWidth: 900, margin: '0 auto' }}
+    >
+      {header}
+      {!phone && <div style={{ width: '100%' }}><AddBox idPrefix="home" /></div>}
+      {body}
+    </main>
+  );
+}
+
+function DoNextCard({ items, phone = false }: { items: DoNextItem[]; phone?: boolean }) {
+  const update = useUpdateTask();
+  const snooze = useSnoozeTask();
+  const invalidate = useInvalidateTasks();
+  const top = items[0];
+  const busy = update.isPending || snooze.isPending;
+
+  if (!top) {
+    return (
+      <section aria-labelledby="h-next" className="oo-dark-card oo-white-card" data-testid="card-do-next">
+        <h2 id="h-next" className="oo-label" style={{ fontSize: phone ? 12 : 13 }}>Do next</h2>
+        <p style={{ margin: 0, fontSize: 17, fontWeight: 500 }}>Nothing queued.</p>
+        <p className="oo-muted" style={{ margin: 0, fontSize: 13 }}>Add a task or triage your Inbox and the next thing to do shows here.</p>
+      </section>
+    );
+  }
+  const t = top.task;
+  const onErr = (err: unknown) => { reportApiError(err); notify('That did not save', 'Try again in a moment.'); };
+  const done = () => update.mutate({ id: t.id, data: { status: 'done' } }, {
+    onSuccess: () => { invalidate(t.id); notify('Marked done', t.title); },
+    onError: onErr,
+  });
+  const later = () => snooze.mutate({ id: t.id }, {
+    onSuccess: () => { invalidate(t.id); notify('Snoozed to tomorrow', t.title); },
+    onError: onErr,
+  });
+
+  return (
+    <section aria-labelledby="h-next" className="oo-dark-card oo-white-card" style={phone ? { padding: 16, gap: 10 } : undefined} data-testid="card-do-next">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <h2 id="h-next" className="oo-label" style={{ fontSize: phone ? 12 : 13 }}>Do next</h2>
+        <span className="oo-muted oo-num" style={{ fontSize: 12 }} data-testid="text-next-position">1 of {items.length}</span>
+      </div>
+      <p style={{ margin: 0, fontSize: phone ? 17 : 19, fontWeight: 500, lineHeight: 1.35, letterSpacing: '-0.005em' }} data-testid="text-next-title">{t.title}</p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <PriorityPill priority={t.priority} />
+        {t.dueDate && <span className="oo-pill">Due {formatShort(t.dueDate)}</span>}
+        {t.project && <span className="oo-pill">{t.project.name}</span>}
+      </div>
+      <p className="oo-muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }} data-testid="text-next-reason">{top.reason}</p>
+      <div style={phone ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 } : { display: 'flex', gap: 8, marginTop: 'auto', flexWrap: 'wrap' }}>
+        <button type="button" className="oo-btn oo-btn-ink" onClick={done} disabled={busy} data-testid="button-next-done">Done</button>
+        <button type="button" className="oo-btn oo-btn-outline" onClick={later} disabled={busy} data-testid="button-next-snooze">{phone ? 'Snooze' : 'Snooze to tomorrow'}</button>
+      </div>
+    </section>
+  );
+}
+
+function nextEventId(events: CalendarEvent[]): number | null {
+  const now = Date.now();
+  return events.find((e) => new Date(e.startsAt).getTime() > now)?.id ?? null;
+}
+
+const EMPTY_CAL = 'Nothing on your calendar yet. The sweep fills this in.';
+
+function TodayStrip({ events }: { events: CalendarEvent[] }) {
+  const nextId = nextEventId(events);
+  return (
+    <section aria-labelledby="h-today" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }} data-testid="section-today">
+      <h2 id="h-today" className="oo-label oo-t2" style={{ marginLeft: 4, fontWeight: 500 }}>Today</h2>
+      {events.length === 0 ? (
+        <div className="oo-today" data-testid="text-today-empty"><span className="oo-t2" style={{ fontSize: 13 }}>{EMPTY_CAL}</span></div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+          {events.map((e) => (
+            <div key={e.id} className="oo-today" data-next={e.id === nextId} data-testid={'card-event-' + e.id}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                <span className="oo-num oo-t2" style={{ fontSize: 12 }}>{formatTime(e.startsAt)} to {formatTime(e.endsAt)}</span>
+                {e.id === nextId && <span className="oo-next-badge">Next</span>}
+              </div>
+              <span style={{ fontSize: 14, fontWeight: 500 }}>{e.title}</span>
+              <span className="oo-t2" style={{ fontSize: 12 }}>{e.personal ? 'Personal' : e.location ?? ''}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function TodayPhone({ events }: { events: CalendarEvent[] }) {
+  const nextId = nextEventId(events);
+  return (
+    <section aria-labelledby="h-today-p" className="oo-dark-card oo-glass" style={{ padding: 16 }} data-testid="section-today">
+      <h2 id="h-today-p" className="oo-label" style={{ fontSize: 12 }}>Today</h2>
+      {events.length === 0 ? (
+        <p className="oo-t2" style={{ margin: 0, fontSize: 13 }} data-testid="text-today-empty">{EMPTY_CAL}</p>
+      ) : events.map((e) => (
+        <div key={e.id} style={{ display: 'flex', gap: 12 }} data-testid={'row-event-' + e.id}>
+          <span className={'oo-num ' + (e.id === nextId ? 'oo-amber' : 'oo-t2')} style={{ flex: 'none', width: 46, fontSize: 13 }}>{formatTime(e.startsAt)}</span>
+          <span style={{ fontSize: 14, fontWeight: e.id === nextId ? 500 : 400 }}>{e.title}{e.location ? ' · ' + e.location : ''}</span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function WaitingCard({ items, phone = false }: { items: WaitingItem[]; phone?: boolean }) {
+  return (
+    <section aria-labelledby="h-wait" className={'oo-dark-card ' + (phone ? 'oo-glass-quiet' : 'oo-glass')} style={phone ? { padding: 16, gap: 10 } : undefined} data-testid="card-waiting">
+      <h2 id="h-wait" className="oo-label" style={{ fontSize: phone ? 12 : 13 }}>Waiting on</h2>
+      {items.length === 0 && <p className="oo-t2" style={{ margin: 0, fontSize: 13 }}>Nobody owes you anything right now.</p>}
+      {items.map(({ task, daysWaiting }) => {
+        const who = task.waitingOn?.name ?? task.fromName ?? 'Someone';
+        const amber = daysWaiting >= WAITING_AMBER_DAYS;
+        return (
+          <div key={task.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }} data-testid={'row-waiting-' + task.id}>
+            {!phone && <Avatar name={who} id={task.waitingOn?.id ?? who} />}
+            <div style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: phone ? 14 : 13, fontWeight: 500 }}>
+                {who} <span className={amber ? 'oo-amber' : 'oo-t3'} style={{ fontWeight: amber ? 600 : 400 }} data-testid={'text-waiting-days-' + task.id}>· {daysLabel(daysWaiting)}</span>
+              </span>
+              <span className="oo-t3" style={{ fontSize: 12 }}>{task.title}</span>
+            </div>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+function PromisesCard({ home }: { home: HomeSummary }) {
+  return (
+    <section aria-labelledby="h-prom" className="oo-dark-card oo-glass-quiet" style={{ gap: 10 }} data-testid="card-promises">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <h2 id="h-prom" className="oo-label">Promises</h2>
+        <span className="oo-t3" style={{ fontSize: 12 }}>Things you said you'd do</span>
+      </div>
+      {home.promises.length === 0 ? (
+        <p className="oo-t2" style={{ margin: 0, fontSize: 13 }}>No promises logged yet</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
+          {home.promises.map((p) => {
+            const who = p.person?.name ?? p.fromName;
+            const when = p.dueDate ?? p.capturedAt ?? p.createdAt;
+            return (
+              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }} data-testid={'row-promise-' + p.id}>
+                <span style={{ minWidth: 0 }}>{p.title}</span>
+                <span className="oo-t3 oo-num" style={{ flex: 'none' }}>{who ? who + ' · ' : ''}{formatShort(when)}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function DoneCard({ home }: { home: HomeSummary }) {
+  const d = home.doneThisWeek;
+  return (
+    <section aria-labelledby="h-done" className="oo-dark-card oo-glass-quiet" style={{ gap: 10 }} data-testid="card-done">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        <h2 id="h-done" className="oo-label">Done this week</h2>
+        <span className="oo-serif-roman" style={{ fontSize: 28, lineHeight: 1 }} data-testid="text-done-count">{d.count}</span>
+      </div>
+      {d.latest.length === 0 ? (
+        <p className="oo-t2" style={{ margin: 0, fontSize: 13 }}>Nothing finished yet this week</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, color: 'var(--oo-text-on-dark-2)' }}>
+          {d.latest.map((t) => (
+            <span key={t.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }} data-testid={'text-done-' + t.id}>
+              <IconCheck size={14} className="oo-tick" />{t.title}
+            </span>
+          ))}
+        </div>
+      )}
+      <Link href="/tasks?tab=done" style={{ marginTop: 'auto', fontSize: 13 }} data-testid="link-done-all">See everything done</Link>
+    </section>
+  );
+}

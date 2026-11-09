@@ -1,0 +1,60 @@
+import { SOURCE_LABELS, SOURCE_MARKS, STATUS_LABELS, PRIORITY_LABELS } from '@workspace/shared';
+import type { Priority, TaskSource, TaskStatus } from '@workspace/api-client-react';
+import { initials, toneFor } from '@/lib/task-cache';
+
+export function Logo({ size = 30, radius = 9, font = 12 }: { size?: number; radius?: number; font?: number }) {
+  return (
+    <span aria-hidden="true" className="oo-logo" style={{ width: size, height: size, borderRadius: radius, fontSize: font }}>
+      OS
+    </span>
+  );
+}
+
+export function Grain() {
+  return (
+    <svg aria-hidden="true" className="oo-grain">
+      <filter id="oo-grain-f">
+        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves={2} stitchTiles="stitch" />
+        <feColorMatrix type="saturate" values="0" />
+      </filter>
+      <rect width="100%" height="100%" filter="url(#oo-grain-f)" />
+    </svg>
+  );
+}
+
+export function SourceMark({ source, size = 24 }: { source: TaskSource; size?: number }) {
+  return (
+    <span aria-hidden="true" className="oo-mark" data-src={source} style={{ width: size, height: size }}>
+      {SOURCE_MARKS[source]}
+    </span>
+  );
+}
+
+export function SourceLabel({ source }: { source: TaskSource }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      <SourceMark source={source} />
+      {SOURCE_LABELS[source]}
+    </span>
+  );
+}
+
+export function StatusPill({ status, testId }: { status: TaskStatus; testId?: string }) {
+  return <span className="oo-pill" data-tone={status} data-testid={testId}>{STATUS_LABELS[status]}</span>;
+}
+
+export function PriorityPill({ priority, testId }: { priority: Priority; testId?: string }) {
+  return <span className="oo-pill" data-tone={priority === 'high' ? 'high' : undefined} data-testid={testId}>{PRIORITY_LABELS[priority]}</span>;
+}
+
+export function Avatar({ name, id, size = 28 }: { name: string; id: number | string; size?: number }) {
+  return (
+    <span aria-hidden="true" className="oo-avatar" data-tone={toneFor(id)} style={{ width: size, height: size, fontSize: size < 26 ? 10 : 11 }}>
+      {initials(name)}
+    </span>
+  );
+}
+
+export function Skel({ h = 14, w = '100%', className = '' }: { h?: number; w?: number | string; className?: string }) {
+  return <span aria-hidden="true" className={'oo-skel ' + className} style={{ display: 'block', height: h, width: w }} />;
+}

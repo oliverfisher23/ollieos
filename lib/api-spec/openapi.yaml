@@ -3,13 +3,21 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: Auth
+    description: Browser and mobile authentication endpoints.
+  - name: home
+    description: Home screen summary
+  - name: tasks
+    description: Tasks, quick add and task detail
+  - name: knowledge
+    description: Minimal people and project lists used by pickers
 paths:
   /healthz:
     get:
@@ -24,7 +32,408 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/user:
+    get:
+      tags: [Auth]
+      operationId: getCurrentAuthUser
+      summary: Get the currently authenticated user
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+      responses:
+        '200':
+          description: Auth status resolved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthUserEnvelope'
+  /login:
+    get:
+      tags: [Auth]
+      operationId: beginBrowserLogin
+      summary: Start the browser OIDC login flow
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          description: Relative path to redirect to after login (must start with `/`). Defaults to `/`.
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to the OIDC authorization endpoint.
+  /callback:
+    get:
+      tags: [Auth]
+      operationId: handleBrowserLoginCallback
+      summary: Complete the browser OIDC login flow
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: iss
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uri
+      responses:
+        '302':
+          description: Redirect to the `returnTo` path on success, or to /not-authorised when the email is not allowlisted.
+  /logout:
+    get:
+      tags: [Auth]
+      operationId: logoutBrowserSession
+      summary: Clear the session and begin OIDC logout
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+        - $ref: '#/components/parameters/SessionCookie'
+        - name: returnTo
+          in: query
+          required: false
+          schema:
+            type: string
+            default: /
+      responses:
+        '302':
+          description: Redirect to the OIDC provider logout URL.
+  /mobile-auth/token-exchange:
+    post:
+      tags: [Auth]
+      operationId: exchangeMobileAuthorizationCode
+      summary: Exchange a mobile OIDC code for a session token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileTokenExchangeRequest'
+      responses:
+        '200':
+          description: Session created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileTokenExchangeSuccess'
+        '400':
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Token did not contain usable claims.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Token exchange failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /mobile-auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutMobileSession
+      summary: Delete a mobile session token
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationSessionHeader'
+      responses:
+        '200':
+          description: Logout processed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutSuccess'
+
+  /home:
+    get:
+      operationId: getHome
+      tags: [home]
+      summary: Everything the Home screen needs in one call
+      responses:
+        "200":
+          description: Home summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeSummary"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List tasks for a tab with optional filters
+      parameters:
+        - name: tab
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/TaskTab"
+        - name: source
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/TaskSource"
+        - name: weekStart
+          in: query
+          required: false
+          description: Monday of the week (YYYY-MM-DD, London). Open tabs filter by due date, Done by completion date.
+          schema:
+            type: string
+            format: date
+        - name: includeUndated
+          in: query
+          required: false
+          description: With weekStart on open tabs, also include tasks with no due date.
+          schema:
+            type: boolean
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /tasks/summary:
+    get:
+      operationId: getTaskSummary
+      tags: [tasks]
+      summary: Tab counts and the four stat cards
+      parameters:
+        - name: weekStart
+          in: query
+          required: false
+          description: Monday of the week for "Due this week" and "Done this week". Defaults to the current London week.
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskSummary"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /tasks/quick-add:
+    post:
+      operationId: quickAddTask
+      tags: [tasks]
+      summary: Create a task from raw quick-add text (!high !low due:fri #backlog @project-slug)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuickAddInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuickAddResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Task with source card and history
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Task detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDetail"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update any editable field. Status changes set completedAt, triagedAt and waitingSince.
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskUpdate"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/snooze:
+    post:
+      operationId: snoozeTask
+      tags: [tasks]
+      summary: Snooze until tomorrow 06:00 London time
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Snoozed task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/draft-prompt:
+    get:
+      operationId: getTaskDraftPrompt
+      tags: [tasks]
+      summary: A prepared prompt for Claude to draft a reply, copied to the clipboard
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Prompt text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipboardText"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /people:
+    get:
+      operationId: listPeople
+      tags: [knowledge]
+      summary: All people, for the For and Waiting on pickers
+      responses:
+        "200":
+          description: People
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EntitySummary"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [knowledge]
+      summary: All projects, for the Project picker and quick add @slug matching
+      responses:
+        "200":
+          description: Projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EntitySummary"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
 components:
+  parameters:
+    AuthorizationSessionHeader:
+      name: Authorization
+      in: header
+      required: false
+      description: Opaque session token, `Bearer <sid>`.
+      schema:
+        type: string
+    SessionCookie:
+      name: sid
+      in: cookie
+      required: false
+      description: Browser session cookie.
+      schema:
+        type: string
+    TaskId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+
+  responses:
+    NotAuthorised:
+      description: Signed out, or signed in with an email that is not allowlisted
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +443,403 @@ components:
       required:
         - status
 
+    AuthUser:
+      type: object
+      required: [id, email, firstName, lastName, profileImageUrl]
+      properties:
+        id:
+          type: string
+        email:
+          type: [string, 'null']
+          format: email
+        firstName:
+          type: [string, 'null']
+        lastName:
+          type: [string, 'null']
+        profileImageUrl:
+          type: [string, 'null']
+    AuthUserEnvelope:
+      type: object
+      required: [user]
+      properties:
+        user:
+          oneOf:
+            - $ref: '#/components/schemas/AuthUser'
+            - type: 'null'
+    MobileTokenExchangeRequest:
+      type: object
+      required: [code, code_verifier, redirect_uri, state]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        code_verifier:
+          type: string
+          minLength: 1
+        redirect_uri:
+          type: string
+          minLength: 1
+          format: uri
+        state:
+          type: string
+          minLength: 1
+        nonce:
+          type: string
+          minLength: 1
+    MobileTokenExchangeSuccess:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+    LogoutSuccess:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          const: true
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    TaskStatus:
+      type: string
+      enum: [inbox, now, backlog, waiting, done, noise]
+    TaskKind:
+      type: string
+      enum: [task, promise]
+    Priority:
+      type: string
+      enum: [high, medium, low]
+    TaskSource:
+      type: string
+      enum: [email, slack, meeting, quarterly, manual]
+    TaskTab:
+      type: string
+      enum: [inbox, open, now, backlog, waiting, done, noise]
+
+    EntitySummary:
+      type: object
+      required: [id, name, slug, confidential]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        confidential:
+          type: boolean
+
+    Task:
+      type: object
+      required:
+        - id
+        - title
+        - kind
+        - status
+        - priority
+        - dueDate
+        - snoozedUntil
+        - source
+        - sourceRef
+        - sourceUrl
+        - sourceQuote
+        - sourceSubject
+        - fromName
+        - fromAddress
+        - snippet
+        - suggestedAction
+        - notes
+        - project
+        - person
+        - waitingOn
+        - waitingSince
+        - confidential
+        - capturedAt
+        - createdBy
+        - createdAt
+        - updatedAt
+        - completedAt
+        - triagedAt
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        kind:
+          $ref: "#/components/schemas/TaskKind"
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        priority:
+          $ref: "#/components/schemas/Priority"
+        dueDate:
+          type: [string, "null"]
+          format: date
+        snoozedUntil:
+          type: [string, "null"]
+          format: date-time
+        source:
+          $ref: "#/components/schemas/TaskSource"
+        sourceRef:
+          type: [string, "null"]
+        sourceUrl:
+          type: [string, "null"]
+        sourceQuote:
+          type: [string, "null"]
+        sourceSubject:
+          type: [string, "null"]
+        fromName:
+          type: [string, "null"]
+        fromAddress:
+          type: [string, "null"]
+        snippet:
+          type: [string, "null"]
+        suggestedAction:
+          type: [string, "null"]
+        notes:
+          type: [string, "null"]
+        project:
+          oneOf:
+            - $ref: "#/components/schemas/EntitySummary"
+            - type: "null"
+        person:
+          oneOf:
+            - $ref: "#/components/schemas/EntitySummary"
+            - type: "null"
+        waitingOn:
+          oneOf:
+            - $ref: "#/components/schemas/EntitySummary"
+            - type: "null"
+        waitingSince:
+          type: [string, "null"]
+          format: date-time
+        confidential:
+          type: [boolean, "null"]
+          description: null means inherit from linked items
+        capturedAt:
+          type: [string, "null"]
+          format: date-time
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: [string, "null"]
+          format: date-time
+        triagedAt:
+          type: [string, "null"]
+          format: date-time
+
+    TaskUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        kind:
+          $ref: "#/components/schemas/TaskKind"
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        priority:
+          $ref: "#/components/schemas/Priority"
+        dueDate:
+          type: [string, "null"]
+          format: date
+        notes:
+          type: [string, "null"]
+        projectId:
+          type: [integer, "null"]
+        personId:
+          type: [integer, "null"]
+        waitingOnPersonId:
+          type: [integer, "null"]
+        confidential:
+          type: [boolean, "null"]
+
+    HistoryEvent:
+      type: object
+      required: [id, actor, action, summary, createdAt]
+      properties:
+        id:
+          type: integer
+        actor:
+          type: string
+          description: ollie, claude, ingest, or the AI client name
+        action:
+          type: string
+        summary:
+          type: string
+          description: Plain British English description, e.g. "Status changed from Inbox to Now"
+        createdAt:
+          type: string
+          format: date-time
+
+    TaskDetail:
+      type: object
+      required: [task, history]
+      properties:
+        task:
+          $ref: "#/components/schemas/Task"
+        history:
+          type: array
+          description: Newest first
+          items:
+            $ref: "#/components/schemas/HistoryEvent"
+
+    TaskSummary:
+      type: object
+      required: [tabs, stats]
+      properties:
+        tabs:
+          type: object
+          required: [inbox, open, now, backlog, waiting, done, noise]
+          properties:
+            inbox: { type: integer }
+            open: { type: integer, description: "inbox + now + backlog + waiting" }
+            now: { type: integer }
+            backlog: { type: integer }
+            waiting: { type: integer }
+            done: { type: integer }
+            noise: { type: integer }
+        stats:
+          type: object
+          required: [inboxToTriage, dueThisWeek, waitingOnOthers, doneThisWeek]
+          properties:
+            inboxToTriage: { type: integer }
+            dueThisWeek: { type: integer }
+            waitingOnOthers: { type: integer }
+            doneThisWeek: { type: integer }
+
+    QuickAddInput:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          description: Raw text with inline syntax !high !low due:fri due:2026-11-20 #backlog @project-slug
+
+    QuickAddResult:
+      type: object
+      required: [task, warnings]
+      properties:
+        task:
+          $ref: "#/components/schemas/Task"
+        warnings:
+          type: array
+          description: e.g. "No project called @foo, added without a project"
+          items:
+            type: string
+
+    ClipboardText:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+
+    DoNextItem:
+      type: object
+      required: [task, reason]
+      properties:
+        task:
+          $ref: "#/components/schemas/Task"
+        reason:
+          type: string
+          description: One-line reason, e.g. "Overdue by 2 days" or "High priority, due Friday 13th November"
+
+    SourceCount:
+      type: object
+      required: [source, count]
+      properties:
+        source:
+          $ref: "#/components/schemas/TaskSource"
+        count:
+          type: integer
+
+    WaitingItem:
+      type: object
+      required: [task, daysWaiting]
+      properties:
+        task:
+          $ref: "#/components/schemas/Task"
+        daysWaiting:
+          type: integer
+          description: Whole days since waitingSince (or updatedAt if unknown). Amber at 5 or more.
+
+    CalendarEvent:
+      type: object
+      required: [id, title, startsAt, endsAt, personal, location]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        personal:
+          type: boolean
+        location:
+          type: [string, "null"]
+
+    HomeSummary:
+      type: object
+      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today]
+      properties:
+        doNext:
+          type: array
+          description: Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped.
+          items:
+            $ref: "#/components/schemas/DoNextItem"
+        inbox:
+          type: object
+          required: [count, bySource]
+          properties:
+            count:
+              type: integer
+            bySource:
+              type: array
+              items:
+                $ref: "#/components/schemas/SourceCount"
+        waitingOn:
+          type: array
+          items:
+            $ref: "#/components/schemas/WaitingItem"
+        promises:
+          type: array
+          description: Open tasks with kind promise
+          items:
+            $ref: "#/components/schemas/Task"
+        doneThisWeek:
+          type: object
+          required: [count, latest]
+          properties:
+            count:
+              type: integer
+            latest:
+              type: array
+              description: Up to 5, most recently completed first
+              items:
+                $ref: "#/components/schemas/Task"
+        lastSweepAt:
+          type: [string, "null"]
+          format: date-time
+          description: When the last successful sweep finished. Null until the sweep runs (milestone 5).
+        today:
+          type: array
+          description: Today's calendar events, in start order. Empty until the sweep writes calendar data (milestone 5).
+          items:
+            $ref: "#/components/schemas/CalendarEvent"

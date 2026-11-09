@@ -1,0 +1,1 @@
+- [Verifying signed-in screens](ui-verification.md) — screenshots behind the allowlist need a test API instance plus Playwright route interception

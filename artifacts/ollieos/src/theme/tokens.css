@@ -1,0 +1,129 @@
+/*
+ * OllieOS design tokens. The ONLY file that holds colour values, gradients,
+ * radii and font stacks. Everything else references these variables.
+ * Source: docs/DESIGN.md sections 4 and 5.
+ */
+:root {
+  /* Fonts */
+  --oo-font-sans: 'Google Sans', 'DM Sans', system-ui, sans-serif;
+  --oo-font-serif: 'Instrument Serif', Georgia, serif;
+  --oo-font-mono: ui-monospace, Menlo, monospace;
+
+  /* Shared */
+  --oo-ink: #1b1d22;
+  --oo-ink-muted: #55524c;
+  --oo-ink-soft: #3d3a35;
+  --oo-ink-faint: #6b6760;
+  --oo-accent: #f4c542;
+  --oo-page: #f4f1ea;
+  --oo-panel: #ffffff;
+  --oo-line: #e8e5de;
+  --oo-line-soft: #f0ede6;
+  --oo-field: #f1efea;
+  --oo-control-border: #e3dfd6;
+  --oo-row-hover: #faf8f3;
+  --oo-check-border: #c9c4b9;
+  --oo-switch-off: #d6d2c8;
+  --oo-on-ink: #ffffff;
+
+  /* HSL triplets for shadcn variables */
+  --oo-ink-hsl: 223 12% 12%;
+  --oo-ink-muted-hsl: 40 6% 31%;
+  --oo-page-hsl: 42 33% 94%;
+  --oo-panel-hsl: 0 0% 100%;
+  --oo-line-hsl: 42 18% 89%;
+  --oo-field-hsl: 43 17% 93%;
+  --oo-control-border-hsl: 42 18% 86%;
+  --oo-accent-hsl: 45 89% 61%;
+  --oo-danger-hsl: 13 79% 30%;
+  --oo-ok-hsl: 104 44% 23%;
+  --oo-slate-hsl: 218 41% 23%;
+  --oo-violet-hsl: 266 54% 40%;
+
+  /* Dark surfaces */
+  --oo-bg-gradient:
+    radial-gradient(120% 80% at 85% 105%, #b5441a 0%, rgba(181, 68, 26, 0.55) 22%, rgba(181, 68, 26, 0) 48%),
+    radial-gradient(90% 70% at 15% 0%, #39507a 0%, rgba(57, 80, 122, 0) 60%),
+    radial-gradient(80% 60% at 50% 55%, #a7a39b 0%, rgba(167, 163, 155, 0) 70%),
+    linear-gradient(180deg, #2c3a55 0%, #6f7277 48%, #8b6a55 100%);
+  --oo-bg-gradient-phone:
+    radial-gradient(140% 70% at 90% 105%, #b5441a 0%, rgba(181, 68, 26, 0.5) 25%, rgba(181, 68, 26, 0) 55%),
+    radial-gradient(110% 60% at 10% 0%, #39507a 0%, rgba(57, 80, 122, 0) 60%),
+    linear-gradient(180deg, #2c3a55 0%, #6f7277 50%, #8b6a55 100%);
+  --oo-dark-base: #1b1d22;
+  --oo-grain-opacity: 0.22;
+  --oo-glass: rgba(30, 30, 32, 0.66);
+  --oo-glass-border: rgba(255, 255, 255, 0.10);
+  --oo-glass-quiet: rgba(30, 30, 32, 0.5);
+  --oo-glass-quiet-border: rgba(255, 255, 255, 0.08);
+  --oo-glass-ask: rgba(32, 32, 34, 0.62);
+  --oo-glass-rail: rgba(28, 28, 30, 0.55);
+  --oo-glass-today: rgba(30, 30, 32, 0.45);
+  --oo-glass-today-next: rgba(30, 30, 32, 0.72);
+  --oo-glass-input: rgba(12, 12, 14, 0.55);
+  --oo-glass-bar: rgba(20, 20, 22, 0.82);
+  --oo-glass-sheet: rgba(32, 32, 34, 0.94);
+  --oo-scrim: rgba(14, 14, 16, 0.72);
+  --oo-scrim-light: rgba(27, 29, 34, 0.32);
+  --oo-blur: 22px;
+  --oo-text-on-dark: #ffffff;
+  --oo-text-on-dark-2: rgba(255, 255, 255, 0.85);
+  --oo-text-on-dark-3: rgba(255, 255, 255, 0.78);
+  --oo-text-on-dark-4: rgba(255, 255, 255, 0.5);
+  --oo-white-08: rgba(255, 255, 255, 0.08);
+  --oo-white-12: rgba(255, 255, 255, 0.12);
+  --oo-white-16: rgba(255, 255, 255, 0.16);
+  --oo-white-20: rgba(255, 255, 255, 0.2);
+  --oo-accent-border: rgba(244, 197, 66, 0.6);
+  --oo-ok-dot: #8fd18a;
+  --oo-shadow-card: 0 10px 30px rgba(0, 0, 0, 0.18);
+  --oo-shadow-panel: 0 1px 2px rgba(27, 29, 34, 0.04);
+  --oo-shadow-detail: 0 16px 40px rgba(27, 29, 34, 0.12);
+
+  /* Status and priority pills */
+  --oo-pill-now-bg: #eef3c7;
+  --oo-pill-now-fg: #4a5410;
+  --oo-pill-backlog-bg: #ece9e2;
+  --oo-pill-backlog-fg: #3d3a35;
+  --oo-pill-waiting-bg: #fbe3dc;
+  --oo-pill-waiting-fg: #8a2a10;
+  --oo-pill-done-bg: #dfeed7;
+  --oo-pill-done-fg: #2f5320;
+  --oo-pill-inbox-bg: #fdf6e1;
+  --oo-pill-inbox-fg: #5c4a1a;
+  --oo-pill-noise-bg: #f1efea;
+  --oo-pill-noise-fg: #55524c;
+  --oo-pill-high-bg: #fbe3dc;
+  --oo-pill-high-fg: #8a2a10;
+  --oo-pill-neutral-bg: #f1efea;
+  --oo-pill-neutral-fg: #3d3a35;
+  --oo-danger: #8a2a10;
+  --oo-banner-bg: #fdf6e1;
+  --oo-banner-border: #efd88f;
+  --oo-banner-fg: #5c4a1a;
+
+  /* Source marks */
+  --oo-src-email-bg: #d9e2f1;
+  --oo-src-email-fg: #233455;
+  --oo-src-slack-bg: #efe7fb;
+  --oo-src-slack-fg: #5b2e9c;
+  --oo-src-meeting-bg: #f3dccf;
+  --oo-src-meeting-fg: #6b2d12;
+  --oo-src-quarterly-bg: #dfeed7;
+  --oo-src-quarterly-fg: #2f5320;
+  --oo-src-manual-bg: #ece9e2;
+  --oo-src-manual-fg: #3d3a35;
+
+  /* Radii */
+  --oo-r-panel: 22px;
+  --oo-r-dark-card: 20px;
+  --oo-r-ask: 24px;
+  --oo-r-card: 16px;
+  --oo-r-card-sm: 14px;
+  --oo-r-btn: 10px;
+  --oo-r-btn-phone: 12px;
+  --oo-r-input: 9px;
+  --oo-r-input-lg: 12px;
+  --oo-r-pill: 6px;
+  --oo-r-full: 999px;
+}

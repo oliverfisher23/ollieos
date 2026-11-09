@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "OllieOS"
+description = "Ollie's private personal operating system for tasks and work knowledge: Home with Do next, Inbox, Waiting on, Promises and Done; a Tasks list with detail panel and quick add; Knowledge pages; AI access controls. One allowlisted user. Claude reads and writes it through an MCP server."
+version = "1.0.0"
+id = "artifacts/ollieos"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24812
+
+[services.development]
+run = "pnpm --filter @workspace/ollieos run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ollieos", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/ollieos/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24812"
+BASE_PATH = "/"
