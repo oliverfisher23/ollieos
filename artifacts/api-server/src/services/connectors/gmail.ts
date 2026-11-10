@@ -124,7 +124,7 @@ export function stripQuoted(text: string): string {
 }
 
 export const AUTOMATED = /(^|[._-])(no-?reply|do-?not-?reply|notifications?|mailer-daemon|postmaster|bounce)([._+-]|@)/i;
-export const INVITE = /^(invitation|updated invitation|accepted|declined|tentatively accepted|cancelled event|canceled event|new event)( with note)?:/i;
+export const INVITE = /^(invitation|updated invitation|accepted|declined|tentatively accepted|cancelled event|canceled event|new event|invitation from an unknown sender)( with note)?:/i;
 
 export interface MappedMessage {
   unit: WorkUnit | null;

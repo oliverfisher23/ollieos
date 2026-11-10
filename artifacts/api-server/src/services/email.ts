@@ -165,9 +165,29 @@ const line = (list: Address[]) => list.map((a) => (a.name && a.email ? `${a.name
 export async function readTaskThread(id: number): Promise<EmailThreadView> {
   const task = await loadTask(id);
   loadEmailTask(task);
+  let threadId: string | null;
   try {
-    const threadId = await threadIdFor(task);
-    const thread = threadId ? await readGmailThread(threadId, READ_CHARS) : null;
+    threadId = await threadIdFor(task);
+  } catch (err) {
+    if (err instanceof ConnectorError) throw new UpstreamError(`${err.message.replace(/\.$/, "")}. OllieOS needs Gmail to show the email.`);
+    throw err;
+  }
+  const fromGmail = threadId ? await readThreadView(threadId) : null;
+  if (fromGmail) return fromGmail;
+  const text = [task.sourceQuote, task.snippet].filter(Boolean).join("\n\n");
+  return {
+    fromGmail: false,
+    gmailUrl: task.sourceUrl,
+    messages: text
+      ? [{ id: "task", fromName: task.fromName, fromEmail: task.fromAddress, to: "", cc: "", at: task.capturedAt ?? task.createdAt, text, fromOllie: false, attachments: [] }]
+      : [],
+  };
+}
+
+/** A Gmail thread for the reading view, oldest first, or null when it is not in Gmail. Read only. */
+export async function readThreadView(threadId: string): Promise<EmailThreadView | null> {
+  try {
+    const thread = await readGmailThread(threadId, READ_CHARS);
     if (thread && thread.messages.length) {
       const keys = thread.messages.flatMap((m) => m.attachments.map((a) => attachmentKey(thread.threadId, m.id, a.partId)));
       const saved = keys.length
@@ -203,14 +223,7 @@ export async function readTaskThread(id: number): Promise<EmailThreadView> {
     if (err instanceof ConnectorError) throw new UpstreamError(`${err.message.replace(/\.$/, "")}. OllieOS needs Gmail to show the email.`);
     throw err;
   }
-  const text = [task.sourceQuote, task.snippet].filter(Boolean).join("\n\n");
-  return {
-    fromGmail: false,
-    gmailUrl: task.sourceUrl,
-    messages: text
-      ? [{ id: "task", fromName: task.fromName, fromEmail: task.fromAddress, to: "", cc: "", at: task.capturedAt ?? task.createdAt, text, fromOllie: false, attachments: [] }]
-      : [],
-  };
+  return null;
 }
 
 /**

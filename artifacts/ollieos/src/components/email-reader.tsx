@@ -4,15 +4,25 @@ import { Link } from 'wouter';
 import {
   briefReplyDraft,
   dismissEmailDraft,
+  ensureEmailInboxTask,
+  getGetEmailThreadQueryKey,
+  getGetEmailThreadSummaryQueryKey,
   getGetReplyDraftQueryKey,
+  getGetTaskQueryKey,
   getGetTaskThreadQueryKey,
   getGetTaskThreadSummaryQueryKey,
   getListEmailDraftsQueryKey,
+  getListEmailInboxQueryKey,
+  markEmailInboxDone,
   saveEmailAttachment,
+  undoEmailInboxDone,
+  useGetEmailThread,
+  useGetEmailThreadSummary,
   useGetTask,
   useGetTaskThread,
   useGetTaskThreadSummary,
   type EmailAttachment,
+  type EmailInboxItem,
   type EmailThreadMessage,
   type Task,
 } from '@workspace/api-client-react';
@@ -22,7 +32,8 @@ import { IconArrowOut, IconLeft } from '@/components/icons';
 import { NoiseRuleChooser } from '@/components/noise-rule-chooser';
 import { ReplyDraftCard } from '@/components/reply-draft';
 import { reportApiError } from '@/lib/forbidden';
-import { errorMessage, notify } from '@/lib/notify';
+import { errorMessage, notify, notifyUndo } from '@/lib/notify';
+import { useInvalidateTasks } from '@/lib/task-cache';
 import { useTaskActions } from '@/lib/task-actions';
 
 const nameOf = (m: Pick<EmailThreadMessage, 'fromName' | 'fromEmail' | 'fromOllie'>) => (m.fromOllie ? 'You' : (m.fromName ?? m.fromEmail ?? 'Unknown sender'));
@@ -39,14 +50,16 @@ function fileSize(bytes: number): string {
 }
 
 /** An attachment on a message: PDF, Word and text files under 10 MB can go to the Library. */
-function Attachment({ taskId, messageId, a }: { taskId: number; messageId: string; a: EmailAttachment }) {
+function Attachment({ taskFor, threadId, messageId, a }: { taskFor: () => Promise<number>; threadId: string | null; messageId: string; a: EmailAttachment }) {
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
   const save = async () => {
     setSaving(true);
     try {
+      const taskId = await taskFor();
       await saveEmailAttachment(taskId, { messageId, partId: a.partId });
       await qc.invalidateQueries({ queryKey: getGetTaskThreadQueryKey(taskId) });
+      if (threadId) await qc.invalidateQueries({ queryKey: getGetEmailThreadQueryKey(threadId) });
       notify('Saved to the Library', 'OllieOS is reading it for knowledge. Anything it finds waits for you to look at.');
     } catch (err) {
       reportApiError(err);
@@ -73,8 +86,11 @@ function Attachment({ taskId, messageId, a }: { taskId: number; messageId: strin
 }
 
 /** A few lines on a long thread, written when it is first opened and kept until a new message arrives. */
-function ThreadSummary({ taskId, count }: { taskId: number; count: number }) {
-  const q = useGetTaskThreadSummary(taskId, { query: { queryKey: getGetTaskThreadSummaryQueryKey(taskId), enabled: count >= SUMMARY_FROM, staleTime: 5 * 60_000, retry: false } });
+function ThreadSummary({ taskId, threadId, count }: { taskId: number | null; threadId: string | null; count: number }) {
+  const long = count >= SUMMARY_FROM;
+  const byTask = useGetTaskThreadSummary(taskId ?? 0, { query: { queryKey: getGetTaskThreadSummaryQueryKey(taskId ?? 0), enabled: long && !threadId && taskId != null, staleTime: 5 * 60_000, retry: false } });
+  const byThread = useGetEmailThreadSummary(threadId ?? '', { query: { queryKey: getGetEmailThreadSummaryQueryKey(threadId ?? ''), enabled: long && !!threadId, staleTime: 5 * 60_000, retry: false } });
+  const q = threadId ? byThread : byTask;
   if (count < SUMMARY_FROM) return null;
   if (q.isLoading) {
     return (
@@ -99,7 +115,7 @@ function ThreadSummary({ taskId, count }: { taskId: number; count: number }) {
 }
 
 /** One message in the thread: older ones start folded to a line, the newest is open. */
-function Message({ taskId, m, open, onToggle }: { taskId: number; m: EmailThreadMessage; open: boolean; onToggle: () => void }) {
+function Message({ taskFor, threadId, m, open, onToggle }: { taskFor: () => Promise<number>; threadId: string | null; m: EmailThreadMessage; open: boolean; onToggle: () => void }) {
   const name = nameOf(m);
   return (
     <article className="oo-mail-msg" data-testid={'card-email-message-' + m.id}>
@@ -131,7 +147,7 @@ function Message({ taskId, m, open, onToggle }: { taskId: number; m: EmailThread
       {open && <p className="oo-mail-body">{tidy(m.text)}</p>}
       {open && m.attachments.length > 0 && (
         <ul className="oo-mail-files" aria-label="Attachments">
-          {m.attachments.map((a) => <Attachment key={a.partId} taskId={taskId} messageId={m.id} a={a} />)}
+          {m.attachments.map((a) => <Attachment key={a.partId} taskFor={taskFor} threadId={threadId} messageId={m.id} a={a} />)}
         </ul>
       )}
     </article>
@@ -141,10 +157,12 @@ function Message({ taskId, m, open, onToggle }: { taskId: number; m: EmailThread
 /**
  * The reading pane on the Email page: the email thread from Gmail, a summary of long threads,
  * attachments, what OllieOS made of it, and Brief a reply, Reply, Done and Noise. Drafts are
- * written and edited here; nothing is ever sent.
+ * written and edited here; nothing is ever sent. An inbox email with no task yet gets one the
+ * first time Ollie briefs, replies or saves an attachment.
  */
 export function EmailReader({
   taskId,
+  inbox,
   mode,
   chase = false,
   hasDraft = false,
@@ -152,7 +170,10 @@ export function EmailReader({
   onNext,
   onBriefed,
 }: {
-  taskId: number;
+  /** The email task; null for an inbox email not yet in OllieOS */
+  taskId: number | null;
+  /** The inbox email, on To answer */
+  inbox?: EmailInboxItem;
   /** Answer: an email waiting on Ollie. Draft: a draft on the Drafts list. */
   mode: 'answer' | 'draft';
   chase?: boolean;
@@ -161,11 +182,18 @@ export function EmailReader({
   /** Moves on once this email is dealt with */
   onNext: () => void;
   /** After Brief a reply: the email is on Drafts now */
-  onBriefed?: () => void;
+  onBriefed?: (taskId: number) => void;
 }) {
-  const task = useGetTask(taskId);
-  const thread = useGetTaskThread(taskId, { query: { staleTime: 60_000, retry: false } });
+  const threadId = inbox?.threadId ?? null;
+  // The task made for an inbox email here, before the list catches up.
+  const [made, setMade] = useState<number | null>(null);
+  const id = taskId ?? made;
+  const task = useGetTask(id ?? 0, { query: { queryKey: getGetTaskQueryKey(id ?? 0), enabled: id != null } });
+  const byTask = useGetTaskThread(id ?? 0, { query: { queryKey: getGetTaskThreadQueryKey(id ?? 0), enabled: id != null && !threadId, staleTime: 60_000, retry: false } });
+  const byThread = useGetEmailThread(threadId ?? '', { query: { queryKey: getGetEmailThreadQueryKey(threadId ?? ''), enabled: !!threadId, staleTime: 60_000, retry: false } });
+  const thread = threadId ? byThread : byTask;
   const actions = useTaskActions();
+  const invalidateTasks = useInvalidateTasks();
   const qc = useQueryClient();
   const [replying, setReplying] = useState(mode === 'draft' || hasDraft);
   const [busy, setBusy] = useState(false);
@@ -181,18 +209,66 @@ export function EmailReader({
     setBriefing(false);
     setBrief('');
   }, [taskId, mode, hasDraft]);
+  useEffect(() => setMade(null), [threadId]);
   // A new email starts at the top of the reading pane.
   useEffect(() => {
     top.current?.closest('.oo-mail-read')?.scrollTo(0, 0);
-  }, [taskId, task.isLoading]);
+  }, [taskId, threadId, task.isLoading]);
 
-  const t = task.data?.task;
+  const t = id != null ? task.data?.task : undefined;
   const messages = thread.data?.messages ?? [];
-  const gmailUrl = thread.data?.gmailUrl ?? t?.sourceUrl ?? null;
+  const gmailUrl = thread.data?.gmailUrl ?? t?.sourceUrl ?? inbox?.gmailUrl ?? null;
 
-  const reply = () => {
+  /** The email task, made now for an inbox email that has none. */
+  const taskFor = async (): Promise<number> => {
+    if (id != null) return id;
+    const r = await ensureEmailInboxTask(threadId!);
+    setMade(r.taskId);
+    void qc.invalidateQueries({ queryKey: getListEmailInboxQueryKey() });
+    return r.taskId;
+  };
+
+  const reply = async () => {
+    if (id == null) {
+      setBusy(true);
+      try {
+        await taskFor();
+      } catch (err) {
+        reportApiError(err);
+        notify('Could not start a reply', errorMessage(err));
+        return;
+      } finally {
+        setBusy(false);
+      }
+    }
     setReplying(true);
     setTimeout(() => composer.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  };
+
+  /** Done on To answer: off the list until a new message arrives, and its task marked done. */
+  const inboxDone = async () => {
+    if (!threadId) return;
+    setBusy(true);
+    try {
+      const r = await markEmailInboxDone(threadId);
+      const refresh = () => {
+        void qc.invalidateQueries({ queryKey: getListEmailInboxQueryKey() });
+        if (r.taskId != null) invalidateTasks(r.taskId);
+      };
+      refresh();
+      notifyUndo('Marked done', 'It is off To answer until a new message arrives. It stays in your Gmail inbox.', () => {
+        void undoEmailInboxDone(threadId, r).then(refresh, (err) => {
+          reportApiError(err);
+          notify('That did not undo', errorMessage(err));
+        });
+      });
+      onNext();
+    } catch (err) {
+      reportApiError(err);
+      notify('That did not save', errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const sendBrief = async (e: React.FormEvent) => {
@@ -200,13 +276,14 @@ export function EmailReader({
     if (!brief.trim()) return;
     setBusy(true);
     try {
-      const d = await briefReplyDraft(taskId, { brief: brief.trim() });
-      qc.setQueryData(getGetReplyDraftQueryKey(taskId), { draft: d });
+      const tid = await taskFor();
+      const d = await briefReplyDraft(tid, { brief: brief.trim() });
+      qc.setQueryData(getGetReplyDraftQueryKey(tid), { draft: d });
       await qc.invalidateQueries({ queryKey: getListEmailDraftsQueryKey() });
       notify('Writing the draft', 'It is on Drafts. Once written it is saved to Gmail as a draft. Nothing is sent.');
       setBriefing(false);
       setBrief('');
-      onBriefed?.();
+      onBriefed?.(tid);
     } catch (err) {
       reportApiError(err);
       notify('Could not start the draft', errorMessage(err));
@@ -231,7 +308,7 @@ export function EmailReader({
   const removeDraft = async () => {
     setBusy(true);
     try {
-      await dismissEmailDraft(taskId);
+      await dismissEmailDraft(id!);
       await qc.invalidateQueries({ queryKey: getListEmailDraftsQueryKey() });
       notify('Taken off Drafts', 'The draft stays on the task.');
       onNext();
@@ -243,18 +320,19 @@ export function EmailReader({
     }
   };
 
-  if (task.isLoading) {
+  if (id != null && task.isLoading && !inbox) {
     return <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}><Skel h={28} w="60%" /><Skel h={16} w="40%" /><Skel h={160} /></div>;
   }
-  if (!t) {
+  if (!t && !inbox) {
     return <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>This email could not be loaded. It may have been deleted.</p>;
   }
 
-  const closed = t.status === 'done' || t.status === 'dropped' || t.status === 'noise' || t.status === 'archived';
-  const subject = t.sourceSubject ?? t.title;
+  const closed = !!t && (t.status === 'done' || t.status === 'dropped' || t.status === 'noise' || t.status === 'archived');
+  const subject = inbox?.subject ?? t?.sourceSubject ?? t?.title ?? '(no subject)';
+  const from = inbox ? (inbox.fromName ?? inbox.fromEmail ?? 'Unknown sender') : null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }} data-testid={'reader-email-' + t.id}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }} data-testid={'reader-email-' + (threadId ?? t!.id)}>
       <button type="button" className="oo-mail-back oo-btn oo-btn-outline oo-btn-sm" style={{ alignSelf: 'flex-start', gap: 4 }} onClick={onBack} data-testid="button-email-back">
         <IconLeft size={14} /> All emails
       </button>
@@ -262,13 +340,19 @@ export function EmailReader({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <h2 ref={top} style={{ margin: 0, fontSize: 21, fontWeight: 600, letterSpacing: '-0.01em', overflowWrap: 'anywhere' }} data-testid="text-email-subject">{subject}</h2>
         <span className="oo-muted" style={{ fontSize: 13, display: 'flex', flexWrap: 'wrap', gap: '4px 10px', alignItems: 'baseline' }}>
-          <span>
-            In OllieOS: <Link href={'/tasks?task=' + t.id} className="oo-link" data-testid="link-email-task">{t.title}</Link>
-          </span>
-          <span className="oo-pill">{STATUS_LABELS[t.status]}</span>
-          {t.confidential && <span className="oo-pill">Confidential</span>}
+          {t ? (
+            <>
+              <span>
+                In OllieOS: <Link href={'/tasks?task=' + t.id} className="oo-link" data-testid="link-email-task">{t.title}</Link>
+              </span>
+              <span className="oo-pill">{STATUS_LABELS[t.status]}</span>
+              {t.confidential && <span className="oo-pill">Confidential</span>}
+            </>
+          ) : (
+            <span data-testid="text-email-not-task">From {from}. Not a task in OllieOS.</span>
+          )}
         </span>
-        {t.suggestedAction && <span className="oo-soft" style={{ fontSize: 13 }}><span className="oo-muted">Next step:</span> {t.suggestedAction}</span>}
+        {t?.suggestedAction && <span className="oo-soft" style={{ fontSize: 13 }}><span className="oo-muted">Next step:</span> {t.suggestedAction}</span>}
       </div>
 
       {!closed && (
@@ -276,18 +360,18 @@ export function EmailReader({
           {mode === 'answer' && !replying && !briefing && (
             <>
               <button type="button" className="oo-btn oo-btn-sm oo-btn-ink" onClick={() => setBriefing(true)} data-testid="button-email-brief">Brief a reply</button>
-              <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" onClick={reply} data-testid="button-email-reply">Reply</button>
+              <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy} onClick={() => void reply()} data-testid="button-email-reply">Reply</button>
             </>
           )}
           {mode === 'answer' ? (
             <>
-              <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy} onClick={() => void done(t)} data-testid="button-email-done">Done</button>
-              <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy} onClick={() => void noise(t)} data-testid="button-email-noise">Noise</button>
+              <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy} onClick={() => void (inbox ? inboxDone() : t && done(t))} data-testid="button-email-done">Done</button>
+              {t && <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy} onClick={() => void noise(t)} data-testid="button-email-noise">Noise</button>}
             </>
           ) : chase ? (
             <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy} onClick={() => void removeDraft()} data-testid="button-email-remove-draft">Remove from Drafts</button>
           ) : (
-            <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy} onClick={() => void done(t)} data-testid="button-email-done">Done</button>
+            t && <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy} onClick={() => void done(t)} data-testid="button-email-done">Done</button>
           )}
           {gmailUrl && (
             <a href={gmailUrl} target="_blank" rel="noreferrer" className="oo-btn oo-btn-sm oo-btn-outline" style={{ gap: 4 }} data-testid="link-email-gmail">
@@ -299,11 +383,11 @@ export function EmailReader({
 
       {briefing && !closed && (
         <form className="oo-source" style={{ gap: 8 }} onSubmit={(e) => void sendBrief(e)} data-testid="form-email-brief">
-          <label htmlFor={'brief-' + taskId} style={{ fontSize: 14, fontWeight: 600 }}>What should the reply say?</label>
+          <label htmlFor={'brief-' + (threadId ?? id)} style={{ fontSize: 14, fontWeight: 600 }}>What should the reply say?</label>
           <span className="oo-soft" style={{ fontSize: 13, lineHeight: 1.5 }}>
             One line is enough. OllieOS writes the reply in the background, in the way you write, and saves it to Gmail as a draft. Nothing is sent.
           </span>
-          <input id={'brief-' + taskId} className="oo-input" autoFocus value={brief} maxLength={500} onChange={(e) => setBrief(e.target.value)}
+          <input id={'brief-' + (threadId ?? id)} className="oo-input" autoFocus value={brief} maxLength={500} onChange={(e) => setBrief(e.target.value)}
             placeholder="For example: yes to Tuesday, ask for the budget first" data-testid="input-email-brief" />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             <button type="submit" className="oo-btn oo-btn-sm oo-btn-ink" disabled={busy || !brief.trim()} data-testid="button-email-brief-send">Write the draft</button>
@@ -312,7 +396,7 @@ export function EmailReader({
         </form>
       )}
 
-      {t.status === 'noise' && (
+      {t?.status === 'noise' && (
         <div className="oo-source" style={{ gap: 10 }} role="status" data-testid="state-email-noise">
           <span style={{ fontSize: 14, fontWeight: 600 }}>Moved to Noise</span>
           <span className="oo-soft" style={{ fontSize: 13, lineHeight: 1.5 }}>
@@ -325,7 +409,7 @@ export function EmailReader({
           </div>
         </div>
       )}
-      {(t.status === 'done' || t.status === 'dropped') && (
+      {t && (t.status === 'done' || t.status === 'dropped') && (
         <div className="oo-source" style={{ gap: 10 }} role="status">
           <span style={{ fontSize: 14 }}>{t.status === 'done' ? 'Marked done.' : 'Dropped.'}</span>
           <div><button type="button" className="oo-btn oo-btn-sm oo-btn-outline" onClick={() => void actions.undo(t)}>Undo</button></div>
@@ -338,13 +422,13 @@ export function EmailReader({
         ) : thread.isError ? (
           <div className="oo-source" style={{ gap: 6 }}>
             <span style={{ fontSize: 13 }} role="alert">{errorMessage(thread.error, 'The email could not be read from Gmail just now.')}</span>
-            {(t.sourceQuote || t.snippet) && <p className="oo-mail-body">{[t.sourceQuote, t.snippet].filter(Boolean).join('\n\n')}</p>}
+            {(t?.sourceQuote || t?.snippet || inbox?.snippet) && <p className="oo-mail-body">{t ? [t.sourceQuote, t.snippet].filter(Boolean).join('\n\n') : inbox!.snippet}</p>}
           </div>
         ) : messages.length === 0 ? (
           <p className="oo-muted" style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>OllieOS has no copy of this email, only the task. A reply can still be drafted from the task.</p>
         ) : (
           <>
-            {thread.data?.fromGmail && <ThreadSummary taskId={taskId} count={messages.length} />}
+            {thread.data?.fromGmail && <ThreadSummary taskId={id} threadId={threadId} count={messages.length} />}
             {!thread.data?.fromGmail && (
               <span className="oo-muted" style={{ fontSize: 12 }}>This email is not in Gmail any more, so this is the part OllieOS kept.</span>
             )}
@@ -352,7 +436,7 @@ export function EmailReader({
               const isLast = i === messages.length - 1;
               const open = isLast || opened.has(m.id);
               return (
-                <Message key={m.id} taskId={taskId} m={m} open={open} onToggle={() => {
+                <Message key={m.id} taskFor={taskFor} threadId={threadId} m={m} open={open} onToggle={() => {
                   if (isLast) return;
                   setOpened((s) => {
                     const next = new Set(s);
@@ -367,9 +451,9 @@ export function EmailReader({
         )}
       </div>
 
-      {replying && !closed && (
+      {replying && !closed && id != null && (
         <div ref={composer} style={{ scrollMarginTop: 12 }}>
-          <ReplyDraftCard key={taskId} taskId={taskId} chase={chase} />
+          <ReplyDraftCard key={id} taskId={id} chase={chase} />
         </div>
       )}
     </div>

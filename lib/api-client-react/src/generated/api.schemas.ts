@@ -1183,6 +1183,60 @@ export interface WritingStyleInput {
   note: string;
 }
 
+export interface EmailInboxItem {
+  threadId: string;
+  /** The newest message */
+  messageId: string;
+  /** @nullable */
+  subject: string | null;
+  /** @nullable */
+  fromName: string | null;
+  /** @nullable */
+  fromEmail: string | null;
+  at: string;
+  snippet: string;
+  unread: boolean;
+  messages: number;
+  /**
+     * The email task linked to it
+     * @nullable
+     */
+  taskId: number | null;
+  gmailUrl: string;
+}
+
+export interface EmailInbox {
+  items: EmailInboxItem[];
+  /** More inbox emails than are listed */
+  more: boolean;
+  /** Newsletters and automatic emails left out */
+  leftOut: number;
+}
+
+export interface EmailInboxTask {
+  taskId: number;
+}
+
+/**
+ * @nullable
+ */
+export type EmailInboxDonePreviousStatus = typeof EmailInboxDonePreviousStatus[keyof typeof EmailInboxDonePreviousStatus] | null;
+
+
+export const EmailInboxDonePreviousStatus = {
+  inbox: 'inbox',
+  now: 'now',
+  backlog: 'backlog',
+  waiting: 'waiting',
+} as const;
+
+export interface EmailInboxDone {
+  /** @nullable */
+  taskId: number | null;
+  /** @nullable */
+  previousStatus: EmailInboxDonePreviousStatus;
+}
+
 export type ReplyDraftState = typeof ReplyDraftState[keyof typeof ReplyDraftState];
 
 

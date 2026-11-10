@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db, documentContentsTable, documentsTable, knowledgeSourcesTable, replyDraftsTable, tasksTable } from "@workspace/db";
 import { checkSentDrafts } from "../src/services/email";
+import { clearInboxCache } from "../src/services/inbox";
 import { waitForBriefedDrafts } from "../src/services/replyDraft";
 import { waitForWritingStyle } from "../src/services/writingStyle";
 import { api, OLLIE, useServer } from "./harness";
@@ -98,7 +99,12 @@ vi.mock("../src/services/connectors/http", async (importOriginal) => {
       const msgs = threads[id];
       return msgs ? { id, messages: msgs.map((m) => gmailMessage(id, m)) } : null;
     }
-    if (url.pathname === "/gmail/v1/users/me/threads") return { threads: [] };
+    if (url.pathname === "/gmail/v1/users/me/threads") {
+      // To answer reads the inbox; anything with an INBOX label is in it.
+      if (!url.searchParams.get("q")?.includes("in:inbox")) return { threads: [] };
+      const inInbox = Object.entries(threads).filter(([id, msgs]) => msgs.some((m) => gmailMessage(id, m).labelIds.includes("INBOX")));
+      return { threads: inInbox.map(([id, msgs]) => ({ id, historyId: `${msgs.length}-${msgs[msgs.length - 1].id}-${(msgs[msgs.length - 1].labels ?? []).join(",")}` })) };
+    }
     throw new Error("Unexpected path " + path);
   };
   return {
@@ -156,6 +162,7 @@ beforeEach(() => {
   draftGate = null;
   haikuCalls = [];
   modelCalls = [];
+  clearInboxCache();
 });
 
 async function emailTask(threadId: string, lastId: string, opts: { confidential?: boolean; status?: "inbox" | "now" } = {}) {
@@ -394,5 +401,90 @@ describe("Attachments", () => {
     expect((await api(`tasks/${t.id}/thread/attachments`, { body: { messageId: "o1", partId: "1" } })).status).toBe(404);
     expect((await api(`tasks/${t.id}/thread/attachments`, { body: { messageId: "m1", partId: "9" } })).status).toBe(404);
     expect(await db.select().from(documentsTable)).toHaveLength(0);
+  });
+});
+
+describe("To answer: the Gmail inbox", () => {
+  const inbox = async () => (await api("email/inbox")).body as { items: Record<string, any>[]; leftOut: number; more: boolean };
+
+  it("lists inbox emails whose last message is not from Ollie, read or unread, newest first", async () => {
+    threads.askOne1 = [{ id: "a1", from: SAM, to: ME, subject: "Tuesday", at: ago(2), text: "Can we meet on Tuesday?", labels: ["INBOX"] }];
+    threads.askTwo2 = [
+      { id: "b1", from: ME, to: SAM, subject: "Budget", at: ago(3), text: "Any news on the budget?" },
+      { id: "b2", from: SAM, to: ME, subject: "Re: Budget", at: ago(1), text: "Here it is.", labels: ["INBOX", "UNREAD"] },
+    ];
+    // Replied to: the last message is Ollie's.
+    threads.replied3 = [
+      { id: "c1", from: SAM, to: ME, subject: "Lunch", at: ago(3), text: "Lunch?", labels: ["INBOX"] },
+      { id: "c2", from: ME, to: SAM, subject: "Re: Lunch", at: ago(2), text: "Yes please.", labels: ["SENT"] },
+    ];
+    // Sent by Ollie and waiting for a reply: not To answer.
+    threads.mySent4 = [{ id: "d1", from: ME, to: SAM, subject: "Strada panel", at: ago(1), text: "Could you confirm?", labels: ["SENT", "INBOX"] }];
+    // A newsletter and a calendar invite are left out.
+    threads.letter55 = [{ id: "e1", from: "News <news@paper.com>", to: ME, subject: "This week", at: ago(1), text: "Read all about it", labels: ["INBOX"], headers: { "List-Unsubscribe": "<mailto:x@paper.com>" } }];
+    threads.invite66 = [{ id: "f1", from: SAM, to: ME, subject: "Invitation: Catch up @ Mon", at: ago(1), text: "Join", labels: ["INBOX"] }];
+    // Archived: not in the inbox.
+    threads.archive7 = [{ id: "g1", from: SAM, to: ME, subject: "Old", at: ago(1), text: "Old news", labels: [] }];
+    const linked = await emailTask("askOne1", "a1");
+
+    const r = await inbox();
+    expect(r.items.map((i) => [i.threadId, i.unread, i.taskId, i.messages])).toEqual([
+      ["askTwo2", true, null, 2],
+      ["askOne1", false, linked.id, 1],
+    ]);
+    expect(r.items[0]).toMatchObject({ subject: "Re: Budget", fromName: "Sam Lee", fromEmail: "sam@client.com", messageId: "b2" });
+    expect(r.leftOut).toBe(2);
+    // Reading the inbox adds nothing to Tasks.
+    expect((await db.select().from(tasksTable).where(eq(tasksTable.source, "email"))).length).toBe(1);
+  });
+
+  it("reads and summarises an inbox email that is not a task, without making one", async () => {
+    threads.longOne8 = [1, 2, 3, 4].map((n) => ({ id: `l${n}`, from: n % 2 ? SAM : ME, to: ME, subject: "Plan", at: ago(5 - n), text: `Message ${n}`, labels: n % 2 ? ["INBOX"] : ["SENT"] }));
+    threads.longOne8.push({ id: "l5", from: SAM, to: ME, subject: "Plan", at: ago(0.5), text: "Message 5", labels: ["INBOX"] });
+    const t = await api("email/threads/longOne8");
+    expect(t.status).toBe(200);
+    expect(t.body.messages.map((m: { id: string; fromOllie: boolean }) => [m.id, m.fromOllie])).toEqual([["l1", false], ["l2", true], ["l3", false], ["l4", true], ["l5", false]]);
+    const s = await api("email/threads/longOne8/summary");
+    expect(s.body).toMatchObject({ messages: 5, why: null });
+    expect(haikuCalls.length).toBe(1);
+    expect((await db.select().from(tasksTable).where(eq(tasksTable.source, "email"))).length).toBe(0);
+    expect((await api("email/threads/not-a-thread!")).status).toBe(400);
+  });
+
+  it("makes a task the first time Ollie acts on an email, once, and briefs a reply on it", async () => {
+    threads.brief999 = [{ id: "h1", from: SAM, to: ME, subject: "Tuesday", at: ago(1), text: "Can we meet on Tuesday?", labels: ["INBOX"] }];
+    const first = await api("email/inbox/brief999/task", { method: "POST" });
+    expect(first.status).toBe(200);
+    const again = await api("email/inbox/brief999/task", { method: "POST" });
+    expect(again.body.taskId).toBe(first.body.taskId);
+    const [t] = await db.select().from(tasksTable).where(eq(tasksTable.id, first.body.taskId));
+    expect(t).toMatchObject({ status: "now", source: "email", sourceRef: "gmail:h1", sourceSubject: "Tuesday", fromAddress: "sam@client.com", title: "Reply to Sam Lee: Tuesday" });
+    expect((await inbox()).items[0].taskId).toBe(t.id);
+
+    const b = await api(`tasks/${t.id}/reply-draft/brief`, { body: { brief: "yes to Tuesday" } });
+    expect(b.status).toBe(202);
+    await waitForBriefedDrafts();
+    expect(draftCalls.length).toBe(1);
+  });
+
+  it("Done takes an email off To answer until a new message arrives, and Undo puts it back", async () => {
+    threads.doneOne1 = [{ id: "k1", from: SAM, to: ME, subject: "FYI", at: ago(1), text: "Just so you know", labels: ["INBOX"] }];
+    const linked = await emailTask("doneOne1", "k1", { status: "now" });
+
+    const d = await api("email/inbox/doneOne1/done", { method: "POST" });
+    expect(d.body).toEqual({ taskId: linked.id, previousStatus: "now" });
+    expect((await inbox()).items).toEqual([]);
+    const [closed] = await db.select().from(tasksTable).where(eq(tasksTable.id, linked.id));
+    expect(closed.status).toBe("done");
+
+    const u = await api("email/inbox/doneOne1/undo-done", { body: d.body });
+    expect(u.status).toBe(204);
+    expect((await inbox()).items.map((i) => [i.threadId, i.taskId])).toEqual([["doneOne1", linked.id]]);
+
+    // Done again, then a new message brings it back.
+    await api("email/inbox/doneOne1/done", { method: "POST" });
+    expect((await inbox()).items).toEqual([]);
+    threads.doneOne1.push({ id: "k2", from: SAM, to: ME, subject: "Re: FYI", at: new Date(Date.now() + 1000), text: "One more thing", labels: ["INBOX"] });
+    expect((await inbox()).items.map((i) => [i.threadId, i.messageId])).toEqual([["doneOne1", "k2"]]);
   });
 });

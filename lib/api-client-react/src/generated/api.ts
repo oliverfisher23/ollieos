@@ -72,6 +72,9 @@ import type {
   DropboxFolderPreviewInput,
   EmailAttachmentInput,
   EmailDraftList,
+  EmailInbox,
+  EmailInboxDone,
+  EmailInboxTask,
   EmailThread,
   ErrorEnvelope,
   ErrorResponse,
@@ -3973,6 +3976,546 @@ export function useListEmailDrafts<TData = Awaited<ReturnType<typeof listEmailDr
 
 
 
+
+export const getListEmailInboxUrl = () => {
+
+
+
+
+  return `/api/email/inbox`
+}
+
+/**
+ * @summary To answer: Gmail inbox emails, read or unread, whose last message is not from Ollie, newest first
+ */
+export const listEmailInbox = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmailInbox> => {
+
+  return customFetch<EmailInbox>(getListEmailInboxUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEmailInboxQueryKey = () => {
+    return [
+    `/api/email/inbox`
+    ] as const;
+    }
+
+
+export const getListEmailInboxQueryOptions = <TData = Awaited<ReturnType<typeof listEmailInbox>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailInbox>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEmailInboxQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmailInbox>>> = ({ signal }) => listEmailInbox({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEmailInbox>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListEmailInboxQueryResult = NonNullable<Awaited<ReturnType<typeof listEmailInbox>>>
+export type ListEmailInboxQueryError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+
+
+export function useListEmailInbox<TData = Awaited<ReturnType<typeof listEmailInbox>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailInbox>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listEmailInbox>>,
+          TError,
+          Awaited<ReturnType<typeof listEmailInbox>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListEmailInbox<TData = Awaited<ReturnType<typeof listEmailInbox>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailInbox>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listEmailInbox>>,
+          TError,
+          Awaited<ReturnType<typeof listEmailInbox>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListEmailInbox<TData = Awaited<ReturnType<typeof listEmailInbox>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailInbox>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary To answer: Gmail inbox emails, read or unread, whose last message is not from Ollie, newest first
+ */
+
+export function useListEmailInbox<TData = Awaited<ReturnType<typeof listEmailInbox>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailInbox>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListEmailInboxQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetEmailThreadUrl = (threadId: string,) => {
+
+
+
+
+  return `/api/email/threads/${threadId}`
+}
+
+/**
+ * @summary A Gmail thread for reading on the Email page, oldest first. Read only.
+ */
+export const getEmailThread = async (threadId: string, options?: Parameters<typeof customFetch>[1]): Promise<EmailThread> => {
+
+  return customFetch<EmailThread>(getGetEmailThreadUrl(threadId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmailThreadQueryKey = (threadId: string,) => {
+    return [
+    `/api/email/threads/${threadId}`
+    ] as const;
+    }
+
+
+export const getGetEmailThreadQueryOptions = <TData = Awaited<ReturnType<typeof getEmailThread>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(threadId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailThread>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmailThreadQueryKey(threadId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmailThread>>> = ({ signal }) => getEmailThread(threadId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: threadId !== null && threadId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmailThread>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetEmailThreadQueryResult = NonNullable<Awaited<ReturnType<typeof getEmailThread>>>
+export type GetEmailThreadQueryError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+
+
+export function useGetEmailThread<TData = Awaited<ReturnType<typeof getEmailThread>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ threadId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailThread>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEmailThread>>,
+          TError,
+          Awaited<ReturnType<typeof getEmailThread>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetEmailThread<TData = Awaited<ReturnType<typeof getEmailThread>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ threadId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailThread>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEmailThread>>,
+          TError,
+          Awaited<ReturnType<typeof getEmailThread>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetEmailThread<TData = Awaited<ReturnType<typeof getEmailThread>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ threadId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailThread>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary A Gmail thread for reading on the Email page, oldest first. Read only.
+ */
+
+export function useGetEmailThread<TData = Awaited<ReturnType<typeof getEmailThread>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ threadId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailThread>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetEmailThreadQueryOptions(threadId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetEmailThreadSummaryUrl = (threadId: string,) => {
+
+
+
+
+  return `/api/email/threads/${threadId}/summary`
+}
+
+/**
+ * @summary A few lines on a long inbox thread, kept until a new message arrives
+ */
+export const getEmailThreadSummary = async (threadId: string, options?: Parameters<typeof customFetch>[1]): Promise<ThreadSummary> => {
+
+  return customFetch<ThreadSummary>(getGetEmailThreadSummaryUrl(threadId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmailThreadSummaryQueryKey = (threadId: string,) => {
+    return [
+    `/api/email/threads/${threadId}/summary`
+    ] as const;
+    }
+
+
+export const getGetEmailThreadSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getEmailThreadSummary>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(threadId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailThreadSummary>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmailThreadSummaryQueryKey(threadId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmailThreadSummary>>> = ({ signal }) => getEmailThreadSummary(threadId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: threadId !== null && threadId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmailThreadSummary>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetEmailThreadSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getEmailThreadSummary>>>
+export type GetEmailThreadSummaryQueryError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+
+
+export function useGetEmailThreadSummary<TData = Awaited<ReturnType<typeof getEmailThreadSummary>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ threadId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailThreadSummary>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEmailThreadSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getEmailThreadSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetEmailThreadSummary<TData = Awaited<ReturnType<typeof getEmailThreadSummary>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ threadId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailThreadSummary>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEmailThreadSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getEmailThreadSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetEmailThreadSummary<TData = Awaited<ReturnType<typeof getEmailThreadSummary>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ threadId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailThreadSummary>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary A few lines on a long inbox thread, kept until a new message arrives
+ */
+
+export function useGetEmailThreadSummary<TData = Awaited<ReturnType<typeof getEmailThreadSummary>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ threadId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getEmailThreadSummary>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetEmailThreadSummaryQueryOptions(threadId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getEnsureEmailInboxTaskUrl = (threadId: string,) => {
+
+
+
+
+  return `/api/email/inbox/${threadId}/task`
+}
+
+/**
+ * @summary The email task for an inbox email, made the first time Ollie acts on it
+ */
+export const ensureEmailInboxTask = async (threadId: string, options?: Parameters<typeof customFetch>[1]): Promise<EmailInboxTask> => {
+
+  return customFetch<EmailInboxTask>(getEnsureEmailInboxTaskUrl(threadId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEnsureEmailInboxTaskMutationKey = () => ['ensureEmailInboxTask'] as const;
+
+export const getEnsureEmailInboxTaskMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ensureEmailInboxTask>>, TError,EnsureEmailInboxTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof ensureEmailInboxTask>>, TError,EnsureEmailInboxTaskMutationVariables, TContext> => {
+
+const mutationKey = getEnsureEmailInboxTaskMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof ensureEmailInboxTask>>, EnsureEmailInboxTaskMutationVariables> = (props) => {
+          const {threadId} = props ?? {};
+
+          return  ensureEmailInboxTask(threadId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnsureEmailInboxTaskMutationResult = NonNullable<Awaited<ReturnType<typeof ensureEmailInboxTask>>>
+
+    export type EnsureEmailInboxTaskMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+    export type EnsureEmailInboxTaskMutationVariables = {threadId: string}
+
+    /**
+ * @summary The email task for an inbox email, made the first time Ollie acts on it
+ */
+export const useEnsureEmailInboxTask = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ensureEmailInboxTask>>, TError,EnsureEmailInboxTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof ensureEmailInboxTask>>,
+        TError,
+        EnsureEmailInboxTaskMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEnsureEmailInboxTaskMutationOptions(options), queryClient);
+    }
+
+export const getMarkEmailInboxDoneUrl = (threadId: string,) => {
+
+
+
+
+  return `/api/email/inbox/${threadId}/done`
+}
+
+/**
+ * @summary Takes an inbox email off To answer until a new message arrives, and marks its open task done
+ */
+export const markEmailInboxDone = async (threadId: string, options?: Parameters<typeof customFetch>[1]): Promise<EmailInboxDone> => {
+
+  return customFetch<EmailInboxDone>(getMarkEmailInboxDoneUrl(threadId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkEmailInboxDoneMutationKey = () => ['markEmailInboxDone'] as const;
+
+export const getMarkEmailInboxDoneMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markEmailInboxDone>>, TError,MarkEmailInboxDoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markEmailInboxDone>>, TError,MarkEmailInboxDoneMutationVariables, TContext> => {
+
+const mutationKey = getMarkEmailInboxDoneMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markEmailInboxDone>>, MarkEmailInboxDoneMutationVariables> = (props) => {
+          const {threadId} = props ?? {};
+
+          return  markEmailInboxDone(threadId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkEmailInboxDoneMutationResult = NonNullable<Awaited<ReturnType<typeof markEmailInboxDone>>>
+
+    export type MarkEmailInboxDoneMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+    export type MarkEmailInboxDoneMutationVariables = {threadId: string}
+
+    /**
+ * @summary Takes an inbox email off To answer until a new message arrives, and marks its open task done
+ */
+export const useMarkEmailInboxDone = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markEmailInboxDone>>, TError,MarkEmailInboxDoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof markEmailInboxDone>>,
+        TError,
+        MarkEmailInboxDoneMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkEmailInboxDoneMutationOptions(options), queryClient);
+    }
+
+export const getUndoEmailInboxDoneUrl = (threadId: string,) => {
+
+
+
+
+  return `/api/email/inbox/${threadId}/undo-done`
+}
+
+/**
+ * @summary Puts an inbox email back on To answer and its task back where it was
+ */
+export const undoEmailInboxDone = async (threadId: string,
+    emailInboxDone: EmailInboxDone, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getUndoEmailInboxDoneUrl(threadId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(emailInboxDone)
+  }
+);}
+
+
+
+
+
+export const getUndoEmailInboxDoneMutationKey = () => ['undoEmailInboxDone'] as const;
+
+export const getUndoEmailInboxDoneMutationOptions = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoEmailInboxDone>>, TError,UndoEmailInboxDoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof undoEmailInboxDone>>, TError,UndoEmailInboxDoneMutationVariables, TContext> => {
+
+const mutationKey = getUndoEmailInboxDoneMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof undoEmailInboxDone>>, UndoEmailInboxDoneMutationVariables> = (props) => {
+          const {threadId,data} = props ?? {};
+
+          return  undoEmailInboxDone(threadId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UndoEmailInboxDoneMutationResult = NonNullable<Awaited<ReturnType<typeof undoEmailInboxDone>>>
+    export type UndoEmailInboxDoneMutationBody = BodyType<EmailInboxDone>
+    export type UndoEmailInboxDoneMutationError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>
+    export type UndoEmailInboxDoneMutationVariables = {threadId: string;data: BodyType<EmailInboxDone>}
+
+    /**
+ * @summary Puts an inbox email back on To answer and its task back where it was
+ */
+export const useUndoEmailInboxDone = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoEmailInboxDone>>, TError,UndoEmailInboxDoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof undoEmailInboxDone>>,
+        TError,
+        UndoEmailInboxDoneMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUndoEmailInboxDoneMutationOptions(options), queryClient);
+    }
 
 export const getGetTaskChaseLineUrl = (id: number,) => {
 

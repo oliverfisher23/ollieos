@@ -1054,6 +1054,180 @@ paths:
         "403":
           $ref: "#/components/responses/NotAuthorised"
 
+  /email/inbox:
+    get:
+      operationId: listEmailInbox
+      tags: [email]
+      summary: "To answer: Gmail inbox emails, read or unread, whose last message is not from Ollie, newest first"
+      responses:
+        "200":
+          description: The inbox
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailInbox"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "502":
+          description: Gmail could not be read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /email/threads/{threadId}:
+    get:
+      operationId: getEmailThread
+      tags: [email]
+      summary: A Gmail thread for reading on the Email page, oldest first. Read only.
+      parameters:
+        - $ref: "#/components/parameters/ThreadId"
+      responses:
+        "200":
+          description: The thread
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailThread"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: Gmail could not be read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /email/threads/{threadId}/summary:
+    get:
+      operationId: getEmailThreadSummary
+      tags: [email]
+      summary: A few lines on a long inbox thread, kept until a new message arrives
+      parameters:
+        - $ref: "#/components/parameters/ThreadId"
+      responses:
+        "200":
+          description: The summary, or why there is none
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreadSummary"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: Gmail could not be read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /email/inbox/{threadId}/task:
+    post:
+      operationId: ensureEmailInboxTask
+      tags: [email]
+      summary: The email task for an inbox email, made the first time Ollie acts on it
+      parameters:
+        - $ref: "#/components/parameters/ThreadId"
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailInboxTask"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: Gmail could not be read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /email/inbox/{threadId}/done:
+    post:
+      operationId: markEmailInboxDone
+      tags: [email]
+      summary: "Takes an inbox email off To answer until a new message arrives, and marks its open task done"
+      parameters:
+        - $ref: "#/components/parameters/ThreadId"
+      responses:
+        "200":
+          description: What was changed, for Undo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailInboxDone"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: Gmail could not be read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /email/inbox/{threadId}/undo-done:
+    post:
+      operationId: undoEmailInboxDone
+      tags: [email]
+      summary: Puts an inbox email back on To answer and its task back where it was
+      parameters:
+        - $ref: "#/components/parameters/ThreadId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailInboxDone"
+      responses:
+        "204":
+          description: Back on To answer
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: Gmail could not be read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /tasks/{id}/chase-line:
     get:
       operationId: getTaskChaseLine
@@ -3256,6 +3430,12 @@ components:
       required: true
       schema:
         type: integer
+    ThreadId:
+      name: threadId
+      in: path
+      required: true
+      schema:
+        type: string
 
   responses:
     Error:
@@ -4432,6 +4612,43 @@ components:
         text: { type: string }
         fromOllie: { type: boolean }
         attachments: { type: array, items: { $ref: "#/components/schemas/EmailAttachment" } }
+    EmailInboxItem:
+      type: object
+      required: [threadId, messageId, subject, fromName, fromEmail, at, snippet, unread, messages, taskId, gmailUrl]
+      properties:
+        threadId: { type: string }
+        messageId: { type: string, description: The newest message }
+        subject: { type: [string, "null"] }
+        fromName: { type: [string, "null"] }
+        fromEmail: { type: [string, "null"] }
+        at: { type: string, format: date-time }
+        snippet: { type: string }
+        unread: { type: boolean }
+        messages: { type: integer }
+        taskId: { type: [integer, "null"], description: The email task linked to it }
+        gmailUrl: { type: string }
+    EmailInbox:
+      type: object
+      required: [items, more, leftOut]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmailInboxItem"
+        more: { type: boolean, description: More inbox emails than are listed }
+        leftOut: { type: integer, description: Newsletters and automatic emails left out }
+    EmailInboxTask:
+      type: object
+      required: [taskId]
+      properties:
+        taskId: { type: integer }
+    EmailInboxDone:
+      type: object
+      additionalProperties: false
+      required: [taskId, previousStatus]
+      properties:
+        taskId: { type: [integer, "null"] }
+        previousStatus: { type: [string, "null"], enum: [inbox, now, backlog, waiting, null] }
     EmailDraftList:
       type: object
       required: [items]

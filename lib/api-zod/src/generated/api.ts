@@ -2530,6 +2530,113 @@ export const ListEmailDraftsResponse = zod.object({
 
 
 /**
+ * @summary To answer: Gmail inbox emails, read or unread, whose last message is not from Ollie, newest first
+ */
+export const ListEmailInboxResponse = zod.object({
+  "items": zod.array(zod.object({
+  "threadId": zod.string(),
+  "messageId": zod.string().describe('The newest message'),
+  "subject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromEmail": zod.string().nullable(),
+  "at": zod.coerce.date(),
+  "snippet": zod.string(),
+  "unread": zod.boolean(),
+  "messages": zod.int(),
+  "taskId": zod.int().nullable().describe('The email task linked to it'),
+  "gmailUrl": zod.string()
+})),
+  "more": zod.boolean().describe('More inbox emails than are listed'),
+  "leftOut": zod.int().describe('Newsletters and automatic emails left out')
+})
+
+
+/**
+ * @summary A Gmail thread for reading on the Email page, oldest first. Read only.
+ */
+export const GetEmailThreadParams = zod.object({
+  "threadId": zod.coerce.string()
+})
+
+export const GetEmailThreadResponse = zod.object({
+  "fromGmail": zod.boolean().describe('False when the email is not in Gmail; messages then hold what the task kept'),
+  "gmailUrl": zod.string().nullable(),
+  "messages": zod.array(zod.object({
+  "id": zod.string(),
+  "fromName": zod.string().nullable(),
+  "fromEmail": zod.string().nullable(),
+  "to": zod.string(),
+  "cc": zod.string(),
+  "at": zod.coerce.date(),
+  "text": zod.string(),
+  "fromOllie": zod.boolean(),
+  "attachments": zod.array(zod.object({
+  "partId": zod.string(),
+  "filename": zod.string(),
+  "size": zod.int().describe('Bytes'),
+  "canSave": zod.boolean().describe('A PDF, Word or text file under 10 MB'),
+  "documentId": zod.int().nullable().describe('The Library document it was saved as')
+}))
+}))
+})
+
+
+/**
+ * @summary A few lines on a long inbox thread, kept until a new message arrives
+ */
+export const GetEmailThreadSummaryParams = zod.object({
+  "threadId": zod.coerce.string()
+})
+
+export const GetEmailThreadSummaryResponse = zod.object({
+  "summary": zod.string().nullable(),
+  "messages": zod.int(),
+  "why": zod.union([zod.literal('short'),zod.literal('hidden'),zod.literal('not_in_gmail'),zod.literal(null)]).nullable().describe('Why there is no summary'),
+  "at": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary The email task for an inbox email, made the first time Ollie acts on it
+ */
+export const EnsureEmailInboxTaskParams = zod.object({
+  "threadId": zod.coerce.string()
+})
+
+export const EnsureEmailInboxTaskResponse = zod.object({
+  "taskId": zod.int()
+})
+
+
+/**
+ * @summary Takes an inbox email off To answer until a new message arrives, and marks its open task done
+ */
+export const MarkEmailInboxDoneParams = zod.object({
+  "threadId": zod.coerce.string()
+})
+
+export const MarkEmailInboxDoneResponse = zod.object({
+  "taskId": zod.int().nullable(),
+  "previousStatus": zod.union([zod.literal('inbox'),zod.literal('now'),zod.literal('backlog'),zod.literal('waiting'),zod.literal(null)]).nullable()
+})
+
+
+/**
+ * @summary Puts an inbox email back on To answer and its task back where it was
+ */
+export const UndoEmailInboxDoneParams = zod.object({
+  "threadId": zod.coerce.string()
+})
+
+export const UndoEmailInboxDoneBody = zod.object({
+  "taskId": zod.int().nullable(),
+  "previousStatus": zod.union([zod.literal('inbox'),zod.literal('now'),zod.literal('backlog'),zod.literal('waiting'),zod.literal(null)]).nullable()
+})
+
+export const UndoEmailInboxDoneResponse = zod.void()
+
+
+/**
  * @summary A short chase message for the person this task is waiting on
  */
 export const GetTaskChaseLineParams = zod.object({

@@ -3,8 +3,8 @@
  * written by Haiku when the thread is first opened and kept until a new message arrives. Only for
  * emails AI may see. Under 1p each: the text read is capped.
  */
-import { eq } from "drizzle-orm";
-import { db, threadSummariesTable } from "@workspace/db";
+import { eq, inArray, sql } from "drizzle-orm";
+import { db, peopleTable, threadSummariesTable } from "@workspace/db";
 import { formatDayMonth, toRef } from "@workspace/shared";
 import { visibleRefs } from "../lib/ai-data/scope";
 import { logger } from "../lib/logger";
@@ -51,16 +51,46 @@ export async function getThreadSummary(taskId: number): Promise<ThreadSummaryVie
   const ref = toRef("task", task.id);
   if (!(await visibleRefs(await askScope(), [ref])).has(ref)) return { summary: null, messages: 0, why: "hidden", at: null };
 
+  return summarise(await threadIdFor(task).catch(gmailProblem));
+}
+
+/**
+ * The summary for an inbox email not yet in OllieOS. Hidden when anyone in the thread is someone
+ * in People that AI may not see.
+ */
+export async function getInboxThreadSummary(threadId: string): Promise<ThreadSummaryView> {
+  return summarise(threadId, async (emails) => {
+    if (!emails.length) return true;
+    const people = await db
+      .select({ id: peopleTable.id })
+      .from(peopleTable)
+      .where(inArray(sql`lower(${peopleTable.email})`, emails));
+    if (!people.length) return true;
+    const refs = people.map((p) => toRef("person", p.id));
+    const seen = await visibleRefs(await askScope(), refs);
+    return refs.every((r) => seen.has(r));
+  });
+}
+
+function gmailProblem(err: unknown): never {
+  if (err instanceof ConnectorError) throw new UpstreamError(`${err.message.replace(/\.$/, "")}. OllieOS needs Gmail to summarise the thread.`);
+  throw err;
+}
+
+/** Summarises a Gmail thread. `allowed` gets every sender's address and says whether AI may see it. */
+async function summarise(threadId: string | null, allowed?: (emails: string[]) => Promise<boolean>): Promise<ThreadSummaryView> {
   let thread;
   try {
-    const threadId = await threadIdFor(task);
     thread = threadId ? await readGmailThread(threadId, MESSAGE_CHARS) : null;
   } catch (err) {
-    if (err instanceof ConnectorError) throw new UpstreamError(`${err.message.replace(/\.$/, "")}. OllieOS needs Gmail to summarise the thread.`);
-    throw err;
+    gmailProblem(err);
   }
   if (!thread || !thread.messages.length) return { summary: null, messages: 0, why: "not_in_gmail", at: null };
   const msgs = thread.messages;
+  if (allowed) {
+    const emails = [...new Set(msgs.flatMap((m) => (m.from.email ? [m.from.email.toLowerCase()] : [])))];
+    if (!(await allowed(emails))) return { summary: null, messages: 0, why: "hidden", at: null };
+  }
   if (msgs.length < SUMMARY_MIN_MESSAGES) return { summary: null, messages: msgs.length, why: "short", at: null };
 
   const last = msgs[msgs.length - 1];

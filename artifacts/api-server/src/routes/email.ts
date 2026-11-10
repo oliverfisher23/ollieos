@@ -7,16 +7,62 @@ import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { handle } from "../lib/handle";
 import { kickKnowledgeReader } from "../services/documents/reader";
-import { dismissEmailDraft, listEmailDrafts, readTaskThread, saveEmailAttachment } from "../services/email";
+import { dismissEmailDraft, listEmailDrafts, readTaskThread, readThreadView, saveEmailAttachment } from "../services/email";
+import { ensureInboxTask, isThreadId, listInbox, markInboxDone, undoInboxDone } from "../services/inbox";
 import { briefReply } from "../services/replyDraft";
-import { getThreadSummary } from "../services/threadSummary";
+import { getInboxThreadSummary, getThreadSummary } from "../services/threadSummary";
 import { getWritingStyle, readWritingStyle, saveWritingStyle, STYLE_NOTE_CHARS } from "../services/writingStyle";
 
 const router: IRouter = Router();
 const IdParams = z.object({ id: z.coerce.number().int().positive() });
+const ThreadParams = z.object({ threadId: z.string().refine(isThreadId, "That is not a Gmail thread") });
 const ACTOR = "ollie";
 
 router.get("/email/drafts", handle(async (_req, res) => void res.json(await listEmailDrafts())));
+
+// To answer: the Gmail inbox, emails whose last message is not from Ollie.
+router.get("/email/inbox", handle(async (_req, res) => void res.json(await listInbox())));
+router.get(
+  "/email/threads/:threadId",
+  handle(async (req, res) => {
+    const { threadId } = ThreadParams.parse(req.params);
+    const view = await readThreadView(threadId);
+    res.json(view ?? { fromGmail: false, gmailUrl: null, messages: [] });
+  }),
+);
+router.get(
+  "/email/threads/:threadId/summary",
+  handle(async (req, res) => {
+    const { threadId } = ThreadParams.parse(req.params);
+    res.json(await getInboxThreadSummary(threadId));
+  }),
+);
+router.post(
+  "/email/inbox/:threadId/task",
+  handle(async (req, res) => {
+    const { threadId } = ThreadParams.parse(req.params);
+    res.json(await ensureInboxTask(threadId, ACTOR));
+  }),
+);
+router.post(
+  "/email/inbox/:threadId/done",
+  handle(async (req, res) => {
+    const { threadId } = ThreadParams.parse(req.params);
+    res.json(await markInboxDone(threadId, ACTOR));
+  }),
+);
+router.post(
+  "/email/inbox/:threadId/undo-done",
+  handle(async (req, res) => {
+    const { threadId } = ThreadParams.parse(req.params);
+    const b = z
+      .object({ taskId: z.number().int().positive().nullable(), previousStatus: z.enum(["inbox", "now", "backlog", "waiting"]).nullable() })
+      .strict()
+      .parse(req.body ?? {});
+    await undoInboxDone(threadId, b.taskId, b.previousStatus, ACTOR);
+    res.status(204).end();
+  }),
+);
 router.get(
   "/tasks/:id/thread",
   handle(async (req, res) => {

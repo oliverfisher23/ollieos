@@ -830,6 +830,7 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-mail-group { display: block; padding: 14px 14px 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--oo-ink-faint); border-bottom: 1px solid var(--oo-line-soft); }
 .oo-mail-row[aria-current="true"] { background: var(--oo-line-soft); border-left-color: var(--oo-ink); }
 .oo-mail-row:focus-visible { outline: 2px solid var(--oo-ink); outline-offset: -2px; }
+.oo-mail-unread { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--oo-ink); }
 .oo-mail-clamp { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .oo-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .oo-mail-msg { border: 1px solid var(--oo-line); border-radius: var(--oo-r-card-sm); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
