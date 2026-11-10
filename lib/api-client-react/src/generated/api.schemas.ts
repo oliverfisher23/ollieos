@@ -1513,6 +1513,7 @@ export const KnowledgeInboxItemKind = {
   document_link: 'document_link',
   new_playbook: 'new_playbook',
   cadence_change: 'cadence_change',
+  new_relationship: 'new_relationship',
   conflict: 'conflict',
   stale_fact: 'stale_fact',
 } as const;
@@ -2213,6 +2214,186 @@ export interface LinkInput {
 
 export interface LinkResult {
   linked: boolean;
+}
+
+export type GraphNodeType = typeof GraphNodeType[keyof typeof GraphNodeType];
+
+
+export const GraphNodeType = {
+  person: 'person',
+  organisation: 'organisation',
+  project: 'project',
+  goal: 'goal',
+  decision: 'decision',
+  document: 'document',
+  task: 'task',
+  session: 'session',
+  meeting: 'meeting',
+} as const;
+
+export interface GraphNode {
+  ref: string;
+  type: GraphNodeType;
+  id: number;
+  name: string;
+  /** @nullable */
+  detail: string | null;
+  /** @nullable */
+  slug: string | null;
+  /** Hidden from AI tools */
+  hidden: boolean;
+}
+
+export interface GraphEdge {
+  from: string;
+  to: string;
+  kind: string;
+  /** Read from the "from" end */
+  label: string;
+  /** Read from the "to" end */
+  inverse: string;
+  /** Ollie stated or approved it */
+  stated: boolean;
+  /** @nullable */
+  note: string | null;
+  /** @nullable */
+  source: string | null;
+}
+
+export interface GraphResult {
+  centre: GraphNode | null;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  hiddenCount: number;
+  truncated: boolean;
+}
+
+export interface GraphPath {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export interface GraphConnection {
+  from: GraphNode;
+  to: GraphNode;
+  paths: GraphPath[];
+}
+
+export type RelationshipKind = typeof RelationshipKind[keyof typeof RelationshipKind];
+
+
+export const RelationshipKind = {
+  reports_to: 'reports_to',
+  works_with: 'works_with',
+  advises: 'advises',
+  introduced_by: 'introduced_by',
+  investor_in: 'investor_in',
+  customer_of: 'customer_of',
+  supplier_to: 'supplier_to',
+  partner_of: 'partner_of',
+  competitor_of: 'competitor_of',
+  part_of: 'part_of',
+  depends_on: 'depends_on',
+  blocked_by: 'blocked_by',
+  related_to: 'related_to',
+} as const;
+
+export type RelationshipViewDirection = typeof RelationshipViewDirection[keyof typeof RelationshipViewDirection];
+
+
+export const RelationshipViewDirection = {
+  out: 'out',
+  in: 'in',
+} as const;
+
+export type RelationshipViewOtherType = typeof RelationshipViewOtherType[keyof typeof RelationshipViewOtherType];
+
+
+export const RelationshipViewOtherType = {
+  person: 'person',
+  organisation: 'organisation',
+  project: 'project',
+} as const;
+
+export type RelationshipViewOther = {
+  type: RelationshipViewOtherType;
+  id: number;
+  name: string;
+  /** @nullable */
+  slug: string | null;
+};
+
+export interface RelationshipView {
+  relationship: RelationshipKind;
+  phrase: string;
+  direction: RelationshipViewDirection;
+  other: RelationshipViewOther;
+  /** @nullable */
+  note: string | null;
+  /** @nullable */
+  source: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
+export type RelationshipPairFromType = typeof RelationshipPairFromType[keyof typeof RelationshipPairFromType];
+
+
+export const RelationshipPairFromType = {
+  person: 'person',
+  organisation: 'organisation',
+  project: 'project',
+} as const;
+
+export type RelationshipPairToType = typeof RelationshipPairToType[keyof typeof RelationshipPairToType];
+
+
+export const RelationshipPairToType = {
+  person: 'person',
+  organisation: 'organisation',
+  project: 'project',
+} as const;
+
+export interface RelationshipPair {
+  fromType: RelationshipPairFromType;
+  fromId: number;
+  toType: RelationshipPairToType;
+  toId: number;
+}
+
+export type RelationshipInputFromType = typeof RelationshipInputFromType[keyof typeof RelationshipInputFromType];
+
+
+export const RelationshipInputFromType = {
+  person: 'person',
+  organisation: 'organisation',
+  project: 'project',
+} as const;
+
+export type RelationshipInputToType = typeof RelationshipInputToType[keyof typeof RelationshipInputToType];
+
+
+export const RelationshipInputToType = {
+  person: 'person',
+  organisation: 'organisation',
+  project: 'project',
+} as const;
+
+export interface RelationshipInput {
+  fromType: RelationshipInputFromType;
+  fromId: number;
+  toType: RelationshipInputToType;
+  toId: number;
+  relationship: RelationshipKind;
+  /**
+     * @maxLength 1000
+     * @nullable
+     */
+  note?: string | null;
+}
+
+export interface RelationshipRemoved {
+  removed: boolean;
 }
 
 export type SearchHitType = typeof SearchHitType[keyof typeof SearchHitType];
@@ -3239,6 +3420,45 @@ export const ListKnowledgeInboxOrigin = {
 export type RejectSuggestionsFromSource200 = {
   rejected: number;
 };
+
+export type ExploreGraphParams = {
+/**
+ * An item such as person:3
+ */
+ref: string;
+/**
+ * @minimum 1
+ * @maximum 2
+ */
+depth?: number;
+/**
+ * Comma-separated kinds of item to keep
+ */
+types?: string;
+/**
+ * Comma-separated kinds of link to keep
+ */
+kinds?: string;
+};
+
+export type FindGraphConnectionParams = {
+from: string;
+to: string;
+};
+
+export type ListRelationshipsParams = {
+type: ListRelationshipsType;
+id: number;
+};
+
+export type ListRelationshipsType = typeof ListRelationshipsType[keyof typeof ListRelationshipsType];
+
+
+export const ListRelationshipsType = {
+  person: 'person',
+  organisation: 'organisation',
+  project: 'project',
+} as const;
 
 export type SearchKnowledgeParams = {
 q: string;

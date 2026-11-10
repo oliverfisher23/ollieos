@@ -191,7 +191,10 @@ function SessionBody({ s, onDeleted }: { s: SessionDetail; onDeleted: () => void
 
       {(s.projects.length > 0 || s.people.length > 0) && (
         <section aria-labelledby="ss-about" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <h2 id="ss-about" className="oo-h2">Touched</h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+            <h2 id="ss-about" className="oo-h2">Touched</h2>
+            <Link href={`/knowledge/map?item=session:${s.id}`} className="oo-textbtn" style={{ fontSize: 13 }} data-testid="link-session-map">See on map</Link>
+          </div>
           <span style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 14 }} data-testid="list-session-touched">
             {s.projects.map((p) => <Link key={'p' + p.id} href={'/knowledge/projects/' + p.slug} className="oo-pill" data-tone="now">{p.name}</Link>)}
             {s.people.map((p) => <Link key={'pe' + p.id} href={'/knowledge/people/' + p.slug} className="oo-pill">{p.name}</Link>)}

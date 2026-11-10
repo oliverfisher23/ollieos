@@ -1866,6 +1866,109 @@ paths:
         "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /graph/overview:
+    get:
+      operationId: getGraphOverview
+      tags: [knowledge]
+      summary: The whole map of people, organisations, projects and goals, capped at the most connected
+      responses:
+        "200":
+          description: The map
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GraphResult" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /graph/explore:
+    get:
+      operationId: exploreGraph
+      tags: [knowledge]
+      summary: One item and what is connected to it, one or two steps out
+      parameters:
+        - { name: ref, in: query, required: true, schema: { type: string }, description: "An item such as person:3" }
+        - { name: depth, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 2 } }
+        - { name: types, in: query, required: false, schema: { type: string }, description: Comma-separated kinds of item to keep }
+        - { name: kinds, in: query, required: false, schema: { type: string }, description: Comma-separated kinds of link to keep }
+      responses:
+        "200":
+          description: The neighbourhood
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GraphResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /graph/connection:
+    get:
+      operationId: findGraphConnection
+      tags: [knowledge]
+      summary: How two items are connected, up to three steps
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string } }
+        - { name: to, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Up to three shortest paths
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GraphConnection" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /relationships:
+    get:
+      operationId: listRelationships
+      tags: [knowledge]
+      summary: Stated relationships on a project, person or organisation, read from its side
+      parameters:
+        - { name: type, in: query, required: true, schema: { type: string, enum: [person, organisation, project] } }
+        - { name: id, in: query, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Relationships
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/RelationshipView" } }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    put:
+      operationId: setRelationship
+      tags: [knowledge]
+      summary: Say how two items are related, replacing any link between them
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RelationshipInput" }
+      responses:
+        "200":
+          description: The relationship, read from the "from" side
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelationshipView" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: removeRelationship
+      tags: [knowledge]
+      summary: Take a relationship off; a project keeps its plain link to the person or organisation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RelationshipPair" }
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelationshipRemoved" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /search:
     get:
       operationId: searchKnowledge
@@ -3957,7 +4060,7 @@ components:
         group: { type: string, enum: [suggested, conflicts, stale] }
         kind:
           type: string
-          enum: [new_fact, new_person, new_organisation, new_project, proposed_decision, changed_summary, changed_details, new_document, document_link, new_playbook, cadence_change, conflict, stale_fact]
+          enum: [new_fact, new_person, new_organisation, new_project, proposed_decision, changed_summary, changed_details, new_document, document_link, new_playbook, cadence_change, new_relationship, conflict, stale_fact]
         target:
           oneOf:
             - $ref: "#/components/schemas/KnowledgeInboxTarget"
@@ -4350,6 +4453,111 @@ components:
       required: [linked]
       properties:
         linked: { type: boolean }
+
+    GraphNode:
+      type: object
+      required: [ref, type, id, name, detail, slug, hidden]
+      properties:
+        ref: { type: string }
+        type: { type: string, enum: [person, organisation, project, goal, decision, document, task, session, meeting] }
+        id: { type: integer }
+        name: { type: string }
+        detail: { type: [string, "null"] }
+        slug: { type: [string, "null"] }
+        hidden: { type: boolean, description: Hidden from AI tools }
+
+    GraphEdge:
+      type: object
+      required: [from, to, kind, label, inverse, stated, note, source]
+      properties:
+        from: { type: string }
+        to: { type: string }
+        kind: { type: string }
+        label: { type: string, description: 'Read from the "from" end' }
+        inverse: { type: string, description: 'Read from the "to" end' }
+        stated: { type: boolean, description: Ollie stated or approved it }
+        note: { type: [string, "null"] }
+        source: { type: [string, "null"] }
+
+    GraphResult:
+      type: object
+      required: [centre, nodes, edges, hiddenCount, truncated]
+      properties:
+        centre:
+          oneOf:
+            - $ref: "#/components/schemas/GraphNode"
+            - type: "null"
+        nodes: { type: array, items: { $ref: "#/components/schemas/GraphNode" } }
+        edges: { type: array, items: { $ref: "#/components/schemas/GraphEdge" } }
+        hiddenCount: { type: integer }
+        truncated: { type: boolean }
+
+    GraphPath:
+      type: object
+      required: [nodes, edges]
+      properties:
+        nodes: { type: array, items: { $ref: "#/components/schemas/GraphNode" } }
+        edges: { type: array, items: { $ref: "#/components/schemas/GraphEdge" } }
+
+    GraphConnection:
+      type: object
+      required: [from, to, paths]
+      properties:
+        from: { $ref: "#/components/schemas/GraphNode" }
+        to: { $ref: "#/components/schemas/GraphNode" }
+        paths: { type: array, items: { $ref: "#/components/schemas/GraphPath" } }
+
+    RelationshipKind:
+      type: string
+      enum: [reports_to, works_with, advises, introduced_by, investor_in, customer_of, supplier_to, partner_of, competitor_of, part_of, depends_on, blocked_by, related_to]
+
+    RelationshipView:
+      type: object
+      required: [relationship, phrase, direction, other, note, source, createdBy, createdAt]
+      properties:
+        relationship: { $ref: "#/components/schemas/RelationshipKind" }
+        phrase: { type: string }
+        direction: { type: string, enum: [out, in] }
+        other:
+          type: object
+          required: [type, id, name, slug]
+          properties:
+            type: { type: string, enum: [person, organisation, project] }
+            id: { type: integer }
+            name: { type: string }
+            slug: { type: [string, "null"] }
+        note: { type: [string, "null"] }
+        source: { type: [string, "null"] }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    RelationshipPair:
+      type: object
+      additionalProperties: false
+      required: [fromType, fromId, toType, toId]
+      properties:
+        fromType: { type: string, enum: [person, organisation, project] }
+        fromId: { type: integer }
+        toType: { type: string, enum: [person, organisation, project] }
+        toId: { type: integer }
+
+    RelationshipInput:
+      type: object
+      additionalProperties: false
+      required: [fromType, fromId, toType, toId, relationship]
+      properties:
+        fromType: { type: string, enum: [person, organisation, project] }
+        fromId: { type: integer }
+        toType: { type: string, enum: [person, organisation, project] }
+        toId: { type: integer }
+        relationship: { $ref: "#/components/schemas/RelationshipKind" }
+        note: { type: [string, "null"], maxLength: 1000 }
+
+    RelationshipRemoved:
+      type: object
+      required: [removed]
+      properties:
+        removed: { type: boolean }
 
     SearchHit:
       type: object

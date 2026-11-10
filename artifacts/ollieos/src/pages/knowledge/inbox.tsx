@@ -39,6 +39,7 @@ const KIND: Record<KnowledgeInboxItemKind, { label: string; tone: string }> = {
   document_link: { label: 'Link document', tone: 'fact' },
   new_playbook: { label: 'New playbook', tone: 'decision' },
   cadence_change: { label: 'Suggested cadence', tone: 'person' },
+  new_relationship: { label: 'Relationship', tone: 'person' },
   conflict: { label: 'Conflict', tone: 'conflict' },
   stale_fact: { label: 'Stale fact', tone: 'stale' },
 };
@@ -48,6 +49,7 @@ const APPROVED: Partial<Record<KnowledgeInboxItemKind, string>> = {
   document_link: 'Linked to the project',
   new_playbook: 'Added to playbooks and switched on',
   cadence_change: 'Cadence set',
+  new_relationship: 'Relationship added',
 };
 
 const EMPTY: Record<Tab, string> = {

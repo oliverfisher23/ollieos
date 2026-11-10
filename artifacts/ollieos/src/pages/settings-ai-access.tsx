@@ -206,12 +206,36 @@ function canLabel(c: AiClient): string {
 
 function kindLabel(c: AiClient): string {
   if (c.builtIn) return 'Built into OllieOS';
-  return c.kind === 'connector' ? 'Claude connector' : c.kind === 'scheduled_task' ? 'Scheduled Claude task' : 'Other tool';
+  return c.kind === 'connector' ? 'Connector' : c.kind === 'scheduled_task' ? 'Scheduled Claude task' : 'Other tool';
 }
 
 /** The address Claude needs for a custom connector. */
 function mcpAddress(): string {
   return window.location.origin + '/mcp';
+}
+
+/** How ChatGPT and Gemini reach the same connector. Each still needs approving here. */
+function OtherAssistants() {
+  return (
+    <details style={{ fontSize: 13 }} data-testid="details-other-assistants">
+      <summary className="oo-soft" style={{ cursor: 'pointer' }}>Connecting ChatGPT or Gemini</summary>
+      <div className="oo-soft" style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10, maxWidth: '70ch', lineHeight: 1.6 }}>
+        <div>
+          <strong>ChatGPT.</strong> OpenAI offers custom connectors on Business, Enterprise and Edu plans, and in developer mode on some others. If your plan has it:
+          <ol style={{ margin: '6px 0 0', paddingLeft: 20 }}>
+            <li>In ChatGPT, open Settings, then Apps and Connectors.</li>
+            <li>Under Advanced settings, switch on Developer mode.</li>
+            <li>Choose Create, call it OllieOS, paste the connector address above and choose OAuth.</li>
+            <li>Approve it here when OllieOS asks. It sees what Claude sees: nothing hidden from AI.</li>
+          </ol>
+          If you cannot see Developer mode, your plan cannot connect ChatGPT yet.
+        </div>
+        <div>
+          <strong>Gemini.</strong> The Gemini app cannot add custom connectors, so it cannot reach OllieOS. Gemini CLI, Google's tool for the terminal, can connect with the same address.
+        </div>
+      </div>
+    </details>
+  );
 }
 
 export function Tools() {
@@ -224,6 +248,7 @@ export function Tools() {
         To connect Claude, add a custom connector in Claude's settings with this address, then approve it here when asked. Revoke cuts a tool off at once.
       </p>
       <CopyField value={mcpAddress()} label="Connector address" testId="mcp-address" />
+      <OtherAssistants />
       <CoworkInstructions />
       {clients.isLoading ? (
         <Skel h={40} />

@@ -98,6 +98,7 @@ const MESSAGES = {
   conflict: "This disagrees with a current fact, so it is waiting for Ollie to choose between them.",
   duplicate_pending: "The same suggestion is already waiting for Ollie.",
   duplicate_fact: "OllieOS already has this fact.",
+  duplicate_known: "OllieOS already has this.",
   previously_rejected: "Ollie rejected the same suggestion in the last 30 days. Do not propose it again.",
   unchanged: "Nothing new: OllieOS already has these details.",
   hidden: "Sent to Ollie's Knowledge Inbox. It is marked confidential, so you will not see it again.",
@@ -113,7 +114,9 @@ export function proposalReply(r: AiProposeResult): Record<string, unknown> {
     case "duplicate":
       return r.factId != null
         ? { status: "duplicate", fact: `fact:${r.factId}`, message: MESSAGES.duplicate_fact }
-        : { status: "duplicate", suggestion_id: r.suggestionId, message: MESSAGES.duplicate_pending };
+        : r.suggestionId != null
+          ? { status: "duplicate", suggestion_id: r.suggestionId, message: MESSAGES.duplicate_pending }
+          : { status: "duplicate", message: MESSAGES.duplicate_known };
     case "previously_rejected":
       return { status: "previously_rejected", suggestion_id: r.suggestionId, message: MESSAGES.previously_rejected };
     case "unchanged":

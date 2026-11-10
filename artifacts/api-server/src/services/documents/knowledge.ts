@@ -1,14 +1,14 @@
 /**
  * The knowledge step (build plan 13, Part E): reads one document and proposes what is worth keeping
  * as Knowledge Inbox suggestions, each citing the document: facts, decisions, people, organisations,
- * links to projects and standing rules as playbooks. Nothing is written without Ollie's approval.
+ * links to projects, standing rules as playbooks and relationships between known items. Nothing is written without Ollie's approval.
  *
  * When a document was read before, only the lines that changed are sent as new, with the whole text
  * for context, so a changed file only brings suggestions for what changed.
  */
 import { eq, sql } from "drizzle-orm";
 import { db, linksTable, organisationsTable, peopleTable, projectsTable } from "@workspace/db";
-import { formatLong, PLAYBOOK_RULE_MAX, todayLondon } from "@workspace/shared";
+import { formatLong, PLAYBOOK_RULE_MAX, RELATIONSHIPS, todayLondon, type Relationship } from "@workspace/shared";
 import { proposeOrganisation, proposePerson, type AiProposeResult } from "../aiPropose";
 import { ASK_MODEL } from "../ask/model";
 import { modelJson } from "../connectors/sorter";
@@ -21,7 +21,7 @@ export { DOCUMENT_PROPOSER } from "./counts";
 export const KNOWLEDGE_CHARS = 60_000;
 const CHANGED_CHARS = 20_000;
 
-export const LIMITS = { facts: 8, decisions: 4, people: 4, organisations: 3, playbooks: 3 } as const;
+export const LIMITS = { facts: 8, decisions: 4, people: 4, organisations: 3, playbooks: 3, relationships: 4 } as const;
 
 export interface Extracted {
   summary: string;
@@ -32,6 +32,7 @@ export interface Extracted {
   people: { name: string; email: string; role: string; organisation: string; relationship: string }[];
   organisations: { name: string; type: string; summary: string }[];
   playbooks: { title: string; applies_when: string; rule: string; project: string }[];
+  relationships: { from: string; relationship: string; to: string; evidence: string }[];
 }
 
 const str = { type: "string" } as const;
@@ -46,6 +47,7 @@ export const EXTRACT_SCHEMA = obj({
   people: { type: "array", items: obj({ name: str, email: str, role: str, organisation: str, relationship: str }) },
   organisations: { type: "array", items: obj({ name: str, type: str, summary: str }) },
   playbooks: { type: "array", items: obj({ title: str, applies_when: str, rule: str, project: str }) },
+  relationships: { type: "array", items: obj({ from: str, relationship: { type: "string", enum: [...RELATIONSHIPS] }, to: str, evidence: str }) },
 });
 
 /* ---------- What OllieOS already knows ---------- */
@@ -112,6 +114,7 @@ function systemPrompt(k: Known, now: Date, changed: boolean): string {
     `- "people" (at most ${LIMITS.people}): people who matter to Ollie's work. Give "email" only when the document shows it. "organisation" is where they work. "relationship" is one sentence on how they relate to Ollie's work. Include a known person only when the document gives their role, email or organisation and OllieOS does not have it.`,
     `- "organisations" (at most ${LIMITS.organisations}): new customers, partners, universities or suppliers that matter, with "type" (customer, partner, supplier, university, school, charity, investor or other) and a one-sentence "summary" of how they relate to Springpod. Never list known organisations.`,
     `- "playbooks" (at most ${LIMITS.playbooks}): standing rules Ollie wants followed whenever AI works for him, such as how to write, what to always or never do, or how to treat a customer. Not one-off instructions for a single task. "rule" is under ${PLAYBOOK_RULE_MAX - 50} characters. "project" is a known project it is only for, or "".`,
+    `- "relationships" (at most ${LIMITS.relationships}): how two known projects, people or organisations relate, when the document says so plainly. "from" and "to" are copied exactly from the known lists. "relationship" reads "from <relationship> to": reports_to, works_with, advises, introduced_by, investor_in, customer_of, supplier_to, partner_of, competitor_of, part_of, depends_on, blocked_by or related_to. Never someone's employer (that is "organisation" on a person). "evidence" is one sentence from what the document says.`,
     `Write in British English with no em dashes. Use Ollie's name rather than "I" or "you".`,
     changed
       ? `This document was read before. <changed> holds the lines that are new or changed since then. Only return knowledge that comes from those lines; use the rest of the document only to understand them. "projects" may still be filled from the whole document.`
@@ -300,6 +303,35 @@ export async function proposeExtracted(x: Extracted, k: Known, ctx: ProposeConte
         ctx.now,
       ),
     );
+  }
+
+  const known = (name: string) => {
+    const n = (name ?? "").toLowerCase().trim();
+    if (!n) return undefined;
+    return (
+      (k.projects.get(n) && { type: "project" as const, ...k.projects.get(n)! }) ||
+      (k.people.get(n) && { type: "person" as const, ...k.people.get(n)! }) ||
+      (k.organisations.get(n) && { type: "organisation" as const, ...k.organisations.get(n)! }) ||
+      undefined
+    );
+  };
+  for (const rel of (x.relationships ?? []).slice(0, LIMITS.relationships)) {
+    if (!(RELATIONSHIPS as readonly string[]).includes(rel.relationship)) continue;
+    const from = known(rel.from);
+    const to = known(rel.to);
+    if (!from || !to || (from.type === to.type && from.id === to.id)) continue;
+    const r = await propose(
+      ctx.meta,
+      {
+        kind: "relationship",
+        entityType: from.type,
+        entityId: from.id,
+        payload: { relationship: rel.relationship as Relationship, to_type: to.type, to_id: to.id, note: clean(rel.evidence) },
+      },
+      ctx.now,
+    );
+    if (r.status === "suggested") counts.relationships = (counts.relationships ?? 0) + 1;
+    else counts.repeats++;
   }
 
   if (ctx.document) {

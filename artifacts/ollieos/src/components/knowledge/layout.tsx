@@ -108,6 +108,9 @@ function KnowledgeSidebar() {
               Knowledge Inbox
               {toReview !== undefined && <span className="oo-count oo-num" aria-label={`${toReview} to review`} data-testid="text-knowledge-inbox-count">{toReview}</span>}
             </Link>
+            <Link href="/knowledge/map" aria-current={location === '/knowledge/map' ? 'page' : undefined} data-testid="link-knowledge-map">
+              Map
+            </Link>
           </nav>
           <nav aria-label="Projects">
             <span className="oo-side-label">Projects</span>

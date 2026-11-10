@@ -20,6 +20,7 @@ import {
   Timeline,
   useUnlink,
 } from '@/components/knowledge/parts';
+import { RelationshipsSection } from '@/components/knowledge/relationships';
 import { isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
 import { Skel } from '@/components/bits';
 import { DocumentDialog, PlaybookCard, PlaybookDialog } from '@/pages/knowledge/library';
@@ -165,6 +166,7 @@ export function ProjectPage() {
         <FactsSection entityType="project" entityId={project.id} facts={facts} />
         <DecisionsSection projectId={project.id} decisions={decisions} />
       </div>
+      <RelationshipsSection type="project" id={project.id} name={project.name} />
 
       <section aria-labelledby="ot-h" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

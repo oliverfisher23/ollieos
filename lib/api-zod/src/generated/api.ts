@@ -4337,7 +4337,7 @@ export const ListKnowledgeInboxResponse = zod.object({
   "key": zod.string(),
   "id": zod.int().describe('Suggestion id on the Suggested tab'),
   "group": zod.enum(['suggested', 'conflicts', 'stale']),
-  "kind": zod.enum(['new_fact', 'new_person', 'new_organisation', 'new_project', 'proposed_decision', 'changed_summary', 'changed_details', 'new_document', 'document_link', 'new_playbook', 'cadence_change', 'conflict', 'stale_fact']),
+  "kind": zod.enum(['new_fact', 'new_person', 'new_organisation', 'new_project', 'proposed_decision', 'changed_summary', 'changed_details', 'new_document', 'document_link', 'new_playbook', 'cadence_change', 'new_relationship', 'conflict', 'stale_fact']),
   "target": zod.union([zod.object({
   "type": zod.string(),
   "id": zod.int().nullable().describe('Null for a person'),
@@ -4581,6 +4581,216 @@ export const RemoveLinkBody = zod.object({
 
 export const RemoveLinkResponse = zod.object({
   "linked": zod.boolean()
+})
+
+
+/**
+ * @summary The whole map of people, organisations, projects and goals, capped at the most connected
+ */
+export const GetGraphOverviewResponse = zod.object({
+  "centre": zod.union([zod.object({
+  "ref": zod.string(),
+  "type": zod.enum(['person', 'organisation', 'project', 'goal', 'decision', 'document', 'task', 'session', 'meeting']),
+  "id": zod.int(),
+  "name": zod.string(),
+  "detail": zod.string().nullable(),
+  "slug": zod.string().nullable(),
+  "hidden": zod.boolean().describe('Hidden from AI tools')
+}),zod.null()]),
+  "nodes": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.enum(['person', 'organisation', 'project', 'goal', 'decision', 'document', 'task', 'session', 'meeting']),
+  "id": zod.int(),
+  "name": zod.string(),
+  "detail": zod.string().nullable(),
+  "slug": zod.string().nullable(),
+  "hidden": zod.boolean().describe('Hidden from AI tools')
+})),
+  "edges": zod.array(zod.object({
+  "from": zod.string(),
+  "to": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string().describe('Read from the "from" end'),
+  "inverse": zod.string().describe('Read from the "to" end'),
+  "stated": zod.boolean().describe('Ollie stated or approved it'),
+  "note": zod.string().nullable(),
+  "source": zod.string().nullable()
+})),
+  "hiddenCount": zod.int(),
+  "truncated": zod.boolean()
+})
+
+
+/**
+ * @summary One item and what is connected to it, one or two steps out
+ */
+export const exploreGraphQueryDepthMax = 2;
+
+
+
+export const ExploreGraphQueryParams = zod.object({
+  "ref": zod.coerce.string().describe('An item such as person:3'),
+  "depth": zod.coerce.number().int().min(1).max(exploreGraphQueryDepthMax).optional(),
+  "types": zod.coerce.string().optional().describe('Comma-separated kinds of item to keep'),
+  "kinds": zod.coerce.string().optional().describe('Comma-separated kinds of link to keep')
+})
+
+export const ExploreGraphResponse = zod.object({
+  "centre": zod.union([zod.object({
+  "ref": zod.string(),
+  "type": zod.enum(['person', 'organisation', 'project', 'goal', 'decision', 'document', 'task', 'session', 'meeting']),
+  "id": zod.int(),
+  "name": zod.string(),
+  "detail": zod.string().nullable(),
+  "slug": zod.string().nullable(),
+  "hidden": zod.boolean().describe('Hidden from AI tools')
+}),zod.null()]),
+  "nodes": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.enum(['person', 'organisation', 'project', 'goal', 'decision', 'document', 'task', 'session', 'meeting']),
+  "id": zod.int(),
+  "name": zod.string(),
+  "detail": zod.string().nullable(),
+  "slug": zod.string().nullable(),
+  "hidden": zod.boolean().describe('Hidden from AI tools')
+})),
+  "edges": zod.array(zod.object({
+  "from": zod.string(),
+  "to": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string().describe('Read from the "from" end'),
+  "inverse": zod.string().describe('Read from the "to" end'),
+  "stated": zod.boolean().describe('Ollie stated or approved it'),
+  "note": zod.string().nullable(),
+  "source": zod.string().nullable()
+})),
+  "hiddenCount": zod.int(),
+  "truncated": zod.boolean()
+})
+
+
+/**
+ * @summary How two items are connected, up to three steps
+ */
+export const FindGraphConnectionQueryParams = zod.object({
+  "from": zod.coerce.string(),
+  "to": zod.coerce.string()
+})
+
+export const FindGraphConnectionResponse = zod.object({
+  "from": zod.object({
+  "ref": zod.string(),
+  "type": zod.enum(['person', 'organisation', 'project', 'goal', 'decision', 'document', 'task', 'session', 'meeting']),
+  "id": zod.int(),
+  "name": zod.string(),
+  "detail": zod.string().nullable(),
+  "slug": zod.string().nullable(),
+  "hidden": zod.boolean().describe('Hidden from AI tools')
+}),
+  "to": zod.object({
+  "ref": zod.string(),
+  "type": zod.enum(['person', 'organisation', 'project', 'goal', 'decision', 'document', 'task', 'session', 'meeting']),
+  "id": zod.int(),
+  "name": zod.string(),
+  "detail": zod.string().nullable(),
+  "slug": zod.string().nullable(),
+  "hidden": zod.boolean().describe('Hidden from AI tools')
+}),
+  "paths": zod.array(zod.object({
+  "nodes": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.enum(['person', 'organisation', 'project', 'goal', 'decision', 'document', 'task', 'session', 'meeting']),
+  "id": zod.int(),
+  "name": zod.string(),
+  "detail": zod.string().nullable(),
+  "slug": zod.string().nullable(),
+  "hidden": zod.boolean().describe('Hidden from AI tools')
+})),
+  "edges": zod.array(zod.object({
+  "from": zod.string(),
+  "to": zod.string(),
+  "kind": zod.string(),
+  "label": zod.string().describe('Read from the "from" end'),
+  "inverse": zod.string().describe('Read from the "to" end'),
+  "stated": zod.boolean().describe('Ollie stated or approved it'),
+  "note": zod.string().nullable(),
+  "source": zod.string().nullable()
+}))
+}))
+})
+
+
+/**
+ * @summary Stated relationships on a project, person or organisation, read from its side
+ */
+export const ListRelationshipsQueryParams = zod.object({
+  "type": zod.enum(['person', 'organisation', 'project']),
+  "id": zod.coerce.number().int()
+})
+
+export const ListRelationshipsResponseItem = zod.object({
+  "relationship": zod.enum(['reports_to', 'works_with', 'advises', 'introduced_by', 'investor_in', 'customer_of', 'supplier_to', 'partner_of', 'competitor_of', 'part_of', 'depends_on', 'blocked_by', 'related_to']),
+  "phrase": zod.string(),
+  "direction": zod.enum(['out', 'in']),
+  "other": zod.object({
+  "type": zod.enum(['person', 'organisation', 'project']),
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string().nullable()
+}),
+  "note": zod.string().nullable(),
+  "source": zod.string().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListRelationshipsResponse = zod.array(ListRelationshipsResponseItem)
+
+
+/**
+ * @summary Say how two items are related, replacing any link between them
+ */
+export const setRelationshipBodyNoteMax = 1000;
+
+
+
+export const SetRelationshipBody = zod.object({
+  "fromType": zod.enum(['person', 'organisation', 'project']),
+  "fromId": zod.int(),
+  "toType": zod.enum(['person', 'organisation', 'project']),
+  "toId": zod.int(),
+  "relationship": zod.enum(['reports_to', 'works_with', 'advises', 'introduced_by', 'investor_in', 'customer_of', 'supplier_to', 'partner_of', 'competitor_of', 'part_of', 'depends_on', 'blocked_by', 'related_to']),
+  "note": zod.string().max(setRelationshipBodyNoteMax).nullish()
+})
+
+export const SetRelationshipResponse = zod.object({
+  "relationship": zod.enum(['reports_to', 'works_with', 'advises', 'introduced_by', 'investor_in', 'customer_of', 'supplier_to', 'partner_of', 'competitor_of', 'part_of', 'depends_on', 'blocked_by', 'related_to']),
+  "phrase": zod.string(),
+  "direction": zod.enum(['out', 'in']),
+  "other": zod.object({
+  "type": zod.enum(['person', 'organisation', 'project']),
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string().nullable()
+}),
+  "note": zod.string().nullable(),
+  "source": zod.string().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Take a relationship off; a project keeps its plain link to the person or organisation
+ */
+export const RemoveRelationshipBody = zod.object({
+  "fromType": zod.enum(['person', 'organisation', 'project']),
+  "fromId": zod.int(),
+  "toType": zod.enum(['person', 'organisation', 'project']),
+  "toId": zod.int()
+})
+
+export const RemoveRelationshipResponse = zod.object({
+  "removed": zod.boolean()
 })
 
 

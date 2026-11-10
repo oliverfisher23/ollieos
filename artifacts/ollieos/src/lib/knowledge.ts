@@ -4,7 +4,7 @@ import { useInvalidateTasks } from '@/lib/task-cache';
 import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
 
-const KNOWLEDGE_PREFIXES = ['/api/projects', '/api/people', '/api/organisations', '/api/decisions', '/api/notes', '/api/search', '/api/suggestions', '/api/goals', '/api/documents', '/api/playbooks', '/api/home', '/api/sessions'];
+const KNOWLEDGE_PREFIXES = ['/api/projects', '/api/people', '/api/organisations', '/api/decisions', '/api/notes', '/api/search', '/api/suggestions', '/api/goals', '/api/documents', '/api/playbooks', '/api/home', '/api/sessions', '/api/graph', '/api/relationships'];
 
 /** Invalidates every Knowledge query, plus the task caches that show project and person names. */
 export function useInvalidateKnowledge() {

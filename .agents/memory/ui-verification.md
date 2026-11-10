@@ -28,3 +28,5 @@ Pushing the schema to the test database: `push-force` reads `DATABASE_URL`, so r
 A second API instance pointed at the dev database starts the connector timer, so it can run real checks on Ollie's data: keep it to a few seconds (`timeout 40 node dist/index.mjs`) and block non-GET requests in the Playwright route. Never stop it with `pkill -f` on a pattern from the same command line; that kills your own shell.
 
 - The UI check session needs a full user object (id, email, firstName, lastName, profileImageUrl) in `sess`, or `/api/auth/user` fails the response check and the app shows the login page. Background servers started with `&` inside a normal shell call die when the call ends; start them as a background task.
+
+There is no `POST /api/tasks` or plain `POST /api/decisions` seeding route: insert tasks and decisions by SQL with `created_by = 'ollie'` (and `decided_at` for decisions). Organisations, people, projects, links and relationships seed fine through the API.

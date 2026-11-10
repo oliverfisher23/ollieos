@@ -21,6 +21,7 @@ export const KnowledgeInboxItemKind = {
   document_link: 'document_link',
   new_playbook: 'new_playbook',
   cadence_change: 'cadence_change',
+  new_relationship: 'new_relationship',
   conflict: 'conflict',
   stale_fact: 'stale_fact',
 } as const;

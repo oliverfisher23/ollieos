@@ -30,6 +30,7 @@ import {
   Timeline,
   useUnlink,
 } from '@/components/knowledge/parts';
+import { RelationshipsSection } from '@/components/knowledge/relationships';
 import { isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
 
 export function OrganisationsListPage() {
@@ -192,6 +193,7 @@ export function OrganisationPage() {
         </section>
         <FactsSection entityType="organisation" entityId={o.id} facts={facts} />
       </div>
+      <RelationshipsSection type="organisation" id={o.id} name={o.name} />
 
       {!o.internal && (
         <section aria-labelledby="ors-h" style={{ display: 'flex', flexDirection: 'column', gap: 12 }} data-testid="section-org-research">

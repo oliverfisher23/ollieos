@@ -71,12 +71,14 @@ import type {
   EmailThread,
   ErrorEnvelope,
   ErrorResponse,
+  ExploreGraphParams,
   Fact,
   FactCheckResult,
   FactInput,
   FactReviewResolve,
   FactReviewResult,
   FactSupersede,
+  FindGraphConnectionParams,
   GetOAuthConsentParams,
   GetTaskSummaryParams,
   GetWeeklyUpdateParams,
@@ -85,6 +87,8 @@ import type {
   GoalOption,
   GoalUpdate,
   GoalsPage,
+  GraphConnection,
+  GraphResult,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   HomeSummary,
@@ -99,6 +103,7 @@ import type {
   ListDocumentsParams,
   ListKnowledgeInboxParams,
   ListProjectsParams,
+  ListRelationshipsParams,
   ListResearchParams,
   ListSessionsParams,
   ListTasksParams,
@@ -141,6 +146,10 @@ import type {
   QuickAddResult,
   RejectSourceInput,
   RejectSuggestionsFromSource200,
+  RelationshipInput,
+  RelationshipPair,
+  RelationshipRemoved,
+  RelationshipView,
   ReplyDraft,
   ReplyDraftInput,
   ReplyDraftResult,
@@ -8632,6 +8641,607 @@ export const useRemoveLink = <TError = ErrorType<ErrorResponse | NotAuthorisedRe
         TContext
       > => {
       return useMutation(getRemoveLinkMutationOptions(options), queryClient);
+    }
+
+export const getGetGraphOverviewUrl = () => {
+
+
+
+
+  return `/api/graph/overview`
+}
+
+/**
+ * @summary The whole map of people, organisations, projects and goals, capped at the most connected
+ */
+export const getGraphOverview = async ( options?: Parameters<typeof customFetch>[1]): Promise<GraphResult> => {
+
+  return customFetch<GraphResult>(getGetGraphOverviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGraphOverviewQueryKey = () => {
+    return [
+    `/api/graph/overview`
+    ] as const;
+    }
+
+
+export const getGetGraphOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getGraphOverview>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGraphOverview>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGraphOverviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGraphOverview>>> = ({ signal }) => getGraphOverview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGraphOverview>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetGraphOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getGraphOverview>>>
+export type GetGraphOverviewQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetGraphOverview<TData = Awaited<ReturnType<typeof getGraphOverview>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGraphOverview>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getGraphOverview>>,
+          TError,
+          Awaited<ReturnType<typeof getGraphOverview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetGraphOverview<TData = Awaited<ReturnType<typeof getGraphOverview>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGraphOverview>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getGraphOverview>>,
+          TError,
+          Awaited<ReturnType<typeof getGraphOverview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetGraphOverview<TData = Awaited<ReturnType<typeof getGraphOverview>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGraphOverview>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The whole map of people, organisations, projects and goals, capped at the most connected
+ */
+
+export function useGetGraphOverview<TData = Awaited<ReturnType<typeof getGraphOverview>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGraphOverview>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetGraphOverviewQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getExploreGraphUrl = (params: ExploreGraphParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/graph/explore?${stringifiedParams}` : `/api/graph/explore`
+}
+
+/**
+ * @summary One item and what is connected to it, one or two steps out
+ */
+export const exploreGraph = async (params: ExploreGraphParams, options?: Parameters<typeof customFetch>[1]): Promise<GraphResult> => {
+
+  return customFetch<GraphResult>(getExploreGraphUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExploreGraphQueryKey = (params?: ExploreGraphParams,) => {
+    return [
+    `/api/graph/explore`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExploreGraphQueryOptions = <TData = Awaited<ReturnType<typeof exploreGraph>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(params: ExploreGraphParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exploreGraph>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExploreGraphQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exploreGraph>>> = ({ signal }) => exploreGraph(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exploreGraph>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExploreGraphQueryResult = NonNullable<Awaited<ReturnType<typeof exploreGraph>>>
+export type ExploreGraphQueryError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+export function useExploreGraph<TData = Awaited<ReturnType<typeof exploreGraph>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: ExploreGraphParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exploreGraph>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exploreGraph>>,
+          TError,
+          Awaited<ReturnType<typeof exploreGraph>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExploreGraph<TData = Awaited<ReturnType<typeof exploreGraph>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: ExploreGraphParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exploreGraph>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exploreGraph>>,
+          TError,
+          Awaited<ReturnType<typeof exploreGraph>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExploreGraph<TData = Awaited<ReturnType<typeof exploreGraph>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: ExploreGraphParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exploreGraph>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary One item and what is connected to it, one or two steps out
+ */
+
+export function useExploreGraph<TData = Awaited<ReturnType<typeof exploreGraph>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: ExploreGraphParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exploreGraph>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExploreGraphQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getFindGraphConnectionUrl = (params: FindGraphConnectionParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/graph/connection?${stringifiedParams}` : `/api/graph/connection`
+}
+
+/**
+ * @summary How two items are connected, up to three steps
+ */
+export const findGraphConnection = async (params: FindGraphConnectionParams, options?: Parameters<typeof customFetch>[1]): Promise<GraphConnection> => {
+
+  return customFetch<GraphConnection>(getFindGraphConnectionUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getFindGraphConnectionQueryKey = (params?: FindGraphConnectionParams,) => {
+    return [
+    `/api/graph/connection`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getFindGraphConnectionQueryOptions = <TData = Awaited<ReturnType<typeof findGraphConnection>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(params: FindGraphConnectionParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof findGraphConnection>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getFindGraphConnectionQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof findGraphConnection>>> = ({ signal }) => findGraphConnection(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof findGraphConnection>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type FindGraphConnectionQueryResult = NonNullable<Awaited<ReturnType<typeof findGraphConnection>>>
+export type FindGraphConnectionQueryError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+export function useFindGraphConnection<TData = Awaited<ReturnType<typeof findGraphConnection>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: FindGraphConnectionParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof findGraphConnection>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof findGraphConnection>>,
+          TError,
+          Awaited<ReturnType<typeof findGraphConnection>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useFindGraphConnection<TData = Awaited<ReturnType<typeof findGraphConnection>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: FindGraphConnectionParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof findGraphConnection>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof findGraphConnection>>,
+          TError,
+          Awaited<ReturnType<typeof findGraphConnection>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useFindGraphConnection<TData = Awaited<ReturnType<typeof findGraphConnection>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: FindGraphConnectionParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof findGraphConnection>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary How two items are connected, up to three steps
+ */
+
+export function useFindGraphConnection<TData = Awaited<ReturnType<typeof findGraphConnection>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: FindGraphConnectionParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof findGraphConnection>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getFindGraphConnectionQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListRelationshipsUrl = (params: ListRelationshipsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/relationships?${stringifiedParams}` : `/api/relationships`
+}
+
+/**
+ * @summary Stated relationships on a project, person or organisation, read from its side
+ */
+export const listRelationships = async (params: ListRelationshipsParams, options?: Parameters<typeof customFetch>[1]): Promise<RelationshipView[]> => {
+
+  return customFetch<RelationshipView[]>(getListRelationshipsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRelationshipsQueryKey = (params?: ListRelationshipsParams,) => {
+    return [
+    `/api/relationships`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListRelationshipsQueryOptions = <TData = Awaited<ReturnType<typeof listRelationships>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(params: ListRelationshipsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRelationships>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRelationshipsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRelationships>>> = ({ signal }) => listRelationships(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRelationships>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListRelationshipsQueryResult = NonNullable<Awaited<ReturnType<typeof listRelationships>>>
+export type ListRelationshipsQueryError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+export function useListRelationships<TData = Awaited<ReturnType<typeof listRelationships>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: ListRelationshipsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRelationships>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRelationships>>,
+          TError,
+          Awaited<ReturnType<typeof listRelationships>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListRelationships<TData = Awaited<ReturnType<typeof listRelationships>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: ListRelationshipsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRelationships>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRelationships>>,
+          TError,
+          Awaited<ReturnType<typeof listRelationships>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListRelationships<TData = Awaited<ReturnType<typeof listRelationships>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: ListRelationshipsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRelationships>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Stated relationships on a project, person or organisation, read from its side
+ */
+
+export function useListRelationships<TData = Awaited<ReturnType<typeof listRelationships>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: ListRelationshipsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listRelationships>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListRelationshipsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetRelationshipUrl = () => {
+
+
+
+
+  return `/api/relationships`
+}
+
+/**
+ * @summary Say how two items are related, replacing any link between them
+ */
+export const setRelationship = async (relationshipInput: RelationshipInput, options?: Parameters<typeof customFetch>[1]): Promise<RelationshipView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<RelationshipView>(getSetRelationshipUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(relationshipInput)
+  }
+);}
+
+
+
+
+
+export const getSetRelationshipMutationKey = () => ['setRelationship'] as const;
+
+export const getSetRelationshipMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setRelationship>>, TError,SetRelationshipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setRelationship>>, TError,SetRelationshipMutationVariables, TContext> => {
+
+const mutationKey = getSetRelationshipMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setRelationship>>, SetRelationshipMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setRelationship(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetRelationshipMutationResult = NonNullable<Awaited<ReturnType<typeof setRelationship>>>
+    export type SetRelationshipMutationBody = BodyType<RelationshipInput>
+    export type SetRelationshipMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SetRelationshipMutationVariables = {data: BodyType<RelationshipInput>}
+
+    /**
+ * @summary Say how two items are related, replacing any link between them
+ */
+export const useSetRelationship = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setRelationship>>, TError,SetRelationshipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setRelationship>>,
+        TError,
+        SetRelationshipMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetRelationshipMutationOptions(options), queryClient);
+    }
+
+export const getRemoveRelationshipUrl = () => {
+
+
+
+
+  return `/api/relationships`
+}
+
+/**
+ * @summary Take a relationship off; a project keeps its plain link to the person or organisation
+ */
+export const removeRelationship = async (relationshipPair: RelationshipPair, options?: Parameters<typeof customFetch>[1]): Promise<RelationshipRemoved> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<RelationshipRemoved>(getRemoveRelationshipUrl(),
+  {
+    ...options,
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(relationshipPair)
+  }
+);}
+
+
+
+
+
+export const getRemoveRelationshipMutationKey = () => ['removeRelationship'] as const;
+
+export const getRemoveRelationshipMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeRelationship>>, TError,RemoveRelationshipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeRelationship>>, TError,RemoveRelationshipMutationVariables, TContext> => {
+
+const mutationKey = getRemoveRelationshipMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeRelationship>>, RemoveRelationshipMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  removeRelationship(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveRelationshipMutationResult = NonNullable<Awaited<ReturnType<typeof removeRelationship>>>
+    export type RemoveRelationshipMutationBody = BodyType<RelationshipPair>
+    export type RemoveRelationshipMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type RemoveRelationshipMutationVariables = {data: BodyType<RelationshipPair>}
+
+    /**
+ * @summary Take a relationship off; a project keeps its plain link to the person or organisation
+ */
+export const useRemoveRelationship = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeRelationship>>, TError,RemoveRelationshipMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeRelationship>>,
+        TError,
+        RemoveRelationshipMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveRelationshipMutationOptions(options), queryClient);
     }
 
 export const getSearchKnowledgeUrl = (params: SearchKnowledgeParams,) => {

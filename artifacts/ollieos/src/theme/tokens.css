@@ -130,6 +130,29 @@
   --oo-src-manual-bg: #ece9e2;
   --oo-src-manual-fg: #3d3a35;
 
+  /* Knowledge map: one fill and outline per kind of item */
+  --oo-graph-person-bg: #efe7fb;
+  --oo-graph-person-fg: #5b2e9c;
+  --oo-graph-organisation-bg: #d9e2f1;
+  --oo-graph-organisation-fg: #233455;
+  --oo-graph-project-bg: #f9e3a0;
+  --oo-graph-project-fg: #5c4a1a;
+  --oo-graph-goal-bg: #dfeed7;
+  --oo-graph-goal-fg: #2f5320;
+  --oo-graph-decision-bg: #f3dccf;
+  --oo-graph-decision-fg: #6b2d12;
+  --oo-graph-document-bg: #ece9e2;
+  --oo-graph-document-fg: #3d3a35;
+  --oo-graph-session-bg: #e9ebef;
+  --oo-graph-session-fg: #464b55;
+  --oo-graph-meeting-bg: #fbe3dc;
+  --oo-graph-meeting-fg: #8a2a10;
+  --oo-graph-task-bg: #f1efea;
+  --oo-graph-task-fg: #6b6760;
+  --oo-graph-edge: #d6d2c8;
+  --oo-graph-edge-stated: #55524c;
+  --oo-graph-lit: #c99a12;
+
   /* Radii */
   --oo-r-panel: 22px;
   --oo-r-dark-card: 20px;

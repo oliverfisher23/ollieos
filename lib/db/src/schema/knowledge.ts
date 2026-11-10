@@ -11,7 +11,7 @@ import {
   uniqueIndex,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { activityKindEnum, cadenceEnum, entityTypeEnum, factAttributeEnum, projectLifecycleEnum, tsvector } from "./enums";
+import { activityKindEnum, cadenceEnum, entityTypeEnum, factAttributeEnum, projectLifecycleEnum, relationshipEnum, tsvector } from "./enums";
 import { goalsTable } from "./goals";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -208,6 +208,12 @@ export const linksTable = pgTable(
     fromId: integer("from_id").notNull(),
     toType: entityTypeEnum("to_type").notNull(),
     toId: integer("to_id").notNull(),
+    /** Part G: what the link means, read "from <relationship> to". Null is a plain link. */
+    relationship: relationshipEnum("relationship"),
+    /** Part G: Ollie's note on a relationship, or the evidence an AI gave */
+    note: text("note"),
+    /** Part G: where an approved relationship came from ("Claude", "Meeting: ...") */
+    source: text("source"),
     createdBy: text("created_by").notNull(),
     createdAt: createdAt(),
   },

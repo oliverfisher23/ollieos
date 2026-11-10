@@ -11,7 +11,7 @@ import { person, project } from "./helpers";
 let extract: Extracted;
 let sent: string[] = [];
 
-const nothing = (): Extracted => ({ summary: "A document.", confidential: false, projects: [], facts: [], decisions: [], people: [], organisations: [], playbooks: [] });
+const nothing = (): Extracted => ({ summary: "A document.", confidential: false, projects: [], facts: [], decisions: [], people: [], organisations: [], playbooks: [], relationships: [] });
 
 vi.mock("../src/services/connectors/sorter", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/services/connectors/sorter")>()),

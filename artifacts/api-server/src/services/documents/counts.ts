@@ -10,11 +10,13 @@ export interface KnowledgeCounts {
   organisations: number;
   links: number;
   playbooks: number;
+  /** Stated relationships between known items (Part G) */
+  relationships?: number;
   /** Already known, already waiting, or rejected recently */
   repeats: number;
 }
 
-export const emptyKnowledgeCounts = (): KnowledgeCounts => ({ facts: 0, decisions: 0, people: 0, organisations: 0, links: 0, playbooks: 0, repeats: 0 });
+export const emptyKnowledgeCounts = (): KnowledgeCounts => ({ facts: 0, decisions: 0, people: 0, organisations: 0, links: 0, playbooks: 0, relationships: 0, repeats: 0 });
 
 /** Plain words for what a read proposed, for the Library and Settings. */
 export function describeCounts(c: Partial<KnowledgeCounts> | null | undefined): string {
@@ -27,6 +29,7 @@ export function describeCounts(c: Partial<KnowledgeCounts> | null | undefined): 
       ["organisations", "organisation", "organisations"],
       ["links", "project link", "project links"],
       ["playbooks", "playbook", "playbooks"],
+      ["relationships", "relationship", "relationships"],
     ] as const
   )
     .filter(([key]) => (c[key] ?? 0) > 0)

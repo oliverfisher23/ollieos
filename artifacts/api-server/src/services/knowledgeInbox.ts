@@ -1,7 +1,7 @@
 /** Ollie's view of the Knowledge Inbox: suggestions, conflicts and facts that need a check. */
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, factReviewsTable, factsTable, peopleTable, suggestionsTable, usersTable, type Fact, type Suggestion } from "@workspace/db";
-import { CADENCE_LABELS, formatDayMonth } from "@workspace/shared";
+import { CADENCE_LABELS, RELATIONSHIP_LABELS, formatDayMonth } from "@workspace/shared";
 import { writeAudit } from "../lib/audit";
 import { resolveEntities, uniqueSlug } from "./knowledge/common";
 import { reviewCounts, tidyReviews } from "./factReviews";
@@ -10,6 +10,7 @@ import {
   FIELD_LABELS,
   editableFields,
   type CadencePayload,
+  type RelationshipPayload,
   type DecisionPayload,
   type DocumentPayload,
   type FactPayload,
@@ -37,6 +38,7 @@ export type InboxKind =
   | "document_link"
   | "new_playbook"
   | "cadence_change"
+  | "new_relationship"
   | "conflict"
   | "stale_fact";
 
@@ -194,6 +196,8 @@ function suggestionKind(s: Suggestion): InboxKind {
       return "new_playbook";
     case "cadence":
       return "cadence_change";
+    case "relationship":
+      return "new_relationship";
   }
 }
 
@@ -265,6 +269,10 @@ function textOf(s: Suggestion): string {
       const c = s.payload as CadencePayload;
       const change = c.before && c.before !== "none" ? `Cadence: ${CADENCE_LABELS[c.before]} to ${CADENCE_LABELS[c.cadence]}` : `Cadence: ${CADENCE_LABELS[c.cadence]}`;
       return joinParts([change, c.reason]);
+    }
+    case "relationship": {
+      const r = s.payload as RelationshipPayload;
+      return `${r.from_name ?? "This"} ${RELATIONSHIP_LABELS[r.relationship]} ${r.to_name ?? "another item"}`;
     }
   }
 }

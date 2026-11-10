@@ -806,3 +806,54 @@ button.oo-chip:hover { background: var(--oo-white-16); }
   .oo-mail-row { padding-left: 4px; padding-right: 4px; border-left: 0; }
   .oo-mail-back { display: inline-flex; }
 }
+
+/* ---------- Knowledge map and relationships ---------- */
+.oo-rel-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 1.5; }
+.oo-rel-list li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.oo-rel-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.oo-map-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.oo-map-legend { display: flex; flex-wrap: wrap; gap: 6px; }
+.oo-chip-toggle { font: inherit; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 4px 12px; border-radius: var(--oo-r-full); border: 1px solid var(--oo-control-border); background: var(--oo-panel); color: var(--oo-ink-faint); cursor: pointer; }
+.oo-chip-toggle[aria-pressed="true"] { color: var(--oo-ink); border-color: var(--oo-ink-faint); background: var(--oo-field); }
+.oo-chip-toggle[aria-pressed="false"] .oo-gdot { opacity: 0.35; }
+.oo-chip-toggle:focus-visible { outline: 2px solid var(--oo-ink); outline-offset: 2px; }
+.oo-gdot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; border: 1.5px solid var(--oo-graph-task-fg); background: var(--oo-graph-task-bg); }
+.oo-map-body { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.oo-graph { position: relative; flex: 999 1 420px; min-width: 0; height: min(68vh, 640px); min-height: 380px; border: 1px solid var(--oo-line); border-radius: var(--oo-r-card); background: var(--oo-row-hover); overflow: hidden; }
+.oo-graph svg { width: 100%; height: 100%; display: block; touch-action: none; user-select: none; }
+.oo-graph-bg { fill: transparent; cursor: grab; }
+.oo-graph-bg:active { cursor: grabbing; }
+.oo-gedge { stroke: var(--oo-graph-edge); stroke-width: 1; transition: opacity 0.15s; }
+.oo-gedge[data-stated] { stroke: var(--oo-graph-edge-stated); stroke-width: 1.6; }
+.oo-gedge[data-lit] { stroke: var(--oo-graph-lit); stroke-width: 2.4; }
+.oo-gedge[data-dim] { opacity: 0.2; }
+.oo-gnode { cursor: pointer; outline: none; transition: opacity 0.15s; }
+.oo-gnode circle { stroke-width: 1.5; fill: var(--oo-graph-task-bg); stroke: var(--oo-graph-task-fg); }
+.oo-gnode[data-hidden] circle { stroke-dasharray: 3 2; }
+.oo-gnode[data-dim] { opacity: 0.25; }
+.oo-gnode[data-selected] circle, .oo-gnode:focus-visible circle { stroke: var(--oo-ink); stroke-width: 3; }
+.oo-gnode[data-centre] circle { stroke-width: 3; }
+.oo-glabel { font-size: 11px; fill: var(--oo-ink-soft); paint-order: stroke; stroke: var(--oo-row-hover); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
+.oo-gnode[data-selected] .oo-glabel, .oo-gnode[data-centre] .oo-glabel { font-weight: 600; fill: var(--oo-ink); }
+.oo-gnode[data-type="person"] circle, .oo-gdot[data-type="person"] { fill: var(--oo-graph-person-bg); background: var(--oo-graph-person-bg); stroke: var(--oo-graph-person-fg); border-color: var(--oo-graph-person-fg); }
+.oo-gnode[data-type="organisation"] circle, .oo-gdot[data-type="organisation"] { fill: var(--oo-graph-organisation-bg); background: var(--oo-graph-organisation-bg); stroke: var(--oo-graph-organisation-fg); border-color: var(--oo-graph-organisation-fg); }
+.oo-gnode[data-type="project"] circle, .oo-gdot[data-type="project"] { fill: var(--oo-graph-project-bg); background: var(--oo-graph-project-bg); stroke: var(--oo-graph-project-fg); border-color: var(--oo-graph-project-fg); }
+.oo-gnode[data-type="goal"] circle, .oo-gdot[data-type="goal"] { fill: var(--oo-graph-goal-bg); background: var(--oo-graph-goal-bg); stroke: var(--oo-graph-goal-fg); border-color: var(--oo-graph-goal-fg); }
+.oo-gnode[data-type="decision"] circle, .oo-gdot[data-type="decision"] { fill: var(--oo-graph-decision-bg); background: var(--oo-graph-decision-bg); stroke: var(--oo-graph-decision-fg); border-color: var(--oo-graph-decision-fg); }
+.oo-gnode[data-type="document"] circle, .oo-gdot[data-type="document"] { fill: var(--oo-graph-document-bg); background: var(--oo-graph-document-bg); stroke: var(--oo-graph-document-fg); border-color: var(--oo-graph-document-fg); }
+.oo-gnode[data-type="session"] circle, .oo-gdot[data-type="session"] { fill: var(--oo-graph-session-bg); background: var(--oo-graph-session-bg); stroke: var(--oo-graph-session-fg); border-color: var(--oo-graph-session-fg); }
+.oo-gnode[data-type="meeting"] circle, .oo-gdot[data-type="meeting"] { fill: var(--oo-graph-meeting-bg); background: var(--oo-graph-meeting-bg); stroke: var(--oo-graph-meeting-fg); border-color: var(--oo-graph-meeting-fg); }
+.oo-graph-zoom { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 4px; padding: 4px; border-radius: var(--oo-r-input-lg); background: var(--oo-panel); border: 1px solid var(--oo-line); box-shadow: var(--oo-shadow-panel); }
+.oo-graph-zoom button { font: inherit; font-size: 14px; min-width: 32px; min-height: 32px; padding: 0 8px; border: 0; border-radius: var(--oo-r-input); background: transparent; color: var(--oo-ink); cursor: pointer; }
+.oo-graph-zoom button:hover { background: var(--oo-field); }
+.oo-map-panel { flex: 1 1 260px; max-width: 340px; min-width: 0; box-sizing: border-box; border: 1px solid var(--oo-line); border-radius: var(--oo-r-card); padding: 18px; display: flex; flex-direction: column; gap: 14px; max-height: min(68vh, 640px); overflow-y: auto; }
+.oo-map-links { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.45; }
+.oo-map-links li[data-stated] { padding-left: 8px; border-left: 2px solid var(--oo-graph-edge-stated); }
+.oo-map-paths { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.45; }
+.oo-map-paths li span { display: block; }
+.oo-map-list { flex: 1 1 100%; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.oo-map-list section { display: flex; flex-direction: column; gap: 6px; }
+.oo-map-list ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.oo-map-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--oo-line-soft); font-size: 14px; }
+@media (max-width: 639px) { .oo-map-panel { max-width: none; } }
+@media (prefers-reduced-motion: reduce) { .oo-gedge, .oo-gnode { transition: none; } }

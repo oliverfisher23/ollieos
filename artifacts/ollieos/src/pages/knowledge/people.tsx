@@ -28,6 +28,7 @@ import {
   Timeline,
   useUnlink,
 } from '@/components/knowledge/parts';
+import { RelationshipsSection } from '@/components/knowledge/relationships';
 import { copyText, firstName, isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
 import { CadencePill, CadenceSelect, CheckInDialog } from '@/pages/people-cadence';
 import { notify } from '@/lib/notify';
@@ -166,6 +167,7 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
         </section>
 
         <FactsSection entityType="person" entityId={person.id} facts={facts} />
+        <RelationshipsSection type="person" id={person.id} name={person.name} title="Relationships with others" />
 
         <section aria-labelledby="tl-h" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <h2 id="tl-h" className="oo-h2">Timeline</h2>

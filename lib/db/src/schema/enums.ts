@@ -47,6 +47,7 @@ export const suggestionKindEnum = pgEnum("suggestion_kind", [
   "document",
   "playbook",
   "cadence",
+  "relationship",
 ]);
 export const suggestionStatusEnum = pgEnum("suggestion_status", ["pending", "approved", "rejected"]);
 /** Stale and conflicting facts (feature 02). */
@@ -75,3 +76,20 @@ export const tsvector = customType<{ data: string }>({
     return "tsvector";
   },
 });
+/** Labelled relationships on links (Part G). Kept in step with RELATIONSHIPS in lib/shared. */
+export const RELATIONSHIP_KINDS = [
+  "reports_to",
+  "works_with",
+  "advises",
+  "introduced_by",
+  "investor_in",
+  "customer_of",
+  "supplier_to",
+  "partner_of",
+  "competitor_of",
+  "part_of",
+  "depends_on",
+  "blocked_by",
+  "related_to",
+] as const;
+export const relationshipEnum = pgEnum("relationship", RELATIONSHIP_KINDS);

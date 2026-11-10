@@ -123,3 +123,78 @@ export const DOC_LOCATION_LABELS: Record<DocLocation, string> = {
 
 /** Longest a playbook rule may be (feature 07). */
 export const PLAYBOOK_RULE_MAX = 400;
+
+/**
+ * Labelled relationships between people, organisations and projects (build plan 13, Part G).
+ * Stored on links, read "from <label> to". Kept in step with the relationship enum in lib/db.
+ */
+export const RELATIONSHIPS = [
+  "reports_to",
+  "works_with",
+  "advises",
+  "introduced_by",
+  "investor_in",
+  "customer_of",
+  "supplier_to",
+  "partner_of",
+  "competitor_of",
+  "part_of",
+  "depends_on",
+  "blocked_by",
+  "related_to",
+] as const;
+export type Relationship = (typeof RELATIONSHIPS)[number];
+
+/** Read from the "from" end: "Sam reports to Alex". */
+export const RELATIONSHIP_LABELS: Record<Relationship, string> = {
+  reports_to: "reports to",
+  works_with: "works with",
+  advises: "advises",
+  introduced_by: "was introduced by",
+  investor_in: "invests in",
+  customer_of: "is a customer of",
+  supplier_to: "supplies",
+  partner_of: "partners with",
+  competitor_of: "competes with",
+  part_of: "is part of",
+  depends_on: "depends on",
+  blocked_by: "is blocked by",
+  related_to: "is related to",
+};
+
+/** Read from the "to" end: "Alex manages Sam". The same words for two-way relationships. */
+export const RELATIONSHIP_INVERSE: Record<Relationship, string> = {
+  reports_to: "manages",
+  works_with: "works with",
+  advises: "is advised by",
+  introduced_by: "introduced",
+  investor_in: "is backed by",
+  customer_of: "has as a customer",
+  supplier_to: "is supplied by",
+  partner_of: "partners with",
+  competitor_of: "competes with",
+  part_of: "includes",
+  depends_on: "is needed by",
+  blocked_by: "is blocking",
+  related_to: "is related to",
+};
+
+/** Two-way relationships read the same from either end. */
+export const SYMMETRIC_RELATIONSHIPS: readonly Relationship[] = ["works_with", "partner_of", "competitor_of", "related_to"];
+
+/** What each relationship is called in a picker, as a phrase that starts with a capital. */
+export const RELATIONSHIP_OPTIONS: Record<Relationship, string> = {
+  reports_to: "Reports to",
+  works_with: "Works with",
+  advises: "Advises",
+  introduced_by: "Was introduced by",
+  investor_in: "Invests in",
+  customer_of: "Is a customer of",
+  supplier_to: "Supplies",
+  partner_of: "Partners with",
+  competitor_of: "Competes with",
+  part_of: "Is part of",
+  depends_on: "Depends on",
+  blocked_by: "Is blocked by",
+  related_to: "Is related to",
+};

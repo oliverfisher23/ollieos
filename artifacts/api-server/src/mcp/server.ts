@@ -6,7 +6,7 @@
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult, ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { isIsoDate, todayLondon } from "@workspace/shared";
+import { RELATIONSHIPS, isIsoDate, todayLondon } from "@workspace/shared";
 import {
   getContext,
   listTasksForAi,
@@ -18,6 +18,7 @@ import {
   visibleTaskId,
   type PickType,
 } from "../lib/ai-data/context";
+import { GRAPH_TYPES, LINK_KINDS, connectionForAi, exploreForAi, fetchForAi, parseGraphRef, type LinkKind } from "../lib/ai-data/graph";
 import { findDocumentsForAi, getPlaybooksForAi, goalsForAi, overdueContactsForAi } from "../lib/ai-data/direction";
 import { requestAccess } from "../lib/ai-data/requests";
 import type { AiScope } from "../lib/ai-data/scope";
@@ -45,6 +46,7 @@ export const SERVER_INSTRUCTIONS = [
   'A fact marked "needs_check": true may be out of date. If you rely on one, tell Ollie it may be out of date.',
   "Facts, decisions, new people, organisations and projects, and changes to existing records, are suggestions until Ollie approves them in his Knowledge Inbox. Use list_my_suggestions to avoid proposing the same thing twice. Tasks, promises, notes and activity go in directly.",
   "Before drafting anything on Ollie's behalf, call get_playbooks for the project or person concerned and follow every rule it returns.",
+  "To see how things connect (who knows whom, which organisations sit behind a project), use explore and find_connection. Propose a missing relationship with propose_relationship.",
   "In a Cowork session, call get_context for the project or person it is about before you start, and call save_session once at the end with what was done.",
 ].join(" ");
 
@@ -98,6 +100,16 @@ function describe(text: string): string {
   return `${SOURCE_OF_TRUTH} ${text}`;
 }
 
+/** A ref ("person:3", "calendar_event:4") as it is, or a name or slug of a project, person or organisation. */
+async function itemRef(scope: AiScope, value: string): Promise<string | null> {
+  const pt = parseGraphRef(value);
+  if (pt) return `${pt.type}:${pt.id}`;
+  const hit = await resolvePick(scope, value);
+  return hit ? `${hit.type}:${hit.id}` : null;
+}
+
+const Item = z.string().min(1).max(200).describe('A ref such as person:3, project:7 or calendar_event:4, or the name of a project, person or organisation');
+
 async function pickOrNull(scope: AiScope, pick: z.infer<typeof Pick> | string | null | undefined, types: PickType[]) {
   if (pick == null) return null;
   return resolvePick(scope, pick, types);
@@ -146,6 +158,54 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
       const out = await getContext(scope, a);
       return out ? ok(out) : NOT_FOUND("project, person or organisation");
     },
+  );
+
+  server.registerTool(
+    "explore",
+    {
+      description: describe(
+        "The knowledge graph around one item: who and what it is connected to, and how. Covers people, organisations, projects, goals, decisions, documents, meetings, tasks and Cowork sessions. Each link comes as a sentence, such as \"Sam Lee works at Acme\". Links Ollie stated himself are marked stated_by_ollie. depth 2 also shows what those are connected to.",
+      ),
+      inputSchema: {
+        item: Item,
+        depth: z.number().int().min(1).max(2).optional().describe("Default 1"),
+        types: z.array(z.enum(GRAPH_TYPES)).optional().describe("Only these kinds of item around it"),
+        relationships: z.array(z.enum(LINK_KINDS as unknown as [LinkKind, ...LinkKind[]])).optional().describe("Only these kinds of link"),
+      },
+    },
+    async (a) =>
+      guard(async () => {
+        const ref = await itemRef(scope, a.item);
+        const out = ref ? await exploreForAi(scope, ref, { depth: (a.depth ?? 1) as 1 | 2, types: a.types, kinds: a.relationships }) : null;
+        return out ? ok(out) : NOT_FOUND("item");
+      }),
+  );
+
+  server.registerTool(
+    "find_connection",
+    {
+      description: describe("How two items are connected, up to three steps, for example how Ollie knows someone or why an organisation matters to a project. Returns up to three shortest paths, each as sentences."),
+      inputSchema: { from: Item, to: Item },
+    },
+    async (a) =>
+      guard(async () => {
+        const [from, to] = await Promise.all([itemRef(scope, a.from), itemRef(scope, a.to)]);
+        const out = from && to ? await connectionForAi(scope, from, to) : null;
+        return out ? ok(out) : NOT_FOUND("item");
+      }),
+  );
+
+  server.registerTool(
+    "fetch",
+    {
+      description: describe("The full text of one item by its ref, as returned by search, explore or get_context."),
+      inputSchema: { id: z.string().min(3).max(60).describe("A ref such as decision:12 or document:4") },
+    },
+    async (a) =>
+      guard(async () => {
+        const out = await fetchForAi(scope, a.id);
+        return out ? ok(out) : NOT_FOUND("item");
+      }),
   );
 
   server.registerTool(
@@ -477,6 +537,34 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
             source: a.source ?? null,
             confidential: a.confidential ?? null,
           },
+        });
+        return ok(proposalReply(r));
+      }),
+  );
+
+  server.registerTool(
+    "propose_relationship",
+    {
+      description: describe(
+        "Proposes how two projects, people or organisations are related, read \"from <relationship> to\": reports_to, works_with, advises, introduced_by (from was introduced by to), investor_in, customer_of, supplier_to, partner_of, competitor_of, part_of, depends_on, blocked_by or related_to. It goes to Ollie's Knowledge Inbox. Where someone works is not a relationship: use upsert_person for that.",
+      ),
+      inputSchema: {
+        from: Pick,
+        relationship: z.enum(RELATIONSHIPS),
+        to: Pick,
+        evidence: z.string().max(1000).optional().describe("What shows it, in a sentence"),
+        ...SourceFields,
+      },
+    },
+    async (a) =>
+      guard(async () => {
+        const [from, to] = await Promise.all([resolvePick(scope, a.from), resolvePick(scope, a.to)]);
+        if (!from || !to) return NOT_FOUND("project, person or organisation");
+        const r = await propose(metaOf(a), {
+          kind: "relationship",
+          entityType: from.type,
+          entityId: from.id,
+          payload: { relationship: a.relationship, to_type: to.type, to_id: to.id, note: a.evidence?.trim() || null },
         });
         return ok(proposalReply(r));
       }),

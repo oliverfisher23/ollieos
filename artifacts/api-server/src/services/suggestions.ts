@@ -17,12 +17,13 @@ import {
   FACT_ATTRIBUTES,
   type Suggestion,
 } from "@workspace/db";
-import { PLAYBOOK_RULE_MAX, type Cadence } from "@workspace/shared";
+import { PLAYBOOK_RULE_MAX, RELATIONSHIPS, type Cadence, type Relationship } from "@workspace/shared";
 import { writeAudit, type DbOrTx } from "../lib/audit";
 import { ACTOR, cleanText, resolveEntity, touch, uniqueSlug, type EntityKind } from "./knowledge/common";
 import { ConflictError, NotFoundError, ValidationError } from "./tasks";
 import { addDocumentProjects, insertDocument, insertPlaybook, keepDocumentText } from "./library";
 import { enqueueDocument } from "./documents/enqueue";
+import { existingRelationship, sameRelationship, setRelationship } from "./relationships";
 
 export { FACT_ATTRIBUTES };
 export type FactAttribute = (typeof FACT_ATTRIBUTES)[number];
@@ -108,6 +109,17 @@ export interface ProjectPayload {
   status?: string | null;
   summary?: string | null;
 }
+/** A stated relationship from the suggestion's item to another one (Part G), read "from <relationship> to". */
+export interface RelationshipPayload {
+  relationship: Relationship;
+  to_type: EntityKind;
+  to_id: number;
+  /** Names when proposed, for the card */
+  from_name?: string | null;
+  to_name?: string | null;
+  /** The evidence, kept as the relationship's note */
+  note?: string | null;
+}
 /** Changes to an existing person, project or organisation. Values are the proposed text. */
 export interface SummaryChangePayload {
   fields: Record<string, string>;
@@ -127,7 +139,8 @@ export type Proposal =
   | { kind: "summary_change"; entityType: EntityKind; entityId: number; payload: SummaryChangePayload }
   | { kind: "document"; payload: DocumentPayload }
   | { kind: "playbook"; payload: PlaybookPayload }
-  | { kind: "cadence"; entityType: "person"; entityId: number; payload: CadencePayload };
+  | { kind: "cadence"; entityType: "person"; entityId: number; payload: CadencePayload }
+  | { kind: "relationship"; entityType: EntityKind; entityId: number; payload: RelationshipPayload };
 
 export interface ProposeMeta {
   /** Client name: "Capture sweep", "Claude" */
@@ -162,6 +175,7 @@ export const FIELD_LABELS: Record<string, string> = {
   url: "Link",
   applies_when: "Applies when",
   rule: "Rule",
+  note: "Note",
 };
 const EDITABLE: Record<Exclude<SuggestionKind, "summary_change">, string[]> = {
   fact: ["text"],
@@ -172,6 +186,7 @@ const EDITABLE: Record<Exclude<SuggestionKind, "summary_change">, string[]> = {
   document: ["title", "summary"],
   playbook: ["title", "applies_when", "rule"],
   cadence: [],
+  relationship: ["note"],
 };
 const REQUIRED = new Set(["text", "name", "title", "applies_when", "rule"]);
 /** Columns a summary change may set on each kind of record. */
@@ -224,6 +239,8 @@ function mainText(p: Proposal): string {
       return `${p.payload.title}: ${p.payload.rule}`;
     case "cadence":
       return p.payload.cadence;
+    case "relationship":
+      return `${p.payload.relationship} ${p.payload.to_type}:${p.payload.to_id}`;
   }
 }
 
@@ -272,6 +289,16 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
     // AI only suggests a cadence where there is none; it never changes one Ollie set (question 49).
     if (person.cadence !== "none") throw new ValidationError("This person already has a cadence. Only Ollie changes it.");
     p.payload.before = person.cadence;
+  }
+  if (p.kind === "relationship") {
+    const { to_type, to_id, relationship } = p.payload;
+    if (!RELATIONSHIPS.includes(relationship)) throw new ValidationError("Choose a relationship");
+    if (p.entityType === to_type && p.entityId === to_id) throw new ValidationError("An item cannot be related to itself");
+    const [from, to] = await Promise.all([resolveEntity(p.entityType, p.entityId), resolveEntity(to_type, to_id)]);
+    p.payload.from_name = from.name;
+    p.payload.to_name = to.name;
+    const row = await existingRelationship({ type: p.entityType, id: p.entityId }, { type: to_type, id: to_id });
+    if (row && sameRelationship(row, { type: p.entityType, id: p.entityId }, relationship)) return { status: "duplicate" };
   }
   if (p.kind === "document" && p.payload.document_id == null && p.payload.url) {
     const [doc] = await db.select({ id: documentsTable.id }).from(documentsTable).where(eq(documentsTable.url, p.payload.url));
@@ -555,6 +582,14 @@ export async function applySuggestion(
       await tx.update(peopleTable).set({ cadence: p.cadence }).where(eq(peopleTable.id, person.id));
       await audit("update", "person", person.id, { fields: ["cadence"], cadence: { from: person.cadence, to: p.cadence } });
       return { type: "person", id: person.id };
+    }
+    case "relationship": {
+      const p = payload as unknown as RelationshipPayload;
+      await setRelationship(
+        { from: { type: s.entityType as EntityKind, id: s.entityId! }, to: { type: p.to_type, id: p.to_id }, relationship: p.relationship, note: p.note ?? null },
+        { conn: tx, source: s.sourceLabel ?? s.proposedBy, suggestionId: s.id },
+      );
+      return { type: s.entityType as EntityKind, id: s.entityId! };
     }
   }
 }

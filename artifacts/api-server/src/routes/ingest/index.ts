@@ -5,7 +5,7 @@
  */
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
-import { CADENCES, PLAYBOOK_RULE_MAX, isIsoDate, todayLondon } from "@workspace/shared";
+import { CADENCES, PLAYBOOK_RULE_MAX, RELATIONSHIPS, isIsoDate, todayLondon } from "@workspace/shared";
 import { handle } from "../../lib/handle";
 import {
   doneSinceForIngest,
@@ -439,7 +439,7 @@ router.post(
 /* ---------- Suggestions (feature 01) ---------- */
 
 const SuggestionItem = z.object({
-  kind: z.enum(["fact", "decision", "person", "organisation", "project", "document", "playbook", "cadence"]),
+  kind: z.enum(["fact", "decision", "person", "organisation", "project", "document", "playbook", "cadence", "relationship"]),
   /** fact: the project, person or organisation; decision: the project. Name, slug or ref. */
   entity: optText(200),
   text: optText(2000),
@@ -470,6 +470,9 @@ const SuggestionItem = z.object({
   /** cadence: entity is the person */
   cadence: z.enum(CADENCES).nullish(),
   reason: optText(500),
+  /** relationship: entity <relationship> to, e.g. entity "Sam Lee", relationship "reports_to", to "Alex Kerr"; text is the evidence */
+  relationship: z.enum(RELATIONSHIPS).nullish(),
+  to: optText(200),
   source: optText(500),
   source_type: z.enum(SUGGESTION_SOURCES).nullish(),
   source_ref: optText(500),
@@ -582,6 +585,18 @@ async function suggestOne(scope: AiScope, writer: Writer, s: SuggestionItem): Pr
       const person = await resolvePick(scope, s.entity, ["person"]);
       if (!person) return { error: `No visible person matches "${s.entity}"` };
       return propose(meta, { kind: "cadence", entityType: "person", entityId: person.id, payload: { cadence: s.cadence, reason: s.reason ?? null } });
+    }
+    case "relationship": {
+      if (!s.entity || !s.to || !s.relationship) return { error: "A relationship suggestion needs entity, relationship and to" };
+      const [from, to] = await Promise.all([resolvePick(scope, s.entity), resolvePick(scope, s.to)]);
+      if (!from) return { error: `No visible project, person or organisation matches "${s.entity}"` };
+      if (!to) return { error: `No visible project, person or organisation matches "${s.to}"` };
+      return propose(meta, {
+        kind: "relationship",
+        entityType: from.type,
+        entityId: from.id,
+        payload: { relationship: s.relationship, to_type: to.type, to_id: to.id, note: s.text ?? s.reason ?? null },
+      });
     }
   }
 }
