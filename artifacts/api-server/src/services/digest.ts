@@ -3,7 +3,7 @@
  * Built on the first sweep finish of a weekday (question 32), or on open if a sweep has finished
  * today and there is none yet. No email in phase 1 (question 33). Kept 30 days.
  */
-import { and, asc, desc, eq, gte, inArray, isNotNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lt, notInArray, or, sql } from "drizzle-orm";
 import {
   activityTable,
   calendarEventsTable,
@@ -79,7 +79,7 @@ async function gather(date: string, since: Date, now: Date) {
     db
       .select({ id: tasksTable.id, title: tasksTable.title })
       .from(tasksTable)
-      .where(and(eq(tasksTable.kind, "promise"), ne(tasksTable.status, "noise"), gte(tasksTable.createdAt, since)))
+      .where(and(eq(tasksTable.kind, "promise"), notInArray(tasksTable.status, ["noise", "dropped"]), gte(tasksTable.createdAt, since)))
       .orderBy(asc(tasksTable.createdAt)),
     db
       .select({ id: peopleTable.id, name: peopleTable.name, slug: peopleTable.slug, role: peopleTable.role, org: organisationsTable.name })

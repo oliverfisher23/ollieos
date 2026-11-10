@@ -19,6 +19,7 @@ import { useInvalidateTasks } from '@/lib/task-cache';
 import { useTaskActions } from '@/lib/task-actions';
 import { notify } from '@/lib/notify';
 import { Dropdown } from '@/components/dropdown';
+import { ReplyDraftCard } from '@/components/reply-draft';
 import { goalOptions, personOptions, projectOptions } from '@/components/dropdown-options';
 
 const STATUSES: { value: TaskStatus; label: string }[] = [
@@ -27,6 +28,7 @@ const STATUSES: { value: TaskStatus; label: string }[] = [
   { value: 'backlog', label: 'Backlog' },
   { value: 'waiting', label: 'Waiting on' },
   { value: 'done', label: 'Done' },
+  { value: 'dropped', label: 'Dropped' },
 ];
 const PRIOS: { value: Priority; label: string }[] = [
   { value: 'high', label: 'High' },
@@ -151,6 +153,26 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
               </div>
             </div>
 
+            {task.noiseHint && (
+              <div className="oo-source" style={{ gap: 10 }} data-testid="card-noise-hint">
+                <span style={{ fontSize: 13, fontWeight: 500 }}>Probably noise</span>
+                <span className="oo-soft" style={{ fontSize: 13 }} data-testid="text-detail-noise-hint">{task.noiseHint}</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <button type="button" className="oo-btn oo-btn-outline" disabled={acting} onClick={() => run(() => actions.keep(task))} data-testid="button-detail-keep">Keep</button>
+                  <button type="button" className="oo-btn oo-btn-outline" disabled={acting} onClick={() => run(() => actions.triage(task, { action: 'noise' }))} data-testid="button-detail-hint-noise">Move to Noise</button>
+                </div>
+              </div>
+            )}
+
+            {task.status === 'dropped' && (
+              <div className="oo-source" style={{ gap: 10 }} data-testid="card-dropped">
+                <span style={{ fontSize: 13, fontWeight: 500 }}>Dropped. It is off your lists, and AI treats it as closed.</span>
+                <div>
+                  <button type="button" className="oo-btn oo-btn-outline" disabled={acting} onClick={() => run(() => actions.restore(task))} data-testid="button-detail-restore-dropped">Restore to Inbox</button>
+                </div>
+              </div>
+            )}
+
             {task.status === 'noise' && (
               <div className="oo-source" style={{ gap: 10 }} data-testid="card-noise">
                 <span style={{ fontSize: 13, fontWeight: 500 }}>
@@ -248,6 +270,8 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                 )}
               </div>
             </div>
+
+            {task.source === 'email' && <ReplyDraftCard key={task.id} taskId={task.id} />}
 
             <TriStateAccess
               value={task.confidential ?? null}

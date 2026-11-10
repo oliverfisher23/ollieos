@@ -46,7 +46,7 @@ export const SERVER_INSTRUCTIONS = [
   "Before drafting anything on Ollie's behalf, call get_playbooks for the project or person concerned and follow every rule it returns.",
 ].join(" ");
 
-const STATUSES = ["inbox", "now", "backlog", "waiting", "done", "noise"] as const;
+const STATUSES = ["inbox", "now", "backlog", "waiting", "done", "noise", "dropped"] as const;
 const PRIORITIES = ["high", "medium", "low"] as const;
 const SOURCES = ["email", "slack", "meeting", "quarterly", "manual"] as const;
 const ENTITY_TYPES = ["project", "person", "organisation"] as const;
@@ -311,7 +311,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
   server.registerTool(
     "update_task",
     {
-      description: describe("Changes a task: title, status (including done and noise), priority, due date, links, or adds to its notes. Done or noise takes a task off Ollie's lists."),
+      description: describe("Changes a task: title, status (including done, noise and dropped), priority, due date, links, or adds to its notes. Done, noise or dropped takes a task off Ollie's lists. Dropped means it was real but Ollie decided not to do it; noise means it should never have come in."),
       inputSchema: {
         ref: z.string().max(40).describe("A task ref such as task:42"),
         title: z.string().min(1).max(300).optional(),

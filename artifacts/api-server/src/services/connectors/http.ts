@@ -28,19 +28,27 @@ const DIRECT_KEYS: Record<string, { env: string; base: string }> = {
   granola: { env: "GRANOLA_API_KEY", base: "https://public-api.granola.ai" },
 };
 
-function send(connector: string, path: string): Promise<Response> {
+interface Write {
+  method: "POST" | "PUT";
+  body: unknown;
+}
+
+function send(connector: string, path: string, write?: Write): Promise<Response> {
   const direct = DIRECT_KEYS[connector];
   const key = direct ? process.env[direct.env]?.trim() : undefined;
   if (direct && key) return fetch(direct.base + path, { headers: { Authorization: `Bearer ${key}`, Accept: "application/json" } });
+  if (write) {
+    return connectors().proxy(connector, path, { method: write.method, body: JSON.stringify(write.body), headers: { "Content-Type": "application/json" } });
+  }
   return connectors().proxy(connector, path, { method: "GET" });
 }
 
-/** GET through the connector, retrying one 429 and turning access problems into ConnectorErrors. */
-async function call(connector: string, name: string, path: string): Promise<Response> {
+/** Calls through the connector, retrying one 429 and turning access problems into ConnectorErrors. */
+async function call(connector: string, name: string, path: string, write?: Write): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     let res: Response;
     try {
-      res = await send(connector, path);
+      res = await send(connector, path, write);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (/no .*connection/i.test(msg)) throw new ConnectorError(`${name} is not connected to OllieOS.`, true);
@@ -98,4 +106,21 @@ export async function proxyText(connector: string, name: string, path: string, m
   if (!res.ok) throw await failure(name, res);
   const text = await res.text();
   return { text: text.slice(0, maxChars), truncated: text.length > maxChars };
+}
+
+/**
+ * POST or PUT a JSON body and read the JSON answer. Null when the item is gone (404), so a caller
+ * updating something can fall back to creating it. Only used to save Gmail drafts; never to send.
+ */
+export async function proxyWriteJson(
+  connector: string,
+  name: string,
+  method: "POST" | "PUT",
+  path: string,
+  body: unknown,
+): Promise<Record<string, unknown> | null> {
+  const res = await call(connector, name, path, { method, body });
+  if (res.status === 404) return null;
+  if (!res.ok) throw await failure(name, res);
+  return (await res.json().catch(() => ({}))) as Record<string, unknown>;
 }

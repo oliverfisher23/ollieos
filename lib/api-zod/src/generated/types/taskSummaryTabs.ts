@@ -15,4 +15,5 @@ export type TaskSummaryTabs = {
   waiting: number;
   done: number;
   noise: number;
+  dropped: number;
 };

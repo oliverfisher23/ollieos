@@ -5,7 +5,7 @@ import { Dot, Dropdown, type DropdownOption } from '@/components/dropdown';
 
 /** Pickers that change a task straight from a table row or a phone card. */
 
-const STATUS_ORDER: TaskStatus[] = ['inbox', 'now', 'backlog', 'waiting', 'done'];
+const STATUS_ORDER: TaskStatus[] = ['inbox', 'now', 'backlog', 'waiting', 'done', 'dropped'];
 const PRIORITY_ORDER: Priority[] = ['high', 'medium', 'low'];
 
 export function StatusCell({ title, status, shown, onChange, testId }: {

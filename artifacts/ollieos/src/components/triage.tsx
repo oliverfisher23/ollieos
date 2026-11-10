@@ -16,13 +16,15 @@ const BUTTONS: { action: Action; label: string; key: string }[] = [
   { action: 'now', label: 'Now', key: 'N' },
   { action: 'backlog', label: 'Backlog', key: 'B' },
   { action: 'waiting', label: 'Waiting', key: 'W' },
+  { action: 'dropped', label: 'Drop', key: 'D' },
   { action: 'noise', label: 'Noise', key: 'X' },
 ];
-const KEY_ACTION: Record<string, Action> = { n: 'now', b: 'backlog', w: 'waiting', x: 'noise' };
+const KEY_ACTION: Record<string, Action> = { n: 'now', b: 'backlog', w: 'waiting', d: 'dropped', x: 'noise' };
 const DONE_LABEL: Record<Action, string> = {
   now: 'Moved to Now',
   backlog: 'Moved to Backlog',
   waiting: 'Moved to Waiting on',
+  dropped: 'Dropped',
   noise: 'Moved to Noise',
 };
 
@@ -191,6 +193,9 @@ export function TriageDialog({ onClose }: { onClose: () => void }) {
                   </span>
                   <p id="tri-current" className="oo-tri-title" data-testid="text-triage-title">{current.title}</p>
                   {(current.snippet ?? current.sourceQuote) && <p className="oo-tri-snippet">{current.snippet ?? current.sourceQuote}</p>}
+                  {current.noiseHint && (
+                    <span className="oo-tri-suggest" data-testid="text-triage-noise-hint">Probably noise: <b>{current.noiseHint}</b></span>
+                  )}
                   {current.suggestedAction && (
                     <span className="oo-tri-suggest" data-testid="text-triage-suggest">Suggested: <b>{current.suggestedAction}</b></span>
                   )}

@@ -11,7 +11,7 @@ export interface EntitySummary {
   confidential: boolean;
 }
 
-export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "waitingOnPersonId" | "noiseRuleId" | "sourceChannel"> & {
+export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "waitingOnPersonId" | "noiseRuleId" | "sourceChannel" | "noiseHintKept" | "noiseCheckedAt"> & {
   project: EntitySummary | null;
   person: EntitySummary | null;
   waitingOn: EntitySummary | null;
@@ -90,7 +90,7 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
   };
 
   return rows.map((r) => {
-    const { search: _search, personId, projectId, waitingOnPersonId, noiseRuleId, sourceChannel: _channel, ...rest } = r;
+    const { search: _search, personId, projectId, waitingOnPersonId, noiseRuleId, sourceChannel: _channel, noiseHintKept, noiseCheckedAt: _checked, ...rest } = r;
     return {
       ...rest,
       project: projectId ? (projectById.get(projectId) ?? null) : null,
@@ -100,6 +100,8 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
       noiseRule: noiseRuleId ? (ruleById.get(noiseRuleId) ?? null) : null,
       hiddenFromAi: hiddenSet.has(r.id),
       goal: goalFor(r),
+      // "Probably noise" only matters while the item waits in the Inbox.
+      noiseHint: r.status === "inbox" && !noiseHintKept ? r.noiseHint : null,
     };
   });
 }

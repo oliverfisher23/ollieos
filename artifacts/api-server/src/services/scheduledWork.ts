@@ -1,6 +1,6 @@
 /**
  * Work that runs after OllieOS has fresh data: when the Claude sweep finishes, and after each of
- * OllieOS's own checks. The weekly fact check after Sunday 18:00, clearing old rejected
+ * OllieOS's own checks. Marking new Inbox items that are probably noise, the weekly fact check after Sunday 18:00, clearing old rejected
  * suggestions, briefs for today's and tomorrow's meetings, the morning digest and the 30-day
  * clean-ups. Each part runs on its own, and a failure in one never stops the others.
  */
@@ -10,6 +10,7 @@ import { clearOldCalendar } from "./aiWrites";
 import { buildUpcomingBriefs } from "./briefs";
 import { buildDigestIfDue, clearOldDigests } from "./digest";
 import { onSweepFinished } from "./factReviews";
+import { checkInboxNoise } from "./noiseCheck";
 
 /** OllieOS's own checks start at 07:00, so they wait for 07:40 (when the morning sweep ran) before building the digest. */
 export const DIGEST_NOT_BEFORE = { hour: 7, minute: 40 };
@@ -33,6 +34,8 @@ export async function scheduledWork(from: "sweep" | "connectors", now = new Date
     const r = await onSweepFinished(now);
     return { rejected_cleared: r.cleared, fact_check: r.check };
   });
+  // Calls the model on real Inbox items, so tests run it directly with the model stood in.
+  if (process.env.NODE_ENV !== "test") await part("noise", () => checkInboxNoise());
   await part("briefs", () => buildUpcomingBriefs(now));
   if (from === "sweep" || digestTimeReached(now)) await part("digest", () => buildDigestIfDue(now));
   await part("cleared", async () => ({ digests: await clearOldDigests(now), calendar_events: await clearOldCalendar(now) }));

@@ -12,6 +12,8 @@ import {
   updateTask,
 } from "../services/tasks";
 import { getTaskHistory } from "../services/history";
+import { keepTask } from "../services/noiseCheck";
+import { getReplyDraft, saveReplyDraftToGmail, writeReplyDraft } from "../services/replyDraft";
 import { NOISE_MATCH_TYPES } from "../services/noiseRules";
 import {
   buildChaseLine,
@@ -29,7 +31,7 @@ const ACTOR = "ollie";
 const isoDate = z.string().refine(isIsoDate, "Use a YYYY-MM-DD date");
 
 const ListQuery = z.object({
-  tab: z.enum(["inbox", "open", "now", "backlog", "waiting", "done", "noise"]).optional(),
+  tab: z.enum(["inbox", "open", "now", "backlog", "waiting", "done", "noise", "dropped"]).optional(),
   source: z.enum(TASK_SOURCES).optional(),
   weekStart: isoDate.optional(),
   includeUndated: z
@@ -64,7 +66,7 @@ const UpdateBody = z
 
 const TriageBody = z
   .object({
-    action: z.enum(["now", "backlog", "waiting", "noise"]),
+    action: z.enum(["now", "backlog", "waiting", "noise", "dropped"]),
     waitingOnPersonId: z.number().int().positive().nullable().optional(),
     noiseRule: z
       .object({
@@ -77,6 +79,15 @@ const TriageBody = z
   .strict();
 
 const WeeklyQuery = z.object({ weekStart: isoDate.optional() });
+
+const ReplyDraftBody = z
+  .object({
+    to: z.string().max(2000),
+    cc: z.string().max(2000),
+    subject: z.string().max(500),
+    body: z.string().trim().min(1, "Write something to save").max(20000),
+  })
+  .strict();
 
 router.get(
   "/tasks",
@@ -125,6 +136,38 @@ router.patch(
     const { id } = IdParams.parse(req.params);
     const body = UpdateBody.parse(req.body);
     res.json(await updateTask(id, body, ACTOR));
+  }),
+);
+
+router.post(
+  "/tasks/:id/keep",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    res.json(await keepTask(id, ACTOR));
+  }),
+);
+
+router.get(
+  "/tasks/:id/reply-draft",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    res.json({ draft: await getReplyDraft(id) });
+  }),
+);
+
+router.post(
+  "/tasks/:id/reply-draft",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    res.json(await writeReplyDraft(id, ACTOR));
+  }),
+);
+
+router.post(
+  "/tasks/:id/reply-draft/gmail",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    res.json(await saveReplyDraftToGmail(id, ReplyDraftBody.parse(req.body), ACTOR));
   }),
 );
 

@@ -61,6 +61,7 @@ export const TaskStatus = {
   waiting: 'waiting',
   done: 'done',
   noise: 'noise',
+  dropped: 'dropped',
 } as const;
 
 export type TaskKind = typeof TaskKind[keyof typeof TaskKind];
@@ -102,6 +103,7 @@ export const TaskTab = {
   waiting: 'waiting',
   done: 'done',
   noise: 'noise',
+  dropped: 'dropped',
 } as const;
 
 export interface EntitySummary {
@@ -199,6 +201,11 @@ export interface Task {
   goalId: number | null;
   /** Ollie marked it as not goal work */
   notGoalWork: boolean;
+  /**
+     * Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.
+     * @nullable
+     */
+  noiseHint: string | null;
 }
 
 export interface TaskUpdate {
@@ -249,6 +256,7 @@ export type TaskSummaryTabs = {
   waiting: number;
   done: number;
   noise: number;
+  dropped: number;
 };
 
 export type TaskSummaryStats = {
@@ -623,6 +631,47 @@ export interface NoiseRuleOption {
   label: string;
 }
 
+export interface ReplyDraft {
+  taskId: number;
+  /** Comma-separated addresses */
+  to: string;
+  /** Comma-separated addresses */
+  cc: string;
+  subject: string;
+  body: string;
+  /** False when the email did not come from Gmail directly, so there is no thread to save into */
+  canSaveToGmail: boolean;
+  /**
+     * When it was last saved to Gmail
+     * @nullable
+     */
+  savedAt: string | null;
+  /**
+     * Opens the thread in Gmail, with the draft in it
+     * @nullable
+     */
+  gmailUrl: string | null;
+  updatedAt: string;
+}
+
+export interface ReplyDraftResult {
+  draft: ReplyDraft | null;
+}
+
+export interface ReplyDraftInput {
+  /** @maxLength 2000 */
+  to: string;
+  /** @maxLength 2000 */
+  cc: string;
+  /** @maxLength 500 */
+  subject: string;
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  body: string;
+}
+
 export type TriageInputAction = typeof TriageInputAction[keyof typeof TriageInputAction];
 
 
@@ -631,6 +680,7 @@ export const TriageInputAction = {
   backlog: 'backlog',
   waiting: 'waiting',
   noise: 'noise',
+  dropped: 'dropped',
 } as const;
 
 /**

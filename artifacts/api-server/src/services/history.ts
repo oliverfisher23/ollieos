@@ -62,8 +62,14 @@ function describe(event: AuditEvent): string {
     }
     case "bundle":
       return `Bundled into "${String(payload.title ?? "a new task")}" and marked done`;
-    case "restore":
-      return "Restored from Noise to Inbox";
+    case "restore": {
+      const from = ((payload.changes ?? []) as FieldChange[]).find((c) => c.field === "status")?.from ?? "Noise";
+      return `Restored from ${from} to Inbox`;
+    }
+    case "keep":
+      return `Kept in the Inbox, though it looked like noise (${String(payload.hint ?? "")})`;
+    case "reply_draft":
+      return payload.saved ? "Reply draft saved to Gmail" : "Reply drafted with AI";
     case "snooze":
       return `Snoozed until ${String(payload.untilLabel ?? "tomorrow")}`;
     default:

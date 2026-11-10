@@ -14,4 +14,5 @@ export const TriageInputAction = {
   backlog: 'backlog',
   waiting: 'waiting',
   noise: 'noise',
+  dropped: 'dropped',
 } as const;

@@ -5,8 +5,10 @@
  * Gmail's Promotions, Social, Updates and Forums tabs are skipped, and so are mailing lists,
  * no-reply senders and calendar invites, before any AI sees them. Quoted replies are cut so only
  * the new text of each message is sorted.
+ *
+ * For "Draft reply", it also reads one thread in full and saves a draft into it. It never sends.
  */
-import { proxyJson } from "./http";
+import { ConnectorError, proxyJson, proxyJsonOrNull, proxyWriteJson } from "./http";
 import { trimText, type WorkUnit } from "./messages";
 
 const CONNECTOR = "google-mail";
@@ -254,4 +256,114 @@ export async function readGmail(since: Date): Promise<GmailRead> {
     else leftOut++;
   }
   return { account, units: groupByThread(mapped.map((x) => x.unit!)), found, leftOut, newest, more: ids.length > GMAIL_PER_RUN };
+}
+
+// ---- Draft reply: read one thread, save a draft in it. Never sends. ----
+
+export interface ThreadMessage {
+  id: string;
+  at: Date;
+  from: Address;
+  to: Address[];
+  cc: Address[];
+  replyTo: Address[];
+  subject: string | null;
+  /** Message-ID and References headers, for threading the reply */
+  messageId: string | null;
+  references: string | null;
+  text: string;
+}
+
+export interface GmailThread {
+  account: string;
+  threadId: string;
+  /** Oldest first, without drafts */
+  messages: ThreadMessage[];
+}
+
+/** The thread a message belongs to, or null when the message is gone. */
+export async function gmailThreadIdOf(messageId: string): Promise<string | null> {
+  const m = await proxyJsonOrNull(CONNECTOR, NAME, `/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=minimal`);
+  return m && typeof m.threadId === "string" ? m.threadId : null;
+}
+
+/** One thread with the new text of each message, or null when it is gone. */
+export async function readGmailThread(threadId: string, maxChars = MAX_TEXT): Promise<GmailThread | null> {
+  const profile = await getJson("/gmail/v1/users/me/profile");
+  const account = String(profile.emailAddress ?? "").toLowerCase();
+  const body = await proxyJsonOrNull(CONNECTOR, NAME, `/gmail/v1/users/me/threads/${encodeURIComponent(threadId)}?format=full`);
+  if (!body) return null;
+  const messages: ThreadMessage[] = [];
+  for (const m of (body.messages as GmailMessage[] | undefined) ?? []) {
+    if ((m.labelIds ?? []).includes("DRAFT")) continue;
+    const header = (name: string) => m.payload?.headers?.find((h) => h.name.toLowerCase() === name)?.value;
+    const plain = findPart(m.payload, "text/plain");
+    const html = plain ? null : findPart(m.payload, "text/html");
+    const raw = plain?.body?.data ? decode(plain.body.data) : html?.body?.data ? htmlToText(decode(html.body.data)) : (m.snippet ?? "");
+    messages.push({
+      id: m.id,
+      at: new Date(Number(m.internalDate ?? 0)),
+      from: parseAddresses(header("from"))[0] ?? { name: null, email: null },
+      to: parseAddresses(header("to")),
+      cc: parseAddresses(header("cc")),
+      replyTo: parseAddresses(header("reply-to")),
+      subject: header("subject")?.trim() || null,
+      messageId: header("message-id")?.trim() || null,
+      references: header("references")?.trim() || null,
+      text: trimText(stripQuoted(raw), maxChars),
+    });
+  }
+  messages.sort((a, b) => a.at.getTime() - b.at.getTime());
+  return { account, threadId, messages };
+}
+
+export function gmailThreadUrl(account: string | null, threadId: string): string {
+  return `https://mail.google.com/mail/?${account ? `authuser=${encodeURIComponent(account)}` : ""}#all/${threadId}`;
+}
+
+/** A header value, encoded when it is not plain ASCII (RFC 2047). */
+function encodeHeader(v: string): string {
+  const clean = v.replace(/[\r\n]+/g, " ").trim();
+  return /^[\x20-\x7e]*$/.test(clean) ? clean : `=?UTF-8?B?${Buffer.from(clean, "utf8").toString("base64")}?=`;
+}
+
+export interface OutgoingDraft {
+  to: string;
+  cc: string;
+  subject: string;
+  body: string;
+  inReplyTo: string | null;
+  references: string | null;
+}
+
+/** The RFC 2822 message Gmail expects, base64url encoded. */
+export function draftRaw(d: OutgoingDraft): string {
+  const lines = [
+    d.to.trim() ? `To: ${encodeHeader(d.to)}` : null,
+    d.cc.trim() ? `Cc: ${encodeHeader(d.cc)}` : null,
+    `Subject: ${encodeHeader(d.subject)}`,
+    d.inReplyTo ? `In-Reply-To: ${d.inReplyTo}` : null,
+    d.inReplyTo ? `References: ${[d.references, d.inReplyTo].filter(Boolean).join(" ")}` : null,
+    "MIME-Version: 1.0",
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    (Buffer.from(d.body.replace(/\r?\n/g, "\r\n"), "utf8").toString("base64").match(/.{1,76}/g) ?? []).join("\r\n"),
+  ].filter((l) => l !== null);
+  return Buffer.from(lines.join("\r\n"), "utf8").toString("base64url");
+}
+
+/**
+ * Saves a draft in the thread, updating the earlier one when it still exists (Ollie may have sent
+ * or deleted it). Returns the draft id. Never sends.
+ */
+export async function saveGmailDraft(threadId: string, draftId: string | null, d: OutgoingDraft): Promise<string> {
+  const message = { raw: draftRaw(d), threadId };
+  if (draftId) {
+    const updated = await proxyWriteJson(CONNECTOR, NAME, "PUT", `/gmail/v1/users/me/drafts/${encodeURIComponent(draftId)}`, { id: draftId, message });
+    if (updated && typeof updated.id === "string") return updated.id;
+  }
+  const created = await proxyWriteJson(CONNECTOR, NAME, "POST", "/gmail/v1/users/me/drafts", { message });
+  if (!created || typeof created.id !== "string") throw new ConnectorError("Gmail did not save the draft. Try again in a moment.");
+  return created.id;
 }

@@ -405,7 +405,7 @@ paths:
     post:
       operationId: triageTask
       tags: [tasks]
-      summary: Triage one item to Now, Backlog, Waiting or Noise, optionally making a noise rule
+      summary: Triage one item to Now, Backlog, Waiting, Noise or Dropped, optionally making a noise rule
       parameters:
         - $ref: "#/components/parameters/TaskId"
       requestBody:
@@ -469,7 +469,7 @@ paths:
     post:
       operationId: restoreTask
       tags: [tasks]
-      summary: Restore a Noise item to the Inbox
+      summary: Restore a Noise or Dropped item to the Inbox
       parameters:
         - $ref: "#/components/parameters/TaskId"
       responses:
@@ -480,7 +480,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Task"
         "409":
-          description: Not in Noise
+          description: Not in Noise or Dropped
           content:
             application/json:
               schema:
@@ -489,6 +489,132 @@ paths:
           $ref: "#/components/responses/NotAuthorised"
         "404":
           description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/keep:
+    post:
+      operationId: keepTask
+      tags: [tasks]
+      summary: Keep an Inbox item the noise check flagged; clears "Probably noise"
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/reply-draft:
+    get:
+      operationId: getReplyDraft
+      tags: [tasks]
+      summary: The saved reply draft for an email task, if there is one
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: The draft, or null
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReplyDraftResult"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    post:
+      operationId: writeReplyDraft
+      tags: [tasks]
+      summary: Writes (or rewrites) a reply with AI from the email thread, OllieOS and playbooks. Nothing is sent.
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: The draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReplyDraft"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Not an email, or hidden from AI
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: The AI or Gmail could not be reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/reply-draft/gmail:
+    post:
+      operationId: saveReplyDraftToGmail
+      tags: [tasks]
+      summary: Saves the edited reply as a draft in the Gmail thread (updating the earlier one). Never sends.
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplyDraftInput"
+      responses:
+        "200":
+          description: The draft, with the Gmail link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReplyDraft"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: No Gmail thread to save into
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: Gmail could not be reached
           content:
             application/json:
               schema:
@@ -2013,7 +2139,7 @@ components:
 
     TaskStatus:
       type: string
-      enum: [inbox, now, backlog, waiting, done, noise]
+      enum: [inbox, now, backlog, waiting, done, noise, dropped]
     TaskKind:
       type: string
       enum: [task, promise]
@@ -2025,7 +2151,7 @@ components:
       enum: [email, slack, meeting, quarterly, manual]
     TaskTab:
       type: string
-      enum: [inbox, open, now, backlog, waiting, done, noise]
+      enum: [inbox, open, now, backlog, waiting, done, noise, dropped]
 
     EntitySummary:
       type: object
@@ -2077,6 +2203,7 @@ components:
         - goal
         - goalId
         - notGoalWork
+        - noiseHint
       properties:
         id:
           type: integer
@@ -2171,6 +2298,9 @@ components:
         notGoalWork:
           type: boolean
           description: Ollie marked it as not goal work
+        noiseHint:
+          type: [string, "null"]
+          description: Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.
 
     TaskGoal:
       type: object
@@ -2246,7 +2376,7 @@ components:
       properties:
         tabs:
           type: object
-          required: [inbox, open, now, backlog, waiting, done, noise]
+          required: [inbox, open, now, backlog, waiting, done, noise, dropped]
           properties:
             inbox: { type: integer }
             open: { type: integer, description: "inbox + now + backlog + waiting" }
@@ -2255,6 +2385,7 @@ components:
             waiting: { type: integer }
             done: { type: integer }
             noise: { type: integer }
+            dropped: { type: integer }
         stats:
           type: object
           required: [inboxToTriage, dueThisWeek, waitingOnOthers, doneThisWeek]
@@ -2666,13 +2797,54 @@ components:
         label:
           type: string
 
+    ReplyDraft:
+      type: object
+      required: [taskId, to, cc, subject, body, canSaveToGmail, savedAt, gmailUrl, updatedAt]
+      properties:
+        taskId: { type: integer }
+        to: { type: string, description: Comma-separated addresses }
+        cc: { type: string, description: Comma-separated addresses }
+        subject: { type: string }
+        body: { type: string }
+        canSaveToGmail:
+          type: boolean
+          description: False when the email did not come from Gmail directly, so there is no thread to save into
+        savedAt:
+          type: [string, "null"]
+          format: date-time
+          description: When it was last saved to Gmail
+        gmailUrl:
+          type: [string, "null"]
+          description: Opens the thread in Gmail, with the draft in it
+        updatedAt:
+          type: string
+          format: date-time
+
+    ReplyDraftResult:
+      type: object
+      required: [draft]
+      properties:
+        draft:
+          oneOf:
+            - $ref: "#/components/schemas/ReplyDraft"
+            - type: "null"
+
+    ReplyDraftInput:
+      type: object
+      required: [to, cc, subject, body]
+      properties:
+        to: { type: string, maxLength: 2000 }
+        cc: { type: string, maxLength: 2000 }
+        subject: { type: string, maxLength: 500 }
+        body: { type: string, minLength: 1, maxLength: 20000 }
+
     TriageInput:
       type: object
       required: [action]
       properties:
         action:
           type: string
-          enum: [now, backlog, waiting, noise]
+          enum: [now, backlog, waiting, noise, dropped]
         waitingOnPersonId:
           type: [integer, "null"]
           description: For waiting. If left out, keeps the current Waiting on, or uses the For person.

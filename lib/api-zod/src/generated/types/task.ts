@@ -76,4 +76,9 @@ export interface Task {
   goalId: number | null;
   /** Ollie marked it as not goal work */
   notGoalWork: boolean;
+  /**
+     * Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.
+     * @nullable
+     */
+  noiseHint: string | null;
 }

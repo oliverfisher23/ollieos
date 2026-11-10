@@ -124,7 +124,7 @@ export const GetHomeResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -178,7 +178,8 @@ export const GetHomeResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 }),
   "reason": zod.string().describe('One-line reason, e.g. "Overdue by 2 days" or "High priority, due Friday 13th November"')
 })).describe('Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped.'),
@@ -194,7 +195,7 @@ export const GetHomeResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -248,7 +249,8 @@ export const GetHomeResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 }),
   "daysWaiting": zod.int().describe('Whole days since waitingSince (or updatedAt if unknown). Amber at 5 or more.')
 })),
@@ -256,7 +258,7 @@ export const GetHomeResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -310,7 +312,8 @@ export const GetHomeResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 })).describe('Open tasks with kind promise'),
   "doneThisWeek": zod.object({
   "count": zod.int(),
@@ -318,7 +321,7 @@ export const GetHomeResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -372,7 +375,8 @@ export const GetHomeResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 })).describe('Up to 5, most recently completed first')
 }),
   "lastSweepAt": zod.coerce.date().nullable().describe('When the last successful sweep finished. Null until the sweep runs (milestone 5).'),
@@ -438,7 +442,7 @@ export const GetHomeResponse = zod.object({
  * @summary List tasks for a tab with optional filters
  */
 export const ListTasksQueryParams = zod.object({
-  "tab": zod.enum(['inbox', 'open', 'now', 'backlog', 'waiting', 'done', 'noise']).optional(),
+  "tab": zod.enum(['inbox', 'open', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']).optional(),
   "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']).optional(),
   "weekStart": zod.date().optional().describe('Monday of the week (YYYY-MM-DD, London). Open tabs filter by due date, Done by completion date.'),
   "includeUndated": zod.coerce.boolean().optional().describe('With weekStart on open tabs, also include tasks with no due date.'),
@@ -449,7 +453,7 @@ export const ListTasksResponseItem = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -503,7 +507,8 @@ export const ListTasksResponseItem = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 })
 export const ListTasksResponse = zod.array(ListTasksResponseItem)
 
@@ -523,7 +528,8 @@ export const GetTaskSummaryResponse = zod.object({
   "backlog": zod.int(),
   "waiting": zod.int(),
   "done": zod.int(),
-  "noise": zod.int()
+  "noise": zod.int(),
+  "dropped": zod.int()
 }),
   "stats": zod.object({
   "inboxToTriage": zod.int(),
@@ -549,7 +555,7 @@ export const QuickAddTaskResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -603,7 +609,8 @@ export const QuickAddTaskResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 }),
   "warnings": zod.array(zod.string()).describe('e.g. "No project called @foo, added without a project"')
 })
@@ -621,7 +628,7 @@ export const GetTaskResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -675,7 +682,8 @@ export const GetTaskResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 }),
   "history": zod.array(zod.object({
   "id": zod.int(),
@@ -700,7 +708,7 @@ export const UpdateTaskParams = zod.object({
 export const UpdateTaskBody = zod.object({
   "title": zod.string().min(1).optional(),
   "kind": zod.enum(['task', 'promise']).optional(),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']).optional(),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']).optional(),
   "priority": zod.enum(['high', 'medium', 'low']).optional(),
   "dueDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
@@ -716,7 +724,7 @@ export const UpdateTaskResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -770,7 +778,8 @@ export const UpdateTaskResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 })
 
 
@@ -785,7 +794,7 @@ export const SnoozeTaskResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -839,7 +848,8 @@ export const SnoozeTaskResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 })
 
 
@@ -870,7 +880,7 @@ export const GetWeeklyUpdateResponse = zod.object({
 
 
 /**
- * @summary Triage one item to Now, Backlog, Waiting or Noise, optionally making a noise rule
+ * @summary Triage one item to Now, Backlog, Waiting, Noise or Dropped, optionally making a noise rule
  */
 export const TriageTaskParams = zod.object({
   "id": zod.coerce.number().int()
@@ -880,7 +890,7 @@ export const TriageTaskParams = zod.object({
 
 
 export const TriageTaskBody = zod.object({
-  "action": zod.enum(['now', 'backlog', 'waiting', 'noise']),
+  "action": zod.enum(['now', 'backlog', 'waiting', 'noise', 'dropped']),
   "waitingOnPersonId": zod.int().nullish().describe('For waiting. If left out, keeps the current Waiting on, or uses the For person.'),
   "noiseRule": zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
@@ -893,7 +903,7 @@ export const TriageTaskResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -947,7 +957,8 @@ export const TriageTaskResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 }),
   "noiseRule": zod.union([zod.object({
   "id": zod.int(),
@@ -975,7 +986,7 @@ export const UndoTaskResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -1029,12 +1040,13 @@ export const UndoTaskResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 })
 
 
 /**
- * @summary Restore a Noise item to the Inbox
+ * @summary Restore a Noise or Dropped item to the Inbox
  */
 export const RestoreTaskParams = zod.object({
   "id": zod.coerce.number().int()
@@ -1044,7 +1056,7 @@ export const RestoreTaskResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -1098,7 +1110,157 @@ export const RestoreTaskResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+})
+
+
+/**
+ * @summary Keep an Inbox item the noise check flagged; clears "Probably noise"
+ */
+export const KeepTaskParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const KeepTaskResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+})
+
+
+/**
+ * @summary The saved reply draft for an email task, if there is one
+ */
+export const GetReplyDraftParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetReplyDraftResponse = zod.object({
+  "draft": zod.union([zod.object({
+  "taskId": zod.int(),
+  "to": zod.string().describe('Comma-separated addresses'),
+  "cc": zod.string().describe('Comma-separated addresses'),
+  "subject": zod.string(),
+  "body": zod.string(),
+  "canSaveToGmail": zod.boolean().describe('False when the email did not come from Gmail directly, so there is no thread to save into'),
+  "savedAt": zod.coerce.date().nullable().describe('When it was last saved to Gmail'),
+  "gmailUrl": zod.string().nullable().describe('Opens the thread in Gmail, with the draft in it'),
+  "updatedAt": zod.coerce.date()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Writes (or rewrites) a reply with AI from the email thread, OllieOS and playbooks. Nothing is sent.
+ */
+export const WriteReplyDraftParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const WriteReplyDraftResponse = zod.object({
+  "taskId": zod.int(),
+  "to": zod.string().describe('Comma-separated addresses'),
+  "cc": zod.string().describe('Comma-separated addresses'),
+  "subject": zod.string(),
+  "body": zod.string(),
+  "canSaveToGmail": zod.boolean().describe('False when the email did not come from Gmail directly, so there is no thread to save into'),
+  "savedAt": zod.coerce.date().nullable().describe('When it was last saved to Gmail'),
+  "gmailUrl": zod.string().nullable().describe('Opens the thread in Gmail, with the draft in it'),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Saves the edited reply as a draft in the Gmail thread (updating the earlier one). Never sends.
+ */
+export const SaveReplyDraftToGmailParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const saveReplyDraftToGmailBodyToMax = 2000;
+
+export const saveReplyDraftToGmailBodyCcMax = 2000;
+
+export const saveReplyDraftToGmailBodySubjectMax = 500;
+
+export const saveReplyDraftToGmailBodyBodyMax = 20000;
+
+
+
+export const SaveReplyDraftToGmailBody = zod.object({
+  "to": zod.string().max(saveReplyDraftToGmailBodyToMax),
+  "cc": zod.string().max(saveReplyDraftToGmailBodyCcMax),
+  "subject": zod.string().max(saveReplyDraftToGmailBodySubjectMax),
+  "body": zod.string().min(1).max(saveReplyDraftToGmailBodyBodyMax)
+})
+
+export const SaveReplyDraftToGmailResponse = zod.object({
+  "taskId": zod.int(),
+  "to": zod.string().describe('Comma-separated addresses'),
+  "cc": zod.string().describe('Comma-separated addresses'),
+  "subject": zod.string(),
+  "body": zod.string(),
+  "canSaveToGmail": zod.boolean().describe('False when the email did not come from Gmail directly, so there is no thread to save into'),
+  "savedAt": zod.coerce.date().nullable().describe('When it was last saved to Gmail'),
+  "gmailUrl": zod.string().nullable().describe('Opens the thread in Gmail, with the draft in it'),
+  "updatedAt": zod.coerce.date()
 })
 
 
@@ -1333,7 +1495,7 @@ export const GetProjectResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -1387,7 +1549,8 @@ export const GetProjectResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 })),
   "people": zod.array(zod.object({
   "id": zod.int(),
@@ -1581,7 +1744,7 @@ export const GetPersonResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -1635,13 +1798,14 @@ export const GetPersonResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 })),
   "theyOwe": zod.array(zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -1695,7 +1859,8 @@ export const GetPersonResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 })),
   "projects": zod.array(zod.object({
   "id": zod.int(),
@@ -3519,7 +3684,7 @@ export const AskOllieOSResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -3573,7 +3738,8 @@ export const AskOllieOSResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -3643,7 +3809,7 @@ export const GetAskThreadResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -3697,7 +3863,8 @@ export const GetAskThreadResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -3767,7 +3934,7 @@ export const DraftAskReplyResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -3821,7 +3988,8 @@ export const DraftAskReplyResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -3891,7 +4059,7 @@ export const AllowAskTurnResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -3945,7 +4113,8 @@ export const AllowAskTurnResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -4024,7 +4193,7 @@ export const BundleAskTasksResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -4078,7 +4247,8 @@ export const BundleAskTasksResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -4148,7 +4318,7 @@ export const UndoAskBundleResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -4202,7 +4372,8 @@ export const UndoAskBundleResponse = zod.object({
   "inherited": zod.boolean().describe('True when it comes from the task\'s project')
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
-  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),

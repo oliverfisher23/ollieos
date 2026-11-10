@@ -28,7 +28,7 @@ import { writeAudit } from "../lib/audit";
 import type { FieldChange } from "./history";
 import { toTaskView, toTaskViews, type TaskView } from "./taskView";
 
-export type TaskTab = "inbox" | "open" | "now" | "backlog" | "waiting" | "done" | "noise";
+export type TaskTab = "inbox" | "open" | "now" | "backlog" | "waiting" | "done" | "noise" | "dropped";
 
 export class NotFoundError extends Error {}
 export class ValidationError extends Error {}
@@ -106,7 +106,7 @@ export async function listTasks(params: ListTasksParams): Promise<TaskView[]> {
   const order =
     tab === "done"
       ? [desc(tasksTable.completedAt), desc(tasksTable.id)]
-      : tab === "noise"
+      : tab === "noise" || tab === "dropped"
         ? [desc(tasksTable.updatedAt), desc(tasksTable.id)]
         : tab === "inbox"
           ? [desc(tasksTable.capturedAt), desc(tasksTable.createdAt)]
@@ -134,6 +134,7 @@ export async function getTaskSummary(weekStartParam?: string) {
       waiting: sql<number>`count(*) filter (where ${tasksTable.status} = 'waiting')::int`,
       done: sql<number>`count(*) filter (where ${tasksTable.status} = 'done')::int`,
       noise: sql<number>`count(*) filter (where ${tasksTable.status} = 'noise')::int`,
+      dropped: sql<number>`count(*) filter (where ${tasksTable.status} = 'dropped')::int`,
       dueThisWeek: sql<number>`count(*) filter (where ${tasksTable.status} in ('inbox','now','backlog','waiting') and ${tasksTable.dueDate} between ${ws} and ${addDays(ws, 6)})::int`,
       doneThisWeek: sql<number>`count(*) filter (where ${tasksTable.status} = 'done' and ${tasksTable.completedAt} >= ${start.toISOString()} and ${tasksTable.completedAt} < ${end.toISOString()})::int`,
     })
@@ -148,6 +149,7 @@ export async function getTaskSummary(weekStartParam?: string) {
       waiting: counts.waiting,
       done: counts.done,
       noise: counts.noise,
+      dropped: counts.dropped,
     },
     stats: {
       inboxToTriage: counts.inbox,
@@ -291,7 +293,7 @@ export async function updateTask(id: number, input: TaskUpdateInput, actor: stri
     if (to === "waiting") set.waitingSince = now;
     else if (current.status === "waiting") set.waitingSince = null;
 
-    if (to === "done" || to === "noise") set.snoozedUntil = null;
+    if (to === "done" || to === "noise" || to === "dropped") set.snoozedUntil = null;
   }
 
   if (changes.length === 0) return toTaskView(current);

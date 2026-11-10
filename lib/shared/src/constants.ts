@@ -1,4 +1,4 @@
-export const TASK_STATUSES = ["inbox", "now", "backlog", "waiting", "done", "noise"] as const;
+export const TASK_STATUSES = ["inbox", "now", "backlog", "waiting", "done", "noise", "dropped"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
 export const OPEN_STATUSES: readonly TaskStatus[] = ["inbox", "now", "backlog", "waiting"];
@@ -19,6 +19,7 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
   waiting: "Waiting on",
   done: "Done",
   noise: "Noise",
+  dropped: "Dropped",
 };
 
 export const PRIORITY_LABELS: Record<Priority, string> = {

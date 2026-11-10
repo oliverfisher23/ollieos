@@ -315,6 +315,7 @@ body { font-family: var(--oo-font-sans); margin: 0; overflow-x: hidden; }
 .oo-pill[data-tone="done"] { background: var(--oo-pill-done-bg); color: var(--oo-pill-done-fg); }
 .oo-pill[data-tone="inbox"] { background: var(--oo-pill-inbox-bg); color: var(--oo-pill-inbox-fg); }
 .oo-pill[data-tone="noise"] { background: var(--oo-pill-noise-bg); color: var(--oo-pill-noise-fg); }
+.oo-pill[data-tone="dropped"] { background: var(--oo-pill-dropped-bg); color: var(--oo-pill-dropped-fg); }
 .oo-pill[data-tone="high"] { background: var(--oo-pill-high-bg); color: var(--oo-pill-high-fg); font-weight: 600; }
 .oo-mark { flex: none; width: 24px; height: 24px; border-radius: var(--oo-r-full); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; }
 .oo-mark[data-src="email"] { background: var(--oo-src-email-bg); color: var(--oo-src-email-fg); }
@@ -468,7 +469,7 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-tri-snippet { margin: 0; font-size: 14px; line-height: 1.55; color: var(--oo-text-on-dark-2); }
 .oo-tri-suggest { font-size: 12px; color: var(--oo-text-on-dark-3); }
 .oo-tri-suggest b { font-weight: 600; color: var(--oo-text-on-dark); }
-.oo-tri-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.oo-tri-actions { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 .oo-tri-btn { font: inherit; font-size: 14px; padding: 12px 8px; border-radius: var(--oo-r-input-lg); border: 1px solid var(--oo-white-20); background: var(--oo-white-08); color: var(--oo-text-on-dark); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .oo-tri-btn:hover { background: var(--oo-white-16); }
 .oo-tri-btn[data-primary="true"] { background: var(--oo-panel); color: var(--oo-ink); border-color: transparent; font-weight: 600; }
@@ -491,7 +492,9 @@ button.oo-chip:hover { background: var(--oo-white-16); }
   .oo-tri-snippet { font-size: 15px; color: var(--oo-ink-soft); }
   .oo-tri-suggest { margin-top: auto; padding: 12px 14px; border-radius: var(--oo-r-card-sm); background: var(--oo-field); font-size: 13px; color: var(--oo-ink-soft); }
   .oo-tri-suggest b { color: var(--oo-ink); }
+  .oo-tri-suggest + .oo-tri-suggest { margin-top: 0; }
   .oo-tri-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .oo-tri-actions > :first-child { grid-column: span 2; }
   .oo-tri-btn { font-size: 16px; min-height: 56px; border-radius: var(--oo-r-card); }
   .oo-tri-undo { min-height: 44px; }
   .oo-tri-clear { flex: 1 1 auto; align-items: center; justify-content: center; text-align: center; }

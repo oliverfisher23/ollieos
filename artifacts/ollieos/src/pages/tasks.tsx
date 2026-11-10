@@ -32,6 +32,7 @@ const TABS: { value: TaskTab; label: string }[] = [
   { value: 'waiting', label: 'Waiting on' },
   { value: 'done', label: 'Done' },
   { value: 'noise', label: 'Noise' },
+  { value: 'dropped', label: 'Dropped' },
 ];
 const TAB_VALUES = TABS.map((t) => t.value) as string[];
 
@@ -43,6 +44,7 @@ const EMPTY: Record<TaskTab, string> = {
   waiting: 'Nobody is holding anything up.',
   done: 'Nothing done in this view yet.',
   noise: 'No noise filtered out.',
+  dropped: 'Nothing dropped.',
 };
 
 function useQueryState() {
@@ -71,7 +73,7 @@ export default function TasksPage() {
   const undated = sp.get('undated') === '1';
   const q = sp.get('q') ?? '';
   const taskId = Number(sp.get('task')) || null;
-  const openTab = tab !== 'done' && tab !== 'noise';
+  const openTab = tab !== 'done' && tab !== 'noise' && tab !== 'dropped';
 
   const [search, setSearch] = useState(q);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -159,7 +161,7 @@ export default function TasksPage() {
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
             <Link href="/triage" className="oo-btn oo-btn-ink" data-testid="link-triage-all">Triage one at a time</Link>
             <p className="oo-kbd-hint" style={{ margin: 0 }} id="inbox-keys">
-              Keys: <kbd>J</kbd> <kbd>K</kbd> to move, <kbd>N</kbd> Now, <kbd>B</kbd> Backlog, <kbd>W</kbd> Waiting, <kbd>X</kbd> Noise, <kbd>E</kbd> to open
+              Keys: <kbd>J</kbd> <kbd>K</kbd> to move, <kbd>N</kbd> Now, <kbd>B</kbd> Backlog, <kbd>W</kbd> Waiting, <kbd>D</kbd> Drop, <kbd>X</kbd> Noise, <kbd>E</kbd> to open
             </p>
           </div>
         )}
@@ -221,15 +223,17 @@ const TRIAGE_BUTTONS: { action: TriageInputAction; label: string; key: string }[
   { action: 'now', label: 'Now', key: 'N' },
   { action: 'backlog', label: 'Backlog', key: 'B' },
   { action: 'waiting', label: 'Waiting', key: 'W' },
+  { action: 'dropped', label: 'Drop', key: 'D' },
   { action: 'noise', label: 'Noise', key: 'X' },
 ];
-const KEY_ACTION: Record<string, TriageInputAction> = { n: 'now', b: 'backlog', w: 'waiting', x: 'noise' };
+const KEY_ACTION: Record<string, TriageInputAction> = { n: 'now', b: 'backlog', w: 'waiting', d: 'dropped', x: 'noise' };
 
 function isTyping(el: EventTarget | null) {
   return el instanceof HTMLElement && (el.isContentEditable || ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName));
 }
 
-function TaskRows({ tab, rows, selected, onOpen }: { tab: TaskTab; rows: Task[]; selected: number | null; onOpen: (id: number) => void }) {
+function TaskRows({ tab, rows: allRows, selected, onOpen }: { tab: TaskTab; rows: Task[]; selected: number | null; onOpen: (id: number) => void }) {
+  let rows = allRows;
   const update = useUpdateTask();
   const invalidate = useInvalidateTasks();
   const actions = useTaskActions();
@@ -239,7 +243,19 @@ function TaskRows({ tab, rows, selected, onOpen }: { tab: TaskTab; rows: Task[];
   mutateRef.current = update.mutate;
   const inbox = tab === 'inbox';
   const noise = tab === 'noise';
-  const extraCol = inbox || noise;
+  const dropped = tab === 'dropped';
+  const extraCol = inbox || noise || dropped;
+
+  // On the Inbox tab, items the noise check flagged sit in their own group below the rest.
+  const real = inbox ? rows.filter((t) => !t.noiseHint) : rows;
+  const hinted = inbox ? rows.filter((t) => t.noiseHint) : [];
+  rows = inbox ? [...real, ...hinted] : rows;
+  const [clearing, setClearing] = useState(false);
+  const noiseAll = async () => {
+    setClearing(true);
+    await actions.noiseAll(hinted);
+    setClearing(false);
+  };
 
   // Keyboard triage on the Inbox tab. The cursor follows a row id; when that row leaves,
   // it stays at the same position so the next item is ready.
@@ -357,7 +373,12 @@ function TaskRows({ tab, rows, selected, onOpen }: { tab: TaskTab; rows: Task[];
   );
 
   const rowActions = (t: Task) =>
-    inbox ? (
+    inbox && t.noiseHint ? (
+      <div role="group" aria-label={'Probably noise: ' + t.title} style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+        <button type="button" className="oo-mini" disabled={!!acting[t.id]} onClick={() => runRow(t, () => actions.keep(t))} data-testid={'button-row-keep-' + t.id}>Keep</button>
+        <button type="button" className="oo-mini" disabled={!!acting[t.id]} aria-keyshortcuts="X" onClick={() => triage(t, 'noise')} data-testid={'button-row-noise-' + t.id}>Noise</button>
+      </div>
+    ) : inbox ? (
       <div role="group" aria-label={'Triage: ' + t.title} style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
         {TRIAGE_BUTTONS.map((b) => (
           <button key={b.action} type="button" className="oo-mini" disabled={!!acting[t.id]} aria-keyshortcuts={b.key}
@@ -368,64 +389,100 @@ function TaskRows({ tab, rows, selected, onOpen }: { tab: TaskTab; rows: Task[];
       </div>
     ) : (
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-        <span className="oo-soft" style={{ fontSize: 12 }} data-testid={'text-row-rule-' + t.id}>{t.noiseRule ? t.noiseRule.label : 'Moved by hand'}</span>
+        {noise && <span className="oo-soft" style={{ fontSize: 12 }} data-testid={'text-row-rule-' + t.id}>{t.noiseRule ? t.noiseRule.label : 'Moved by hand'}</span>}
         <button type="button" className="oo-mini" disabled={!!acting[t.id]} aria-label={'Restore to Inbox: ' + t.title}
           onClick={() => runRow(t, () => actions.restore(t))} data-testid={'button-restore-' + t.id}>Restore</button>
       </div>
     );
 
-  return (
-    <>
-      <div className="oo-table-wrap" style={{ overflowX: 'auto' }}>
-        <table className="oo-table">
-          <thead>
-            <tr>
-              <th scope="col">Task</th><th scope="col">Source</th><th scope="col">From</th>
-              <th scope="col">Priority</th><th scope="col">Due</th><th scope="col">Status</th>
-              {extraCol && <th scope="col">{inbox ? 'Triage' : 'Caught by'}</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((t) => (
-              <tr key={t.id} className="oo-row" data-selected={t.id === selected} data-cursor={inbox && cursorTask?.id === t.id && cursor !== null} data-leaving={leaving(t)} onClick={() => onOpen(t.id)} data-testid={'row-task-' + t.id}>
-                <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    {check(t)}
+  const hint = (t: Task) =>
+    t.noiseHint ? (
+      <span className="oo-soft" style={{ fontSize: 12 }} data-testid={'text-noise-hint-' + t.id}>Probably noise: {t.noiseHint}</span>
+    ) : null;
+
+  const table = (list: Task[], label: string) => (
+    <div className="oo-table-wrap" style={{ overflowX: 'auto' }}>
+      <table className="oo-table" aria-label={label}>
+        <thead>
+          <tr>
+            <th scope="col">Task</th><th scope="col">Source</th><th scope="col">From</th>
+            <th scope="col">Priority</th><th scope="col">Due</th><th scope="col">Status</th>
+            {extraCol && <th scope="col">{inbox ? 'Triage' : noise ? 'Caught by' : <span className="oo-sr">Restore</span>}</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {list.map((t) => (
+            <tr key={t.id} className="oo-row" data-selected={t.id === selected} data-cursor={inbox && cursorTask?.id === t.id && cursor !== null} data-leaving={leaving(t)} onClick={() => onOpen(t.id)} data-testid={'row-task-' + t.id}>
+              <td>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {check(t)}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                     <button type="button" className="oo-row-title" data-done={doneOf(t)} onClick={(e) => { e.stopPropagation(); onOpen(t.id); }}
                       onFocus={() => inbox && setCursor(t.id)} aria-describedby={inbox ? 'inbox-keys' : undefined} data-testid={'button-open-task-' + t.id}>{t.title}</button>
-                    {t.stale && <StalePill id={t.id} />}
+                    {hint(t)}
                   </div>
-                </td>
-                <td><SourceLabel source={t.source} /></td>
-                <td className="oo-soft">{t.fromName ?? t.person?.name ?? ''}</td>
-                <td onClick={(e) => e.stopPropagation()}>{priorityCell(t, 'select-row-priority-' + t.id)}</td>
-                <td onClick={(e) => e.stopPropagation()}>{dueCell(t, 'select-row-due-' + t.id)}</td>
-                <td onClick={(e) => e.stopPropagation()} data-testid={'status-task-' + t.id}>{statusCell(t, 'select-row-status-' + t.id)}</td>
-                {extraCol && <td onClick={(e) => e.stopPropagation()}>{rowActions(t)}</td>}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="oo-cards">
-        {rows.map((t) => (
-          <div key={t.id} className="oo-card-row" data-leaving={leaving(t)} data-testid={'card-task-' + t.id}>
-            <div style={{ paddingTop: 2 }}>{check(t)}</div>
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <button type="button" className="oo-row-title" data-done={doneOf(t)} style={{ fontSize: 15, minHeight: 24 }} onClick={() => onOpen(t.id)}
-                onFocus={() => inbox && setCursor(t.id)} data-testid={'button-open-task-mobile-' + t.id}>{t.title}</button>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-                <SourceMark source={t.source} size={20} />
-                {priorityCell(t, 'select-card-priority-' + t.id)}
-                {statusCell(t, 'select-card-status-' + t.id)}
-                {dueCell(t, 'select-card-due-' + t.id, true)}
-                {t.stale && <StalePill id={t.id} />}
-              </div>
-              {extraCol && rowActions(t)}
+                  {t.stale && <StalePill id={t.id} />}
+                </div>
+              </td>
+              <td><SourceLabel source={t.source} /></td>
+              <td className="oo-soft">{t.fromName ?? t.person?.name ?? ''}</td>
+              <td onClick={(e) => e.stopPropagation()}>{priorityCell(t, 'select-row-priority-' + t.id)}</td>
+              <td onClick={(e) => e.stopPropagation()}>{dueCell(t, 'select-row-due-' + t.id)}</td>
+              <td onClick={(e) => e.stopPropagation()} data-testid={'status-task-' + t.id}>{statusCell(t, 'select-row-status-' + t.id)}</td>
+              {extraCol && <td onClick={(e) => e.stopPropagation()}>{rowActions(t)}</td>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const cards = (list: Task[]) => (
+    <div className="oo-cards">
+      {list.map((t) => (
+        <div key={t.id} className="oo-card-row" data-leaving={leaving(t)} data-testid={'card-task-' + t.id}>
+          <div style={{ paddingTop: 2 }}>{check(t)}</div>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <button type="button" className="oo-row-title" data-done={doneOf(t)} style={{ fontSize: 15, minHeight: 24 }} onClick={() => onOpen(t.id)}
+              onFocus={() => inbox && setCursor(t.id)} data-testid={'button-open-task-mobile-' + t.id}>{t.title}</button>
+            {hint(t)}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+              <SourceMark source={t.source} size={20} />
+              {priorityCell(t, 'select-card-priority-' + t.id)}
+              {statusCell(t, 'select-card-status-' + t.id)}
+              {dueCell(t, 'select-card-due-' + t.id, true)}
+              {t.stale && <StalePill id={t.id} />}
             </div>
+            {extraCol && rowActions(t)}
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <>
+      {real.length > 0 && (
+        <>
+          {table(real, 'Tasks')}
+          {cards(real)}
+        </>
+      )}
+      {hinted.length > 0 && (
+        <section aria-labelledby="noise-group-title" style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: real.length ? 12 : 0 }} data-testid="group-probably-noise">
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+            <h2 id="noise-group-title" className="oo-serif" style={{ margin: 0, fontSize: 20, fontWeight: 400 }}>
+              Probably noise <span className="oo-count oo-num" data-testid="text-noise-group-count">{hinted.length}</span>
+            </h2>
+            <button type="button" className="oo-btn oo-btn-outline" disabled={clearing} onClick={noiseAll} data-testid="button-noise-all">
+              {clearing ? 'Moving…' : 'Move all to Noise'}
+            </button>
+            <span className="oo-muted" style={{ fontSize: 13 }}>Keep anything that matters. Open one to make a rule from it.</span>
+          </div>
+          {table(hinted, 'Probably noise')}
+          {cards(hinted)}
+        </section>
+      )}
     </>
   );
 }

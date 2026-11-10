@@ -122,6 +122,9 @@ import type {
   ProjectUpdate,
   QuickAddInput,
   QuickAddResult,
+  ReplyDraft,
+  ReplyDraftInput,
+  ReplyDraftResult,
   SearchKnowledgeParams,
   SearchResult,
   SuggestionApprove,
@@ -1739,7 +1742,7 @@ export const getTriageTaskUrl = (id: number,) => {
 }
 
 /**
- * @summary Triage one item to Now, Backlog, Waiting or Noise, optionally making a noise rule
+ * @summary Triage one item to Now, Backlog, Waiting, Noise or Dropped, optionally making a noise rule
  */
 export const triageTask = async (id: number,
     triageInput: TriageInput, options?: Parameters<typeof customFetch>[1]): Promise<TriageResult> => {
@@ -1806,7 +1809,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type TriageTaskMutationVariables = {id: number;data: BodyType<TriageInput>}
 
     /**
- * @summary Triage one item to Now, Backlog, Waiting or Noise, optionally making a noise rule
+ * @summary Triage one item to Now, Backlog, Waiting, Noise or Dropped, optionally making a noise rule
  */
 export const useTriageTask = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof triageTask>>, TError,TriageTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1902,7 +1905,7 @@ export const getRestoreTaskUrl = (id: number,) => {
 }
 
 /**
- * @summary Restore a Noise item to the Inbox
+ * @summary Restore a Noise or Dropped item to the Inbox
  */
 export const restoreTask = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
 
@@ -1954,7 +1957,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type RestoreTaskMutationVariables = {id: number}
 
     /**
- * @summary Restore a Noise item to the Inbox
+ * @summary Restore a Noise or Dropped item to the Inbox
  */
 export const useRestoreTask = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreTask>>, TError,RestoreTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -1965,6 +1968,344 @@ export const useRestoreTask = <TError = ErrorType<NotAuthorisedResponse | ErrorE
         TContext
       > => {
       return useMutation(getRestoreTaskMutationOptions(options), queryClient);
+    }
+
+export const getKeepTaskUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/keep`
+}
+
+/**
+ * @summary Keep an Inbox item the noise check flagged; clears "Probably noise"
+ */
+export const keepTask = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
+
+  return customFetch<Task>(getKeepTaskUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getKeepTaskMutationKey = () => ['keepTask'] as const;
+
+export const getKeepTaskMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof keepTask>>, TError,KeepTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof keepTask>>, TError,KeepTaskMutationVariables, TContext> => {
+
+const mutationKey = getKeepTaskMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof keepTask>>, KeepTaskMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  keepTask(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type KeepTaskMutationResult = NonNullable<Awaited<ReturnType<typeof keepTask>>>
+
+    export type KeepTaskMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+    export type KeepTaskMutationVariables = {id: number}
+
+    /**
+ * @summary Keep an Inbox item the noise check flagged; clears "Probably noise"
+ */
+export const useKeepTask = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof keepTask>>, TError,KeepTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof keepTask>>,
+        TError,
+        KeepTaskMutationVariables,
+        TContext
+      > => {
+      return useMutation(getKeepTaskMutationOptions(options), queryClient);
+    }
+
+export const getGetReplyDraftUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/reply-draft`
+}
+
+/**
+ * @summary The saved reply draft for an email task, if there is one
+ */
+export const getReplyDraft = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ReplyDraftResult> => {
+
+  return customFetch<ReplyDraftResult>(getGetReplyDraftUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReplyDraftQueryKey = (id: number,) => {
+    return [
+    `/api/tasks/${id}/reply-draft`
+    ] as const;
+    }
+
+
+export const getGetReplyDraftQueryOptions = <TData = Awaited<ReturnType<typeof getReplyDraft>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReplyDraft>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReplyDraftQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReplyDraft>>> = ({ signal }) => getReplyDraft(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReplyDraft>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetReplyDraftQueryResult = NonNullable<Awaited<ReturnType<typeof getReplyDraft>>>
+export type GetReplyDraftQueryError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+
+
+export function useGetReplyDraft<TData = Awaited<ReturnType<typeof getReplyDraft>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReplyDraft>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReplyDraft>>,
+          TError,
+          Awaited<ReturnType<typeof getReplyDraft>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetReplyDraft<TData = Awaited<ReturnType<typeof getReplyDraft>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReplyDraft>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReplyDraft>>,
+          TError,
+          Awaited<ReturnType<typeof getReplyDraft>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetReplyDraft<TData = Awaited<ReturnType<typeof getReplyDraft>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReplyDraft>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The saved reply draft for an email task, if there is one
+ */
+
+export function useGetReplyDraft<TData = Awaited<ReturnType<typeof getReplyDraft>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReplyDraft>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetReplyDraftQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getWriteReplyDraftUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/reply-draft`
+}
+
+/**
+ * @summary Writes (or rewrites) a reply with AI from the email thread, OllieOS and playbooks. Nothing is sent.
+ */
+export const writeReplyDraft = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ReplyDraft> => {
+
+  return customFetch<ReplyDraft>(getWriteReplyDraftUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getWriteReplyDraftMutationKey = () => ['writeReplyDraft'] as const;
+
+export const getWriteReplyDraftMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeReplyDraft>>, TError,WriteReplyDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof writeReplyDraft>>, TError,WriteReplyDraftMutationVariables, TContext> => {
+
+const mutationKey = getWriteReplyDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof writeReplyDraft>>, WriteReplyDraftMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  writeReplyDraft(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type WriteReplyDraftMutationResult = NonNullable<Awaited<ReturnType<typeof writeReplyDraft>>>
+
+    export type WriteReplyDraftMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+    export type WriteReplyDraftMutationVariables = {id: number}
+
+    /**
+ * @summary Writes (or rewrites) a reply with AI from the email thread, OllieOS and playbooks. Nothing is sent.
+ */
+export const useWriteReplyDraft = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof writeReplyDraft>>, TError,WriteReplyDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof writeReplyDraft>>,
+        TError,
+        WriteReplyDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getWriteReplyDraftMutationOptions(options), queryClient);
+    }
+
+export const getSaveReplyDraftToGmailUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/reply-draft/gmail`
+}
+
+/**
+ * @summary Saves the edited reply as a draft in the Gmail thread (updating the earlier one). Never sends.
+ */
+export const saveReplyDraftToGmail = async (id: number,
+    replyDraftInput: ReplyDraftInput, options?: Parameters<typeof customFetch>[1]): Promise<ReplyDraft> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReplyDraft>(getSaveReplyDraftToGmailUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(replyDraftInput)
+  }
+);}
+
+
+
+
+
+export const getSaveReplyDraftToGmailMutationKey = () => ['saveReplyDraftToGmail'] as const;
+
+export const getSaveReplyDraftToGmailMutationOptions = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveReplyDraftToGmail>>, TError,SaveReplyDraftToGmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveReplyDraftToGmail>>, TError,SaveReplyDraftToGmailMutationVariables, TContext> => {
+
+const mutationKey = getSaveReplyDraftToGmailMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveReplyDraftToGmail>>, SaveReplyDraftToGmailMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  saveReplyDraftToGmail(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveReplyDraftToGmailMutationResult = NonNullable<Awaited<ReturnType<typeof saveReplyDraftToGmail>>>
+    export type SaveReplyDraftToGmailMutationBody = BodyType<ReplyDraftInput>
+    export type SaveReplyDraftToGmailMutationError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>
+    export type SaveReplyDraftToGmailMutationVariables = {id: number;data: BodyType<ReplyDraftInput>}
+
+    /**
+ * @summary Saves the edited reply as a draft in the Gmail thread (updating the earlier one). Never sends.
+ */
+export const useSaveReplyDraftToGmail = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveReplyDraftToGmail>>, TError,SaveReplyDraftToGmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveReplyDraftToGmail>>,
+        TError,
+        SaveReplyDraftToGmailMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveReplyDraftToGmailMutationOptions(options), queryClient);
     }
 
 export const getGetTaskChaseLineUrl = (id: number,) => {

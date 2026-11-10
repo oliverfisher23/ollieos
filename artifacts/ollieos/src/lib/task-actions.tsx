@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import {
   getTaskChaseLine,
   getWeeklyUpdate,
+  keepTask,
   restoreTask,
   snoozeTask,
   triageTask,
@@ -21,6 +22,7 @@ const TRIAGE_LABEL: Record<TriageInput['action'], string> = {
   backlog: 'Moved to Backlog',
   waiting: 'Moved to Waiting on',
   noise: 'Moved to Noise',
+  dropped: 'Dropped',
 };
 
 /**
@@ -102,12 +104,49 @@ export function useTaskActions() {
         try {
           const t = await restoreTask(task.id);
           invalidate(task.id);
-          offerUndo('Restored to Inbox', task);
+          offerUndo(`Restored from ${STATUS_LABELS[task.status]} to Inbox`, task);
           return t;
         } catch (err) {
           fail(err);
           return null;
         }
+      },
+
+      /** Keeps an item the noise check flagged; it stays in the Inbox. */
+      async keep(task: Task) {
+        try {
+          const t = await keepTask(task.id);
+          invalidate(task.id);
+          notify('Kept in the Inbox', task.title);
+          return t;
+        } catch (err) {
+          fail(err);
+          return null;
+        }
+      },
+
+      /** Moves several items to Noise with one toast and one Undo for all of them. */
+      async noiseAll(tasks: Task[]) {
+        const moved: Task[] = [];
+        for (const t of tasks) {
+          try {
+            await triageTask(t.id, { action: 'noise' });
+            moved.push(t);
+          } catch (err) {
+            reportApiError(err);
+          }
+        }
+        if (moved.length) invalidate(moved[0].id);
+        if (moved.length < tasks.length) notify('Some items did not move', 'Try again in a moment.');
+        if (!moved.length) return 0;
+        notifyUndo(moved.length === 1 ? 'Moved 1 item to Noise' : `Moved ${moved.length} items to Noise`, undefined, async () => {
+          for (const t of moved) {
+            try { await undoTask(t.id); } catch (err) { reportApiError(err); }
+          }
+          invalidate(moved[0].id);
+          notify('Undone', moved.length === 1 ? '1 item is back in the Inbox' : `${moved.length} items are back in the Inbox`);
+        });
+        return moved.length;
       },
 
       async copyChase(task: Task) {

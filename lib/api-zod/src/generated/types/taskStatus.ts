@@ -16,4 +16,5 @@ export const TaskStatus = {
   waiting: 'waiting',
   done: 'done',
   noise: 'noise',
+  dropped: 'dropped',
 } as const;

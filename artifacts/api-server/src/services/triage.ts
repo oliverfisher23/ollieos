@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lt, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt, notInArray, sql } from "drizzle-orm";
 import {
   auditEventsTable,
   goalsTable,
@@ -23,7 +23,7 @@ import {
 } from "./tasks";
 import { toTaskView, toTaskViews, type TaskView } from "./taskView";
 
-export type TriageAction = "now" | "backlog" | "waiting" | "noise";
+export type TriageAction = "now" | "backlog" | "waiting" | "noise" | "dropped";
 
 export interface TriageInput {
   action: TriageAction;
@@ -55,7 +55,8 @@ async function latestEvent(id: number) {
   const [last] = await db
     .select()
     .from(auditEventsTable)
-    .where(and(eq(auditEventsTable.entityType, "task"), eq(auditEventsTable.entityId, id), ne(auditEventsTable.action, "read")))
+    // Reads and reply drafts do not change the task, so they never block an Undo.
+    .where(and(eq(auditEventsTable.entityType, "task"), eq(auditEventsTable.entityId, id), notInArray(auditEventsTable.action, ["read", "reply_draft"])))
     .orderBy(desc(auditEventsTable.createdAt), desc(auditEventsTable.id))
     .limit(1);
   return last ?? null;
@@ -96,7 +97,7 @@ export async function triageTask(id: number, input: TriageInput, actor: string) 
   } else if (current.status === "waiting") {
     set.waitingSince = null;
   }
-  if (input.action === "noise") set.snoozedUntil = null;
+  if (input.action === "noise" || input.action === "dropped") set.snoozedUntil = null;
 
   return db.transaction(async (tx) => {
     let rule: Awaited<ReturnType<typeof upsertNoiseRule>> | null = null;
@@ -189,14 +190,15 @@ export async function undoLast(id: number, actor: string): Promise<TaskView> {
   return toTaskView(updated);
 }
 
-/** Noise back to the Inbox, ready to triage again. */
+/** Noise or Dropped back to the Inbox, ready to triage again. */
 export async function restoreFromNoise(id: number, actor: string): Promise<TaskView> {
   const current = await loadTask(id);
-  if (current.status !== "noise") throw new ConflictError("Only items in Noise can be restored");
+  if (current.status !== "noise" && current.status !== "dropped") throw new ConflictError("Only items in Noise or Dropped can be restored");
   const updated = await db.transaction(async (tx) => {
     const [row] = await tx
       .update(tasksTable)
-      .set({ status: "inbox", noiseRuleId: null, triagedAt: null })
+      // Bringing it back says it is real, so it no longer shows as "Probably noise".
+      .set({ status: "inbox", noiseRuleId: null, triagedAt: null, noiseHintKept: current.noiseHint ? true : current.noiseHintKept })
       .where(eq(tasksTable.id, id))
       .returning();
     await writeAudit(tx, {
@@ -204,7 +206,7 @@ export async function restoreFromNoise(id: number, actor: string): Promise<TaskV
       action: "restore",
       entityType: "task",
       entityId: id,
-      payload: { changes: [{ field: "status", from: "Noise", to: "Inbox" }], previous: snapshotOf(current) },
+      payload: { changes: [{ field: "status", from: STATUS_LABELS[current.status], to: "Inbox" }], previous: snapshotOf(current) },
     });
     return row;
   });

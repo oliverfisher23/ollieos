@@ -67,6 +67,12 @@ export const tasksTable = pgTable(
       .$onUpdate(() => new Date()),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     triagedAt: timestamp("triaged_at", { withTimezone: true }),
+    /** Why the noise check thinks this Inbox item is probably noise; null when it looks real */
+    noiseHint: text("noise_hint"),
+    /** Ollie kept it despite the hint; kept items teach the check what is not noise */
+    noiseHintKept: boolean("noise_hint_kept").notNull().default(false),
+    /** When the noise check last looked at it; null means not yet */
+    noiseCheckedAt: timestamp("noise_checked_at", { withTimezone: true }),
     search: tsvector("search").generatedAlwaysAs(
       sql`to_tsvector('english', coalesce(title,'') || ' ' || coalesce(snippet,'') || ' ' || coalesce(notes,'') || ' ' || coalesce(source_quote,'') || ' ' || coalesce(from_name,''))`,
     ),
@@ -100,3 +106,34 @@ export type Task = typeof tasksTable.$inferSelect;
 export type InsertTask = typeof tasksTable.$inferInsert;
 export type NoiseRule = typeof noiseRulesTable.$inferSelect;
 export type CaptureLogEntry = typeof captureLogTable.$inferSelect;
+
+/**
+ * A reply to an email task, written by AI and edited by Ollie, and the Gmail draft it was saved to.
+ * OllieOS never sends it; Ollie sends it from his own email.
+ */
+export const replyDraftsTable = pgTable("reply_drafts", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  taskId: integer("task_id")
+    .notNull()
+    .unique()
+    .references(() => tasksTable.id, { onDelete: "cascade" }),
+  toLine: text("to_line").notNull().default(""),
+  ccLine: text("cc_line").notNull().default(""),
+  subject: text("subject").notNull().default(""),
+  body: text("body").notNull(),
+  /** The Gmail thread it replies in; null when the email did not come from Gmail directly */
+  threadId: text("thread_id"),
+  /** Message-ID header of the message replied to, and the References chain */
+  inReplyTo: text("in_reply_to"),
+  references: text("references"),
+  account: text("account"),
+  gmailDraftId: text("gmail_draft_id"),
+  savedAt: timestamp("saved_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+export type ReplyDraft = typeof replyDraftsTable.$inferSelect;
