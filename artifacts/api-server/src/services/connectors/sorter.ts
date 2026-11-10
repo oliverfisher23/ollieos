@@ -151,14 +151,20 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Granola sorters so they all use the same model and settings.
  */
 export async function haikuJson<T>(system: string, content: string, schema: object, maxTokens = 8192): Promise<T> {
+  return modelJson<T>(SORT_MODEL, system, content, schema, maxTokens);
+}
+
+/** One structured answer from the given model, retried up to three times. */
+export async function modelJson<T>(model: string, system: string, content: string, schema: object, maxTokens = 8192): Promise<T> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const res = await anthropic.messages.create({
-        model: SORT_MODEL,
+        model,
         max_tokens: maxTokens,
         system,
-        thinking: { type: "disabled" },
+        // Haiku takes thinking off outright; Sonnet refuses "disabled", and with no setting and low effort it does not think first.
+        ...(model === SORT_MODEL ? { thinking: { type: "disabled" } } : {}),
         output_config: { effort: "low", format: { type: "json_schema", schema } },
         messages: [{ role: "user", content }],
       } as Parameters<typeof anthropic.messages.create>[0]);
@@ -172,7 +178,7 @@ export async function haikuJson<T>(system: string, content: string, schema: obje
       await sleep(1000 * 2 ** attempt);
     }
   }
-  throw new ConnectorError("Could not sort with AI: " + (lastErr instanceof Error ? lastErr.message : String(lastErr)));
+  throw new ConnectorError("Could not read with AI: " + (lastErr instanceof Error ? lastErr.message : String(lastErr)));
 }
 
 async function sortBatch(units: WorkUnit[], me: string, projects: string[], now: Date): Promise<SortedUnit[]> {

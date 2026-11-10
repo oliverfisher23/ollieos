@@ -5,6 +5,7 @@ import { CADENCE_LABELS, formatDayMonth } from "@workspace/shared";
 import { writeAudit } from "../lib/audit";
 import { resolveEntities, uniqueSlug } from "./knowledge/common";
 import { reviewCounts, tidyReviews } from "./factReviews";
+import { DOCUMENT_PROPOSER } from "./documents/counts";
 import {
   FIELD_LABELS,
   editableFields,
@@ -33,6 +34,7 @@ export type InboxKind =
   | "changed_summary"
   | "changed_details"
   | "new_document"
+  | "document_link"
   | "new_playbook"
   | "cadence_change"
   | "conflict"
@@ -78,6 +80,8 @@ export interface InboxItem {
   lastConfirmedAt: Date | null;
   /** Found by a Granola look back */
   lookBack: boolean;
+  /** The document or Dropbox file it came from (its source ref), when the knowledge step proposed it */
+  fromDocument: string | null;
   /** A decision with no project yet: Ollie may file it under one when he approves it */
   needsProject: boolean;
   /** The project the proposer had in mind, for a decision with none */
@@ -185,7 +189,7 @@ function suggestionKind(s: Suggestion): InboxKind {
       return "summary" in f || "relationship_summary" in f ? "changed_summary" : "changed_details";
     }
     case "document":
-      return "new_document";
+      return (s.payload as DocumentPayload).document_id != null ? "document_link" : "new_document";
     case "playbook":
       return "new_playbook";
     case "cadence":
@@ -244,7 +248,9 @@ function textOf(s: Suggestion): string {
     }
     case "document": {
       const d = s.payload as DocumentPayload;
-      return joinParts([d.title, d.summary, d.project_names?.length ? `For ${d.project_names.join(", ")}` : null, d.url]);
+      if (d.document_id != null) return joinParts([d.title, d.project_names?.length ? `Link it to ${d.project_names.join(", ")}` : null]);
+      const preview = d.content ? d.content.replace(/\s+/g, " ").trim().slice(0, 400) + (d.content.length > 400 ? "…" : "") : null;
+      return joinParts([d.title, d.summary, d.doc_kind ? `Saved by Claude as ${d.doc_kind}` : d.content ? "Saved by Claude" : null, d.project_names?.length ? `For ${d.project_names.join(", ")}` : null, d.url, preview]);
     }
     case "playbook": {
       const p = s.payload as PlaybookPayload;
@@ -291,7 +297,7 @@ function distinctLabels(options: (InboxOption & { at: Date })[]): InboxOption[] 
   return options.map(({ at, ...o }) => ((counts.get(o.label) ?? 0) > 1 ? { ...o, label: `${o.label} (${formatDayMonth(at)})` } : o));
 }
 
-export type InboxOrigin = "all" | "look_back";
+export type InboxOrigin = "all" | "look_back" | "documents";
 
 export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
   await ensureSelfPerson().catch(() => undefined);
@@ -306,6 +312,7 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
         and(
           eq(suggestionsTable.status, "pending"),
           origin === "look_back" ? eq(suggestionsTable.proposedBy, LOOK_BACK_PROPOSER) : undefined,
+          origin === "documents" ? eq(suggestionsTable.proposedBy, DOCUMENT_PROPOSER) : undefined,
           sql`not exists (select 1 from fact_reviews r where r.suggestion_id = ${suggestionsTable.id} and r.status = 'pending')`,
         ),
       )
@@ -334,6 +341,7 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
         options: [],
         lastConfirmedAt: null,
         lookBack: s.proposedBy === LOOK_BACK_PROPOSER,
+        fromDocument: s.proposedBy === DOCUMENT_PROPOSER ? s.sourceRef : null,
         needsProject: s.kind === "decision" && s.entityId == null,
         projectHint: s.kind === "decision" ? (cleanHint((s.payload as DecisionPayload).project_hint) ?? null) : null,
       };
@@ -372,6 +380,7 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
           options: [],
           lastConfirmedAt: first.lastConfirmedAt,
           lookBack: false,
+          fromDocument: null,
           needsProject: false,
           projectHint: null,
         });
@@ -398,6 +407,7 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
           options,
           lastConfirmedAt: null,
           lookBack: sug?.proposedBy === LOOK_BACK_PROPOSER,
+          fromDocument: null,
           needsProject: false,
           projectHint: null,
         });
@@ -405,8 +415,11 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
     }
   }
   const [lb] = await db
-    .select({ n: sql<number>`count(*)::int` })
+    .select({
+      lookBack: sql<number>`count(*) filter (where ${suggestionsTable.proposedBy} = ${LOOK_BACK_PROPOSER})::int`,
+      documents: sql<number>`count(*) filter (where ${suggestionsTable.proposedBy} = ${DOCUMENT_PROPOSER})::int`,
+    })
     .from(suggestionsTable)
-    .where(and(eq(suggestionsTable.status, "pending"), eq(suggestionsTable.proposedBy, LOOK_BACK_PROPOSER)));
-  return { counts: { ...counts, lookBack: lb?.n ?? 0 }, items };
+    .where(eq(suggestionsTable.status, "pending"));
+  return { counts: { ...counts, lookBack: lb?.lookBack ?? 0, documents: lb?.documents ?? 0 }, items };
 }

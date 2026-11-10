@@ -12,3 +12,7 @@ description: Limits found when building the Gmail and Slack readers; read before
 
 **Why:** these cost several probes to find, and the obvious approaches (search, `updated`) look like they work but do not.
 **How to apply:** before changing message discovery or the sorter, re-check these limits rather than switching to search.
+
+## Gmail cannot be changed, only read and drafted into
+The Replit Gmail connection holds readonly, compose, send and labels, never gmail.modify. Marking spam, archiving or changing a message's labels returns 403, so "spam" in OllieOS means its own Noise, and the UI says Gmail itself is untouched.
+**Why:** platform credentials never request gmail.modify. **How to apply:** offer OllieOS-side actions; do not promise Gmail-side changes. (Sending is technically allowed but Ollie's rule is drafts only.)

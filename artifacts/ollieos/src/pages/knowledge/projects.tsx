@@ -177,7 +177,7 @@ export function ProjectPage() {
       <section aria-labelledby="docs-h" style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="section-project-documents">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
           <h2 id="docs-h" className="oo-h2">Documents</h2>
-          <button type="button" className="oo-textbtn" onClick={() => setAddingDoc(true)} data-testid="button-project-add-link">Add a link</button>
+          <button type="button" className="oo-textbtn" onClick={() => setAddingDoc(true)} data-testid="button-project-add-link">Add a document</button>
         </div>
         {documents.length === 0 ? (
           <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>No documents linked. Add the proposal, the brief or the shared folder.</p>
@@ -187,7 +187,11 @@ export function ProjectPage() {
               <div key={d.id} className="oo-krow" data-testid={'row-project-document-' + d.id}>
                 <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: '1 1 260px' }}>
                   <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-                    <a href={d.url} target="_blank" rel="noreferrer" className="oo-krow-link" style={{ fontWeight: 500 }} data-testid={'link-project-document-' + d.id}>{d.title}<span className="oo-sr"> (opens in a new tab)</span></a>
+                    {d.url ? (
+                      <a href={d.url} target="_blank" rel="noreferrer" className="oo-krow-link" style={{ fontWeight: 500 }} data-testid={'link-project-document-' + d.id}>{d.title}<span className="oo-sr"> (opens in a new tab)</span></a>
+                    ) : (
+                      <Link href={'/knowledge/library?document=' + d.id} className="oo-krow-link" style={{ fontWeight: 500 }} data-testid={'link-project-document-' + d.id}>{d.title}</Link>
+                    )}
                     {d.hiddenFromAi && <HiddenFromAi confidential={d.confidential === true} />}
                   </span>
                   {d.summary && <span className="oo-muted" style={{ fontSize: 13 }}>{d.summary}</span>}

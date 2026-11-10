@@ -3,6 +3,7 @@ import { Link, useLocation, useSearch } from 'wouter';
 import {
   approveSuggestion,
   rejectSuggestion,
+  rejectSuggestionsFromSource,
   resolveFactReview,
   useListKnowledgeInbox,
   useListProjects,
@@ -16,6 +17,7 @@ import { Dropdown } from '@/components/dropdown';
 import { projectOptions } from '@/components/dropdown-options';
 import { KnowledgeLayout } from '@/components/knowledge/layout';
 import { entityPath, useKnowledgeWrite } from '@/lib/knowledge';
+import { notify } from '@/lib/notify';
 
 type Tab = 'suggested' | 'conflicts' | 'stale';
 
@@ -34,6 +36,7 @@ const KIND: Record<KnowledgeInboxItemKind, { label: string; tone: string }> = {
   changed_summary: { label: 'Changed summary', tone: 'person' },
   changed_details: { label: 'Changed details', tone: 'person' },
   new_document: { label: 'New document', tone: 'fact' },
+  document_link: { label: 'Link document', tone: 'fact' },
   new_playbook: { label: 'New playbook', tone: 'decision' },
   cadence_change: { label: 'Suggested cadence', tone: 'person' },
   conflict: { label: 'Conflict', tone: 'conflict' },
@@ -42,6 +45,7 @@ const KIND: Record<KnowledgeInboxItemKind, { label: string; tone: string }> = {
 
 const APPROVED: Partial<Record<KnowledgeInboxItemKind, string>> = {
   new_document: 'Added to the Library',
+  document_link: 'Linked to the project',
   new_playbook: 'Added to playbooks and switched on',
   cadence_change: 'Cadence set',
 };
@@ -64,8 +68,10 @@ export default function KnowledgeInboxPage() {
   const [, navigate] = useLocation();
   const raw = new URLSearchParams(search).get('tab');
   const tab: Tab = raw === 'conflicts' || raw === 'stale' ? raw : 'suggested';
-  const lookBackOnly = tab === 'suggested' && new URLSearchParams(search).get('from') === 'look-back';
-  const inbox = useListKnowledgeInbox({ tab, origin: lookBackOnly ? 'look_back' : 'all' });
+  const from = tab === 'suggested' ? new URLSearchParams(search).get('from') : null;
+  const lookBackOnly = from === 'look-back';
+  const documentsOnly = from === 'documents';
+  const inbox = useListKnowledgeInbox({ tab, origin: lookBackOnly ? 'look_back' : documentsOnly ? 'documents' : 'all' });
   const [done, setDone] = useState<Record<string, Done>>({});
 
   const counts = inbox.data?.counts;
@@ -106,16 +112,17 @@ export default function KnowledgeInboxPage() {
         </div>
       </div>
 
-      {tab === 'suggested' && (lookBackOnly || (counts?.lookBack ?? 0) > 0) && (
+      {tab === 'suggested' && (lookBackOnly || documentsOnly || (counts?.lookBack ?? 0) > 0 || (counts?.documents ?? 0) > 0) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: -4 }}>
           <Dropdown
             variant="control"
             ariaLabel="Show suggestions from"
-            value={lookBackOnly ? 'look-back' : ''}
-            onChange={(v) => navigate(v ? '/knowledge/inbox?from=look-back' : '/knowledge/inbox', { replace: true })}
+            value={lookBackOnly ? 'look-back' : documentsOnly ? 'documents' : ''}
+            onChange={(v) => navigate(v ? `/knowledge/inbox?from=${v}` : '/knowledge/inbox', { replace: true })}
             options={[
               { value: '', label: 'All suggestions' },
-              { value: 'look-back', label: 'From look back', hint: String(counts?.lookBack ?? 0) },
+              ...(lookBackOnly || (counts?.lookBack ?? 0) > 0 ? [{ value: 'look-back', label: 'From look back', hint: String(counts?.lookBack ?? 0) }] : []),
+              ...(documentsOnly || (counts?.documents ?? 0) > 0 ? [{ value: 'documents', label: 'From documents', hint: String(counts?.documents ?? 0) }] : []),
             ]}
             testId="select-inbox-origin"
           />
@@ -132,7 +139,11 @@ export default function KnowledgeInboxPage() {
           </div>
         ) : items.length === 0 ? (
           <p className="oo-muted" style={{ margin: 0, fontSize: 14, padding: '8px 0' }} data-testid="text-inbox-empty">
-            {lookBackOnly ? 'Nothing from a look back is waiting. Start one from Settings, Connectors, Granola.' : EMPTY[tab]}
+            {lookBackOnly
+              ? 'Nothing from a look back is waiting. Start one from Settings, Connectors, Granola.'
+              : documentsOnly
+                ? 'Nothing from documents is waiting. Use Build knowledge from this on a document in the Library.'
+                : EMPTY[tab]}
           </p>
         ) : (
           items.map((it) => (
@@ -200,6 +211,7 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
         <Target it={it} />
         <span>· {byLine(it)}</span>
         {it.lookBack && <span className="oo-pill" data-testid={'pill-look-back-' + testKey}>From look back</span>}
+        {it.fromDocument && <span className="oo-pill" data-testid={'pill-document-' + testKey}>From a document</span>}
         {it.attribute && it.group !== 'conflicts' && <span className="oo-pill">{it.attribute}</span>}
       </div>
 
@@ -246,6 +258,7 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
           {it.sourceUrl ? <a href={it.sourceUrl} target="_blank" rel="noreferrer">{source}</a> : source}
         </p>
       )}
+      {it.fromDocument && !done && <RejectFromSource sourceRef={it.fromDocument} testKey={testKey} />}
 
       {it.needsProject && !done && mode !== 'own' && (
         <ProjectPicker testKey={testKey} hint={it.projectHint} value={project} onChange={setProject} newName={newName} onNewName={setNewName} />
@@ -407,5 +420,33 @@ function OwnForm({ initial, busy, onSave, onCancel }: { initial: string; busy: b
         <button type="button" className="oo-btn oo-btn-outline" onClick={onCancel}>Cancel</button>
       </div>
     </form>
+  );
+}
+
+/** Rejects everything still waiting from the same document or Dropbox file, after a second click. */
+function RejectFromSource({ sourceRef, testKey }: { sourceRef: string; testKey: string }) {
+  const write = useKnowledgeWrite();
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  if (!asking) {
+    return (
+      <div>
+        <button type="button" className="oo-textbtn" onClick={() => setAsking(true)} data-testid={'button-reject-source-' + testKey}>Reject everything from this document</button>
+      </div>
+    );
+  }
+  const go = async () => {
+    setBusy(true);
+    const r = await write(() => rejectSuggestionsFromSource({ sourceRef }), { fail: 'Could not reject them' });
+    setBusy(false);
+    setAsking(false);
+    if (r) notify(r.rejected === 1 ? 'Rejected 1 suggestion' : `Rejected ${r.rejected} suggestions`, 'Conflicts from this document stay on the Conflicts tab.');
+  };
+  return (
+    <div role="group" aria-label="Reject everything from this document" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', fontSize: 13 }}>
+      <span>Reject every suggestion still waiting from this document?</span>
+      <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" disabled={busy} onClick={go} data-testid={'button-reject-source-yes-' + testKey}>{busy ? 'Rejecting…' : 'Reject them all'}</button>
+      <button type="button" className="oo-btn oo-btn-quiet oo-btn-sm" disabled={busy} onClick={() => setAsking(false)}>Keep them</button>
+    </div>
   );
 }

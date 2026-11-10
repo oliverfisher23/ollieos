@@ -4,6 +4,7 @@
 - [Publish blocked by dependency scan](publish-security-scan.md) — high-severity advisories stop publishing before build; zod fix means moving to zod 4
 - [Replit connectors SDK](replit-connectors-sdk.md) — use ReplitConnectors().proxy, not ConnectorsClient; timed checks need a Reserved VM
 - [Failed publish at promote step](publish-promote-failures.md) — build OK but app never starts: how to rule out app and schema diff, log tool quirks
-- [Slack and Gmail reading limits](slack-gmail-reading.md) — no Slack search scope, `updated` is not activity, Haiku sorting notes
+- [Slack and Gmail reading limits](slack-gmail-reading.md) — no Slack search scope, no gmail.modify (no spam/archive), Haiku sorting notes
 - [Drive and Granola reading](drive-granola-reading.md) — Granola takeover needs one of Ollie's own meetings; proxy 404 can mean "no connection"
 - [Research agent quirks and cost](research-agent.md) — parse JSON from the first {"name"; real cost ~25p to 45p a company, driven by search results
+- [Documents and Dropbox reading](document-knowledge.md) — Sonnet refuses thinking "disabled"; ~2p a file; full Springpod read belongs in production

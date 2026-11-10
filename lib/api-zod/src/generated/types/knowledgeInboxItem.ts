@@ -39,6 +39,11 @@ export interface KnowledgeInboxItem {
   lastConfirmedAt: Date | null;
   /** Found by a Granola look back */
   lookBack: boolean;
+  /**
+     * The document or Dropbox file it came from, when found by reading documents
+     * @nullable
+     */
+  fromDocument: string | null;
   /** A decision with no project; Ollie may file it under one when approving */
   needsProject: boolean;
   /**

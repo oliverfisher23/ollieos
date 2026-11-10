@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { ensureSeeds } from "./services/seeds";
 import { startConnectorTimer } from "./services/connectors";
+import { startKnowledgeReader } from "./services/documents/reader";
 
 const rawPort = process.env["PORT"];
 
@@ -26,4 +27,5 @@ app.listen(port, (err) => {
   logger.info({ port }, "Server listening");
   ensureSeeds().catch((e) => logger.error({ err: e }, "Could not create the first goals and playbooks"));
   startConnectorTimer();
+  startKnowledgeReader();
 });

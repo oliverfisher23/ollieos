@@ -18,6 +18,7 @@ export const KnowledgeInboxItemKind = {
   changed_summary: 'changed_summary',
   changed_details: 'changed_details',
   new_document: 'new_document',
+  document_link: 'document_link',
   new_playbook: 'new_playbook',
   cadence_change: 'cadence_change',
   conflict: 'conflict',

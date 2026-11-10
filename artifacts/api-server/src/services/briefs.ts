@@ -502,7 +502,7 @@ export interface BriefView {
   threads: { id: number; kind: string; summary: string; occurredAt: Date; url: string | null }[];
   projects: { id: number; slug: string; name: string; confidential: boolean }[];
   goals: { id: number; name: string }[];
-  documents: { id: number; title: string; url: string; location: string }[];
+  documents: { id: number; title: string; url: string | null; location: string }[];
   playbooks: { id: number; title: string; rule: string }[];
   heldBack: number;
   notes: string | null;
@@ -565,7 +565,7 @@ async function sourcesFor(refs: string[]): Promise<Map<string, BriefSource>> {
       : none<{ id: number; url: string | null; kind: string; at: Date }>(),
     ids("document").length
       ? db.select({ id: documentsTable.id, title: documentsTable.title, url: documentsTable.url }).from(documentsTable).where(inArray(documentsTable.id, ids("document")))
-      : none<{ id: number; title: string; url: string }>(),
+      : none<{ id: number; title: string; url: string | null }>(),
     ids("goal").length ? db.select({ id: goalsTable.id, name: goalsTable.name }).from(goalsTable).where(inArray(goalsTable.id, ids("goal"))) : none<{ id: number; name: string }>(),
     ids("playbook").length
       ? db.select({ id: playbooksTable.id, title: playbooksTable.title }).from(playbooksTable).where(inArray(playbooksTable.id, ids("playbook")))
@@ -893,7 +893,7 @@ export interface BriefOut {
   promises: { ref: string; title: string; due_date: string | null }[];
   projects: { ref: string; name: string }[];
   goals: { ref: string; name: string }[];
-  documents: { ref: string; title: string; url: string }[];
+  documents: { ref: string; title: string; url: string | null }[];
   playbooks: { ref: string; title: string; rule: string }[];
 }
 

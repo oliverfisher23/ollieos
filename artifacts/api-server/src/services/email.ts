@@ -9,10 +9,11 @@ import { db, replyDraftsTable, tasksTable } from "@workspace/db";
 import { OPEN_STATUSES } from "@workspace/shared";
 import { writeAudit } from "../lib/audit";
 import { logger } from "../lib/logger";
-import { inPool } from "./connectors/gmail";
+import { ConnectorError } from "./connectors/http";
+import { gmailThreadUrl, inPool, readGmailThread, type Address } from "./connectors/gmail";
 import { threadMeta } from "./connectors/noReply";
-import { view, type ReplyDraftView } from "./replyDraft";
-import { NotFoundError, loadTask } from "./tasks";
+import { loadEmailTask, threadIdFor, view, type ReplyDraftView } from "./replyDraft";
+import { NotFoundError, UpstreamError, loadTask } from "./tasks";
 
 /** How many open drafts each Gmail check looks at for a sent email */
 const SENT_CHECK_LIMIT = 40;
@@ -101,4 +102,64 @@ export async function checkSentDrafts(): Promise<number> {
     marked++;
   }
   return marked;
+}
+
+/** How much of each message the reading view shows */
+const READ_CHARS = 20_000;
+
+export interface EmailThreadMessage {
+  id: string;
+  fromName: string | null;
+  fromEmail: string | null;
+  to: string;
+  cc: string;
+  at: Date;
+  text: string;
+  fromOllie: boolean;
+}
+
+export interface EmailThreadView {
+  /** False when the email is not in Gmail (gone, or it came in another way): messages then hold what the task kept */
+  fromGmail: boolean;
+  gmailUrl: string | null;
+  messages: EmailThreadMessage[];
+}
+
+const line = (list: Address[]) => list.map((a) => (a.name && a.email ? `${a.name} <${a.email}>` : (a.email ?? a.name ?? ""))).filter(Boolean).join(", ");
+
+/** The email thread behind an email task, oldest first, for the Email page's reading view. Read only. */
+export async function readTaskThread(id: number): Promise<EmailThreadView> {
+  const task = await loadTask(id);
+  loadEmailTask(task);
+  try {
+    const threadId = await threadIdFor(task);
+    const thread = threadId ? await readGmailThread(threadId, READ_CHARS) : null;
+    if (thread && thread.messages.length) {
+      return {
+        fromGmail: true,
+        gmailUrl: gmailThreadUrl(thread.account, thread.threadId),
+        messages: thread.messages.map((m) => ({
+          id: m.id,
+          fromName: m.from.name,
+          fromEmail: m.from.email,
+          to: line(m.to),
+          cc: line(m.cc),
+          at: m.at,
+          text: m.text,
+          fromOllie: !!m.from.email && m.from.email === thread.account,
+        })),
+      };
+    }
+  } catch (err) {
+    if (err instanceof ConnectorError) throw new UpstreamError(`${err.message.replace(/\.$/, "")}. OllieOS needs Gmail to show the email.`);
+    throw err;
+  }
+  const text = [task.sourceQuote, task.snippet].filter(Boolean).join("\n\n");
+  return {
+    fromGmail: false,
+    gmailUrl: task.sourceUrl,
+    messages: text
+      ? [{ id: "task", fromName: task.fromName, fromEmail: task.fromAddress, to: "", cc: "", at: task.capturedAt ?? task.createdAt, text, fromOllie: false }]
+      : [],
+  };
 }

@@ -4,12 +4,13 @@ import { z } from "zod";
 import { handle } from "../lib/handle";
 import { getKnowledgeSettings, resolveFactReview, runFactCheck, updateShelfLives } from "../services/factReviews";
 import { listInbox } from "../services/knowledgeInbox";
-import { approveSuggestion, rejectSuggestion } from "../services/suggestions";
+import { approveSuggestion, rejectFromSource, rejectSuggestion } from "../services/suggestions";
 
 const router: IRouter = Router();
 
 const IdParams = z.object({ id: z.coerce.number().int().positive() });
-const TabQuery = z.object({ tab: z.enum(["suggested", "conflicts", "stale"]).default("suggested"), origin: z.enum(["all", "look_back"]).default("all") });
+const TabQuery = z.object({ tab: z.enum(["suggested", "conflicts", "stale"]).default("suggested"), origin: z.enum(["all", "look_back", "documents"]).default("all") });
+const RejectSourceBody = z.object({ sourceRef: z.string().min(1).max(1200) }).strict();
 const ApproveBody = z
   .object({
     fields: z.record(z.string(), z.string().max(5000)).optional(),
@@ -48,6 +49,10 @@ router.post(
     const b = ApproveBody.parse(req.body ?? {});
     res.json(await approveSuggestion(IdParams.parse(req.params).id, b.fields, new Date(), { projectId: b.projectId, newProjectName: b.newProjectName }));
   }),
+);
+router.post(
+  "/suggestions/reject-source",
+  handle(async (req, res) => void res.json({ rejected: await rejectFromSource(RejectSourceBody.parse(req.body).sourceRef) })),
 );
 router.post("/suggestions/:id/reject", handle(async (req, res) => void res.json(await rejectSuggestion(IdParams.parse(req.params).id))));
 router.post(

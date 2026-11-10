@@ -116,10 +116,10 @@ vi.mock("../src/services/connectors/noReplyJudge", async (importOriginal) => ({
   },
 }));
 
-let draftCalls: { chase?: boolean; thread: { fromOllie: boolean }[] }[] = [];
+let draftCalls: { chase?: boolean; thread: { fromOllie: boolean }[]; instructions?: string; current?: string }[] = [];
 vi.mock("../src/services/ask/model", async (orig) => ({
   ...(await orig<typeof import("../src/services/ask/model")>()),
-  draftEmailReplyFromDocs: async (opts: { chase?: boolean; thread: { fromOllie: boolean }[] }) => {
+  draftEmailReplyFromDocs: async (opts: { chase?: boolean; thread: { fromOllie: boolean }[]; instructions?: string; current?: string }) => {
     draftCalls.push(opts);
     return "Hi Sam,\n\nJust checking in on the contract.\n\nBest, Ollie";
   },
@@ -413,5 +413,23 @@ describe("Email page, Drafts", () => {
     expect(await drafts()).toHaveLength(1);
     await db.update(tasksTable).set({ status: "done" }).where(eq(tasksTable.id, taskId));
     expect(await drafts()).toHaveLength(0);
+  });
+
+  it("a draft can be steered with what it should say, and changed from the current wording", async () => {
+    const taskId = await chasedWithDraft();
+    const r = await api(`tasks/${taskId}/reply-draft`, { body: { instructions: "Keep it light", current: "Hi Sam, any news?" } });
+    expect(r.status).toBe(200);
+    expect(draftCalls.at(-1)).toMatchObject({ instructions: "Keep it light", current: "Hi Sam, any news?" });
+    expect((await api(`tasks/${taskId}/reply-draft`, { body: { other: 1 } })).status).toBe(400);
+  });
+
+  it("reads the thread behind an email task for the reading pane", async () => {
+    const taskId = await chasedWithDraft();
+    const r = await api(`tasks/${taskId}/thread`);
+    expect(r.status).toBe(200);
+    expect(r.body.fromGmail).toBe(true);
+    expect(r.body.gmailUrl).toContain("#all/contract");
+    expect(r.body.messages.map((m: Record<string, unknown>) => [m.fromOllie, m.fromName])).toEqual([[false, "Sam Lee"], [true, "Ollie Fisher"]]);
+    expect(r.body.messages[1].text).toContain("signed copy");
   });
 });

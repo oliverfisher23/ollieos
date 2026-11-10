@@ -172,7 +172,7 @@ export async function cadenceForAi(person: { id: number; cadence: Cadence; caden
 export interface DocumentOut {
   ref: string;
   title: string;
-  url: string;
+  url: string | null;
   location: DocLocation;
   summary: string | null;
   /** When Ollie or the sweep last confirmed it, not the file's own date */

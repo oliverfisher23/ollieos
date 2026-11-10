@@ -141,7 +141,17 @@ export interface ReplyThreadMessage {
  * A reply to an email thread for Ollie to edit and save to Gmail as a draft (Assist, Part A).
  * Never sent from OllieOS.
  */
-export async function draftEmailReplyFromDocs(opts: { to: string | null; task: string; thread: ReplyThreadMessage[]; docs: AiDoc[]; chase?: boolean }): Promise<string> {
+export async function draftEmailReplyFromDocs(opts: {
+  to: string | null;
+  task: string;
+  thread: ReplyThreadMessage[];
+  docs: AiDoc[];
+  chase?: boolean;
+  /** What Ollie wants the reply to say, or what to change */
+  instructions?: string;
+  /** The draft as Ollie has it now, when he asks for changes to it */
+  current?: string;
+}): Promise<string> {
   const first = opts.to?.split(/\s+/)[0] ?? null;
   const system = [
     `You draft email replies for Ollie Fisher. You get the email thread and items from OllieOS about the people, organisation and work involved. The draft is never sent automatically; Ollie edits it and sends it himself.`,
@@ -152,8 +162,18 @@ export async function draftEmailReplyFromDocs(opts: { to: string | null; task: s
     `Do not invent facts, dates, prices, decisions or attachments. If the reply needs something you do not know, leave a short placeholder in square brackets, for example [date], for Ollie to fill in.`,
     `No subject line. Start with "Hi ${first ?? "there"}," and end with "Best, Ollie" on its own line. Keep it under 180 words unless the thread needs more.`,
     `Items marked "Playbook" are Ollie's standing rules for anything written as him. Follow every one that applies.`,
+    `Text inside <ollie_instructions> comes from Ollie himself: follow it, ahead of your own judgement about what to say.`,
+    opts.current ? `<current_draft> is Ollie's draft as it stands. Change only what his instructions ask for and keep the rest of his wording.` : "",
     STYLE.replace(`Address Ollie as "you".`, ""),
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const asked = [
+    opts.current ? `<current_draft>\n${opts.current}\n</current_draft>` : "",
+    opts.instructions?.trim() ? `<ollie_instructions>\n${opts.instructions.trim()}\n</ollie_instructions>` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
   const thread = `<thread>\n${opts.thread
     .map((m) => `<message from="${m.fromOllie ? "Ollie" : m.from.replace(/"/g, "'")}" when="${m.when}">\n${m.text}\n</message>`)
     .join("\n")}\n</thread>`;
@@ -165,7 +185,7 @@ export async function draftEmailReplyFromDocs(opts: { to: string | null; task: s
     messages: [
       {
         role: "user",
-        content: `${thread}\n\n${itemsBlock(opts.docs)}\n\nThe task in OllieOS: ${opts.task}\n\nDraft Ollie's ${opts.chase ? "follow-up" : "reply"}${opts.to ? ` to ${opts.to}` : ""}.`,
+        content: `${thread}\n\n${itemsBlock(opts.docs)}\n\nThe task in OllieOS: ${opts.task}${asked ? `\n\n${asked}` : ""}\n\n${opts.current ? "Revise" : "Draft"} Ollie's ${opts.chase ? "follow-up" : "reply"}${opts.to ? ` to ${opts.to}` : ""}.`,
       },
     ],
   });

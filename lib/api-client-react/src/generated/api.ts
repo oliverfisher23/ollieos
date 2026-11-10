@@ -59,8 +59,16 @@ import type {
   Digest,
   DigestListItem,
   DocumentInput,
+  DocumentTextInput,
   DocumentUpdate,
+  DocumentUploadInput,
+  DriveImport,
+  DriveImportInput,
+  DropboxFolderInput,
+  DropboxFolderPreview,
+  DropboxFolderPreviewInput,
   EmailDraftList,
+  EmailThread,
   ErrorEnvelope,
   ErrorResponse,
   Fact,
@@ -130,9 +138,12 @@ import type {
   ProjectUpdate,
   QuickAddInput,
   QuickAddResult,
+  RejectSourceInput,
+  RejectSuggestionsFromSource200,
   ReplyDraft,
   ReplyDraftInput,
   ReplyDraftResult,
+  ReplyDraftWriteInput,
   ResearchStart,
   ReviewDecideInput,
   ReviewDecideResult,
@@ -2168,14 +2179,29 @@ export const getWriteReplyDraftUrl = (id: number,) => {
 /**
  * @summary Writes (or rewrites) a reply with AI from the email thread, OllieOS and playbooks. Nothing is sent.
  */
-export const writeReplyDraft = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ReplyDraft> => {
+export const writeReplyDraft = async (id: number,
+    replyDraftWriteInput?: ReplyDraftWriteInput, options?: Parameters<typeof customFetch>[1]): Promise<ReplyDraft> => {
 
-  return customFetch<ReplyDraft>(getWriteReplyDraftUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReplyDraft>(getWriteReplyDraftUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(replyDraftWriteInput)
   }
 );}
 
@@ -2200,9 +2226,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof writeReplyDraft>>, WriteReplyDraftMutationVariables> = (props) => {
-          const {id} = props ?? {};
+          const {id,data} = props ?? {};
 
-          return  writeReplyDraft(id,requestOptions)
+          return  writeReplyDraft(id,data,requestOptions)
         }
 
 
@@ -2213,9 +2239,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type WriteReplyDraftMutationResult = NonNullable<Awaited<ReturnType<typeof writeReplyDraft>>>
-
+    export type WriteReplyDraftMutationBody = BodyType<ReplyDraftWriteInput> | undefined
     export type WriteReplyDraftMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
-    export type WriteReplyDraftMutationVariables = {id: number}
+    export type WriteReplyDraftMutationVariables = {id: number;data?: BodyType<ReplyDraftWriteInput>}
 
     /**
  * @summary Writes (or rewrites) a reply with AI from the email thread, OllieOS and playbooks. Nothing is sent.
@@ -2393,6 +2419,107 @@ export const useDismissEmailDraft = <TError = ErrorType<NotAuthorisedResponse | 
       > => {
       return useMutation(getDismissEmailDraftMutationOptions(options), queryClient);
     }
+
+export const getGetTaskThreadUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/thread`
+}
+
+/**
+ * @summary The email thread behind an email task, oldest first, for reading on the Email page. Read only.
+ */
+export const getTaskThread = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<EmailThread> => {
+
+  return customFetch<EmailThread>(getGetTaskThreadUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTaskThreadQueryKey = (id: number,) => {
+    return [
+    `/api/tasks/${id}/thread`
+    ] as const;
+    }
+
+
+export const getGetTaskThreadQueryOptions = <TData = Awaited<ReturnType<typeof getTaskThread>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskThread>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTaskThreadQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTaskThread>>> = ({ signal }) => getTaskThread(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTaskThread>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTaskThreadQueryResult = NonNullable<Awaited<ReturnType<typeof getTaskThread>>>
+export type GetTaskThreadQueryError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+
+
+export function useGetTaskThread<TData = Awaited<ReturnType<typeof getTaskThread>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskThread>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskThread>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskThread>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskThread<TData = Awaited<ReturnType<typeof getTaskThread>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskThread>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskThread>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskThread>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskThread<TData = Awaited<ReturnType<typeof getTaskThread>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskThread>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The email thread behind an email task, oldest first, for reading on the Email page. Read only.
+ */
+
+export function useGetTaskThread<TData = Awaited<ReturnType<typeof getTaskThread>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskThread>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTaskThreadQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListEmailDraftsUrl = () => {
 
@@ -5151,6 +5278,344 @@ export const useCreateDocument = <TError = ErrorType<ErrorResponse | NotAuthoris
       return useMutation(getCreateDocumentMutationOptions(options), queryClient);
     }
 
+export const getCreateTextDocumentUrl = () => {
+
+
+
+
+  return `/api/documents/text`
+}
+
+/**
+ * @summary Add a document from pasted text, kept in OllieOS
+ */
+export const createTextDocument = async (documentTextInput: DocumentTextInput, options?: Parameters<typeof customFetch>[1]): Promise<LibraryDocument> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<LibraryDocument>(getCreateTextDocumentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(documentTextInput)
+  }
+);}
+
+
+
+
+
+export const getCreateTextDocumentMutationKey = () => ['createTextDocument'] as const;
+
+export const getCreateTextDocumentMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTextDocument>>, TError,CreateTextDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTextDocument>>, TError,CreateTextDocumentMutationVariables, TContext> => {
+
+const mutationKey = getCreateTextDocumentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTextDocument>>, CreateTextDocumentMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTextDocument(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTextDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof createTextDocument>>>
+    export type CreateTextDocumentMutationBody = BodyType<DocumentTextInput>
+    export type CreateTextDocumentMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type CreateTextDocumentMutationVariables = {data: BodyType<DocumentTextInput>}
+
+    /**
+ * @summary Add a document from pasted text, kept in OllieOS
+ */
+export const useCreateTextDocument = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTextDocument>>, TError,CreateTextDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createTextDocument>>,
+        TError,
+        CreateTextDocumentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateTextDocumentMutationOptions(options), queryClient);
+    }
+
+export const getUploadDocumentUrl = () => {
+
+
+
+
+  return `/api/documents/upload`
+}
+
+/**
+ * @summary Add a document from an uploaded Markdown, text, Word or PDF file; its text is kept in OllieOS
+ */
+export const uploadDocument = async (documentUploadInput: DocumentUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<LibraryDocument> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<LibraryDocument>(getUploadDocumentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(documentUploadInput)
+  }
+);}
+
+
+
+
+
+export const getUploadDocumentMutationKey = () => ['uploadDocument'] as const;
+
+export const getUploadDocumentMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadDocument>>, TError,UploadDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadDocument>>, TError,UploadDocumentMutationVariables, TContext> => {
+
+const mutationKey = getUploadDocumentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadDocument>>, UploadDocumentMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadDocument(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof uploadDocument>>>
+    export type UploadDocumentMutationBody = BodyType<DocumentUploadInput>
+    export type UploadDocumentMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type UploadDocumentMutationVariables = {data: BodyType<DocumentUploadInput>}
+
+    /**
+ * @summary Add a document from an uploaded Markdown, text, Word or PDF file; its text is kept in OllieOS
+ */
+export const useUploadDocument = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadDocument>>, TError,UploadDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof uploadDocument>>,
+        TError,
+        UploadDocumentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadDocumentMutationOptions(options), queryClient);
+    }
+
+export const getImportDriveDocumentsUrl = () => {
+
+
+
+
+  return `/api/documents/import-drive`
+}
+
+/**
+ * @summary Add a Google Drive file or the files in a Drive folder to the Library, and build knowledge from each
+ */
+export const importDriveDocuments = async (driveImportInput: DriveImportInput, options?: Parameters<typeof customFetch>[1]): Promise<DriveImport> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DriveImport>(getImportDriveDocumentsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(driveImportInput)
+  }
+);}
+
+
+
+
+
+export const getImportDriveDocumentsMutationKey = () => ['importDriveDocuments'] as const;
+
+export const getImportDriveDocumentsMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importDriveDocuments>>, TError,ImportDriveDocumentsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importDriveDocuments>>, TError,ImportDriveDocumentsMutationVariables, TContext> => {
+
+const mutationKey = getImportDriveDocumentsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importDriveDocuments>>, ImportDriveDocumentsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  importDriveDocuments(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportDriveDocumentsMutationResult = NonNullable<Awaited<ReturnType<typeof importDriveDocuments>>>
+    export type ImportDriveDocumentsMutationBody = BodyType<DriveImportInput>
+    export type ImportDriveDocumentsMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type ImportDriveDocumentsMutationVariables = {data: BodyType<DriveImportInput>}
+
+    /**
+ * @summary Add a Google Drive file or the files in a Drive folder to the Library, and build knowledge from each
+ */
+export const useImportDriveDocuments = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importDriveDocuments>>, TError,ImportDriveDocumentsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importDriveDocuments>>,
+        TError,
+        ImportDriveDocumentsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportDriveDocumentsMutationOptions(options), queryClient);
+    }
+
+export const getBuildDocumentKnowledgeUrl = (id: number,) => {
+
+
+
+
+  return `/api/documents/${id}/knowledge`
+}
+
+/**
+ * @summary Read a document for knowledge in the background; what it finds goes to the Knowledge Inbox
+ */
+export const buildDocumentKnowledge = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<LibraryDocument> => {
+
+  return customFetch<LibraryDocument>(getBuildDocumentKnowledgeUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getBuildDocumentKnowledgeMutationKey = () => ['buildDocumentKnowledge'] as const;
+
+export const getBuildDocumentKnowledgeMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof buildDocumentKnowledge>>, TError,BuildDocumentKnowledgeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof buildDocumentKnowledge>>, TError,BuildDocumentKnowledgeMutationVariables, TContext> => {
+
+const mutationKey = getBuildDocumentKnowledgeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof buildDocumentKnowledge>>, BuildDocumentKnowledgeMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  buildDocumentKnowledge(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BuildDocumentKnowledgeMutationResult = NonNullable<Awaited<ReturnType<typeof buildDocumentKnowledge>>>
+
+    export type BuildDocumentKnowledgeMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type BuildDocumentKnowledgeMutationVariables = {id: number}
+
+    /**
+ * @summary Read a document for knowledge in the background; what it finds goes to the Knowledge Inbox
+ */
+export const useBuildDocumentKnowledge = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof buildDocumentKnowledge>>, TError,BuildDocumentKnowledgeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof buildDocumentKnowledge>>,
+        TError,
+        BuildDocumentKnowledgeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBuildDocumentKnowledgeMutationOptions(options), queryClient);
+    }
+
 export const getUpdateDocumentUrl = (id: number,) => {
 
 
@@ -7027,6 +7492,94 @@ export const useApproveSuggestion = <TError = ErrorType<ErrorResponse | NotAutho
         TContext
       > => {
       return useMutation(getApproveSuggestionMutationOptions(options), queryClient);
+    }
+
+export const getRejectSuggestionsFromSourceUrl = () => {
+
+
+
+
+  return `/api/suggestions/reject-source`
+}
+
+/**
+ * @summary Reject everything still waiting that came from one document or Dropbox file
+ */
+export const rejectSuggestionsFromSource = async (rejectSourceInput: RejectSourceInput, options?: Parameters<typeof customFetch>[1]): Promise<RejectSuggestionsFromSource200> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<RejectSuggestionsFromSource200>(getRejectSuggestionsFromSourceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(rejectSourceInput)
+  }
+);}
+
+
+
+
+
+export const getRejectSuggestionsFromSourceMutationKey = () => ['rejectSuggestionsFromSource'] as const;
+
+export const getRejectSuggestionsFromSourceMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectSuggestionsFromSource>>, TError,RejectSuggestionsFromSourceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectSuggestionsFromSource>>, TError,RejectSuggestionsFromSourceMutationVariables, TContext> => {
+
+const mutationKey = getRejectSuggestionsFromSourceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectSuggestionsFromSource>>, RejectSuggestionsFromSourceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  rejectSuggestionsFromSource(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectSuggestionsFromSourceMutationResult = NonNullable<Awaited<ReturnType<typeof rejectSuggestionsFromSource>>>
+    export type RejectSuggestionsFromSourceMutationBody = BodyType<RejectSourceInput>
+    export type RejectSuggestionsFromSourceMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type RejectSuggestionsFromSourceMutationVariables = {data: BodyType<RejectSourceInput>}
+
+    /**
+ * @summary Reject everything still waiting that came from one document or Dropbox file
+ */
+export const useRejectSuggestionsFromSource = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectSuggestionsFromSource>>, TError,RejectSuggestionsFromSourceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof rejectSuggestionsFromSource>>,
+        TError,
+        RejectSuggestionsFromSourceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRejectSuggestionsFromSourceMutationOptions(options), queryClient);
     }
 
 export const getRejectSuggestionUrl = (id: number,) => {
@@ -9215,6 +9768,256 @@ export const useUpdateConnectorSchedule = <TError = ErrorType<ErrorResponse | No
         TContext
       > => {
       return useMutation(getUpdateConnectorScheduleMutationOptions(options), queryClient);
+    }
+
+export const getPreviewDropboxFolderUrl = () => {
+
+
+
+
+  return `/api/connectors/dropbox/preview`
+}
+
+/**
+ * @summary How many files OllieOS could read in a Dropbox folder, before choosing it
+ */
+export const previewDropboxFolder = async (dropboxFolderPreviewInput: DropboxFolderPreviewInput, options?: Parameters<typeof customFetch>[1]): Promise<DropboxFolderPreview> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DropboxFolderPreview>(getPreviewDropboxFolderUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dropboxFolderPreviewInput)
+  }
+);}
+
+
+
+
+
+export const getPreviewDropboxFolderMutationKey = () => ['previewDropboxFolder'] as const;
+
+export const getPreviewDropboxFolderMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewDropboxFolder>>, TError,PreviewDropboxFolderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewDropboxFolder>>, TError,PreviewDropboxFolderMutationVariables, TContext> => {
+
+const mutationKey = getPreviewDropboxFolderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewDropboxFolder>>, PreviewDropboxFolderMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  previewDropboxFolder(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewDropboxFolderMutationResult = NonNullable<Awaited<ReturnType<typeof previewDropboxFolder>>>
+    export type PreviewDropboxFolderMutationBody = BodyType<DropboxFolderPreviewInput>
+    export type PreviewDropboxFolderMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type PreviewDropboxFolderMutationVariables = {data: BodyType<DropboxFolderPreviewInput>}
+
+    /**
+ * @summary How many files OllieOS could read in a Dropbox folder, before choosing it
+ */
+export const usePreviewDropboxFolder = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewDropboxFolder>>, TError,PreviewDropboxFolderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof previewDropboxFolder>>,
+        TError,
+        PreviewDropboxFolderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPreviewDropboxFolderMutationOptions(options), queryClient);
+    }
+
+export const getSetDropboxFolderUrl = () => {
+
+
+
+
+  return `/api/connectors/dropbox/folder`
+}
+
+/**
+ * @summary Choose Claude's folder in Dropbox, and whether files already there are read once
+ */
+export const setDropboxFolder = async (dropboxFolderInput: DropboxFolderInput, options?: Parameters<typeof customFetch>[1]): Promise<Connectors> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Connectors>(getSetDropboxFolderUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dropboxFolderInput)
+  }
+);}
+
+
+
+
+
+export const getSetDropboxFolderMutationKey = () => ['setDropboxFolder'] as const;
+
+export const getSetDropboxFolderMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setDropboxFolder>>, TError,SetDropboxFolderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setDropboxFolder>>, TError,SetDropboxFolderMutationVariables, TContext> => {
+
+const mutationKey = getSetDropboxFolderMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setDropboxFolder>>, SetDropboxFolderMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setDropboxFolder(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetDropboxFolderMutationResult = NonNullable<Awaited<ReturnType<typeof setDropboxFolder>>>
+    export type SetDropboxFolderMutationBody = BodyType<DropboxFolderInput>
+    export type SetDropboxFolderMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SetDropboxFolderMutationVariables = {data: BodyType<DropboxFolderInput>}
+
+    /**
+ * @summary Choose Claude's folder in Dropbox, and whether files already there are read once
+ */
+export const useSetDropboxFolder = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setDropboxFolder>>, TError,SetDropboxFolderMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setDropboxFolder>>,
+        TError,
+        SetDropboxFolderMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetDropboxFolderMutationOptions(options), queryClient);
+    }
+
+export const getRetryDropboxFilesUrl = () => {
+
+
+
+
+  return `/api/connectors/dropbox/retry`
+}
+
+/**
+ * @summary Put every Dropbox file that could not be read back in line
+ */
+export const retryDropboxFiles = async ( options?: Parameters<typeof customFetch>[1]): Promise<Connectors> => {
+
+  return customFetch<Connectors>(getRetryDropboxFilesUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetryDropboxFilesMutationKey = () => ['retryDropboxFiles'] as const;
+
+export const getRetryDropboxFilesMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryDropboxFiles>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryDropboxFiles>>, TError,void, TContext> => {
+
+const mutationKey = getRetryDropboxFilesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryDropboxFiles>>, void> = () => {
+
+
+          return  retryDropboxFiles(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryDropboxFilesMutationResult = NonNullable<Awaited<ReturnType<typeof retryDropboxFiles>>>
+
+    export type RetryDropboxFilesMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Put every Dropbox file that could not be read back in line
+ */
+export const useRetryDropboxFiles = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryDropboxFiles>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof retryDropboxFiles>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRetryDropboxFilesMutationOptions(options), queryClient);
     }
 
 export const getSetConnectorReadByUrl = (key: ConnectorKey,) => {

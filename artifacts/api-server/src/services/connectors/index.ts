@@ -24,13 +24,15 @@ import { readGranola, type GranolaState } from "./granola";
 import { captureMeetings } from "./meetingCapture";
 import { refreshNoReply } from "./noReply";
 import { readSlack, type SlackState } from "./slack";
+import { countReadable, DEFAULT_DROPBOX_STATE, forgetDropboxFiles, normaliseFolder, readDropbox, type DropboxState } from "./dropbox";
+import { dropboxProgress, kickKnowledgeReader, type DropboxProgress } from "../documents/reader";
 
-export const SERVICE_KEYS = ["calendar", "gmail", "slack", "drive", "granola"] as const;
+export const SERVICE_KEYS = ["calendar", "gmail", "slack", "drive", "granola", "dropbox"] as const;
 export type ServiceKey = (typeof SERVICE_KEYS)[number];
 export type ReadBy = "ollieos" | "claude";
 
 /** Services OllieOS can read itself today. */
-export const DIRECT_READY: ReadonlySet<ServiceKey> = new Set<ServiceKey>(["calendar", "gmail", "slack", "drive", "granola"]);
+export const DIRECT_READY: ReadonlySet<ServiceKey> = new Set<ServiceKey>(["calendar", "gmail", "slack", "drive", "granola", "dropbox"]);
 
 export const SERVICE_NAMES: Record<ServiceKey, string> = {
   calendar: "Google Calendar",
@@ -38,6 +40,7 @@ export const SERVICE_NAMES: Record<ServiceKey, string> = {
   slack: "Slack",
   drive: "Google Drive",
   granola: "Granola",
+  dropbox: "Dropbox",
 };
 
 export const INTERVALS = [30, 60] as const;
@@ -119,6 +122,8 @@ export async function lastGoodRun(key: ServiceKey): Promise<ConnectorRun | null>
 /** Who reads a service now. */
 export async function readByNow(key: ServiceKey, settings?: ConnectorSettings): Promise<ReadBy> {
   if (!DIRECT_READY.has(key)) return "claude";
+  // Claude never reads Dropbox for OllieOS, so there is nothing to hand over.
+  if (key === "dropbox") return "ollieos";
   const s = settings ?? (await getConnectorSettings());
   const chosen = s.readBy[key];
   if (chosen) return chosen;
@@ -264,12 +269,49 @@ async function readGranolaRun(now: Date) {
   return { found: r.found, account: null, counts: { ...c, meetings: r.notes.length, left_out: r.leftOut, more: r.more ? 1 : 0 } };
 }
 
+async function readDropboxRun(now: Date) {
+  const saved = { ...DEFAULT_DROPBOX_STATE, ...((await getState<DropboxState>("dropbox")) ?? {}) };
+  // No folder chosen yet: nothing to read, and Dropbox is not asked.
+  if (saved.folder == null) return { found: 0, account: null, counts: {} };
+  const r = await readDropbox(saved, now);
+  await putState("dropbox", r.state);
+  if (r.counts.queued) kickKnowledgeReader();
+  return { found: r.found, account: r.account, counts: { ...r.counts } };
+}
+
+export interface DropboxSetup extends DropboxState {
+  progress: DropboxProgress;
+}
+
+export async function getDropboxSetup(): Promise<DropboxSetup> {
+  const saved = { ...DEFAULT_DROPBOX_STATE, ...((await getState<DropboxState>("dropbox")) ?? {}) };
+  return { ...saved, progress: await dropboxProgress() };
+}
+
+/**
+ * Chooses Claude's folder in Dropbox. A different folder starts again: what OllieOS was keeping
+ * track of is forgotten (what was approved from it stays), and the next check lists the new
+ * folder, reading what is already there once when `existing` is "all".
+ */
+export async function setDropboxFolder(rawFolder: string, existing: "all" | "new"): Promise<DropboxSetup & { files: number; other: number }> {
+  const folder = normaliseFolder(rawFolder);
+  if (!folder) throw new ConnectorSettingsError("Choose a folder inside Dropbox, for example /Cowork/Springpod.");
+  const found = await countReadable(folder);
+  if (!found) throw new ConnectorSettingsError(`There is no folder called ${folder} in Dropbox.`);
+  const saved = { ...DEFAULT_DROPBOX_STATE, ...((await getState<DropboxState>("dropbox")) ?? {}) };
+  const same = saved.folder != null && saved.folder.toLowerCase() === folder.toLowerCase();
+  if (!same) await forgetDropboxFiles();
+  await putState("dropbox", { folder, existing, listed: same ? saved.listed : false } satisfies DropboxState);
+  return { ...(await getDropboxSetup()), files: found.readable, other: found.other };
+}
+
 const READERS: Partial<Record<ServiceKey, (now: Date) => Promise<{ found: number; account: string | null; counts: Record<string, number> }>>> = {
   calendar: readCalendar,
   gmail: readGmailRun,
   slack: readSlackRun,
   drive: readDriveRun,
   granola: readGranolaRun,
+  dropbox: readDropboxRun,
 };
 
 /** Services being read right now in this server, so a manual check and the timer never overlap. */

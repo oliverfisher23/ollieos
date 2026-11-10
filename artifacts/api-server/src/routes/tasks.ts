@@ -44,6 +44,12 @@ const ListQuery = z.object({
 const SummaryQuery = z.object({ weekStart: isoDate.optional() });
 
 const IdParams = z.object({ id: z.coerce.number().int().positive() });
+const WriteReplyBody = z
+  .object({
+    instructions: z.string().max(2000).optional(),
+    current: z.string().max(20000).optional(),
+  })
+  .strict();
 
 const QuickAddBody = z.object({ text: z.string().min(1).max(500) });
 
@@ -159,7 +165,7 @@ router.post(
   "/tasks/:id/reply-draft",
   handle(async (req, res) => {
     const { id } = IdParams.parse(req.params);
-    res.json(await writeReplyDraft(id, ACTOR));
+    res.json(await writeReplyDraft(id, ACTOR, WriteReplyBody.parse(req.body ?? {})));
   }),
 );
 

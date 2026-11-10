@@ -6,12 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { DocLocation } from './docLocation';
+import type { DocumentKnowledge } from './documentKnowledge';
+import type { LibraryDocumentTextOrigin } from './libraryDocumentTextOrigin';
 import type { NamedLink } from './namedLink';
 
 export interface LibraryDocument {
   id: number;
   title: string;
-  url: string;
+  /**
+     * Null for text kept in OllieOS
+     * @nullable
+     */
+  url: string | null;
   location: DocLocation;
   /** @nullable */
   summary: string | null;
@@ -27,8 +33,14 @@ export interface LibraryDocument {
   projects: NamedLink[];
   hiddenFromAi: boolean;
   /**
-     * When OllieOS last read the file's text from Google Drive
+     * When OllieOS last read or was given the text
      * @nullable
      */
   contentsReadAt: Date | null;
+  /**
+     * Where the kept text came from
+     * @nullable
+     */
+  textOrigin: LibraryDocumentTextOrigin;
+  knowledge: DocumentKnowledge | null;
 }

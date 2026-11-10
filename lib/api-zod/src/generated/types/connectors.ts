@@ -7,8 +7,10 @@
  */
 import type { ConnectorSchedule } from './connectorSchedule';
 import type { ConnectorService } from './connectorService';
+import type { DropboxSetup } from './dropboxSetup';
 
 export interface Connectors {
   schedule: ConnectorSchedule;
   services: ConnectorService[];
+  dropbox: DropboxSetup;
 }

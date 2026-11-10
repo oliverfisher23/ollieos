@@ -108,13 +108,15 @@ export const PROJECT_LIFECYCLES = ["active", "paused", "complete"] as const;
 export type ProjectLifecycle = (typeof PROJECT_LIFECYCLES)[number];
 export const LIFECYCLE_LABELS: Record<ProjectLifecycle, string> = { active: "Active", paused: "Paused", complete: "Complete" };
 
-export const DOC_LOCATIONS = ["dropbox", "gdrive", "claude_project", "other"] as const;
+/** "ollieos" is text kept in OllieOS itself: pasted, uploaded or saved by Claude, with no link. */
+export const DOC_LOCATIONS = ["dropbox", "gdrive", "claude_project", "other", "ollieos"] as const;
 export type DocLocation = (typeof DOC_LOCATIONS)[number];
 export const DOC_LOCATION_LABELS: Record<DocLocation, string> = {
   dropbox: "Dropbox",
   gdrive: "Google Drive",
   claude_project: "Claude project",
   other: "Other",
+  ollieos: "Kept in OllieOS",
 };
 
 /** Longest a playbook rule may be (feature 07). */

@@ -1,22 +1,18 @@
-import { useMemo, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { Link, useLocation, useSearch } from 'wouter';
+import { useCallback, useEffect, useMemo } from 'react';
+import { useLocation, useSearch } from 'wouter';
 import {
-  dismissEmailDraft,
-  getListEmailDraftsQueryKey,
   useListEmailDrafts,
   useListReview,
   useListTasks,
   type EmailDraftItem,
   type Task,
 } from '@workspace/api-client-react';
-import { STATUS_LABELS, formatLong, formatShort } from '@workspace/shared';
+import { formatShort, formatTime, londonDate, todayLondon } from '@workspace/shared';
 import { Skel } from '@/components/bits';
+import { EmailReader } from '@/components/email-reader';
+import { LockMark } from '@/components/knowledge/parts';
 import { PageProblem } from '@/components/knowledge/parts';
-import { ReplyDraftCard } from '@/components/reply-draft';
-import { reportApiError } from '@/lib/forbidden';
-import { errorMessage, notify } from '@/lib/notify';
-import { useTaskActions } from '@/lib/task-actions';
+import { useMedia } from '@/lib/use-media';
 import { NoReplyTab } from '@/pages/email-no-reply';
 
 type Tab = 'to-answer' | 'drafts' | 'no-reply';
@@ -24,22 +20,34 @@ const TABS: Tab[] = ['to-answer', 'drafts', 'no-reply'];
 
 /** Open email tasks Ollie still has to deal with; Waiting on ones are with someone else. */
 const TO_ANSWER: Task['status'][] = ['inbox', 'now', 'backlog'];
+const WIDE = '(min-width: 1024px)';
 
-function savedState(d: EmailDraftItem['draft']): string {
-  if (d.savedAt) return `Saved to Gmail ${formatShort(d.savedAt)}`;
-  return d.canSaveToGmail ? 'Not saved to Gmail yet' : 'Copy it to send; not in Gmail';
+/** Today's emails show the time, older ones the date. */
+function when(at: string): string {
+  return londonDate(at) === todayLondon() ? formatTime(at) : formatShort(at);
+}
+
+const firstLine = (text: string) => text.replace(/\s+/g, ' ').trim();
+
+/** The first person a draft goes to, by name when there is one. */
+function firstRecipient(to: string): string {
+  const first = to.split(',')[0]?.trim() ?? '';
+  return first.replace(/\s*<[^>]+>$/, '').replace(/^"|"$/g, '') || first || 'No recipient yet';
 }
 
 /**
- * Email: everything about email in one place. Emails waiting on Ollie, the replies and chase emails
- * OllieOS has drafted, and emails Ollie sent that nobody answered. Tasks stay the record; this is a
- * view of them. OllieOS never sends email.
+ * Email: a small email client over OllieOS. Emails waiting on Ollie, the replies OllieOS has
+ * drafted, and emails Ollie sent that nobody answered. Tasks stay the record; this is a view of
+ * them. OllieOS never sends email.
  */
 export default function EmailPage() {
   const search = useSearch();
   const [, navigate] = useLocation();
-  const asked = new URLSearchParams(search).get('tab') as Tab | null;
+  const params = new URLSearchParams(search);
+  const asked = params.get('tab') as Tab | null;
   const tab: Tab = asked && TABS.includes(asked) ? asked : 'to-answer';
+  const picked = Number(params.get('id')) || null;
+  const wide = useMedia(WIDE);
 
   const tasks = useListTasks({ tab: 'open', source: 'email' });
   const drafts = useListEmailDrafts();
@@ -51,6 +59,11 @@ export default function EmailPage() {
         .sort((a, b) => new Date(b.capturedAt ?? b.createdAt).getTime() - new Date(a.capturedAt ?? a.createdAt).getTime()),
     [tasks.data],
   );
+  const draftItems = drafts.data?.items ?? [];
+
+  const go = useCallback((next: Tab, id?: number | null) => navigate(`/email?tab=${next}${id ? `&id=${id}` : ''}`, { replace: true }), [navigate]);
+  const pickAnswer = useCallback((id: number) => go('to-answer', id), [go]);
+  const pickDraft = useCallback((id: number) => go('drafts', id), [go]);
 
   const tabs: { id: Tab; label: string; count: number | undefined }[] = [
     { id: 'to-answer', label: 'To answer', count: tasks.data ? toAnswer.length : undefined },
@@ -70,8 +83,7 @@ export default function EmailPage() {
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0" style={{ marginTop: -6 }}>
         <div role="tablist" aria-label="Email views" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--oo-line)', minWidth: 'max-content' }}>
           {tabs.map((t) => (
-            <button key={t.id} type="button" role="tab" className="oo-tab" aria-selected={t.id === tab}
-              onClick={() => navigate(`/email?tab=${t.id}`, { replace: true })} data-testid={'tab-email-' + t.id}>
+            <button key={t.id} type="button" role="tab" className="oo-tab" aria-selected={t.id === tab} onClick={() => go(t.id)} data-testid={'tab-email-' + t.id}>
               {t.label} <span className="oo-count oo-num">{t.count ?? ''}</span>
             </button>
           ))}
@@ -79,156 +91,136 @@ export default function EmailPage() {
       </div>
 
       <div role="tabpanel" aria-label={tabs.find((t) => t.id === tab)!.label} style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: -6 }}>
-        {tab === 'to-answer' ? (
-          <ToAnswerTab items={toAnswer} loading={tasks.isLoading} failed={!tasks.data && !tasks.isLoading} retry={() => tasks.refetch()} drafts={drafts.data?.items ?? []} />
-        ) : tab === 'drafts' ? (
-          <DraftsTab items={drafts.data?.items ?? []} loading={drafts.isLoading} failed={!drafts.data && !drafts.isLoading} retry={() => drafts.refetch()} />
-        ) : (
+        {tab === 'no-reply' ? (
           <NoReplyTab />
+        ) : tab === 'to-answer' ? (
+          <Mail
+            ids={toAnswer.map((t) => t.id)}
+            picked={picked}
+            wide={wide}
+            loading={tasks.isLoading}
+            failed={!tasks.data && !tasks.isLoading}
+            retry={() => tasks.refetch()}
+            what="emails to answer"
+            empty="Nothing to answer. Emails that need something from you show here once a Gmail check brings them in."
+            onPick={pickAnswer}
+            row={(id, current) => {
+              const t = toAnswer.find((x) => x.id === id)!;
+              const d = draftItems.find((x) => x.task.id === id);
+              return <AnswerRow t={t} hasDraft={!!d} current={current} onPick={() => go('to-answer', id)} />;
+            }}
+            reader={(id, next) => (
+              <EmailReader taskId={id} mode="answer" hasDraft={draftItems.some((x) => x.task.id === id)} onBack={() => go('to-answer')} onNext={() => go('to-answer', wide ? next : null)} />
+            )}
+          />
+        ) : (
+          <Mail
+            ids={draftItems.map((d) => d.task.id)}
+            picked={picked}
+            wide={wide}
+            loading={drafts.isLoading}
+            failed={!drafts.data && !drafts.isLoading}
+            retry={() => drafts.refetch()}
+            what="drafts"
+            empty="No drafts waiting. Reply to an email from To answer, or chase one from No reply yet. A draft leaves this list when you send an email in its thread, when its task is closed, or when you remove it."
+            onPick={pickDraft}
+            row={(id, current) => <DraftRow it={draftItems.find((x) => x.task.id === id)!} current={current} onPick={() => go('drafts', id)} />}
+            reader={(id, next) => {
+              const it = draftItems.find((x) => x.task.id === id);
+              return <EmailReader taskId={id} mode="draft" chase={it?.chase ?? false} onBack={() => go('drafts')} onNext={() => go('drafts', wide ? next : null)} />;
+            }}
+          />
         )}
       </div>
     </main>
   );
 }
 
-function Loading() {
-  return <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{[0, 1, 2].map((i) => <Skel key={i} h={88} />)}</div>;
-}
+/**
+ * The list and the reading pane side by side on wide screens; one at a time on narrow ones.
+ * On wide screens the first email opens when none is picked.
+ */
+function Mail({ ids, picked, wide, loading, failed, retry, what, empty, onPick, row, reader }: {
+  ids: number[];
+  picked: number | null;
+  wide: boolean;
+  loading: boolean;
+  failed: boolean;
+  retry: () => void;
+  what: string;
+  empty: string;
+  onPick: (id: number) => void;
+  row: (id: number, current: boolean) => React.ReactNode;
+  reader: (id: number, next: number | null) => React.ReactNode;
+}) {
+  // Wide screens open the first email, and put it in the address so it stays open once dealt with.
+  const first = ids[0];
+  useEffect(() => {
+    if (wide && picked == null && first != null) onPick(first);
+  }, [wide, picked, first, onPick]);
 
-/** Email tasks still with Ollie: in the Inbox, Now or Backlog. */
-function ToAnswerTab({ items, loading, failed, retry, drafts }: { items: Task[]; loading: boolean; failed: boolean; retry: () => void; drafts: EmailDraftItem[] }) {
-  const [open, setOpen] = useState<number | null>(null);
-  const actions = useTaskActions();
-  const draftFor = useMemo(() => new Map(drafts.map((d) => [d.task.id, d.draft])), [drafts]);
+  if (loading) {
+    return <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{[0, 1, 2, 3].map((i) => <Skel key={i} h={64} />)}</div>;
+  }
+  if (failed) return <PageProblem notFound={false} what={what} onRetry={retry} back={{ href: '/tasks', label: 'Tasks' }} />;
+  // An email just dealt with stays open (to undo or add a noise rule) though it has left the list.
+  const open = picked;
+  if (ids.length === 0 && open == null) {
+    return <p className="oo-muted" style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }} data-testid={'state-email-empty'}>{empty}</p>;
+  }
+  const at = open != null ? ids.indexOf(open) : -1;
+  const next = at >= 0 ? (ids[at + 1] ?? ids[at - 1] ?? null) : (ids[0] ?? null);
 
   return (
-    <>
-      <p className="oo-muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-        Emails that came in as tasks and are still with you, newest first. Draft a reply, then save it to Gmail and send it from there. Emails you are waiting on someone about are in Tasks, Waiting on.
-      </p>
-      {loading ? (
-        <Loading />
-      ) : failed ? (
-        <PageProblem notFound={false} what="emails to answer" onRetry={retry} back={{ href: '/tasks', label: 'Tasks' }} />
-      ) : items.length === 0 ? (
-        <p className="oo-muted" style={{ margin: 0, fontSize: 14 }} data-testid="state-to-answer-empty">
-          Nothing to answer. Emails that need something from you show here once a Gmail check brings them in.
-        </p>
-      ) : (
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }}>
-          {items.map((t) => {
-            const d = draftFor.get(t.id);
-            const isOpen = open === t.id;
-            const titleId = 'em-title-' + t.id;
-            return (
-              <li key={t.id} className="oo-rv-row" aria-labelledby={titleId} data-testid={'row-to-answer-' + t.id}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, flex: 1 }}>
-                  <span id={titleId} style={{ fontSize: 15, fontWeight: 600, overflowWrap: 'anywhere' }}>{t.title}</span>
-                  <span className="oo-muted" style={{ fontSize: 13, display: 'flex', flexWrap: 'wrap', gap: '4px 10px' }}>
-                    {(t.fromName || t.fromAddress) && <span style={{ overflowWrap: 'anywhere' }}>From {t.fromName ?? t.fromAddress}</span>}
-                    {t.sourceSubject && (
-                      <span style={{ overflowWrap: 'anywhere' }}>
-                        {t.sourceUrl ? <a href={t.sourceUrl} target="_blank" rel="noreferrer">{t.sourceSubject}</a> : t.sourceSubject}
-                      </span>
-                    )}
-                    <span>{formatLong(t.capturedAt ?? t.createdAt)}</span>
-                    <span>{STATUS_LABELS[t.status]}</span>
-                    {t.confidential && <span className="oo-pill">Confidential</span>}
-                  </span>
-                  {d && <span className="oo-muted" style={{ fontSize: 12 }} data-testid={'text-to-answer-draft-' + t.id}>Draft written · {savedState(d)}</span>}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
-                    <button type="button" className="oo-btn oo-btn-sm oo-btn-ink" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : t.id)} data-testid={'button-to-answer-draft-' + t.id}>
-                      {isOpen ? 'Close' : d ? 'Edit draft' : 'Draft reply'}
-                    </button>
-                    <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" onClick={() => void actions.markDone(t)} data-testid={'button-to-answer-done-' + t.id}>Done</button>
-                    <Link href={'/tasks?task=' + t.id} className="oo-btn oo-btn-sm oo-btn-outline" data-testid={'link-to-answer-task-' + t.id}>Open task</Link>
-                  </div>
-                  {isOpen && <div style={{ marginTop: 6 }}><ReplyDraftCard taskId={t.id} /></div>}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </>
+    <div className="oo-mail" data-open={open != null ? 'true' : 'false'}>
+      <ul className="oo-mail-list" aria-label="Emails">
+        {ids.map((id) => <li key={id}>{row(id, id === open)}</li>)}
+        {ids.length === 0 && <li className="oo-muted" style={{ padding: 14, fontSize: 13 }}>{empty}</li>}
+      </ul>
+      <section className="oo-mail-read" aria-label="Reading pane">
+        {open != null ? reader(open, next === open ? null : next) : null}
+      </section>
+    </div>
   );
 }
 
-/** Every reply and chase email OllieOS drafted that has not gone yet. */
-function DraftsTab({ items, loading, failed, retry }: { items: EmailDraftItem[]; loading: boolean; failed: boolean; retry: () => void }) {
-  const qc = useQueryClient();
-  const [open, setOpen] = useState<number | null>(null);
-  const [busy, setBusy] = useState<number | null>(null);
-
-  const dismiss = async (it: EmailDraftItem) => {
-    setBusy(it.task.id);
-    try {
-      await dismissEmailDraft(it.task.id);
-      await qc.invalidateQueries({ queryKey: getListEmailDraftsQueryKey() });
-      if (open === it.task.id) setOpen(null);
-      notify('Taken off Drafts', 'The draft stays on the task.');
-    } catch (err) {
-      reportApiError(err);
-      notify('That did not save', errorMessage(err));
-    } finally {
-      setBusy(null);
-    }
-  };
-
+function AnswerRow({ t, hasDraft, current, onPick }: { t: Task; hasDraft: boolean; current: boolean; onPick: () => void }) {
+  const from = t.fromName ?? t.fromAddress ?? 'Unknown sender';
   return (
-    <>
-      <p className="oo-muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-        Replies and chase emails OllieOS has written, newest first. A draft leaves this list when a Gmail check sees you send an email in its thread, when its task is closed, or when you mark it done.
-      </p>
-      {loading ? (
-        <Loading />
-      ) : failed ? (
-        <PageProblem notFound={false} what="drafts" onRetry={retry} back={{ href: '/tasks', label: 'Tasks' }} />
-      ) : items.length === 0 ? (
-        <p className="oo-muted" style={{ margin: 0, fontSize: 14 }} data-testid="state-drafts-empty">
-          No drafts waiting. Draft a reply from To answer, or chase an email from No reply yet.
-        </p>
-      ) : (
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }}>
-          {items.map((it) => {
-            const d = it.draft;
-            const isOpen = open === it.task.id;
-            const titleId = 'em-draft-' + it.task.id;
-            return (
-              <li key={it.task.id} className="oo-rv-row" aria-labelledby={titleId} data-testid={'row-draft-' + it.task.id}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, flex: 1 }}>
-                  <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '4px 10px' }}>
-                    <span id={titleId} style={{ fontSize: 15, fontWeight: 600, overflowWrap: 'anywhere' }}>{d.subject || it.task.title}</span>
-                    <span className="oo-pill">{it.chase ? 'Chase' : 'Reply'}</span>
-                    {it.task.confidential && <span className="oo-pill">Confidential</span>}
-                  </span>
-                  <span className="oo-muted" style={{ fontSize: 13, display: 'flex', flexWrap: 'wrap', gap: '4px 10px' }}>
-                    {d.to && <span style={{ overflowWrap: 'anywhere' }}>To {d.to}</span>}
-                    <span data-testid={'text-draft-state-' + it.task.id}>{savedState(d)}</span>
-                    <span>Written {formatShort(d.updatedAt)}</span>
-                  </span>
-                  {!isOpen && (
-                    <span className="oo-soft" style={{ fontSize: 13, lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere' }}>
-                      {d.body.replace(/\s+/g, ' ').trim()}
-                    </span>
-                  )}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 2 }}>
-                    <button type="button" className="oo-btn oo-btn-sm oo-btn-ink" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : it.task.id)} data-testid={'button-draft-edit-' + it.task.id}>
-                      {isOpen ? 'Close' : 'Edit'}
-                    </button>
-                    {d.gmailUrl && (
-                      <a href={d.gmailUrl} target="_blank" rel="noreferrer" className="oo-btn oo-btn-sm oo-btn-outline" data-testid={'link-draft-gmail-' + it.task.id}>Open in Gmail</a>
-                    )}
-                    <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy === it.task.id} onClick={() => void dismiss(it)} data-testid={'button-draft-done-' + it.task.id}>Done</button>
-                    <Link href={'/tasks?task=' + it.task.id} className="oo-btn oo-btn-sm oo-btn-outline" data-testid={'link-draft-task-' + it.task.id}>Open task</Link>
-                  </div>
-                  {isOpen && <div style={{ marginTop: 6 }}><ReplyDraftCard taskId={it.task.id} chase={it.chase} /></div>}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+    <button type="button" className="oo-mail-row" aria-current={current ? 'true' : undefined} onClick={onPick} data-testid={'row-to-answer-' + t.id}>
+      <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+        <span className="oo-mail-clamp" style={{ fontSize: 14, fontWeight: 600 }}>{from}</span>
+        <span className="oo-muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{when(t.capturedAt ?? t.createdAt)}</span>
+      </span>
+      <span className="oo-mail-clamp" style={{ fontSize: 13, fontWeight: 500, display: '-webkit-box' }}>
+        {t.confidential && <LockMark />} {t.sourceSubject ?? t.title}
+      </span>
+      <span className="oo-muted oo-mail-clamp" style={{ fontSize: 13 }}>{t.snippet ? firstLine(t.snippet) : t.title}</span>
+      {(t.status !== 'inbox' || hasDraft) && (
+        <span style={{ display: 'flex', gap: 6, marginTop: 3 }}>
+          {t.status === 'now' && <span className="oo-pill">Now</span>}
+          {t.status === 'backlog' && <span className="oo-pill">Backlog</span>}
+          {hasDraft && <span className="oo-pill">Draft</span>}
+        </span>
       )}
-    </>
+    </button>
+  );
+}
+
+function DraftRow({ it, current, onPick }: { it: EmailDraftItem; current: boolean; onPick: () => void }) {
+  const d = it.draft;
+  return (
+    <button type="button" className="oo-mail-row" aria-current={current ? 'true' : undefined} onClick={onPick} data-testid={'row-draft-' + it.task.id}>
+      <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+        <span className="oo-mail-clamp" style={{ fontSize: 14, fontWeight: 600 }}>To {firstRecipient(d.to)}</span>
+        <span className="oo-muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{when(d.updatedAt)}</span>
+      </span>
+      <span className="oo-mail-clamp" style={{ fontSize: 13, fontWeight: 500 }}>{d.subject || it.task.title}</span>
+      <span className="oo-muted oo-mail-clamp" style={{ fontSize: 13 }}>{firstLine(d.body)}</span>
+      <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 3 }}>
+        <span className="oo-pill">{it.chase ? 'Chase' : 'Reply'}</span>
+        <span className="oo-pill">{d.savedAt ? 'In Gmail' : d.canSaveToGmail ? 'Not in Gmail yet' : 'Copy to send'}</span>
+      </span>
+    </button>
   );
 }

@@ -2,27 +2,27 @@ import { useEffect, useState, type FormEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Link, useLocation, useSearch } from 'wouter';
 import {
-  createDocument,
+  buildDocumentKnowledge,
   createPlaybook,
-  updateDocument,
   updatePlaybook,
   useListDocuments,
   useListOrganisations,
   useListPlaybooks,
   useListProjects,
-  type DocLocation,
   type LibraryDocument,
   type Playbook,
   type PlaybookUpdate,
 } from '@workspace/api-client-react';
-import { DOC_LOCATIONS, DOC_LOCATION_LABELS, PLAYBOOK_RULE_MAX, formatDayMonthShort } from '@workspace/shared';
+import { DOC_LOCATION_LABELS, PLAYBOOK_RULE_MAX, formatDayMonthShort } from '@workspace/shared';
 import { CharCount, Skel } from '@/components/bits';
 import { IconArrowOut } from '@/components/icons';
 import { InlineText } from '@/components/inline-text';
 import { KnowledgeLayout } from '@/components/knowledge/layout';
 import { HiddenFromAi, PageProblem, TriStateAccess } from '@/components/knowledge/parts';
 import { useKnowledgeWrite } from '@/lib/knowledge';
-import { Dropdown } from '@/components/dropdown';
+import { DocumentDialog, MultiPick } from '@/components/knowledge/document-dialog';
+
+export { DocumentDialog };
 
 type Tab = 'documents' | 'playbooks';
 
@@ -42,12 +42,12 @@ export default function LibraryPage() {
           <h1 className="oo-h1">{tab === 'documents' ? 'Documents' : 'Playbooks'}</h1>
           <p className="oo-muted" style={{ margin: 0, fontSize: 14, maxWidth: '64ch' }}>
             {tab === 'documents'
-              ? 'Where the important files live, with a line on each, so you and Claude can find them. OllieOS keeps the link, never the file.'
+              ? 'Where the important files live, with a line on each, so you and Claude can find them. Build knowledge from a document and what it finds waits in your Knowledge Inbox.'
               : 'Short rules every AI tool reads from OllieOS before drafting anything for you. Pause one and no AI sees it.'}
           </p>
         </div>
-        <button type="button" className="oo-btn oo-btn-ink" onClick={() => setAdding(true)} data-testid={tab === 'documents' ? 'button-add-link' : 'button-new-playbook'}>
-          {tab === 'documents' ? 'Add a link' : 'New playbook'}
+        <button type="button" className="oo-btn oo-btn-ink" onClick={() => setAdding(true)} data-testid={tab === 'documents' ? 'button-add-document' : 'button-new-playbook'}>
+          {tab === 'documents' ? 'Add a document' : 'New playbook'}
         </button>
       </div>
 
@@ -82,7 +82,12 @@ export default function LibraryPage() {
 /* ---------- Documents ---------- */
 
 function DocumentsTab({ openId, onCloseDoc }: { openId: number | null; onCloseDoc: () => void }) {
-  const q = useListDocuments();
+  const [watching, setWatching] = useState(false);
+  // While a document is waiting or being read, check every few seconds so its line updates.
+  const q = useListDocuments(undefined, { query: { refetchInterval: watching ? 4000 : false } as never });
+  useEffect(() => {
+    setWatching(!!q.data?.some((d) => d.knowledge && (d.knowledge.status === 'queued' || d.knowledge.status === 'reading')));
+  }, [q.data]);
   const [editing, setEditing] = useState<LibraryDocument | null>(null);
   const opened = openId ? q.data?.find((d) => d.id === openId) ?? null : null;
   const current = editing ?? opened;
@@ -99,7 +104,7 @@ function DocumentsTab({ openId, onCloseDoc }: { openId: number | null; onCloseDo
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {q.data.length === 0 ? (
         <p className="oo-muted" style={{ margin: 0, fontSize: 14, padding: '16px 0' }} data-testid="state-documents-empty">
-          No documents yet. Paste a Dropbox, Google Drive or Claude project link with Add a link.
+          No documents yet. Add a link, paste text or upload a file with Add a document.
         </p>
       ) : (
         <>
@@ -145,7 +150,7 @@ function DocumentsTab({ openId, onCloseDoc }: { openId: number | null; onCloseDo
         </>
       )}
       <p className="oo-muted" style={{ margin: 0, fontSize: 12, lineHeight: 1.5 }} data-testid="text-library-footnote">
-        OllieOS stores links and summaries only, never the files. Confidential documents, and documents on confidential projects, are hidden from AI. Updated is when you or the sweep last confirmed the link, not the file’s own date.
+        OllieOS keeps links and summaries, and the text of documents you paste or upload, never the files. Confidential documents, and documents on confidential projects, are hidden from AI and never read for knowledge. Updated is when you or the sweep last confirmed the document, not the file’s own date.
       </p>
       {current && (
         <DocumentDialog
@@ -160,19 +165,72 @@ function DocumentsTab({ openId, onCloseDoc }: { openId: number | null; onCloseDo
   );
 }
 
+const KEPT_WORDS: Record<string, string> = {
+  pasted: 'Pasted',
+  upload: 'Uploaded',
+  claude: 'Saved by Claude',
+};
+
 function DocTitle({ d }: { d: LibraryDocument }) {
+  const kept = d.textOrigin ? KEPT_WORDS[d.textOrigin] : undefined;
   return (
     <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
       <span style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-        <a href={d.url} target="_blank" rel="noreferrer" className="oo-krow-link" style={{ fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }} data-testid={'link-document-' + d.id}>
-          {d.title}
-          <IconArrowOut size={12} style={{ flex: 'none' }} aria-hidden="true" />
-          <span className="oo-sr"> (opens in a new tab)</span>
-        </a>
+        {d.url ? (
+          <a href={d.url} target="_blank" rel="noreferrer" className="oo-krow-link" style={{ fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }} data-testid={'link-document-' + d.id}>
+            {d.title}
+            <IconArrowOut size={12} style={{ flex: 'none' }} aria-hidden="true" />
+            <span className="oo-sr"> (opens in a new tab)</span>
+          </a>
+        ) : (
+          <span style={{ fontWeight: 500 }} data-testid={'text-document-title-' + d.id}>{d.title}</span>
+        )}
         {d.hiddenFromAi && <HiddenFromAi confidential={d.confidential === true} />}
       </span>
       {d.summary && <span className="oo-muted" style={{ fontSize: 13, overflowWrap: 'anywhere' }}>{d.summary}</span>}
-      {d.contentsReadAt && <span className="oo-muted" style={{ fontSize: 12 }} data-testid={'text-contents-read-' + d.id}>OllieOS read the contents {formatDayMonthShort(d.contentsReadAt)}</span>}
+      {kept ? (
+        <span className="oo-muted" style={{ fontSize: 12 }} data-testid={'text-contents-read-' + d.id}>{kept} {d.contentsReadAt ? formatDayMonthShort(d.contentsReadAt) : ''}, text kept in OllieOS</span>
+      ) : (
+        d.contentsReadAt && <span className="oo-muted" style={{ fontSize: 12 }} data-testid={'text-contents-read-' + d.id}>OllieOS read the contents {formatDayMonthShort(d.contentsReadAt)}</span>
+      )}
+      <KnowledgeLine d={d} />
+    </span>
+  );
+}
+
+/** Where reading this document for knowledge has got, and the button to start or repeat it. */
+function KnowledgeLine({ d }: { d: LibraryDocument }) {
+  const write = useKnowledgeWrite();
+  const [busy, setBusy] = useState(false);
+  if (d.hiddenFromAi) return null;
+  const k = d.knowledge;
+  const waiting = k?.status === 'queued' || k?.status === 'reading';
+  let line: string | null = null;
+  if (k?.status === 'queued') line = 'Waiting to be read for knowledge';
+  else if (k?.status === 'reading') line = 'Reading for knowledge…';
+  else if (k?.status === 'failed') line = k.error ?? 'Could not be read for knowledge';
+  else if (k?.lastReadAt) line = `Read for knowledge ${formatDayMonthShort(k.lastReadAt)}: ${k.lastResult ?? 'nothing new'}`;
+  const found = k?.status === 'idle' && !!k.lastResult && k.lastResult !== 'nothing new';
+
+  const start = async () => {
+    setBusy(true);
+    await write(() => buildDocumentKnowledge(d.id), { done: 'Reading it for knowledge now', fail: 'Could not start reading it' });
+    setBusy(false);
+  };
+
+  return (
+    <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: 10, rowGap: 2, fontSize: 12 }} data-testid={'knowledge-document-' + d.id}>
+      {line && (
+        <span role="status" className={k?.status === 'failed' ? undefined : 'oo-muted'} style={k?.status === 'failed' ? { color: 'var(--oo-danger)' } : undefined} data-testid={'text-knowledge-' + d.id}>
+          {line}
+        </span>
+      )}
+      {found && <Link href="/knowledge/inbox?from=documents" className="oo-krow-link" style={{ fontSize: 12 }} data-testid={'link-knowledge-inbox-' + d.id}>Review in the Knowledge Inbox</Link>}
+      {!waiting && (
+        <button type="button" className="oo-textbtn" style={{ fontSize: 12 }} disabled={busy} onClick={start} data-testid={'button-build-knowledge-' + d.id}>
+          {k?.lastReadAt ? 'Read again for changes' : k?.status === 'failed' ? 'Try again' : 'Build knowledge from this'}
+        </button>
+      )}
     </span>
   );
 }
@@ -183,124 +241,6 @@ function DocProjects({ d }: { d: LibraryDocument }) {
     <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6 }}>
       {d.projects.map((p) => <Link key={p.id} href={'/knowledge/projects/' + p.slug} className="oo-krow-link">{p.name}</Link>)}
     </span>
-  );
-}
-
-/** Adds a document from a pasted link, or edits one. Title and location fill from the link when left blank. */
-export function DocumentDialog({ doc, presetProjectId, onClose }: { doc?: LibraryDocument; presetProjectId?: number; onClose: () => void }) {
-  const write = useKnowledgeWrite();
-  const projects = useListProjects();
-  const [url, setUrl] = useState(doc?.url ?? '');
-  const [title, setTitle] = useState(doc?.title ?? '');
-  const [summary, setSummary] = useState(doc?.summary ?? '');
-  const [location, setLocation] = useState<DocLocation | ''>(doc?.location ?? '');
-  const [projectIds, setProjectIds] = useState<number[]>(doc?.projects.map((p) => p.id) ?? (presetProjectId ? [presetProjectId] : []));
-  const [confidential, setConfidential] = useState<boolean | null>(doc ? doc.confidential : null);
-  const [busy, setBusy] = useState(false);
-  const valid = url.trim().length > 0 && (!doc || title.trim().length > 0);
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!valid || busy) return;
-    setBusy(true);
-    const ok = doc
-      ? await write(
-          () => updateDocument(doc.id, { url: url.trim(), title: title.trim(), summary: summary.trim() || null, location: location || undefined, projectIds, confidential }),
-          { done: 'Document saved', fail: 'Could not save that document' },
-        )
-      : await write(
-          () => createDocument({ url: url.trim(), title: title.trim() || null, summary: summary.trim() || null, location: location || undefined, projectIds, confidential }),
-          { done: 'Added to the Library', fail: 'Could not add that link' },
-        );
-    setBusy(false);
-    if (ok) onClose();
-  };
-
-  const confirm = async () => {
-    if (!doc || busy) return;
-    setBusy(true);
-    const ok = await write(() => updateDocument(doc.id, { confirm: true }), { done: 'Marked as still current' });
-    setBusy(false);
-    if (ok) onClose();
-  };
-
-  return (
-    <Dialog.Root open onOpenChange={(o) => !o && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="oo-modal-scrim">
-          <Dialog.Content className="oo-modal" style={{ maxWidth: 560 }} aria-describedby="doc-desc" data-testid={doc ? 'dialog-edit-document' : 'dialog-add-link'}>
-            <Dialog.Title style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>{doc ? 'Edit document' : 'Add a link'}</Dialog.Title>
-            <p id="doc-desc" className="oo-muted" style={{ margin: 0, fontSize: 13 }}>
-              {doc ? `Updated ${formatDayMonthShort(doc.lastConfirmedAt)}. Added by ${doc.createdBy}.` : 'Paste a Dropbox, Google Drive or Claude project link. OllieOS fills the title and where it lives from the link; you can change both.'}
-            </p>
-            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <label>
-                <span>Link</span>
-                <input className="oo-input" type="url" inputMode="url" required autoFocus={!doc} value={url} maxLength={2000} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.dropbox.com/…" data-testid="input-document-url" />
-              </label>
-              <label>
-                <span>Title{doc ? '' : <span className="oo-muted"> (optional, taken from the link)</span>}</span>
-                <input className="oo-input" value={title} maxLength={300} required={!!doc} onChange={(e) => setTitle(e.target.value)} data-testid="input-document-title" />
-              </label>
-              <label>
-                <span>Summary <span className="oo-muted">(one line on what it is)</span></span>
-                <textarea className="oo-textarea" rows={2} value={summary} maxLength={2000} onChange={(e) => setSummary(e.target.value)} data-testid="input-document-summary" />
-              </label>
-              <div className="oo-dd-field">
-                <label htmlFor="document-location">Where it lives</label>
-                <Dropdown
-                  id="document-location"
-                  value={location}
-                  onChange={(v) => setLocation(v as DocLocation | '')}
-                  options={[
-                    ...(doc ? [] : [{ value: '', label: 'Work it out from the link' }]),
-                    ...DOC_LOCATIONS.map((l) => ({ value: l, label: DOC_LOCATION_LABELS[l] })),
-                  ]}
-                  testId="select-document-location"
-                />
-              </div>
-              <MultiPick label="Projects" items={projects.data ?? []} value={projectIds} onChange={setProjectIds} testId="pick-document-projects" />
-              <TriStateAccess wide value={confidential} hidden={false} parent="its projects" onChange={setConfidential} testId="document-access" />
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' }}>
-                {doc && (
-                  <button type="button" className="oo-btn oo-btn-quiet" style={{ marginRight: 'auto' }} disabled={busy} onClick={confirm} data-testid="button-confirm-document">Still current</button>
-                )}
-                <Dialog.Close asChild>
-                  <button type="button" className="oo-btn oo-btn-outline" data-testid="button-cancel-document">Cancel</button>
-                </Dialog.Close>
-                <button type="submit" className="oo-btn oo-btn-ink" disabled={!valid || busy} data-testid="button-save-document">{busy ? 'Saving…' : doc ? 'Save' : 'Add link'}</button>
-              </div>
-            </form>
-          </Dialog.Content>
-        </Dialog.Overlay>
-      </Dialog.Portal>
-    </Dialog.Root>
-  );
-}
-
-/** A checkbox list for linking to several projects or organisations. */
-function MultiPick({ label, items, value, onChange, testId }: { label: string; items: { id: number; name: string }[]; value: number[]; onChange: (v: number[]) => void; testId: string }) {
-  return (
-    <fieldset style={{ border: 0, margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }} data-testid={testId}>
-      <legend style={{ padding: 0, marginBottom: 6 }}>{label} <span className="oo-muted">(optional)</span></legend>
-      {items.length === 0 ? (
-        <span className="oo-muted">None to choose from yet.</span>
-      ) : (
-        <div style={{ maxHeight: 150, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2, border: '1px solid var(--oo-line)', borderRadius: 'var(--oo-r-input)', padding: '6px 10px' }}>
-          {items.map((it) => (
-            <label key={it.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 30, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={value.includes(it.id)}
-                onChange={(e) => onChange(e.target.checked ? [...value, it.id] : value.filter((x) => x !== it.id))}
-                data-testid={`${testId}-${it.id}`}
-              />
-              <span>{it.name}</span>
-            </label>
-          ))}
-        </div>
-      )}
-    </fieldset>
   );
 }
 

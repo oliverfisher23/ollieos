@@ -4,6 +4,8 @@ import { auditEventsTable, db, tasksTable, type ConnectorRun } from "@workspace/
 import {
   DIRECT_READY,
   SERVICE_KEYS,
+  getDropboxSetup,
+  type DropboxSetup,
   SERVICE_NAMES,
   getConnectorSettings,
   lastGoodRun,
@@ -43,6 +45,8 @@ export interface ServiceView {
 export interface ConnectorsView {
   schedule: Schedule & { lastRunAt: Date | null; nextRunAt: Date | null };
   services: ServiceView[];
+  /** Claude's folder in Dropbox and how far reading it has got */
+  dropbox: DropboxSetup;
 }
 
 const runView = (r: ConnectorRun): RunView => ({
@@ -103,5 +107,6 @@ export async function connectorsView(now = new Date()): Promise<ConnectorsView> 
   return {
     schedule: { ...settings.schedule, lastRunAt, nextRunAt: nextCheckAt(now, settings.schedule, lastRunAt) },
     services,
+    dropbox: await getDropboxSetup(),
   };
 }

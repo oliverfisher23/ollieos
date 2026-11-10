@@ -615,6 +615,41 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
   );
 
   server.registerTool(
+    "save_document",
+    {
+      description: describe(
+        "Proposes keeping a document you wrote (an artifact, plan, notes or summary) in Ollie's Library, with its full text. It goes to his Knowledge Inbox; once he approves it, OllieOS keeps the text and reads it for knowledge. Use a clear title.",
+      ),
+      inputSchema: {
+        title: z.string().min(1).max(300),
+        content: z.string().min(1).max(200_000).describe("The full text, Markdown is fine"),
+        kind: z.string().max(60).optional().describe('What it is, e.g. "plan", "notes", "brief", "analysis"'),
+        summary: z.string().max(1000).optional().describe("One or two sentences on what it is"),
+        project: Pick.optional().describe("The project it belongs to"),
+        ...SourceFields,
+      },
+    },
+    async (a) =>
+      guard(async () => {
+        const project = a.project ? await resolvePick(scope, a.project, ["project"]) : null;
+        if (a.project && !project) return NOT_FOUND("project");
+        const r = await propose(metaOf(a), {
+          kind: "document",
+          payload: {
+            title: a.title.trim(),
+            content: a.content,
+            doc_kind: a.kind?.trim() || null,
+            summary: a.summary?.trim() || null,
+            url: null,
+            project_ids: project ? [project.id] : [],
+            project_names: project ? [project.name] : [],
+          },
+        });
+        return ok(proposalReply(r));
+      }),
+  );
+
+  server.registerTool(
     "request_access",
     {
       description: describe(

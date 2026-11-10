@@ -26,8 +26,9 @@ const fieldsOf = (d: ReplyDraft): Fields => ({ to: d.to, cc: d.cc, subject: d.su
 const same = (a: Fields, b: Fields) => a.to === b.to && a.cc === b.cc && a.subject === b.subject && a.body === b.body;
 
 /**
- * "Draft reply" on an email task. AI writes the reply from the thread and what OllieOS knows;
- * Ollie edits it and saves it as a draft in the Gmail thread. OllieOS never sends email.
+ * "Draft reply" on an email task. AI writes the reply from the thread and what OllieOS knows,
+ * steered by what Ollie says it should say; he can ask for changes, edit it, and save it as a draft
+ * in the Gmail thread. OllieOS never sends email.
  */
 export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** A follow-up from No reply yet: written straight away when there is none yet */ chase?: boolean }) {
   const autoWrite = chase;
@@ -35,7 +36,9 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
   const saved = useGetReplyDraft(taskId);
   const [draft, setDraft] = useState<ReplyDraft | null>(null);
   const [fields, setFields] = useState<Fields | null>(null);
-  const [writing, setWriting] = useState(false);
+  const [writing, setWriting] = useState<false | 'new' | 'change'>(false);
+  /** Ollie's steer: what the reply should say, or what to change in it */
+  const [ask, setAsk] = useState('');
   const [saving, setSaving] = useState(false);
   const [confirmRewrite, setConfirmRewrite] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,12 +72,14 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
     qc.invalidateQueries({ queryKey: getListEmailDraftsQueryKey() });
   };
 
-  const write = async () => {
+  /** A fresh draft, or with `change`, the current one changed as Ollie asked. */
+  const write = async (change = false) => {
     setConfirmRewrite(false);
-    setWriting(true);
+    setWriting(change ? 'change' : 'new');
     setError(null);
     try {
-      take(await writeReplyDraft(taskId));
+      take(await writeReplyDraft(taskId, { instructions: ask.trim() || undefined, current: change && fields ? fields.body : undefined }));
+      setAsk('');
     } catch (err) {
       reportApiError(err);
       setError(errorMessage(err, 'The reply could not be written just now. Try again in a moment.'));
@@ -113,7 +118,9 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
           <Skel h={36} w={140} />
         ) : writing ? (
           <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 8 }} data-testid="state-reply-writing">
-            <span className="oo-muted" style={{ fontSize: 13 }}>{chase ? 'Reading the thread and writing a follow-up…' : 'Reading the thread and writing a reply…'}</span>
+            <span className="oo-muted" style={{ fontSize: 13 }}>
+              {writing === 'change' ? 'Changing the draft…' : chase ? 'Reading the thread and writing a follow-up…' : 'Reading the thread and writing a reply…'}
+            </span>
             <Skel h={14} w="90%" /><Skel h={14} w="80%" /><Skel h={14} w="55%" />
           </div>
         ) : !draft || !fields ? (
@@ -121,7 +128,13 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
             <span className="oo-soft" style={{ fontSize: 13, lineHeight: 1.5 }}>
               Writes a {chase ? 'follow-up' : 'reply'} from the email thread, what OllieOS knows about the people and work involved, and your playbooks. You edit it and save it to Gmail. Nothing is sent.
             </span>
-            <div><button type="button" className="oo-btn oo-btn-ink" onClick={write} data-testid="button-draft-reply">{chase ? 'Draft chase email' : 'Draft reply'}</button></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label htmlFor={'rd-ask-' + taskId} className="oo-field-label">What should it say? Optional</label>
+              <textarea id={'rd-ask-' + taskId} rows={2} className="oo-input" value={ask} onChange={(e) => setAsk(e.target.value)} maxLength={2000}
+                placeholder={chase ? 'For example: keep it light, mention the Friday deadline' : 'For example: yes to Tuesday, ask for the budget first'}
+                style={{ resize: 'vertical', borderRadius: 'var(--oo-r-input-lg)', padding: '10px 12px', lineHeight: 1.5 }} data-testid="input-reply-ask" />
+            </div>
+            <div><button type="button" className="oo-btn oo-btn-ink" onClick={() => void write()} data-testid="button-draft-reply">{chase ? 'Draft chase email' : 'Draft reply'}</button></div>
           </>
         ) : (
           <>
@@ -142,6 +155,21 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
               <textarea id="rd-body" rows={10} className="oo-input" value={fields.body} onChange={set('body')}
                 style={{ resize: 'vertical', borderRadius: 'var(--oo-r-input-lg)', padding: '10px 12px', lineHeight: 1.55 }} data-testid="input-reply-body" />
             </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (ask.trim()) void write(true);
+              }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+            >
+              <label htmlFor={'rd-change-' + taskId} className="oo-field-label">Ask for changes</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <input id={'rd-change-' + taskId} className="oo-input" style={{ flex: '1 1 220px', minWidth: 0 }} value={ask} onChange={(e) => setAsk(e.target.value)} maxLength={2000}
+                  placeholder="For example: shorter, warmer, say no politely" data-testid="input-reply-change" />
+                <button type="submit" className="oo-btn oo-btn-outline" disabled={!ask.trim() || saving} data-testid="button-reply-change">Change it</button>
+              </div>
+            </form>
 
             <p className="oo-muted" style={{ margin: 0, fontSize: 12 }} role="status" data-testid="text-reply-status">
               {!draft.canSaveToGmail
@@ -166,7 +194,7 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
               {confirmRewrite ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
                   Replace your edits?
-                  <button type="button" className="oo-btn oo-btn-outline" onClick={write} data-testid="button-rewrite-confirm">Write again</button>
+                  <button type="button" className="oo-btn oo-btn-outline" onClick={() => void write()} data-testid="button-rewrite-confirm">Write again</button>
                   <button type="button" className="oo-btn oo-btn-outline" onClick={() => setConfirmRewrite(false)} data-testid="button-rewrite-cancel">Keep editing</button>
                 </span>
               ) : (

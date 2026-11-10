@@ -12,4 +12,5 @@ export type ListKnowledgeInboxOrigin = typeof ListKnowledgeInboxOrigin[keyof typ
 export const ListKnowledgeInboxOrigin = {
   all: 'all',
   look_back: 'look_back',
+  documents: 'documents',
 } as const;

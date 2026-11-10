@@ -1,17 +1,19 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, check, index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { docLocationEnum, tsvector } from "./enums";
 
 /**
- * Document index (feature 06): a link, a summary and project links. OllieOS never stores the file.
- * Linked to projects through `links` (document to project).
+ * Document index (feature 06): a link, a summary and project links. OllieOS never stores the file
+ * itself. A document with no link was pasted, uploaded or saved by Claude: its text is kept in
+ * `document_contents` and its location is "ollieos". Linked to projects through `links`.
  */
 export const documentsTable = pgTable(
   "documents",
   {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
     title: text("title").notNull(),
-    url: text("url").notNull().unique(),
+    /** Null when the text was pasted, uploaded or saved by Claude */
+    url: text("url").unique(),
     location: docLocationEnum("location").notNull(),
     summary: text("summary"),
     /** null means inherit from linked projects (build plan question 44) */
@@ -27,9 +29,9 @@ export const documentsTable = pgTable(
 );
 
 /**
- * The text of a Library document, read from Google Drive by the Drive connector so briefs and Ask
- * OllieOS can use what is inside it. One row per document; removed with the document. Visibility
- * follows the document itself.
+ * The text of a Library document, so briefs, Ask OllieOS and the knowledge step can use what is
+ * inside it: read from Google Drive or Dropbox, or pasted, uploaded or saved by Claude. One row per
+ * document; removed with the document. Visibility follows the document itself.
  */
 export const documentContentsTable = pgTable(
   "document_contents",
@@ -37,8 +39,12 @@ export const documentContentsTable = pgTable(
     documentId: integer("document_id")
       .primaryKey()
       .references(() => documentsTable.id, { onDelete: "cascade" }),
-    /** The Drive file id the text came from */
-    fileId: text("file_id").notNull(),
+    /** The Drive file id or Dropbox path the text came from; null for text kept in OllieOS */
+    fileId: text("file_id"),
+    /** Where the text came from */
+    origin: text("origin", { enum: ["gdrive", "dropbox", "pasted", "upload", "claude"] }).notNull().default("gdrive"),
+    /** For uploads and Claude: the file name or kind Ollie or Claude gave */
+    originName: text("origin_name"),
     text: text("text").notNull(),
     /** True when the file was longer than OllieOS keeps */
     truncated: boolean("truncated").notNull().default(false),
@@ -51,6 +57,44 @@ export const documentContentsTable = pgTable(
 );
 
 export type DocumentContent = typeof documentContentsTable.$inferSelect;
+
+/**
+ * The knowledge step (build plan 13, Part E): one row per thing read for knowledge, either a Library
+ * document or a file in Claude's Dropbox folder. Keeps the text as it was last read, so a changed
+ * file is only read for what changed, and works as the queue the background reader takes from.
+ * Dropbox files stay here and never join the Library. OllieOS never writes to Dropbox.
+ */
+export const knowledgeSourcesTable = pgTable(
+  "knowledge_sources",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    kind: text("kind", { enum: ["document", "dropbox"] }).notNull(),
+    /** "document:<id>" or "dropbox:<lower-case path>" */
+    key: text("key").notNull().unique(),
+    documentId: integer("document_id").references(() => documentsTable.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    /** Dropbox path as shown, for Dropbox files */
+    path: text("path"),
+    url: text("url"),
+    /** Dropbox content hash and revision when last seen */
+    contentHash: text("content_hash"),
+    rev: text("rev"),
+    modifiedAt: timestamp("modified_at", { withTimezone: true }),
+    /** The text as it was when last read for knowledge; null until the first read */
+    readText: text("read_text"),
+    status: text("status", { enum: ["idle", "queued", "reading", "failed"] }).notNull().default("idle"),
+    lastError: text("last_error"),
+    lastReadAt: timestamp("last_read_at", { withTimezone: true }),
+    /** What the last read proposed, by kind */
+    lastCounts: jsonb("last_counts").$type<Record<string, number>>(),
+    queuedAt: timestamp("queued_at", { withTimezone: true }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("knowledge_sources_status_idx").on(t.status, t.queuedAt)],
+);
+
+export type KnowledgeSource = typeof knowledgeSourcesTable.$inferSelect;
 
 /**
  * Playbooks (feature 07): short standing rules every AI tool reads before drafting.

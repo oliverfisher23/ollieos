@@ -150,6 +150,7 @@ describe("no delete tool (criterion 7)", () => {
         "log_decision",
         "log_promise",
         "request_access",
+        "save_document",
         "search",
         "update_task",
         "upsert_calendar",

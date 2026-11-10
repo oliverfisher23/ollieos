@@ -14,7 +14,8 @@ import { formatLong, todayLondon } from "@workspace/shared";
 import { titleFromUrl } from "../library";
 import { propose } from "../suggestions";
 import { projectChoices } from "./capture";
-import { proxyJson, proxyJsonOrNull, proxyText } from "./http";
+import { MAX_FILE_BYTES, textFromFile } from "../documents/fileText";
+import { proxyBytes, proxyJson, proxyJsonOrNull, proxyText } from "./http";
 import { haikuJson } from "./sorter";
 import { trimText } from "./messages";
 
@@ -81,7 +82,7 @@ export function cleanDriveLink(webViewLink: string): string {
   }
 }
 
-interface DriveFile {
+export interface DriveFile {
   id: string;
   name: string;
   mimeType: string;
@@ -123,6 +124,70 @@ export async function exportText(f: DriveFile, maxChars: number): Promise<{ text
 }
 
 const FILE_FIELDS = "id,name,mimeType,webViewLink,modifiedTime,viewedByMeTime,trashed,parents,owners(displayName,emailAddress)";
+
+/* ---------- Reading whole files for the knowledge step ---------- */
+
+/** Files that are not Google's own formats but can still be read, and the extension to read them as. */
+const DOWNLOAD_AS: Record<string, string> = {
+  "application/pdf": "pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "text/markdown": "md",
+  "text/plain": "txt",
+};
+
+/** True when OllieOS can read the file's text: a Google Doc, Slides or Sheet, a PDF, Word, Markdown or text file. */
+export const canReadText = (mimeType: string) => !!EXPORT_AS[mimeType] || !!DOWNLOAD_AS[mimeType];
+
+export async function driveFile(fileId: string): Promise<DriveFile | null> {
+  return (await proxyJsonOrNull(CONNECTOR, NAME, `/drive/v3/files/${encodeURIComponent(fileId)}?fields=${encodeURIComponent(FILE_FIELDS)}&supportsAllDrives=true`)) as DriveFile | null;
+}
+
+/** The whole text of a file, or null when it is not a kind OllieOS can read. */
+export async function driveFileText(f: DriveFile, maxChars: number): Promise<string | null> {
+  if (EXPORT_AS[f.mimeType]) return (await exportText(f, maxChars))?.text ?? null;
+  const ext = DOWNLOAD_AS[f.mimeType];
+  if (!ext) return null;
+  const bytes = await proxyBytes(CONNECTOR, NAME, `/drive/v3/files/${encodeURIComponent(f.id)}?alt=media&supportsAllDrives=true`, MAX_FILE_BYTES);
+  if (!bytes) return null;
+  const name = f.name.toLowerCase().endsWith(`.${ext}`) ? f.name : `${f.name}.${ext}`;
+  return (await textFromFile(name, bytes)).slice(0, maxChars);
+}
+
+/** The folder id in a Drive folder link, or null. */
+export function driveFolderId(link: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(link);
+  } catch {
+    return null;
+  }
+  if (url.hostname.replace(/^www\./, "") !== "drive.google.com") return null;
+  const m = /\/folders\/([a-zA-Z0-9_-]{10,})/.exec(url.pathname);
+  return m ? m[1] : null;
+}
+
+/** The files directly inside a folder (not its subfolders), and the folder's name. Null when it cannot be opened. */
+export async function folderFiles(folderId: string, max: number): Promise<{ name: string; files: DriveFile[] } | null> {
+  const folder = await proxyJsonOrNull(CONNECTOR, NAME, `/drive/v3/files/${encodeURIComponent(folderId)}?fields=id,name,mimeType&supportsAllDrives=true`);
+  if (!folder || folder.mimeType !== "application/vnd.google-apps.folder") return null;
+  const files: DriveFile[] = [];
+  let pageToken: string | undefined;
+  do {
+    const params = new URLSearchParams({
+      q: `'${folderId}' in parents and trashed=false`,
+      pageSize: "200",
+      fields: `nextPageToken,files(${FILE_FIELDS})`,
+      includeItemsFromAllDrives: "true",
+      supportsAllDrives: "true",
+      orderBy: "name",
+    });
+    if (pageToken) params.set("pageToken", pageToken);
+    const j = await proxyJson(CONNECTOR, NAME, `/drive/v3/files?${params}`);
+    files.push(...((j.files as DriveFile[] | undefined) ?? []));
+    pageToken = typeof j.nextPageToken === "string" ? j.nextPageToken : undefined;
+  } while (pageToken && files.length < max);
+  return { name: String(folder.name ?? "Folder"), files: files.slice(0, max) };
+}
 
 export async function recentFiles(since: string): Promise<DriveFile[]> {
   const q = `trashed=false and viewedByMeTime > '${since.replace(/\.\d+Z$/, "Z")}'`;
@@ -228,6 +293,7 @@ export async function readDrive(saved: DriveState | null, now: Date): Promise<Dr
   const inLibrary = new Set<string>();
   let refreshed = 0;
   for (const d of library) {
+    if (!d.url) continue;
     const fileId = driveFileId(d.url);
     if (!fileId) continue;
     inLibrary.add(fileId);
@@ -258,7 +324,7 @@ export async function readDrive(saved: DriveState | null, now: Date): Promise<Dr
     await db
       .insert(documentContentsTable)
       .values({ documentId: d.id, fileId, text: text.text, truncated: text.truncated, fileModifiedAt: modified, readAt: now })
-      .onConflictDoUpdate({ target: documentContentsTable.documentId, set: { fileId, text: text.text, truncated: text.truncated, fileModifiedAt: modified, readAt: now } });
+      .onConflictDoUpdate({ target: documentContentsTable.documentId, set: { fileId, origin: "gdrive", originName: null, text: text.text, truncated: text.truncated, fileModifiedAt: modified, readAt: now } });
     counts.read++;
   }
 

@@ -545,6 +545,12 @@ paths:
       summary: Writes (or rewrites) a reply with AI from the email thread, OllieOS and playbooks. Nothing is sent.
       parameters:
         - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplyDraftWriteInput"
       responses:
         "200":
           description: The draft
@@ -638,6 +644,41 @@ paths:
           $ref: "#/components/responses/NotAuthorised"
         "404":
           description: No draft for that task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/thread:
+    get:
+      operationId: getTaskThread
+      tags: [email]
+      summary: The email thread behind an email task, oldest first, for reading on the Email page. Read only.
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: The thread
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailThread"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Not an email task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: Gmail could not be reached
           content:
             application/json:
               schema:
@@ -1169,6 +1210,82 @@ paths:
         "404": { $ref: "#/components/responses/Error" }
         "409": { $ref: "#/components/responses/Error" }
 
+  /documents/text:
+    post:
+      operationId: createTextDocument
+      tags: [direction]
+      summary: Add a document from pasted text, kept in OllieOS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentTextInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LibraryDocument" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /documents/upload:
+    post:
+      operationId: uploadDocument
+      tags: [direction]
+      summary: Add a document from an uploaded Markdown, text, Word or PDF file; its text is kept in OllieOS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentUploadInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LibraryDocument" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /documents/import-drive:
+    post:
+      operationId: importDriveDocuments
+      tags: [direction]
+      summary: Add a Google Drive file or the files in a Drive folder to the Library, and build knowledge from each
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DriveImportInput" }
+      responses:
+        "200":
+          description: What was added
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DriveImport" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /documents/{id}/knowledge:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: buildDocumentKnowledge
+      tags: [direction]
+      summary: Read a document for knowledge in the background; what it finds goes to the Knowledge Inbox
+      responses:
+        "200":
+          description: The document, now waiting to be read
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LibraryDocument" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /documents/{id}:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -1494,8 +1611,8 @@ paths:
         - name: origin
           in: query
           required: false
-          description: look_back shows only suggestions from a Granola look back
-          schema: { type: string, enum: [all, look_back], default: all }
+          description: look_back shows only suggestions from a Granola look back; documents only those from reading documents
+          schema: { type: string, enum: [all, look_back, documents], default: all }
       responses:
         "200":
           description: Items and counts
@@ -1526,6 +1643,29 @@ paths:
         "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
+
+  /suggestions/reject-source:
+    post:
+      operationId: rejectSuggestionsFromSource
+      tags: [knowledge]
+      summary: Reject everything still waiting that came from one document or Dropbox file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RejectSourceInput" }
+      responses:
+        "200":
+          description: How many were rejected
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rejected]
+                properties:
+                  rejected: { type: integer }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
 
   /suggestions/{id}/reject:
     parameters:
@@ -1954,6 +2094,57 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Connectors" }
         "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /connectors/dropbox/preview:
+    post:
+      operationId: previewDropboxFolder
+      tags: [access]
+      summary: How many files OllieOS could read in a Dropbox folder, before choosing it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DropboxFolderPreviewInput" }
+      responses:
+        "200":
+          description: The folder and its files
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DropboxFolderPreview" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /connectors/dropbox/folder:
+    put:
+      operationId: setDropboxFolder
+      tags: [access]
+      summary: Choose Claude's folder in Dropbox, and whether files already there are read once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DropboxFolderInput" }
+      responses:
+        "200":
+          description: Connectors after the change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connectors" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /connectors/dropbox/retry:
+    post:
+      operationId: retryDropboxFiles
+      tags: [access]
+      summary: Put every Dropbox file that could not be read back in line
+      responses:
+        "200":
+          description: Connectors after the change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connectors" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
   /connectors/{key}:
@@ -3241,6 +3432,42 @@ components:
         label:
           type: string
 
+    ReplyDraftWriteInput:
+      type: object
+      additionalProperties: false
+      properties:
+        instructions:
+          type: string
+          maxLength: 2000
+          description: What Ollie wants the reply to say, or what to change
+        current:
+          type: string
+          maxLength: 20000
+          description: The draft as it stands, when asking for changes to it rather than a fresh draft
+    EmailThread:
+      type: object
+      required: [fromGmail, gmailUrl, messages]
+      properties:
+        fromGmail:
+          type: boolean
+          description: False when the email is not in Gmail; messages then hold what the task kept
+        gmailUrl: { type: [string, "null"] }
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmailThreadMessage"
+    EmailThreadMessage:
+      type: object
+      required: [id, fromName, fromEmail, to, cc, at, text, fromOllie]
+      properties:
+        id: { type: string }
+        fromName: { type: [string, "null"] }
+        fromEmail: { type: [string, "null"] }
+        to: { type: string }
+        cc: { type: string }
+        at: { type: string, format: date-time }
+        text: { type: string }
+        fromOllie: { type: boolean }
     EmailDraftList:
       type: object
       required: [items]
@@ -3611,6 +3838,7 @@ components:
         stale: { type: integer }
         total: { type: integer }
         lookBack: { type: integer, description: Pending suggestions from a Granola look back (Knowledge Inbox only) }
+        documents: { type: integer, description: Pending suggestions from reading documents (Knowledge Inbox only) }
 
     KnowledgeInboxTarget:
       type: object
@@ -3642,14 +3870,14 @@ components:
 
     KnowledgeInboxItem:
       type: object
-      required: [key, id, group, kind, target, by, createdAt, text, fields, attribute, replaces, source, sourceUrl, options, lastConfirmedAt, lookBack, needsProject, projectHint]
+      required: [key, id, group, kind, target, by, createdAt, text, fields, attribute, replaces, source, sourceUrl, options, lastConfirmedAt, lookBack, fromDocument, needsProject, projectHint]
       properties:
         key: { type: string }
         id: { type: integer, description: Suggestion id on the Suggested tab, review id otherwise }
         group: { type: string, enum: [suggested, conflicts, stale] }
         kind:
           type: string
-          enum: [new_fact, new_person, new_organisation, new_project, proposed_decision, changed_summary, changed_details, new_document, new_playbook, cadence_change, conflict, stale_fact]
+          enum: [new_fact, new_person, new_organisation, new_project, proposed_decision, changed_summary, changed_details, new_document, document_link, new_playbook, cadence_change, conflict, stale_fact]
         target:
           oneOf:
             - $ref: "#/components/schemas/KnowledgeInboxTarget"
@@ -3665,6 +3893,7 @@ components:
         options: { type: array, items: { $ref: "#/components/schemas/KnowledgeInboxOption" } }
         lastConfirmedAt: { type: [string, "null"], format: date-time }
         lookBack: { type: boolean, description: Found by a Granola look back }
+        fromDocument: { type: [string, "null"], description: "The document or Dropbox file it came from, when found by reading documents" }
         needsProject: { type: boolean, description: A decision with no project; Ollie may file it under one when approving }
         projectHint: { type: [string, "null"], description: What a decision with no project is about }
 
@@ -4291,7 +4520,7 @@ components:
 
     ConnectorKey:
       type: string
-      enum: [calendar, gmail, slack, drive, granola]
+      enum: [calendar, gmail, slack, drive, granola, dropbox]
 
     ConnectorReadBy:
       type: string
@@ -4339,10 +4568,59 @@ components:
 
     Connectors:
       type: object
-      required: [schedule, services]
+      required: [schedule, services, dropbox]
       properties:
         schedule: { $ref: "#/components/schemas/ConnectorSchedule" }
         services: { type: array, items: { $ref: "#/components/schemas/ConnectorService" } }
+        dropbox: { $ref: "#/components/schemas/DropboxSetup" }
+
+    DropboxSetup:
+      type: object
+      required: [folder, existing, listed, progress]
+      properties:
+        folder: { type: [string, "null"], description: "Claude's folder, or null before Ollie chooses one" }
+        existing: { type: string, enum: [all, new], description: "all reads files already there once; new only reads files added or changed later" }
+        listed: { type: boolean, description: False until the first check has listed the folder }
+        progress:
+          type: object
+          required: [files, waiting, reading, failed, read, lastReadAt]
+          properties:
+            files: { type: integer }
+            waiting: { type: integer }
+            reading: { type: integer }
+            failed: { type: integer }
+            read: { type: integer }
+            lastReadAt: { type: [string, "null"], format: date-time }
+
+    DropboxFolderPreview:
+      type: object
+      required: [folder, readable, other]
+      properties:
+        folder: { type: string }
+        readable: { type: integer, description: Markdown, text, Word and PDF files OllieOS reads }
+        other: { type: integer, description: Files of other kinds, too large, or in hidden folders }
+
+    DropboxFolderPreviewInput:
+      type: object
+      required: [folder]
+      additionalProperties: false
+      properties:
+        folder: { type: string, minLength: 1, maxLength: 500 }
+
+    RejectSourceInput:
+      type: object
+      required: [sourceRef]
+      additionalProperties: false
+      properties:
+        sourceRef: { type: string, minLength: 1, maxLength: 1200 }
+
+    DropboxFolderInput:
+      type: object
+      required: [folder, existing]
+      additionalProperties: false
+      properties:
+        folder: { type: string, minLength: 1, maxLength: 500 }
+        existing: { type: string, enum: [all, new] }
 
     ConnectorScheduleInput:
       type: object
@@ -4615,15 +4893,24 @@ components:
 
     DocLocation:
       type: string
-      enum: [dropbox, gdrive, claude_project, other]
+      enum: [dropbox, gdrive, claude_project, other, ollieos]
+
+    DocumentKnowledge:
+      type: object
+      required: [status, lastReadAt, lastResult, error]
+      properties:
+        status: { type: string, enum: [idle, queued, reading, failed] }
+        lastReadAt: { type: [string, "null"], format: date-time }
+        lastResult: { type: [string, "null"], description: "What the last read proposed, in words" }
+        error: { type: [string, "null"] }
 
     LibraryDocument:
       type: object
-      required: [id, title, url, location, summary, confidential, lastConfirmedAt, createdBy, createdAt, projects, hiddenFromAi, contentsReadAt]
+      required: [id, title, url, location, summary, confidential, lastConfirmedAt, createdBy, createdAt, projects, hiddenFromAi, contentsReadAt, textOrigin, knowledge]
       properties:
         id: { type: integer }
         title: { type: string }
-        url: { type: string }
+        url: { type: [string, "null"], description: Null for text kept in OllieOS }
         location: { $ref: "#/components/schemas/DocLocation" }
         summary: { type: [string, "null"] }
         confidential: { type: [boolean, "null"], description: null means inherit from linked projects }
@@ -4632,7 +4919,12 @@ components:
         createdAt: { type: string, format: date-time }
         projects: { type: array, items: { $ref: "#/components/schemas/NamedLink" } }
         hiddenFromAi: { type: boolean }
-        contentsReadAt: { type: [string, "null"], format: date-time, description: When OllieOS last read the file's text from Google Drive }
+        contentsReadAt: { type: [string, "null"], format: date-time, description: When OllieOS last read or was given the text }
+        textOrigin: { type: [string, "null"], enum: [gdrive, dropbox, pasted, upload, claude, null], description: Where the kept text came from }
+        knowledge:
+          oneOf:
+            - { $ref: "#/components/schemas/DocumentKnowledge" }
+            - { type: "null" }
 
     DocumentInput:
       type: object
@@ -4644,6 +4936,49 @@ components:
         location: { $ref: "#/components/schemas/DocLocation" }
         confidential: { type: [boolean, "null"] }
         projectIds: { type: array, items: { type: integer } }
+
+    DocumentTextInput:
+      type: object
+      required: [title, text]
+      additionalProperties: false
+      properties:
+        title: { type: string, minLength: 1, maxLength: 300 }
+        text: { type: string, minLength: 1, maxLength: 400000 }
+        summary: { type: [string, "null"], maxLength: 2000 }
+        confidential: { type: [boolean, "null"] }
+        projectIds: { type: array, items: { type: integer } }
+        buildKnowledge: { type: boolean }
+
+    DocumentUploadInput:
+      type: object
+      required: [fileName, dataBase64]
+      additionalProperties: false
+      properties:
+        fileName: { type: string, minLength: 1, maxLength: 300 }
+        dataBase64: { type: string, minLength: 1 }
+        title: { type: [string, "null"], maxLength: 300 }
+        summary: { type: [string, "null"], maxLength: 2000 }
+        confidential: { type: [boolean, "null"] }
+        projectIds: { type: array, items: { type: integer } }
+        buildKnowledge: { type: boolean }
+
+    DriveImportInput:
+      type: object
+      required: [url]
+      additionalProperties: false
+      properties:
+        url: { type: string, minLength: 1, maxLength: 2000 }
+
+    DriveImport:
+      type: object
+      required: [folder, added, alreadyThere, skipped, queued, documents]
+      properties:
+        folder: { type: [string, "null"], description: "The folder's name, when the link was a folder" }
+        added: { type: integer }
+        alreadyThere: { type: integer }
+        skipped: { type: integer, description: Files OllieOS cannot read }
+        queued: { type: integer }
+        documents: { type: array, items: { $ref: "#/components/schemas/LibraryDocument" } }
 
     DocumentUpdate:
       type: object

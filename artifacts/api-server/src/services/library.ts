@@ -1,6 +1,6 @@
 /**
  * Library: the document index (feature 06) and playbooks (feature 07).
- * Documents are links with a summary; OllieOS never stores or opens the file.
+ * Documents are links with a summary, or text kept in OllieOS (pasted, uploaded or saved by Claude).
  * Playbooks are short rules every AI tool reads before drafting; Ollie writes them, AI only proposes.
  * Both link to projects (and playbooks to organisations) through `links`, stored from the item.
  */
@@ -9,6 +9,7 @@ import {
   db,
   documentContentsTable,
   documentsTable,
+  knowledgeSourcesTable,
   linksTable,
   organisationsTable,
   playbooksTable,
@@ -22,6 +23,8 @@ import { documentVisible, playbookVisible } from "../lib/ai-data/visibility";
 import { ACTOR, cleanText } from "./knowledge/common";
 import { ConflictError, NotFoundError, ValidationError } from "./tasks";
 import { ensureSeeds } from "./seeds";
+import { enqueueDocument } from "./documents/enqueue";
+import { describeCounts } from "./documents/counts";
 
 type ItemType = "document" | "playbook";
 type TargetType = "project" | "organisation";
@@ -155,33 +158,59 @@ export function parseLink(raw: string): URL {
   return url;
 }
 
+export type TextOrigin = "gdrive" | "dropbox" | "pasted" | "upload" | "claude";
+
+export interface KnowledgeView {
+  status: "idle" | "queued" | "reading" | "failed";
+  lastReadAt: Date | null;
+  /** What the last read proposed, in words */
+  lastResult: string | null;
+  error: string | null;
+}
+
 export interface DocumentView extends Omit<Document, "search" | "suggestionId"> {
   projects: NamedLink[];
   /** AI tools cannot read it (own flag or inherited from a project) */
   hiddenFromAi: boolean;
-  /** When OllieOS last read the file's text from Google Drive */
+  /** When OllieOS last read or was given the text */
   contentsReadAt: Date | null;
+  /** Where the kept text came from, or null when OllieOS has none */
+  textOrigin: TextOrigin | null;
+  /** The knowledge step for this document, or null when it was never asked for */
+  knowledge: KnowledgeView | null;
 }
 
 async function toDocumentViews(rows: Omit<Document, "search">[]): Promise<DocumentView[]> {
   const ids = rows.map((r) => r.id);
-  const [links, hidden, contents] = await Promise.all([
+  const [links, hidden, contents, reads] = await Promise.all([
     linkMap("document", ids, "project"),
     ids.length
       ? db.select({ id: documentsTable.id }).from(documentsTable).where(and(inArray(documentsTable.id, ids), sql.raw(`not ${documentVisible("documents")}`)))
       : [],
     ids.length
-      ? db.select({ id: documentContentsTable.documentId, readAt: documentContentsTable.readAt }).from(documentContentsTable).where(inArray(documentContentsTable.documentId, ids))
+      ? db
+          .select({ id: documentContentsTable.documentId, readAt: documentContentsTable.readAt, origin: documentContentsTable.origin })
+          .from(documentContentsTable)
+          .where(inArray(documentContentsTable.documentId, ids))
       : [],
+    ids.length ? db.select().from(knowledgeSourcesTable).where(inArray(knowledgeSourcesTable.documentId, ids)) : [],
   ]);
-  const readAt = new Map(contents.map((c) => [c.id, c.readAt]));
+  const readAt = new Map(contents.map((c) => [c.id, c]));
+  const knowledge = new Map(
+    reads.map((k) => [
+      k.documentId!,
+      { status: k.status, lastReadAt: k.lastReadAt, lastResult: k.lastCounts ? describeCounts(k.lastCounts) : null, error: k.status === "failed" ? k.lastError : null } satisfies KnowledgeView,
+    ]),
+  );
   const projectNames = await names("project", [...new Set([...links.values()].flat())]);
   const hiddenSet = new Set(hidden.map((h) => h.id));
   return rows.map(({ suggestionId: _s, ...r }) => ({
     ...r,
     projects: (links.get(r.id) ?? []).map((p) => projectNames.get(p)).filter((p): p is NamedLink => !!p).sort((a, b) => a.name.localeCompare(b.name, "en-GB")),
     hiddenFromAi: hiddenSet.has(r.id),
-    contentsReadAt: readAt.get(r.id) ?? null,
+    contentsReadAt: readAt.get(r.id)?.readAt ?? null,
+    textOrigin: readAt.get(r.id)?.origin ?? null,
+    knowledge: knowledge.get(r.id) ?? null,
   }));
 }
 
@@ -212,14 +241,15 @@ export async function listDocuments(projectId?: number): Promise<DocumentView[]>
   return toDocumentViews(rows);
 }
 
-async function loadDocument(id: number) {
+export async function loadDocument(id: number) {
   const [row] = await db.select(documentColumns).from(documentsTable).where(eq(documentsTable.id, id));
   if (!row) throw new NotFoundError("That document does not exist");
   return row;
 }
 
 export interface DocumentInput {
-  url: string;
+  /** Null for text kept in OllieOS */
+  url?: string | null;
   title?: string | null;
   summary?: string | null;
   location?: DocLocation;
@@ -232,18 +262,22 @@ export interface DocumentInput {
  * when not given. Used directly when approving a suggestion.
  */
 export async function insertDocument(tx: DbOrTx, input: DocumentInput, createdBy: string, suggestionId: number | null = null): Promise<number> {
-  const url = parseLink(input.url);
-  const href = url.toString();
+  const url = input.url ? parseLink(input.url) : null;
+  const href = url?.toString() ?? null;
   const projectIds = input.projectIds ?? [];
   await assertTargets("project", projectIds);
-  const [taken] = await tx.select({ id: documentsTable.id, title: documentsTable.title }).from(documentsTable).where(eq(documentsTable.url, href));
-  if (taken) throw new ConflictError(`That link is already in the Library as "${taken.title}"`);
+  if (href) {
+    const [taken] = await tx.select({ id: documentsTable.id, title: documentsTable.title }).from(documentsTable).where(eq(documentsTable.url, href));
+    if (taken) throw new ConflictError(`That link is already in the Library as "${taken.title}"`);
+  }
+  const title = cleanText(input.title) ?? (url ? titleFromUrl(url) : null);
+  if (!title) throw new ValidationError("A document needs a title");
   const [row] = await tx
     .insert(documentsTable)
     .values({
-      title: cleanText(input.title) ?? titleFromUrl(url),
+      title,
       url: href,
-      location: input.location ?? locationOf(url),
+      location: url ? (input.location ?? locationOf(url)) : "ollieos",
       summary: cleanText(input.summary),
       confidential: input.confidential ?? null,
       createdBy,
@@ -257,8 +291,80 @@ export async function insertDocument(tx: DbOrTx, input: DocumentInput, createdBy
 
 /** Adds a document from a pasted link. */
 export async function createDocument(input: DocumentInput): Promise<DocumentView> {
+  if (!input.url) throw new ValidationError("Paste a link, or paste the text instead");
   const id = await db.transaction((tx) => insertDocument(tx, input, ACTOR));
+  return documentView(id);
+}
+
+export async function documentView(id: number): Promise<DocumentView> {
   return (await toDocumentViews([await loadDocument(id)]))[0];
+}
+
+/** Longest text kept for one document */
+export const KEPT_TEXT_CHARS = 200_000;
+
+/** Keeps a document's text, replacing what was kept before. */
+export async function keepDocumentText(
+  conn: DbOrTx,
+  documentId: number,
+  text: string,
+  origin: TextOrigin,
+  opts: { fileId?: string | null; originName?: string | null; fileModifiedAt?: Date | null; now?: Date } = {},
+): Promise<void> {
+  const kept = text.slice(0, KEPT_TEXT_CHARS);
+  const values = {
+    fileId: opts.fileId ?? null,
+    origin,
+    originName: opts.originName ?? null,
+    text: kept,
+    truncated: text.length > KEPT_TEXT_CHARS,
+    fileModifiedAt: opts.fileModifiedAt ?? null,
+    readAt: opts.now ?? new Date(),
+  };
+  await conn
+    .insert(documentContentsTable)
+    .values({ documentId, ...values })
+    .onConflictDoUpdate({ target: documentContentsTable.documentId, set: values });
+}
+
+export interface TextDocumentInput {
+  title: string;
+  text: string;
+  summary?: string | null;
+  confidential?: boolean | null;
+  projectIds?: number[];
+  origin: "pasted" | "upload";
+  /** The uploaded file's name */
+  fileName?: string | null;
+  /** Read it for knowledge straight away */
+  buildKnowledge?: boolean;
+}
+
+/** Adds a document whose text is kept in OllieOS: pasted, or read from an uploaded file. */
+export async function createTextDocument(input: TextDocumentInput): Promise<DocumentView> {
+  const text = input.text.trim();
+  if (!text) throw new ValidationError("There is no text to keep");
+  const id = await db.transaction(async (tx) => {
+    const id = await insertDocument(tx, { title: input.title, summary: input.summary, confidential: input.confidential, projectIds: input.projectIds }, ACTOR);
+    await keepDocumentText(tx, id, text, input.origin, { originName: input.fileName ?? null });
+    if (input.buildKnowledge) {
+      const [d] = await tx.select({ title: documentsTable.title }).from(documentsTable).where(eq(documentsTable.id, id));
+      await enqueueDocument(tx, { id, title: d.title, url: null });
+    }
+    return id;
+  });
+  return documentView(id);
+}
+
+/** Adds project links without removing any, for an approved link suggestion. */
+export async function addDocumentProjects(tx: DbOrTx, id: number, projectIds: number[]): Promise<void> {
+  await assertTargets("project", projectIds);
+  const [doc] = await tx.select({ id: documentsTable.id }).from(documentsTable).where(eq(documentsTable.id, id));
+  if (!doc) throw new NotFoundError("That document is no longer in the Library");
+  const have = (await linkMap("document", [id], "project")).get(id) ?? [];
+  const added = projectIds.filter((p) => !have.includes(p));
+  if (added.length) await setLinks(tx, "document", id, "project", [...have, ...added]);
+  await writeAudit(tx, { actor: ACTOR, action: "update", entityType: "document", entityId: id, payload: { projects: { added, removed: [] } } });
 }
 
 export interface DocumentUpdate {
@@ -281,6 +387,7 @@ export async function updateDocument(id: number, input: DocumentUpdate): Promise
     set.title = title;
   }
   if (input.url !== undefined) {
+    if (current.url == null) throw new ValidationError("This document's text is kept in OllieOS, so it has no link to change");
     const href = parseLink(input.url).toString();
     if (href !== current.url) {
       const [taken] = await db.select({ id: documentsTable.id }).from(documentsTable).where(eq(documentsTable.url, href));
@@ -302,7 +409,7 @@ export async function updateDocument(id: number, input: DocumentUpdate): Promise
     if (input.confirm) payload.confirmed = true;
     await writeAudit(tx, { actor: ACTOR, action: "update", entityType: "document", entityId: id, payload });
   });
-  return (await toDocumentViews([await loadDocument(id)]))[0];
+  return documentView(id);
 }
 
 /* ---------- Playbooks ---------- */

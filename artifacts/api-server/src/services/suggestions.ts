@@ -21,7 +21,8 @@ import { PLAYBOOK_RULE_MAX, type Cadence } from "@workspace/shared";
 import { writeAudit, type DbOrTx } from "../lib/audit";
 import { ACTOR, cleanText, resolveEntity, touch, uniqueSlug, type EntityKind } from "./knowledge/common";
 import { ConflictError, NotFoundError, ValidationError } from "./tasks";
-import { insertDocument, insertPlaybook } from "./library";
+import { addDocumentProjects, insertDocument, insertPlaybook, keepDocumentText } from "./library";
+import { enqueueDocument } from "./documents/enqueue";
 
 export { FACT_ATTRIBUTES };
 export type FactAttribute = (typeof FACT_ATTRIBUTES)[number];
@@ -61,9 +62,19 @@ export interface PersonPayload {
   organisation_name?: string | null;
   relationship_summary?: string | null;
 }
+/**
+ * Three shapes: a new document from a link; a new document whose text Claude saved (content, no
+ * link); or links from a document already in the Library (document_id) to more projects.
+ */
 export interface DocumentPayload {
-  url: string;
+  url?: string | null;
   title: string;
+  /** Set when proposing links for a document already in the Library */
+  document_id?: number | null;
+  /** The text, when Claude saved it with save_document */
+  content?: string | null;
+  /** What Claude called it: artifact, notes, plan and so on */
+  doc_kind?: string | null;
   summary?: string | null;
   project_ids?: number[];
   /** Project names when proposed, for the card */
@@ -176,6 +187,7 @@ export function changeableFields(type: EntityKind): string[] {
 
 export function editableFields(s: Pick<Suggestion, "kind" | "payload">): string[] {
   if (s.kind === "summary_change") return Object.keys((s.payload as SummaryChangePayload).fields).filter((k) => k !== "organisation");
+  if (s.kind === "document" && (s.payload as DocumentPayload).document_id != null) return [];
   return EDITABLE[s.kind];
 }
 
@@ -206,7 +218,8 @@ function mainText(p: Proposal): string {
         .map((k) => `${k}=${p.payload.fields[k]}`)
         .join("; ");
     case "document":
-      return p.payload.url;
+      if (p.payload.document_id != null) return `link ${p.payload.document_id} to ${[...(p.payload.project_ids ?? [])].sort((a, b) => a - b).join(",")}`;
+      return p.payload.url ?? `saved: ${p.payload.title}`;
     case "playbook":
       return `${p.payload.title}: ${p.payload.rule}`;
     case "cadence":
@@ -260,7 +273,7 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
     if (person.cadence !== "none") throw new ValidationError("This person already has a cadence. Only Ollie changes it.");
     p.payload.before = person.cadence;
   }
-  if (p.kind === "document") {
+  if (p.kind === "document" && p.payload.document_id == null && p.payload.url) {
     const [doc] = await db.select({ id: documentsTable.id }).from(documentsTable).where(eq(documentsTable.url, p.payload.url));
     if (doc) return { status: "duplicate" };
   }
@@ -501,8 +514,23 @@ export async function applySuggestion(
     }
     case "document": {
       const p = payload as unknown as DocumentPayload;
+      if (p.document_id != null) {
+        await addDocumentProjects(tx, p.document_id, p.project_ids ?? []);
+        return { type: "document", id: p.document_id };
+      }
       try {
-        const id = await insertDocument(tx, { url: p.url, title: p.title, summary: str(p.summary), confidential: p.confidential === true ? true : null, projectIds: p.project_ids ?? [] }, s.proposedBy, s.id);
+        const id = await insertDocument(
+          tx,
+          { url: p.url ?? null, title: p.title, summary: str(p.summary), confidential: p.confidential === true ? true : null, projectIds: p.project_ids ?? [] },
+          s.proposedBy,
+          s.id,
+        );
+        // Text Claude saved is kept and goes through the knowledge step like any other document.
+        if (p.content) {
+          await keepDocumentText(tx, id, p.content, "claude", { originName: str(p.doc_kind), now });
+          const [d] = await tx.select({ title: documentsTable.title }).from(documentsTable).where(eq(documentsTable.id, id));
+          await enqueueDocument(tx, { id, title: d.title, url: null }, now);
+        }
         return { type: "document", id };
       } catch (err) {
         if (err instanceof ConflictError) throw new ValidationError(err.message);
@@ -592,6 +620,27 @@ export async function rejectSuggestion(id: number, now = new Date()) {
     await writeAudit(tx, { actor: ACTOR, action: "reject", entityType: "suggestion", entityId: id, payload: { kind: s.kind } });
     return { id, status: "rejected" as const, result: null };
   });
+}
+
+/**
+ * Rejects everything still waiting that came from one document or Dropbox file, except items
+ * waiting on the Conflicts tab. Returns how many were rejected.
+ */
+export async function rejectFromSource(sourceRef: string, now = new Date()): Promise<number> {
+  const rows = await db
+    .select({ id: suggestionsTable.id })
+    .from(suggestionsTable)
+    .where(and(eq(suggestionsTable.status, "pending"), eq(suggestionsTable.sourceRef, sourceRef)));
+  let n = 0;
+  for (const r of rows) {
+    await db.transaction(async (tx) => {
+      if (await inPendingConflict(tx, r.id)) return;
+      await markRejected(tx, r.id, now);
+      await writeAudit(tx, { actor: ACTOR, action: "reject", entityType: "suggestion", entityId: r.id, payload: { sourceRef } });
+      n++;
+    });
+  }
+  return n;
 }
 
 export async function markRejected(tx: DbOrTx, id: number, now: Date) {

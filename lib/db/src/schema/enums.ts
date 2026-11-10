@@ -64,7 +64,7 @@ export const cadenceEnum = pgEnum("cadence", CADENCES);
 export const PROJECT_LIFECYCLES = ["active", "paused", "complete"] as const;
 export const projectLifecycleEnum = pgEnum("project_lifecycle", PROJECT_LIFECYCLES);
 /** Where a document lives (feature 06). */
-export const DOC_LOCATIONS = ["dropbox", "gdrive", "claude_project", "other"] as const;
+export const DOC_LOCATIONS = ["dropbox", "gdrive", "claude_project", "other", "ollieos"] as const;
 export const docLocationEnum = pgEnum("doc_location", DOC_LOCATIONS);
 export const oauthTokenKindEnum = pgEnum("oauth_token_kind", ["access", "refresh"]);
 

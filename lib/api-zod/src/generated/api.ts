@@ -118,7 +118,8 @@ export const GetHomeResponse = zod.object({
   "conflicts": zod.int(),
   "stale": zod.int(),
   "total": zod.int(),
-  "lookBack": zod.int().optional().describe('Pending suggestions from a Granola look back (Knowledge Inbox only)')
+  "lookBack": zod.int().optional().describe('Pending suggestions from a Granola look back (Knowledge Inbox only)'),
+  "documents": zod.int().optional().describe('Pending suggestions from reading documents (Knowledge Inbox only)')
 }),
   "doNext": zod.array(zod.object({
   "task": zod.object({
@@ -1216,6 +1217,17 @@ export const WriteReplyDraftParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
+export const writeReplyDraftBodyInstructionsMax = 2000;
+
+export const writeReplyDraftBodyCurrentMax = 20000;
+
+
+
+export const WriteReplyDraftBody = zod.object({
+  "instructions": zod.string().max(writeReplyDraftBodyInstructionsMax).optional().describe('What Ollie wants the reply to say, or what to change'),
+  "current": zod.string().max(writeReplyDraftBodyCurrentMax).optional().describe('The draft as it stands, when asking for changes to it rather than a fresh draft')
+})
+
 export const WriteReplyDraftResponse = zod.object({
   "taskId": zod.int(),
   "to": zod.string().describe('Comma-separated addresses'),
@@ -1286,6 +1298,29 @@ export const DismissEmailDraftResponse = zod.object({
   "gmailUrl": zod.string().nullable().describe('Opens the thread in Gmail, with the draft in it'),
   "sentAt": zod.coerce.date().nullable().describe('When a Gmail check saw an email sent in the thread after this draft'),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary The email thread behind an email task, oldest first, for reading on the Email page. Read only.
+ */
+export const GetTaskThreadParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetTaskThreadResponse = zod.object({
+  "fromGmail": zod.boolean().describe('False when the email is not in Gmail; messages then hold what the task kept'),
+  "gmailUrl": zod.string().nullable(),
+  "messages": zod.array(zod.object({
+  "id": zod.string(),
+  "fromName": zod.string().nullable(),
+  "fromEmail": zod.string().nullable(),
+  "to": zod.string(),
+  "cc": zod.string(),
+  "at": zod.coerce.date(),
+  "text": zod.string(),
+  "fromOllie": zod.boolean()
+}))
 })
 
 
@@ -1476,8 +1511,8 @@ export const GetProjectResponse = zod.object({
   "documents": zod.array(zod.object({
   "id": zod.int(),
   "title": zod.string(),
-  "url": zod.string(),
-  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other']),
+  "url": zod.string().nullable().describe('Null for text kept in OllieOS'),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other', 'ollieos']),
   "summary": zod.string().nullable(),
   "confidential": zod.boolean().nullable().describe('null means inherit from linked projects'),
   "lastConfirmedAt": zod.coerce.date().describe('Shown as Updated'),
@@ -1489,7 +1524,14 @@ export const GetProjectResponse = zod.object({
   "slug": zod.string()
 })),
   "hiddenFromAi": zod.boolean(),
-  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read the file\'s text from Google Drive')
+  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "knowledge": zod.union([zod.object({
+  "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
+  "lastReadAt": zod.coerce.date().nullable(),
+  "lastResult": zod.string().nullable().describe('What the last read proposed, in words'),
+  "error": zod.string().nullable()
+}),zod.null()])
 })),
   "playbooks": zod.array(zod.object({
   "id": zod.int(),
@@ -3123,8 +3165,8 @@ export const ListDocumentsQueryParams = zod.object({
 export const ListDocumentsResponseItem = zod.object({
   "id": zod.int(),
   "title": zod.string(),
-  "url": zod.string(),
-  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other']),
+  "url": zod.string().nullable().describe('Null for text kept in OllieOS'),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other', 'ollieos']),
   "summary": zod.string().nullable(),
   "confidential": zod.boolean().nullable().describe('null means inherit from linked projects'),
   "lastConfirmedAt": zod.coerce.date().describe('Shown as Updated'),
@@ -3136,7 +3178,14 @@ export const ListDocumentsResponseItem = zod.object({
   "slug": zod.string()
 })),
   "hiddenFromAi": zod.boolean(),
-  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read the file\'s text from Google Drive')
+  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "knowledge": zod.union([zod.object({
+  "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
+  "lastReadAt": zod.coerce.date().nullable(),
+  "lastResult": zod.string().nullable().describe('What the last read proposed, in words'),
+  "error": zod.string().nullable()
+}),zod.null()])
 })
 export const ListDocumentsResponse = zod.array(ListDocumentsResponseItem)
 
@@ -3156,7 +3205,7 @@ export const CreateDocumentBody = zod.object({
   "url": zod.string().min(1).max(createDocumentBodyUrlMax),
   "title": zod.string().max(createDocumentBodyTitleMax).nullish(),
   "summary": zod.string().max(createDocumentBodySummaryMax).nullish(),
-  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other']).optional(),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other', 'ollieos']).optional(),
   "confidential": zod.boolean().nullish(),
   "projectIds": zod.array(zod.int()).optional()
 })
@@ -3164,8 +3213,8 @@ export const CreateDocumentBody = zod.object({
 export const CreateDocumentResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
-  "url": zod.string(),
-  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other']),
+  "url": zod.string().nullable().describe('Null for text kept in OllieOS'),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other', 'ollieos']),
   "summary": zod.string().nullable(),
   "confidential": zod.boolean().nullable().describe('null means inherit from linked projects'),
   "lastConfirmedAt": zod.coerce.date().describe('Shown as Updated'),
@@ -3177,7 +3226,189 @@ export const CreateDocumentResponse = zod.object({
   "slug": zod.string()
 })),
   "hiddenFromAi": zod.boolean(),
-  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read the file\'s text from Google Drive')
+  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "knowledge": zod.union([zod.object({
+  "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
+  "lastReadAt": zod.coerce.date().nullable(),
+  "lastResult": zod.string().nullable().describe('What the last read proposed, in words'),
+  "error": zod.string().nullable()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Add a document from pasted text, kept in OllieOS
+ */
+export const createTextDocumentBodyTitleMax = 300;
+
+export const createTextDocumentBodyTextMax = 400000;
+
+export const createTextDocumentBodySummaryMax = 2000;
+
+
+
+export const CreateTextDocumentBody = zod.object({
+  "title": zod.string().min(1).max(createTextDocumentBodyTitleMax),
+  "text": zod.string().min(1).max(createTextDocumentBodyTextMax),
+  "summary": zod.string().max(createTextDocumentBodySummaryMax).nullish(),
+  "confidential": zod.boolean().nullish(),
+  "projectIds": zod.array(zod.int()).optional(),
+  "buildKnowledge": zod.boolean().optional()
+})
+
+export const CreateTextDocumentResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "url": zod.string().nullable().describe('Null for text kept in OllieOS'),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other', 'ollieos']),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked projects'),
+  "lastConfirmedAt": zod.coerce.date().describe('Shown as Updated'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "hiddenFromAi": zod.boolean(),
+  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "knowledge": zod.union([zod.object({
+  "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
+  "lastReadAt": zod.coerce.date().nullable(),
+  "lastResult": zod.string().nullable().describe('What the last read proposed, in words'),
+  "error": zod.string().nullable()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Add a document from an uploaded Markdown, text, Word or PDF file; its text is kept in OllieOS
+ */
+export const uploadDocumentBodyFileNameMax = 300;
+
+
+export const uploadDocumentBodyTitleMax = 300;
+
+export const uploadDocumentBodySummaryMax = 2000;
+
+
+
+export const UploadDocumentBody = zod.object({
+  "fileName": zod.string().min(1).max(uploadDocumentBodyFileNameMax),
+  "dataBase64": zod.string().min(1),
+  "title": zod.string().max(uploadDocumentBodyTitleMax).nullish(),
+  "summary": zod.string().max(uploadDocumentBodySummaryMax).nullish(),
+  "confidential": zod.boolean().nullish(),
+  "projectIds": zod.array(zod.int()).optional(),
+  "buildKnowledge": zod.boolean().optional()
+})
+
+export const UploadDocumentResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "url": zod.string().nullable().describe('Null for text kept in OllieOS'),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other', 'ollieos']),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked projects'),
+  "lastConfirmedAt": zod.coerce.date().describe('Shown as Updated'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "hiddenFromAi": zod.boolean(),
+  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "knowledge": zod.union([zod.object({
+  "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
+  "lastReadAt": zod.coerce.date().nullable(),
+  "lastResult": zod.string().nullable().describe('What the last read proposed, in words'),
+  "error": zod.string().nullable()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Add a Google Drive file or the files in a Drive folder to the Library, and build knowledge from each
+ */
+export const importDriveDocumentsBodyUrlMax = 2000;
+
+
+
+export const ImportDriveDocumentsBody = zod.object({
+  "url": zod.string().min(1).max(importDriveDocumentsBodyUrlMax)
+})
+
+export const ImportDriveDocumentsResponse = zod.object({
+  "folder": zod.string().nullable().describe('The folder\'s name, when the link was a folder'),
+  "added": zod.int(),
+  "alreadyThere": zod.int(),
+  "skipped": zod.int().describe('Files OllieOS cannot read'),
+  "queued": zod.int(),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "url": zod.string().nullable().describe('Null for text kept in OllieOS'),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other', 'ollieos']),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked projects'),
+  "lastConfirmedAt": zod.coerce.date().describe('Shown as Updated'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "hiddenFromAi": zod.boolean(),
+  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "knowledge": zod.union([zod.object({
+  "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
+  "lastReadAt": zod.coerce.date().nullable(),
+  "lastResult": zod.string().nullable().describe('What the last read proposed, in words'),
+  "error": zod.string().nullable()
+}),zod.null()])
+}))
+})
+
+
+/**
+ * @summary Read a document for knowledge in the background; what it finds goes to the Knowledge Inbox
+ */
+export const BuildDocumentKnowledgeParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const BuildDocumentKnowledgeResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "url": zod.string().nullable().describe('Null for text kept in OllieOS'),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other', 'ollieos']),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked projects'),
+  "lastConfirmedAt": zod.coerce.date().describe('Shown as Updated'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "hiddenFromAi": zod.boolean(),
+  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "knowledge": zod.union([zod.object({
+  "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
+  "lastReadAt": zod.coerce.date().nullable(),
+  "lastResult": zod.string().nullable().describe('What the last read proposed, in words'),
+  "error": zod.string().nullable()
+}),zod.null()])
 })
 
 
@@ -3200,7 +3431,7 @@ export const UpdateDocumentBody = zod.object({
   "url": zod.string().min(1).max(updateDocumentBodyUrlMax).optional(),
   "title": zod.string().min(1).max(updateDocumentBodyTitleMax).optional(),
   "summary": zod.string().max(updateDocumentBodySummaryMax).nullish(),
-  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other']).optional(),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other', 'ollieos']).optional(),
   "confidential": zod.boolean().nullish(),
   "projectIds": zod.array(zod.int()).optional(),
   "confirm": zod.boolean().optional().describe('Still current; moves Updated to now')
@@ -3209,8 +3440,8 @@ export const UpdateDocumentBody = zod.object({
 export const UpdateDocumentResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
-  "url": zod.string(),
-  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other']),
+  "url": zod.string().nullable().describe('Null for text kept in OllieOS'),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other', 'ollieos']),
   "summary": zod.string().nullable(),
   "confidential": zod.boolean().nullable().describe('null means inherit from linked projects'),
   "lastConfirmedAt": zod.coerce.date().describe('Shown as Updated'),
@@ -3222,7 +3453,14 @@ export const UpdateDocumentResponse = zod.object({
   "slug": zod.string()
 })),
   "hiddenFromAi": zod.boolean(),
-  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read the file\'s text from Google Drive')
+  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "knowledge": zod.union([zod.object({
+  "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
+  "lastReadAt": zod.coerce.date().nullable(),
+  "lastResult": zod.string().nullable().describe('What the last read proposed, in words'),
+  "error": zod.string().nullable()
+}),zod.null()])
 })
 
 
@@ -3867,7 +4105,7 @@ export const listKnowledgeInboxQueryOriginDefault = `all`;
 
 export const ListKnowledgeInboxQueryParams = zod.object({
   "tab": zod.enum(['suggested', 'conflicts', 'stale']).default(listKnowledgeInboxQueryTabDefault),
-  "origin": zod.enum(['all', 'look_back']).default(listKnowledgeInboxQueryOriginDefault).describe('look_back shows only suggestions from a Granola look back')
+  "origin": zod.enum(['all', 'look_back', 'documents']).default(listKnowledgeInboxQueryOriginDefault).describe('look_back shows only suggestions from a Granola look back; documents only those from reading documents')
 })
 
 export const ListKnowledgeInboxResponse = zod.object({
@@ -3876,13 +4114,14 @@ export const ListKnowledgeInboxResponse = zod.object({
   "conflicts": zod.int(),
   "stale": zod.int(),
   "total": zod.int(),
-  "lookBack": zod.int().optional().describe('Pending suggestions from a Granola look back (Knowledge Inbox only)')
+  "lookBack": zod.int().optional().describe('Pending suggestions from a Granola look back (Knowledge Inbox only)'),
+  "documents": zod.int().optional().describe('Pending suggestions from reading documents (Knowledge Inbox only)')
 }),
   "items": zod.array(zod.object({
   "key": zod.string(),
   "id": zod.int().describe('Suggestion id on the Suggested tab'),
   "group": zod.enum(['suggested', 'conflicts', 'stale']),
-  "kind": zod.enum(['new_fact', 'new_person', 'new_organisation', 'new_project', 'proposed_decision', 'changed_summary', 'changed_details', 'new_document', 'new_playbook', 'cadence_change', 'conflict', 'stale_fact']),
+  "kind": zod.enum(['new_fact', 'new_person', 'new_organisation', 'new_project', 'proposed_decision', 'changed_summary', 'changed_details', 'new_document', 'document_link', 'new_playbook', 'cadence_change', 'conflict', 'stale_fact']),
   "target": zod.union([zod.object({
   "type": zod.string(),
   "id": zod.int().nullable().describe('Null for a person'),
@@ -3911,6 +4150,7 @@ export const ListKnowledgeInboxResponse = zod.object({
 })),
   "lastConfirmedAt": zod.coerce.date().nullable(),
   "lookBack": zod.boolean().describe('Found by a Granola look back'),
+  "fromDocument": zod.string().nullable().describe('The document or Dropbox file it came from, when found by reading documents'),
   "needsProject": zod.boolean().describe('A decision with no project; Ollie may file it under one when approving'),
   "projectHint": zod.string().nullable().describe('What a decision with no project is about')
 }))
@@ -3943,6 +4183,22 @@ export const ApproveSuggestionResponse = zod.object({
   "type": zod.string(),
   "id": zod.int()
 }),zod.null()])
+})
+
+
+/**
+ * @summary Reject everything still waiting that came from one document or Dropbox file
+ */
+export const rejectSuggestionsFromSourceBodySourceRefMax = 1200;
+
+
+
+export const RejectSuggestionsFromSourceBody = zod.object({
+  "sourceRef": zod.string().min(1).max(rejectSuggestionsFromSourceBodySourceRefMax)
+})
+
+export const RejectSuggestionsFromSourceResponse = zod.object({
+  "rejected": zod.int()
 })
 
 
@@ -5178,7 +5434,7 @@ export const GetConnectorsResponse = zod.object({
   "nextRunAt": zod.coerce.date().nullable()
 }),
   "services": zod.array(zod.object({
-  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola']),
+  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola', 'dropbox']),
   "name": zod.string(),
   "readBy": zod.enum(['ollieos', 'claude']),
   "chosen": zod.boolean().describe('True when Ollie chose who reads it'),
@@ -5196,7 +5452,20 @@ export const GetConnectorsResponse = zod.object({
   "counts": zod.record(zod.string(), zod.int()),
   "error": zod.string().nullable()
 }))
-}))
+})),
+  "dropbox": zod.object({
+  "folder": zod.string().nullable().describe('Claude\'s folder, or null before Ollie chooses one'),
+  "existing": zod.enum(['all', 'new']).describe('all reads files already there once; new only reads files added or changed later'),
+  "listed": zod.boolean().describe('False until the first check has listed the folder'),
+  "progress": zod.object({
+  "files": zod.int(),
+  "waiting": zod.int(),
+  "reading": zod.int(),
+  "failed": zod.int(),
+  "read": zod.int(),
+  "lastReadAt": zod.coerce.date().nullable()
+})
+})
 })
 
 
@@ -5226,7 +5495,7 @@ export const UpdateConnectorScheduleResponse = zod.object({
   "nextRunAt": zod.coerce.date().nullable()
 }),
   "services": zod.array(zod.object({
-  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola']),
+  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola', 'dropbox']),
   "name": zod.string(),
   "readBy": zod.enum(['ollieos', 'claude']),
   "chosen": zod.boolean().describe('True when Ollie chose who reads it'),
@@ -5244,7 +5513,143 @@ export const UpdateConnectorScheduleResponse = zod.object({
   "counts": zod.record(zod.string(), zod.int()),
   "error": zod.string().nullable()
 }))
+})),
+  "dropbox": zod.object({
+  "folder": zod.string().nullable().describe('Claude\'s folder, or null before Ollie chooses one'),
+  "existing": zod.enum(['all', 'new']).describe('all reads files already there once; new only reads files added or changed later'),
+  "listed": zod.boolean().describe('False until the first check has listed the folder'),
+  "progress": zod.object({
+  "files": zod.int(),
+  "waiting": zod.int(),
+  "reading": zod.int(),
+  "failed": zod.int(),
+  "read": zod.int(),
+  "lastReadAt": zod.coerce.date().nullable()
+})
+})
+})
+
+
+/**
+ * @summary How many files OllieOS could read in a Dropbox folder, before choosing it
+ */
+export const previewDropboxFolderBodyFolderMax = 500;
+
+
+
+export const PreviewDropboxFolderBody = zod.object({
+  "folder": zod.string().min(1).max(previewDropboxFolderBodyFolderMax)
+})
+
+export const PreviewDropboxFolderResponse = zod.object({
+  "folder": zod.string(),
+  "readable": zod.int().describe('Markdown'),
+  "other": zod.int().describe('Files of other kinds')
+})
+
+
+/**
+ * @summary Choose Claude's folder in Dropbox, and whether files already there are read once
+ */
+export const setDropboxFolderBodyFolderMax = 500;
+
+
+
+export const SetDropboxFolderBody = zod.object({
+  "folder": zod.string().min(1).max(setDropboxFolderBodyFolderMax),
+  "existing": zod.enum(['all', 'new'])
+})
+
+export const SetDropboxFolderResponse = zod.object({
+  "schedule": zod.object({
+  "enabled": zod.boolean(),
+  "everyMinutes": zod.union([zod.literal(30),zod.literal(60)]),
+  "start": zod.string().describe('HH:MM, London time'),
+  "end": zod.string().describe('HH:MM, London time'),
+  "lastRunAt": zod.coerce.date().nullable(),
+  "nextRunAt": zod.coerce.date().nullable()
+}),
+  "services": zod.array(zod.object({
+  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola', 'dropbox']),
+  "name": zod.string(),
+  "readBy": zod.enum(['ollieos', 'claude']),
+  "chosen": zod.boolean().describe('True when Ollie chose who reads it'),
+  "canReadDirect": zod.boolean().describe('True when OllieOS can read this service itself'),
+  "account": zod.string().nullable(),
+  "lastGoodAt": zod.coerce.date().nullable(),
+  "lastFromClaudeAt": zod.coerce.date().nullable(),
+  "runs": zod.array(zod.object({
+  "id": zod.int(),
+  "trigger": zod.enum(['timer', 'manual']),
+  "startedAt": zod.coerce.date(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "ok": zod.boolean(),
+  "found": zod.int(),
+  "counts": zod.record(zod.string(), zod.int()),
+  "error": zod.string().nullable()
 }))
+})),
+  "dropbox": zod.object({
+  "folder": zod.string().nullable().describe('Claude\'s folder, or null before Ollie chooses one'),
+  "existing": zod.enum(['all', 'new']).describe('all reads files already there once; new only reads files added or changed later'),
+  "listed": zod.boolean().describe('False until the first check has listed the folder'),
+  "progress": zod.object({
+  "files": zod.int(),
+  "waiting": zod.int(),
+  "reading": zod.int(),
+  "failed": zod.int(),
+  "read": zod.int(),
+  "lastReadAt": zod.coerce.date().nullable()
+})
+})
+})
+
+
+/**
+ * @summary Put every Dropbox file that could not be read back in line
+ */
+export const RetryDropboxFilesResponse = zod.object({
+  "schedule": zod.object({
+  "enabled": zod.boolean(),
+  "everyMinutes": zod.union([zod.literal(30),zod.literal(60)]),
+  "start": zod.string().describe('HH:MM, London time'),
+  "end": zod.string().describe('HH:MM, London time'),
+  "lastRunAt": zod.coerce.date().nullable(),
+  "nextRunAt": zod.coerce.date().nullable()
+}),
+  "services": zod.array(zod.object({
+  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola', 'dropbox']),
+  "name": zod.string(),
+  "readBy": zod.enum(['ollieos', 'claude']),
+  "chosen": zod.boolean().describe('True when Ollie chose who reads it'),
+  "canReadDirect": zod.boolean().describe('True when OllieOS can read this service itself'),
+  "account": zod.string().nullable(),
+  "lastGoodAt": zod.coerce.date().nullable(),
+  "lastFromClaudeAt": zod.coerce.date().nullable(),
+  "runs": zod.array(zod.object({
+  "id": zod.int(),
+  "trigger": zod.enum(['timer', 'manual']),
+  "startedAt": zod.coerce.date(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "ok": zod.boolean(),
+  "found": zod.int(),
+  "counts": zod.record(zod.string(), zod.int()),
+  "error": zod.string().nullable()
+}))
+})),
+  "dropbox": zod.object({
+  "folder": zod.string().nullable().describe('Claude\'s folder, or null before Ollie chooses one'),
+  "existing": zod.enum(['all', 'new']).describe('all reads files already there once; new only reads files added or changed later'),
+  "listed": zod.boolean().describe('False until the first check has listed the folder'),
+  "progress": zod.object({
+  "files": zod.int(),
+  "waiting": zod.int(),
+  "reading": zod.int(),
+  "failed": zod.int(),
+  "read": zod.int(),
+  "lastReadAt": zod.coerce.date().nullable()
+})
+})
 })
 
 
@@ -5252,7 +5657,7 @@ export const UpdateConnectorScheduleResponse = zod.object({
  * @summary Choose whether OllieOS or Claude reads a service
  */
 export const SetConnectorReadByParams = zod.object({
-  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola'])
+  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola', 'dropbox'])
 })
 
 export const SetConnectorReadByBody = zod.object({
@@ -5269,7 +5674,7 @@ export const SetConnectorReadByResponse = zod.object({
   "nextRunAt": zod.coerce.date().nullable()
 }),
   "services": zod.array(zod.object({
-  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola']),
+  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola', 'dropbox']),
   "name": zod.string(),
   "readBy": zod.enum(['ollieos', 'claude']),
   "chosen": zod.boolean().describe('True when Ollie chose who reads it'),
@@ -5287,7 +5692,20 @@ export const SetConnectorReadByResponse = zod.object({
   "counts": zod.record(zod.string(), zod.int()),
   "error": zod.string().nullable()
 }))
-}))
+})),
+  "dropbox": zod.object({
+  "folder": zod.string().nullable().describe('Claude\'s folder, or null before Ollie chooses one'),
+  "existing": zod.enum(['all', 'new']).describe('all reads files already there once; new only reads files added or changed later'),
+  "listed": zod.boolean().describe('False until the first check has listed the folder'),
+  "progress": zod.object({
+  "files": zod.int(),
+  "waiting": zod.int(),
+  "reading": zod.int(),
+  "failed": zod.int(),
+  "read": zod.int(),
+  "lastReadAt": zod.coerce.date().nullable()
+})
+})
 })
 
 
@@ -5295,7 +5713,7 @@ export const SetConnectorReadByResponse = zod.object({
  * @summary Read a service now, then refresh briefs
  */
 export const CheckConnectorParams = zod.object({
-  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola'])
+  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola', 'dropbox'])
 })
 
 export const CheckConnectorResponse = zod.object({

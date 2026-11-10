@@ -11,7 +11,7 @@ import type { ListKnowledgeInboxTab } from './listKnowledgeInboxTab';
 export type ListKnowledgeInboxParams = {
 tab?: ListKnowledgeInboxTab;
 /**
- * look_back shows only suggestions from a Granola look back
+ * look_back shows only suggestions from a Granola look back; documents only those from reading documents
  */
 origin?: ListKnowledgeInboxOrigin;
 };

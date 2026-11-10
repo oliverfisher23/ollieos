@@ -18,6 +18,7 @@ import { reportApiError } from '@/lib/forbidden';
 import { Activity, ClaudeOverview, Requests, Tools } from './settings-ai-access';
 import { ClaudeSweep } from './settings-sweep';
 import { LookBackPanel } from './settings-look-back';
+import { DropboxCard } from './settings-dropbox';
 
 const H1 = { margin: 0, fontSize: 30, fontWeight: 600, letterSpacing: '-0.015em' } as const;
 const H2 = { margin: 0, fontSize: 16, fontWeight: 600 } as const;
@@ -34,7 +35,7 @@ const WHAT: Record<string, string> = {
 /** When OllieOS reading it itself arrives, for services that are not ready yet. */
 const LATER: Record<string, string> = {};
 
-function useConnectorsCache() {
+export function useConnectorsCache() {
   const qc = useQueryClient();
   return {
     put: (c: Connectors) => qc.setQueryData(getGetConnectorsQueryKey(), c),
@@ -44,7 +45,16 @@ function useConnectorsCache() {
 }
 
 export default function ConnectorsSettings() {
-  const q = useGetConnectors({ query: { queryKey: getGetConnectorsQueryKey(), refetchInterval: 60_000 } });
+  // While Dropbox files are being read, refresh often enough for the progress line to move.
+  const q = useGetConnectors({
+    query: {
+      queryKey: getGetConnectorsQueryKey(),
+      refetchInterval: (query) => {
+        const p = query.state.data?.dropbox.progress;
+        return p && p.waiting + p.reading > 0 ? 10_000 : 60_000;
+      },
+    },
+  });
   const c = q.data;
   const direct = c ? c.services.filter((s) => s.readBy === 'ollieos') : [];
   const readByOllieos = new Set(direct.map((s) => s.key));
@@ -94,7 +104,7 @@ export default function ConnectorsSettings() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {c.services.map((s) => <ServiceCard key={s.key} s={s} />)}
+            {c.services.map((s) => (s.key === 'dropbox' ? <DropboxCard key={s.key} s={s} setup={c.dropbox} /> : <ServiceCard key={s.key} s={s} />))}
           </div>
         )}
       </section>
@@ -121,7 +131,7 @@ function nextLabel(at: string): string {
   return new Date(at).getTime() - Date.now() < 90_000 ? 'Due now' : whenLabel(at);
 }
 
-function plural(n: number, one: string, many = one + 's') {
+export function plural(n: number, one: string, many = one + 's') {
   return `${n} ${n === 1 ? one : many}`;
 }
 
@@ -134,7 +144,7 @@ const SORTED_BY_AI: Record<string, string> = {
 };
 
 /** What a check found, in words: one line per run. */
-function runLine(key: string, r: ConnectorRun): string {
+export function runLine(key: string, r: ConnectorRun): string {
   if (!r.ok) return r.error ?? (r.finishedAt ? 'The check failed.' : 'Still running, or stopped early.');
   const c = r.counts;
   if (key === 'calendar') {
@@ -148,6 +158,17 @@ function runLine(key: string, r: ConnectorRun): string {
       c.missing ? `${plural(c.missing, 'Library link')} Drive could not open` : '',
     ].filter(Boolean);
     return `Looked at ${plural(c.recent ?? r.found, 'file')} you opened: ${parts.join(', ')}.`;
+  }
+  if (key === 'dropbox') {
+    if (!c.files && !r.found) return 'No folder chosen yet, or the folder is empty.';
+    const parts = [
+      c.added ? `${c.added} new` : '',
+      c.changed ? `${c.changed} changed` : '',
+      c.removed ? `${c.removed} removed` : '',
+    ].filter(Boolean);
+    const queued = c.queued ? ` ${plural(c.queued, 'file')} queued to read for knowledge.` : '';
+    const out = c.left_out ? ` ${c.left_out} of other kinds left alone.` : '';
+    return `Looked at ${plural(c.files ?? r.found, 'file')}: ${parts.length ? parts.join(', ') : 'nothing new or changed'}.${queued}${out}`;
   }
   if (key === 'granola') {
     const added = (c.inbox ?? 0) + (c.promises ?? 0) + (c.waiting ?? 0);
@@ -297,7 +318,7 @@ function ServiceCard({ s }: { s: ConnectorService }) {
   );
 }
 
-function RecentRuns({ runs, keyName }: { runs: ConnectorRun[]; keyName: string }) {
+export function RecentRuns({ runs, keyName }: { runs: ConnectorRun[]; keyName: string }) {
   return (
     <details data-testid={'details-runs-' + keyName}>
       <summary className="oo-soft" style={{ fontSize: 13, cursor: 'pointer' }}>Recent checks</summary>

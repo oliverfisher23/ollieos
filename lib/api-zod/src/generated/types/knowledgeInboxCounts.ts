@@ -13,4 +13,6 @@ export interface KnowledgeInboxCounts {
   total: number;
   /** Pending suggestions from a Granola look back (Knowledge Inbox only) */
   lookBack?: number;
+  /** Pending suggestions from reading documents (Knowledge Inbox only) */
+  documents?: number;
 }

@@ -14,4 +14,5 @@ export const DocLocation = {
   gdrive: 'gdrive',
   claude_project: 'claude_project',
   other: 'other',
+  ollieos: 'ollieos',
 } as const;

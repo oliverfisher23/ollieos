@@ -26,3 +26,5 @@ For briefs and the digest: seed calendar events relative to now through `/api/in
 Pushing the schema to the test database: `push-force` reads `DATABASE_URL`, so run it as `DATABASE_URL=$(cat /tmp/tdb) pnpm --filter @workspace/db run push-force`. Without the override it force-pushes to the dev database, which holds Ollie's real data.
 
 A second API instance pointed at the dev database starts the connector timer, so it can run real checks on Ollie's data: keep it to a few seconds (`timeout 40 node dist/index.mjs`) and block non-GET requests in the Playwright route. Never stop it with `pkill -f` on a pattern from the same command line; that kills your own shell.
+
+- The UI check session needs a full user object (id, email, firstName, lastName, profileImageUrl) in `sess`, or `/api/auth/user` fails the response check and the app shows the login page. Background servers started with `&` inside a normal shell call die when the call ends; start them as a background task.

@@ -389,6 +389,8 @@ export interface KnowledgeInboxCounts {
   total: number;
   /** Pending suggestions from a Granola look back (Knowledge Inbox only) */
   lookBack?: number;
+  /** Pending suggestions from reading documents (Knowledge Inbox only) */
+  documents?: number;
 }
 
 export interface HomeSummary {
@@ -869,6 +871,40 @@ export interface NoiseRuleOption {
   matchType: NoiseMatchType;
   matchValue: string;
   label: string;
+}
+
+export interface ReplyDraftWriteInput {
+  /**
+     * What Ollie wants the reply to say, or what to change
+     * @maxLength 2000
+     */
+  instructions?: string;
+  /**
+     * The draft as it stands, when asking for changes to it rather than a fresh draft
+     * @maxLength 20000
+     */
+  current?: string;
+}
+
+export interface EmailThreadMessage {
+  id: string;
+  /** @nullable */
+  fromName: string | null;
+  /** @nullable */
+  fromEmail: string | null;
+  to: string;
+  cc: string;
+  at: string;
+  text: string;
+  fromOllie: boolean;
+}
+
+export interface EmailThread {
+  /** False when the email is not in Gmail; messages then hold what the task kept */
+  fromGmail: boolean;
+  /** @nullable */
+  gmailUrl: string | null;
+  messages: EmailThreadMessage[];
 }
 
 export interface ReplyDraft {
@@ -1473,6 +1509,7 @@ export const KnowledgeInboxItemKind = {
   changed_summary: 'changed_summary',
   changed_details: 'changed_details',
   new_document: 'new_document',
+  document_link: 'document_link',
   new_playbook: 'new_playbook',
   cadence_change: 'cadence_change',
   conflict: 'conflict',
@@ -1507,6 +1544,11 @@ export interface KnowledgeInboxItem {
   lastConfirmedAt: string | null;
   /** Found by a Granola look back */
   lookBack: boolean;
+  /**
+     * The document or Dropbox file it came from, when found by reading documents
+     * @nullable
+     */
+  fromDocument: string | null;
   /** A decision with no project; Ollie may file it under one when approving */
   needsProject: boolean;
   /**
@@ -1840,6 +1882,7 @@ export const DocLocation = {
   gdrive: 'gdrive',
   claude_project: 'claude_project',
   other: 'other',
+  ollieos: 'ollieos',
 } as const;
 
 export interface NamedLink {
@@ -1848,10 +1891,52 @@ export interface NamedLink {
   slug: string;
 }
 
+/**
+ * Where the kept text came from
+ * @nullable
+ */
+export type LibraryDocumentTextOrigin = typeof LibraryDocumentTextOrigin[keyof typeof LibraryDocumentTextOrigin] | null;
+
+
+export const LibraryDocumentTextOrigin = {
+  gdrive: 'gdrive',
+  dropbox: 'dropbox',
+  pasted: 'pasted',
+  upload: 'upload',
+  claude: 'claude',
+} as const;
+
+export type DocumentKnowledgeStatus = typeof DocumentKnowledgeStatus[keyof typeof DocumentKnowledgeStatus];
+
+
+export const DocumentKnowledgeStatus = {
+  idle: 'idle',
+  queued: 'queued',
+  reading: 'reading',
+  failed: 'failed',
+} as const;
+
+export interface DocumentKnowledge {
+  status: DocumentKnowledgeStatus;
+  /** @nullable */
+  lastReadAt: string | null;
+  /**
+     * What the last read proposed, in words
+     * @nullable
+     */
+  lastResult: string | null;
+  /** @nullable */
+  error: string | null;
+}
+
 export interface LibraryDocument {
   id: number;
   title: string;
-  url: string;
+  /**
+     * Null for text kept in OllieOS
+     * @nullable
+     */
+  url: string | null;
   location: DocLocation;
   /** @nullable */
   summary: string | null;
@@ -1867,10 +1952,16 @@ export interface LibraryDocument {
   projects: NamedLink[];
   hiddenFromAi: boolean;
   /**
-     * When OllieOS last read the file's text from Google Drive
+     * When OllieOS last read or was given the text
      * @nullable
      */
   contentsReadAt: string | null;
+  /**
+     * Where the kept text came from
+     * @nullable
+     */
+  textOrigin: LibraryDocumentTextOrigin;
+  knowledge: DocumentKnowledge | null;
 }
 
 export interface Playbook {
@@ -2360,6 +2451,7 @@ export const ConnectorKey = {
   slack: 'slack',
   drive: 'drive',
   granola: 'granola',
+  dropbox: 'dropbox',
 } as const;
 
 export type ConnectorReadBy = typeof ConnectorReadBy[keyof typeof ConnectorReadBy];
@@ -2431,9 +2523,85 @@ export interface ConnectorSchedule {
   nextRunAt: string | null;
 }
 
+/**
+ * all reads files already there once; new only reads files added or changed later
+ */
+export type DropboxSetupExisting = typeof DropboxSetupExisting[keyof typeof DropboxSetupExisting];
+
+
+export const DropboxSetupExisting = {
+  all: 'all',
+  new: 'new',
+} as const;
+
+export type DropboxSetupProgress = {
+  files: number;
+  waiting: number;
+  reading: number;
+  failed: number;
+  read: number;
+  /** @nullable */
+  lastReadAt: string | null;
+};
+
+export interface DropboxSetup {
+  /**
+     * Claude's folder, or null before Ollie chooses one
+     * @nullable
+     */
+  folder: string | null;
+  /** all reads files already there once; new only reads files added or changed later */
+  existing: DropboxSetupExisting;
+  /** False until the first check has listed the folder */
+  listed: boolean;
+  progress: DropboxSetupProgress;
+}
+
 export interface Connectors {
   schedule: ConnectorSchedule;
   services: ConnectorService[];
+  dropbox: DropboxSetup;
+}
+
+export interface DropboxFolderPreview {
+  folder: string;
+  /** Markdown */
+  readable: number;
+  /** Files of other kinds */
+  other: number;
+}
+
+export interface DropboxFolderPreviewInput {
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  folder: string;
+}
+
+export interface RejectSourceInput {
+  /**
+     * @minLength 1
+     * @maxLength 1200
+     */
+  sourceRef: string;
+}
+
+export type DropboxFolderInputExisting = typeof DropboxFolderInputExisting[keyof typeof DropboxFolderInputExisting];
+
+
+export const DropboxFolderInputExisting = {
+  all: 'all',
+  new: 'new',
+} as const;
+
+export interface DropboxFolderInput {
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  folder: string;
+  existing: DropboxFolderInputExisting;
 }
 
 export type ConnectorScheduleInputEveryMinutes = typeof ConnectorScheduleInputEveryMinutes[keyof typeof ConnectorScheduleInputEveryMinutes];
@@ -2734,6 +2902,74 @@ export interface DocumentInput {
   projectIds?: number[];
 }
 
+export interface DocumentTextInput {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 400000
+     */
+  text: string;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  summary?: string | null;
+  /** @nullable */
+  confidential?: boolean | null;
+  projectIds?: number[];
+  buildKnowledge?: boolean;
+}
+
+export interface DocumentUploadInput {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  fileName: string;
+  /** @minLength 1 */
+  dataBase64: string;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  title?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  summary?: string | null;
+  /** @nullable */
+  confidential?: boolean | null;
+  projectIds?: number[];
+  buildKnowledge?: boolean;
+}
+
+export interface DriveImportInput {
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  url: string;
+}
+
+export interface DriveImport {
+  /**
+     * The folder's name, when the link was a folder
+     * @nullable
+     */
+  folder: string | null;
+  added: number;
+  alreadyThere: number;
+  /** Files OllieOS cannot read */
+  skipped: number;
+  queued: number;
+  documents: LibraryDocument[];
+}
+
 export interface DocumentUpdate {
   /**
      * @minLength 1
@@ -2880,7 +3116,7 @@ projectId?: number;
 export type ListKnowledgeInboxParams = {
 tab?: ListKnowledgeInboxTab;
 /**
- * look_back shows only suggestions from a Granola look back
+ * look_back shows only suggestions from a Granola look back; documents only those from reading documents
  */
 origin?: ListKnowledgeInboxOrigin;
 };
@@ -2900,7 +3136,12 @@ export type ListKnowledgeInboxOrigin = typeof ListKnowledgeInboxOrigin[keyof typ
 export const ListKnowledgeInboxOrigin = {
   all: 'all',
   look_back: 'look_back',
+  documents: 'documents',
 } as const;
+
+export type RejectSuggestionsFromSource200 = {
+  rejected: number;
+};
 
 export type SearchKnowledgeParams = {
 q: string;

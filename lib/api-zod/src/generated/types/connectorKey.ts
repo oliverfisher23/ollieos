@@ -15,4 +15,5 @@ export const ConnectorKey = {
   slack: 'slack',
   drive: 'drive',
   granola: 'granola',
+  dropbox: 'dropbox',
 } as const;

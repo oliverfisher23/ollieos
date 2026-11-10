@@ -108,6 +108,32 @@ export async function proxyText(connector: string, name: string, path: string, m
   return { text: text.slice(0, maxChars), truncated: text.length > maxChars };
 }
 
+/** GET a file's bytes, or null when it is gone, cannot be opened or is larger than `maxBytes`. */
+export async function proxyBytes(connector: string, name: string, path: string, maxBytes: number): Promise<Uint8Array | null> {
+  const res = await call(connector, name, path);
+  if (res.status === 404 || res.status === 403 || res.status === 400) return null;
+  if (!res.ok) throw await failure(name, res);
+  const size = Number(res.headers.get("content-length"));
+  if (size && size > maxBytes) return null;
+  const buf = new Uint8Array(await res.arrayBuffer());
+  return buf.byteLength > maxBytes ? null : buf;
+}
+
+/**
+ * A read made with POST, as Dropbox's API does for every call. Null when Dropbox says the path is
+ * not there (409 with a path error). OllieOS only ever calls Dropbox's read endpoints.
+ */
+export async function proxyReadPost(connector: string, name: string, path: string, body: unknown): Promise<Record<string, unknown> | null> {
+  const res = await call(connector, name, path, { method: "POST", body });
+  if (res.status === 409) {
+    const text = await res.text().catch(() => "");
+    if (/not_found|path\/|malformed_path/.test(text)) return null;
+    throw new ConnectorError(`${name} could not do that: ${text.slice(0, 200)}`);
+  }
+  if (!res.ok) throw await failure(name, res);
+  return (await res.json().catch(() => ({}))) as Record<string, unknown>;
+}
+
 /**
  * POST or PUT a JSON body and read the JSON answer. Null when the item is gone (404), so a caller
  * updating something can fall back to creating it. Only used to save Gmail drafts; never to send.

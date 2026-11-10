@@ -50,7 +50,7 @@ export function view(r: ReplyDraftRow): ReplyDraftView {
   };
 }
 
-function loadEmailTask(t: TaskRow): void {
+export function loadEmailTask(t: TaskRow): void {
   if (t.source !== "email") throw new ConflictError("Draft reply is only for tasks that came from an email");
 }
 
@@ -61,7 +61,7 @@ export async function getReplyDraft(id: number): Promise<ReplyDraftView | null> 
 }
 
 /** The Gmail thread an email task came from, when OllieOS can tell. */
-async function threadIdFor(t: TaskRow): Promise<string | null> {
+export async function threadIdFor(t: TaskRow): Promise<string | null> {
   const fromUrl = t.sourceUrl ? /mail\.google\.com\/.*#[a-z]+\/([A-Za-z0-9]{10,})\s*$/i.exec(t.sourceUrl)?.[1] : undefined;
   if (fromUrl) return fromUrl;
   const msgId = t.sourceRef?.startsWith("gmail:") ? t.sourceRef.slice("gmail:".length).split("#")[0] : null;
@@ -154,7 +154,11 @@ function when(d: Date): string {
   return `${formatDayMonth(d)}, ${formatTime(d)}`;
 }
 
-export async function writeReplyDraft(id: number, actor: string): Promise<ReplyDraftView> {
+export async function writeReplyDraft(
+  id: number,
+  actor: string,
+  input: { instructions?: string; current?: string } = {},
+): Promise<ReplyDraftView> {
   const task = await loadTask(id);
   loadEmailTask(task);
 
@@ -213,7 +217,7 @@ export async function writeReplyDraft(id: number, actor: string): Promise<ReplyD
   try {
     // Ollie wrote last and nobody answered (No reply yet): the draft is a follow-up, not a reply.
     const chase = messages.length > 0 && messages[messages.length - 1].fromOllie;
-    body = await draftEmailReplyFromDocs({ to: greet, task: task.title, thread: messages, docs, chase });
+    body = await draftEmailReplyFromDocs({ to: greet, task: task.title, thread: messages, docs, chase, instructions: input.instructions, current: input.current?.trim() || undefined });
   } catch (err) {
     logger.error({ err }, "Reply draft failed");
     throw new UpstreamError("The reply could not be written just now. Try again in a moment.");
@@ -240,7 +244,7 @@ export async function writeReplyDraft(id: number, actor: string): Promise<ReplyD
     .values({ taskId: task.id, ...values })
     .onConflictDoUpdate({ target: replyDraftsTable.taskId, set: values })
     .returning();
-  await writeAudit(db, { actor, action: "reply_draft", entityType: "task", entityId: task.id, payload: { saved: false, thread: !!thread } });
+  await writeAudit(db, { actor, action: "reply_draft", entityType: "task", entityId: task.id, payload: { saved: false, thread: !!thread, instructions: !!input.instructions?.trim(), revised: !!input.current?.trim() } });
   return view(row);
 }
 
