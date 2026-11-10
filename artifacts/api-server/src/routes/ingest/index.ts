@@ -21,6 +21,7 @@ import { buildScope, type AiScope } from "../../lib/ai-data/scope";
 import { captureTask, enabledRules, finishSweep, logActivity, startSweep, type Writer } from "../../services/aiWrites";
 import { attachMeetingNotes, findEventBySourceRef } from "../../services/briefs";
 import { scheduledWork } from "../../services/scheduledWork";
+import { refusedClaudeSources } from "../../services/connectors";
 import { AttendeeSchema, syncCalendarFeed } from "../../services/calendarSync";
 import { captureSweepClient, ingestKeyConfigured, ingestKeyMatches, touchClient } from "../../services/clients";
 import { proposalReply, proposeOrganisation, proposePerson, proposeProject, type AiProposeResult } from "../../services/aiPropose";
@@ -105,7 +106,8 @@ router.post(
     if (!Array.isArray(raw)) throw new ValidationError("Send an array of items, or { items: [...] }");
     if (raw.length > 100) throw new ValidationError("At most 100 items per call");
     const rules = await enabledRules();
-    const results: { source_ref: string | null; outcome: "created" | "duplicate" | "noise" | "error"; task_id?: number; noise_rule_id?: number; error?: string }[] = [];
+    const refused = await refusedClaudeSources();
+    const results: { source_ref: string | null; outcome: "created" | "duplicate" | "noise" | "ignored" | "error"; task_id?: number; noise_rule_id?: number; error?: string; message?: string }[] = [];
     for (const entry of raw) {
       const parsed = IngestItem.safeParse(entry);
       const ref = typeof (entry as { source_ref?: unknown })?.source_ref === "string" ? (entry as { source_ref: string }).source_ref : null;
@@ -114,6 +116,13 @@ router.post(
         continue;
       }
       const it = parsed.data;
+      // OllieOS reads this service itself now, so Claude's copy would arrive twice.
+      if (it.source === "email" || it.source === "slack") {
+        if (refused.has(it.source)) {
+          results.push({ source_ref: it.source_ref, outcome: "ignored", message: `OllieOS reads ${it.source === "email" ? "Gmail" : "Slack"} itself now. Stop sending these.` });
+          continue;
+        }
+      }
       const hint = (v: string | null | undefined, type: PickType) => (v ? resolvePick(scope, v, [type]) : Promise.resolve(null));
       const [project, person, waiting] = await Promise.all([hint(it.project_hint, "project"), hint(it.person_hint, "person"), hint(it.waiting_on_hint, "person")]);
       try {
@@ -156,7 +165,7 @@ router.post(
       }
     }
     const count = (o: string) => results.filter((r) => r.outcome === o).length;
-    res.json({ results, counts: { created: count("created"), noise: count("noise"), duplicate: count("duplicate"), error: count("error") } });
+    res.json({ results, counts: { created: count("created"), noise: count("noise"), duplicate: count("duplicate"), ignored: count("ignored"), error: count("error") } });
   }),
 );
 
@@ -380,6 +389,7 @@ router.post(
     const raw: unknown = Array.isArray(req.body) ? req.body : (req.body?.entries ?? req.body?.items ?? req.body?.activity);
     if (!Array.isArray(raw)) throw new ValidationError("Send an array of entries, or { entries: [...] }");
     if (raw.length > 200) throw new ValidationError("At most 200 entries per call");
+    const refused = await refusedClaudeSources();
     const results = [];
     for (const entry of raw) {
       const parsed = ActivityEntry.safeParse(entry);
@@ -388,6 +398,10 @@ router.post(
         continue;
       }
       const a = parsed.data;
+      if ((a.kind === "email" || a.kind === "slack") && refused.has(a.kind)) {
+        results.push({ source_ref: a.source_ref ?? null, outcome: "ignored" as const, message: `OllieOS logs ${a.kind === "email" ? "email" : "Slack"} activity itself now.` });
+        continue;
+      }
       const [people, projects] = await Promise.all([
         resolveAll(scope, asList(a.people, a.person_hint), "person"),
         resolveAll(scope, asList(a.projects, a.project_hint), "project"),

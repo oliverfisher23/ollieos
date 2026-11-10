@@ -247,7 +247,7 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                 {task.sourceQuote && <span className="oo-soft" style={{ fontSize: 13, lineHeight: 1.5 }}>"{task.sourceQuote}"</span>}
                 {task.sourceUrl && (
                   <a className="oo-link" href={task.sourceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13 }} data-testid="link-source">
-                    {task.source === 'email' ? 'Open in Superhuman' : 'Open source'}
+                    {sourceLinkLabel(task.source, task.sourceUrl)}
                   </a>
                 )}
               </div>
@@ -305,4 +305,12 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
       </aside>
     </>
   );
+}
+
+/** Says where the link goes: Gmail links come from OllieOS's own reader, Superhuman ones from the Claude sweep. */
+function sourceLinkLabel(source: string, url: string): string {
+  if (url.includes('mail.google.com')) return 'Open in Gmail';
+  if (url.includes('superhuman.com')) return 'Open in Superhuman';
+  if (source === 'slack' || url.includes('slack.com')) return 'Open in Slack';
+  return source === 'email' ? 'Open email' : 'Open source';
 }

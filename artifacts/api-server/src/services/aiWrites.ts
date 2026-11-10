@@ -31,6 +31,9 @@ export interface Writer {
   clientId: number;
 }
 
+/** Writers that are not an AI client, such as OllieOS's own connectors, have no client id. */
+export type CaptureWriter = { actor: string; clientId: number | null };
+
 /* ---------- Tasks and capture ---------- */
 
 export interface CaptureInput {
@@ -91,7 +94,7 @@ export function matchNoiseRule(rules: NoiseRule[], item: CaptureInput): NoiseRul
  * sweeps running at once still create one task. The confidential flag is stored on insert, in
  * the same transaction, so the item is hidden from AI from the moment it exists (criterion 12).
  */
-export async function captureTask(w: Writer, item: CaptureInput, opts: { applyNoise: boolean; via: string; rules?: NoiseRule[] }): Promise<CaptureResult> {
+export async function captureTask(w: CaptureWriter, item: CaptureInput, opts: { applyNoise: boolean; via: string; rules?: NoiseRule[] }): Promise<CaptureResult> {
   const title = cleanText(item.title);
   if (!title) throw new ValidationError("A task needs a title");
   const sourceRef = cleanText(item.sourceRef);
@@ -218,7 +221,7 @@ export interface ActivityInput {
  * One touchpoint. It hangs off the first project (or the first person when there is none),
  * and links to the rest. A repeated source_ref returns the existing row.
  */
-export async function logActivity(w: Writer, input: ActivityInput, via: string): Promise<{ id: number; duplicate: boolean }> {
+export async function logActivity(w: CaptureWriter, input: ActivityInput, via: string): Promise<{ id: number; duplicate: boolean }> {
   const summary = cleanText(input.summary);
   if (!summary) throw new ValidationError("Activity needs a summary");
   const sourceRef = cleanText(input.sourceRef);

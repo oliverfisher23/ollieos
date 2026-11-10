@@ -19,6 +19,20 @@ vi.mock("../src/services/connectors/googleCalendar", async (importOriginal) => {
   };
 });
 
+// Gmail and Slack are covered in connectors-messages.test.ts; here they must never reach the real services.
+vi.mock("../src/services/connectors/gmail", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/services/connectors/gmail")>()),
+  readGmail: async () => {
+    throw new (await import("../src/services/connectors/http")).ConnectorError("Not read in tests");
+  },
+}));
+vi.mock("../src/services/connectors/slack", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/services/connectors/slack")>()),
+  readSlack: async () => {
+    throw new (await import("../src/services/connectors/http")).ConnectorError("Not read in tests");
+  },
+}));
+
 vi.mock("../src/services/ask/model", () => ({
   ASK_MODEL: "test-model",
   answerFromDocs: async () => ({ found: false, summary: "", items: [], related: [], bundleTitle: "" }),
@@ -163,7 +177,7 @@ describe("who reads the calendar", () => {
   });
 
   it("will not hand a service OllieOS cannot read yet to OllieOS", async () => {
-    const r = await api("connectors/gmail", { method: "PATCH", body: { readBy: "ollieos" } });
+    const r = await api("connectors/drive", { method: "PATCH", body: { readBy: "ollieos" } });
     expect(r.status).toBe(400);
     expect((await api("connectors/nope", { method: "PATCH", body: { readBy: "claude" } })).status).toBe(400);
   });

@@ -4,3 +4,4 @@
 - [Publish blocked by dependency scan](publish-security-scan.md) — high-severity advisories stop publishing before build; zod fix means moving to zod 4
 - [Replit connectors SDK](replit-connectors-sdk.md) — use ReplitConnectors().proxy, not ConnectorsClient; timed checks need a Reserved VM
 - [Failed publish at promote step](publish-promote-failures.md) — build OK but app never starts: how to rule out app and schema diff, log tool quirks
+- [Slack and Gmail reading limits](slack-gmail-reading.md) — no Slack search scope, `updated` is not activity, Haiku sorting notes

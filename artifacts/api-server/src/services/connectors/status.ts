@@ -1,6 +1,6 @@
 /** What the Connectors page shows: the schedule and one card per service. */
-import { and, desc, eq, ne } from "drizzle-orm";
-import { auditEventsTable, captureLogTable, db, type ConnectorRun } from "@workspace/db";
+import { and, desc, eq, ne, notInArray } from "drizzle-orm";
+import { auditEventsTable, db, tasksTable, type ConnectorRun } from "@workspace/db";
 import {
   DIRECT_READY,
   SERVICE_KEYS,
@@ -71,11 +71,12 @@ async function lastFromClaude(key: ServiceKey): Promise<Date | null> {
   }
   const source = CLAUDE_SOURCE[key];
   if (!source) return null;
+  // OllieOS's own Gmail and Slack reads write tasks too; only count what Claude sent.
   const [row] = await db
-    .select({ at: captureLogTable.capturedAt })
-    .from(captureLogTable)
-    .where(eq(captureLogTable.source, source))
-    .orderBy(desc(captureLogTable.capturedAt))
+    .select({ at: tasksTable.createdAt })
+    .from(tasksTable)
+    .where(and(eq(tasksTable.source, source), notInArray(tasksTable.createdBy, ["ollieos", "ollie"])))
+    .orderBy(desc(tasksTable.createdAt))
     .limit(1);
   return row?.at ?? null;
 }

@@ -24,16 +24,14 @@ const H2 = { margin: 0, fontSize: 16, fontWeight: 600 } as const;
 /** What each service brings in, in Ollie's words. */
 const WHAT: Record<string, string> = {
   calendar: 'Your meetings for today and the next 7 days, for the calendar strip, briefs and the digest.',
-  gmail: 'Email that needs a reply or an action.',
-  slack: 'Direct messages and mentions.',
+  gmail: 'Email that needs a reply or an action, promises you make by email, and replies you are waiting for. Newsletters, notifications and invites are left out.',
+  slack: 'Direct messages, group DMs and @mentions: what people ask of you, what you promise and what you are waiting for.',
   drive: 'Documents linked to your projects.',
   granola: 'Meeting notes: your actions, promises and what others owe you.',
 };
 
 /** When OllieOS reading it itself arrives, for services that are not ready yet. */
 const LATER: Record<string, string> = {
-  gmail: 'OllieOS reads this itself from the next step.',
-  slack: 'OllieOS reads this itself from the next step.',
   drive: 'OllieOS reads this itself from the step after next.',
   granola: 'OllieOS reads this itself from the step after next.',
 };
@@ -129,12 +127,35 @@ function plural(n: number, one: string, many = one + 's') {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-/** "Found 23 events: kept 17 meetings, left out 6." */
-function runLine(r: ConnectorRun): string {
+/** Sorting by AI uses a small model; it is said once, on the cards it applies to. */
+const SORTED_BY_AI = new Set(['gmail', 'slack']);
+
+/** What a check found, in words: one line per run. */
+function runLine(key: string, r: ConnectorRun): string {
   if (!r.ok) return r.error ?? (r.finishedAt ? 'The check failed.' : 'Still running, or stopped early.');
-  const kept = r.counts.kept ?? 0;
-  const out = r.counts.left_out ?? 0;
-  return `Found ${plural(r.found, 'event')}: kept ${plural(kept, 'meeting')}${out ? `, left out ${out} (all-day, declined or not a meeting)` : ''}.`;
+  const c = r.counts;
+  if (key === 'calendar') {
+    const out = c.left_out ?? 0;
+    return `Found ${plural(r.found, 'event')}: kept ${plural(c.kept ?? 0, 'meeting')}${out ? `, left out ${out} (all-day, declined or not a meeting)` : ''}.`;
+  }
+  const noun = key === 'gmail' ? 'email' : 'message';
+  const added = (c.inbox ?? 0) + (c.promises ?? 0) + (c.waiting ?? 0);
+  const parts = [
+    added
+      ? `${added} to your Inbox${c.promises || c.waiting ? ` (${[c.promises ? plural(c.promises, 'promise') : '', c.waiting ? `${c.waiting} waiting on` : ''].filter(Boolean).join(', ')})` : ''}`
+      : 'nothing new for your Inbox',
+    c.noise ? `${c.noise} to Noise` : '',
+    c.noise_rule ? `${c.noise_rule} skipped by your noise rules` : '',
+    c.left_out ? `${c.left_out} left out (${key === 'gmail' ? 'newsletters, notifications and invites' : 'bots and system messages'})` : '',
+  ].filter(Boolean);
+  const more = c.more ? ' More is waiting; the next check carries on.' : '';
+  return `Read ${plural(r.found, noun)}: ${parts.join(', ')}.${more}`;
+}
+
+/** The toast after Check now. */
+function checkedLine(key: string, found: number): string {
+  if (key === 'calendar') return `Found ${plural(found, 'event')}.`;
+  return `Read ${plural(found, key === 'gmail' ? 'email' : 'message')}. New items are in your Inbox.`;
 }
 
 function status(s: ConnectorService): { label: string; tone?: string } {
@@ -157,7 +178,7 @@ function ServiceCard({ s }: { s: ConnectorService }) {
     setBusy('check');
     try {
       const r = await checkConnector(s.key);
-      if (r.ok) notify(`${s.name} checked`, `Found ${plural(r.found, 'event')}.`);
+      if (r.ok) notify(`${s.name} checked`, checkedLine(s.key, r.found));
       else notify(`${s.name} check failed`, r.error ?? 'Something went wrong.');
     } catch (err) {
       reportApiError(err);
@@ -192,13 +213,18 @@ function ServiceCard({ s }: { s: ConnectorService }) {
         {s.account && <span className="oo-muted" style={{ fontSize: 13 }} data-testid={'text-connector-account-' + s.key}>{s.account}</span>}
       </div>
       <p className="oo-soft" style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>{WHAT[s.key]}</p>
+      {s.canReadDirect && SORTED_BY_AI.has(s.key) && (
+        <p className="oo-muted" style={{ margin: 0, fontSize: 12, lineHeight: 1.5 }} data-testid={'text-connector-ai-' + s.key}>
+          Read-only. Messages are sorted by Claude Haiku through Replit, billed to your Replit credits. Everything lands in your Inbox for you to triage.
+        </p>
+      )}
 
       {s.canReadDirect ? (
         <>
           {direct && last && (
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: last.ok ? undefined : 'var(--oo-danger)' }} data-testid={'text-connector-last-' + s.key}>
               <span className="oo-muted">Last check {whenLabel(last.startedAt)}{last.trigger === 'manual' ? ' (by you)' : ''}: </span>
-              {runLine(last)}
+              {runLine(s.key, last)}
             </p>
           )}
           {direct && last && !last.ok && (
@@ -246,7 +272,7 @@ function RecentRuns({ runs, keyName }: { runs: ConnectorRun[]; keyName: string }
         {runs.map((r) => (
           <li key={r.id} style={{ fontSize: 13, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <span className="oo-num oo-muted" style={{ flex: '0 0 120px' }}>{whenLabel(r.startedAt)}</span>
-            <span style={{ flex: '1 1 240px', color: r.ok ? undefined : 'var(--oo-danger)' }}>{runLine(r)}</span>
+            <span style={{ flex: '1 1 240px', color: r.ok ? undefined : 'var(--oo-danger)' }}>{runLine(keyName, r)}</span>
           </li>
         ))}
       </ul>

@@ -2,9 +2,9 @@
  * Reads Ollie's primary Google Calendar through the Replit connector, for today and the next
  * seven days (London time), and turns each event into a calendar row. No AI is involved.
  */
-import { ReplitConnectors } from "@replit/connectors-sdk";
 import { londonRange, todayLondon } from "@workspace/shared";
 import { normaliseAttendees, platformFor, type CalendarInput } from "../aiWrites";
+import { ConnectorError, proxyJson } from "./http";
 
 const CONNECTOR = "google-calendar";
 
@@ -30,15 +30,7 @@ export interface GoogleEvent {
   }[];
 }
 
-export class ConnectorError extends Error {
-  constructor(
-    message: string,
-    /** True when reconnecting the service in Replit is the likely fix. */
-    readonly needsReconnect = false,
-  ) {
-    super(message);
-  }
-}
+export { ConnectorError };
 
 /** Working location, out of office, focus time and birthdays are not meetings. */
 const SKIP_TYPES = new Set(["workingLocation", "outOfOffice", "focusTime", "birthday"]);
@@ -95,31 +87,12 @@ export interface CalendarRead {
   skipped: number;
 }
 
-async function getJson(client: ReplitConnectors, path: string): Promise<Record<string, unknown>> {
-  let res: Response;
-  try {
-    res = await client.proxy(CONNECTOR, path, { method: "GET" });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/no .*connection/i.test(msg)) throw new ConnectorError("Google Calendar is not connected to OllieOS.", true);
-    throw new ConnectorError("Could not reach Google Calendar: " + msg);
-  }
-  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (res.status === 401 || res.status === 403) {
-    throw new ConnectorError("Google Calendar refused access. Reconnect it in Replit.", true);
-  }
-  if (!res.ok) {
-    const err = body.error as { message?: string } | undefined;
-    throw new ConnectorError(`Google Calendar answered ${res.status}${err?.message ? ": " + err.message : ""}`);
-  }
-  return body;
-}
+const getJson = (path: string) => proxyJson(CONNECTOR, "Google Calendar", path);
 
 export async function readGoogleCalendar(now = new Date()): Promise<CalendarRead> {
-  const client = new ReplitConnectors();
   const today = todayLondon(now);
   const window = londonRange(today, 8);
-  const cal = await getJson(client, "/calendar/v3/calendars/primary?fields=id");
+  const cal = await getJson("/calendar/v3/calendars/primary?fields=id");
   const account = typeof cal.id === "string" ? cal.id : null;
 
   const items: GoogleEvent[] = [];
@@ -135,7 +108,7 @@ export async function readGoogleCalendar(now = new Date()): Promise<CalendarRead
         "nextPageToken,items(id,status,summary,eventType,visibility,location,hangoutLink,start,end,conferenceData/conferenceSolution/name,attendees(email,displayName,responseStatus,organizer,self,resource))",
     });
     if (pageToken) q.set("pageToken", pageToken);
-    const body = await getJson(client, "/calendar/v3/calendars/primary/events?" + q.toString());
+    const body = await getJson("/calendar/v3/calendars/primary/events?" + q.toString());
     items.push(...((body.items as GoogleEvent[] | undefined) ?? []));
     pageToken = typeof body.nextPageToken === "string" ? body.nextPageToken : undefined;
     if (!pageToken) break;

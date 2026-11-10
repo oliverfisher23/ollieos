@@ -900,13 +900,14 @@ Goal: OllieOS reads Ollie's services itself and stops relying on the Claude swee
 | Part | Services | How |
 |---|---|---|
 | A (built) | Google Calendar | Replit Google Calendar integration, read with `@replit/connectors-sdk`. No AI |
-| B | Gmail, Slack | Replit integrations; AI sorting on a cheaper model billed to Replit credits |
+| B (built) | Gmail, Slack | Replit Gmail and Slack integrations, read-only; sorted by `claude-haiku-5-5` through Replit AI Integrations |
 | C | Google Drive, Granola | Replit Drive integration; Granola Enterprise API with a key in Replit secrets |
 
 - **Data:** `connector_runs` (one row per check, kept 30 days); app_settings `connectors` holds the schedule and who reads each service.
 - **Who reads a service:** Ollie's choice wins. A service OllieOS can read moves to OllieOS automatically after its first good check. While OllieOS reads it, the matching ingest route and MCP tool answer `{ignored: true}`.
 - **Timer:** checked every minute in the API server; runs at the chosen interval (30 or 60 minutes) on weekdays inside the window (default 07:00 to 19:00 London). Each run is claimed in the database first so two instances never double-run. After the checks, `scheduledWork` builds briefs, the digest (from 07:40) and clean-ups.
 - **API:** `GET /api/connectors`, `PATCH /api/connectors/schedule`, `PATCH /api/connectors/:key` (`{readBy}`), `POST /api/connectors/:key/check`.
+- **Part B details:** cursors live in app_settings `connector_state_gmail` (`{after}`, the newest message read) and `connector_state_slack` (`{since, convs: {id: {ts, active, checked}}}`), saved only after everything read has been captured, so a failed check is read again. Gmail messages in the same thread form one exchange. Slack has no search for this connection (`search:read` is not granted, and `assistant.search.context` results may not be stored), so it reads `conversations.history`: conversations with a message in the last 14 days every check, quiet DMs every 2 hours (30 a check), quiet group DMs and channels 40 a check, at about one call a second with a 90-second budget. Channels only keep messages that @mention Ollie. Items go through `captureTask` (source_ref `gmail:<id>` or `slack:<channel>:<ts>`, `#2` for a second item from the same message) with actor `ollieos`; `/api/ingest/tasks` and `/api/ingest/activity` answer `ignored` for email or Slack while OllieOS reads that service. Confidential projects are never sent to the sorter.
 - **Page:** Settings → Connectors, first in the list. `/settings/ai-access` and `/settings/sweep` redirect there.
 - **Publishing:** deployment must be a Reserved VM so the timer keeps running; connections must also be set for the published app in Publishing settings.
 

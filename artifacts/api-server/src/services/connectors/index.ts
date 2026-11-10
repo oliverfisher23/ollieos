@@ -16,14 +16,17 @@ import { logger } from "../../lib/logger";
 import { replaceCalendar } from "../aiWrites";
 import { scheduledWork } from "../scheduledWork";
 import { ValidationError } from "../tasks";
+import { sortAndCapture } from "./capture";
+import { readGmail } from "./gmail";
 import { ConnectorError, readGoogleCalendar } from "./googleCalendar";
+import { readSlack, type SlackState } from "./slack";
 
 export const SERVICE_KEYS = ["calendar", "gmail", "slack", "drive", "granola"] as const;
 export type ServiceKey = (typeof SERVICE_KEYS)[number];
 export type ReadBy = "ollieos" | "claude";
 
 /** Services OllieOS can read itself today. */
-export const DIRECT_READY: ReadonlySet<ServiceKey> = new Set<ServiceKey>(["calendar"]);
+export const DIRECT_READY: ReadonlySet<ServiceKey> = new Set<ServiceKey>(["calendar", "gmail", "slack"]);
 
 export const SERVICE_NAMES: Record<ServiceKey, string> = {
   calendar: "Google Calendar",
@@ -123,6 +126,18 @@ export async function refusesClaudeFeed(key: ServiceKey): Promise<boolean> {
   return (await readByNow(key)) === "ollieos";
 }
 
+/**
+ * Which capture sources the Claude sweep may no longer send, because OllieOS reads them itself:
+ * email while OllieOS reads Gmail, slack while it reads Slack.
+ */
+export async function refusedClaudeSources(): Promise<Set<"email" | "slack">> {
+  const s = await getConnectorSettings();
+  const out = new Set<"email" | "slack">();
+  if ((await readByNow("gmail", s)) === "ollieos") out.add("email");
+  if ((await readByNow("slack", s)) === "ollieos") out.add("slack");
+  return out;
+}
+
 /** Whether the timer should try this service: ready, and not handed back to Claude. */
 function shouldRead(key: ServiceKey, s: ConnectorSettings): boolean {
   return DIRECT_READY.has(key) && s.readBy[key] !== "claude";
@@ -146,13 +161,67 @@ async function readCalendar(now: Date) {
   return { found: r.found, account: r.account, counts: { kept: w.replaced, removed: w.removed, left_out: r.skipped } };
 }
 
+/* Where each reader got to, so the next check carries on from there. */
+
+const stateKey = (key: ServiceKey) => `connector_state_${key}`;
+
+async function getState<T>(key: ServiceKey): Promise<T | null> {
+  const [row] = await db.select().from(appSettingsTable).where(eq(appSettingsTable.key, stateKey(key)));
+  return (row?.value as T | undefined) ?? null;
+}
+
+async function putState(key: ServiceKey, value: unknown) {
+  await db
+    .insert(appSettingsTable)
+    .values({ key: stateKey(key), value })
+    .onConflictDoUpdate({ target: appSettingsTable.key, set: { value, updatedAt: new Date() } });
+}
+
+/** The first check of a service looks back this far. */
+const FIRST_LOOK_BACK_MS = 24 * 3600_000;
+
+async function readGmailRun(now: Date) {
+  const saved = await getState<{ after: string }>("gmail");
+  const since = saved?.after ? new Date(saved.after) : new Date(now.getTime() - FIRST_LOOK_BACK_MS);
+  const r = await readGmail(since);
+  const c = await sortAndCapture(r.units, { me: `His email address is ${r.account}.`, now });
+  // Only move on once everything read has been captured, so a failed check is read again.
+  await putState("gmail", { after: (r.newest ?? since).toISOString() });
+  return { found: r.found, account: r.account, counts: { ...c, left_out: r.leftOut, more: r.more ? 1 : 0 } };
+}
+
+async function readSlackRun(now: Date) {
+  const saved = await getState<SlackState>("slack");
+  const r = await readSlack(saved, now);
+  const c = await sortAndCapture(r.units, { me: `On Slack he is ${r.account}; his messages are marked "from Ollie".`, now });
+  await putState("slack", r.state);
+  return { found: r.found, account: r.account, counts: { ...c, left_out: r.leftOut, conversations: r.checked } };
+}
+
 const READERS: Partial<Record<ServiceKey, (now: Date) => Promise<{ found: number; account: string | null; counts: Record<string, number> }>>> = {
   calendar: readCalendar,
+  gmail: readGmailRun,
+  slack: readSlackRun,
 };
+
+/** Services being read right now in this server, so a manual check and the timer never overlap. */
+const running = new Set<ServiceKey>();
 
 export async function runConnector(key: ServiceKey, trigger: "timer" | "manual", now = new Date()): Promise<RunOutcome> {
   const reader = READERS[key];
   if (!reader) throw new ConnectorSettingsError(`OllieOS cannot read ${SERVICE_NAMES[key]} yet.`);
+  if (running.has(key)) {
+    return { connector: key, ok: false, found: 0, counts: {}, account: null, error: `${SERVICE_NAMES[key]} is already being checked. Try again in a minute.`, needsReconnect: false };
+  }
+  running.add(key);
+  try {
+    return await runOnce(key, reader, trigger, now);
+  } finally {
+    running.delete(key);
+  }
+}
+
+async function runOnce(key: ServiceKey, reader: NonNullable<(typeof READERS)[ServiceKey]>, trigger: "timer" | "manual", now: Date): Promise<RunOutcome> {
   const [run] = await db.insert(connectorRunsTable).values({ connector: key, trigger, startedAt: now }).returning({ id: connectorRunsTable.id });
   try {
     const r = await reader(now);
