@@ -5,7 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { activityTable, captureLogTable, db, noiseRulesTable, pool, tasksTable } from "@workspace/db";
+import { activityTable, captureLogTable, db, noiseRulesTable, peopleTable, pool, tasksTable } from "@workspace/db";
 import { londonRange, todayLondon } from "@workspace/shared";
 import { createSession } from "../src/lib/auth";
 import { SOURCE_OF_TRUTH } from "../src/mcp/server";
@@ -61,7 +61,7 @@ async function register(name = "Claude", redirect = REDIRECT) {
   return (await res.json()) as { client_id: string };
 }
 
-async function authorize(clientId: string, challenge: string, redirect = REDIRECT) {
+async function authorize(clientId: string, challenge: string, redirect = REDIRECT, scopes = "read write") {
   const u = new URL(`${base}/api/oauth/authorize`);
   u.search = new URLSearchParams({
     response_type: "code",
@@ -70,7 +70,7 @@ async function authorize(clientId: string, challenge: string, redirect = REDIREC
     code_challenge: challenge,
     code_challenge_method: "S256",
     state: "st-1",
-    scope: "read write",
+    scope: scopes,
     resource: `${base}/mcp`,
   }).toString();
   const res = await fetch(u, { redirect: "manual" });
@@ -96,10 +96,10 @@ async function token(body: Record<string, string>) {
 }
 
 /** Runs the whole flow Claude runs, and returns the tokens. */
-async function connect(name = "Claude") {
+async function connect(name = "Claude", scopes = "read write") {
   const { client_id } = await register(name);
   const { verifier, challenge } = pkce();
-  const auth = await authorize(client_id, challenge);
+  const auth = await authorize(client_id, challenge, REDIRECT, scopes);
   expect(auth.status).toBe(302);
   const approved = await consent(auth.headers.get("location")!, "approve");
   const { redirectTo } = (await approved.json()) as { redirectTo: string };
@@ -171,6 +171,28 @@ describe("OAuth for Claude", () => {
     const r2 = await token({ grant_type: "refresh_token", refresh_token: t.refresh_token, client_id: t.client_id });
     expect(r2.status).toBe(400);
     expect(((await r2.json()) as { error: string }).error).toBe("invalid_grant");
+  });
+
+  it("read-only tokens cannot list or dispatch mutations, including after refresh", async () => {
+    const t = await connect("Read-only connector", "read");
+    const c = await mcp(t.access_token);
+    expect((await c.listTools()).tools.map((tool) => tool.name).sort()).toEqual(["get_context", "list_tasks", "search"]);
+    expect((await c.readResource({ uri: "ollieos://today" })).contents).toHaveLength(1);
+    for (const [name, args] of [
+      ["create_task", { title: "Forbidden task" }],
+      ["update_task", { ref: "task:1", title: "Forbidden update" }],
+      ["upsert_calendar", { events: [] }],
+    ] as const) {
+      expect((await c.callTool({ name, arguments: args })).isError).toBe(true);
+    }
+    await c.close();
+    const response = await token({ grant_type: "refresh_token", refresh_token: t.refresh_token, client_id: t.client_id });
+    const refreshed = (await response.json()) as { access_token: string; scope: string };
+    expect(refreshed.scope).toBe("read");
+    const next = await mcp(refreshed.access_token);
+    expect((await next.callTool({ name: "upsert_calendar", arguments: { events: [] } })).isError).toBe(true);
+    await next.close();
+    expect(await db.select().from(tasksTable)).toHaveLength(0);
   });
 
   it("refuses a wrong PKCE verifier, a reused code and an unregistered redirect, and ignores the loopback port", async () => {
@@ -443,12 +465,68 @@ describe("ingest", () => {
       ...extra,
     });
     await ingest("calendar", { body: { events: [ev("a", 9), ev("b", 10)] } });
-    const r = await ingest("calendar", { body: { events: [ev("c", 11, { project: "Garden shed" }), ev("d", 12, { people: ["Jo Bloggs", "Nobody Known"] })] } });
-    expect(r.body).toMatchObject({ replaced: 2, unmatched: ["Nobody Known"] });
+    const r = await ingest("calendar", { body: { events: [ev("c", 11, { project: "Garden shed" }), ev("d", 12, { people: ["Jo Bloggs"] })] } });
+    expect(r.body).toMatchObject({ replaced: 2, unmatched: [] });
     const home = (await (await fetch(`${base}/api/home`, { headers: { authorization: `Bearer ${sid}` } })).json()) as { today: { title: string; brief: unknown }[] };
     expect(home.today.map((e) => e.title)).toEqual(["Meeting c", "Meeting d"]);
     expect(home.today[0].brief).toEqual({ type: "project", slug: shed.slug, name: "Garden shed" });
     expect(home.today[1].brief).toEqual({ type: "person", slug: jo.slug, name: "Jo Bloggs" });
+  });
+
+  it("rejects unresolved calendar associations without replacing the existing window", async () => {
+    const hidden = await project("Private acquisition", { confidential: true });
+    await person("Private attendee", { aiAccess: false });
+    const visible = await person("Visible attendee");
+    const day = londonRange(todayLondon(), 1).start.getTime();
+    const event = {
+      source_ref: "private-event",
+      title: "Acquisition meeting",
+      starts_at: new Date(day + 10 * 3600_000).toISOString(),
+      ends_at: new Date(day + 11 * 3600_000).toISOString(),
+    };
+    const { calendarEventsTable } = await import("@workspace/db");
+    await db.insert(calendarEventsTable).values({
+      sourceRef: "existing",
+      title: "Existing meeting",
+      startsAt: new Date(event.starts_at),
+      endsAt: new Date(event.ends_at),
+    });
+    const c = await mcp((await connect()).access_token);
+    for (const association of [
+      { project: hidden.name },
+      { project: `project:${hidden.id}` },
+      { project: "Unknown project" },
+      { people: [visible.name, "Private attendee"] },
+      { people: ["Unknown person"] },
+    ]) {
+      const events = [{ ...event, ...association }];
+      expect((await ingest("calendar", { body: { events } })).status).toBe(400);
+      expect((await call(c, "upsert_calendar", { events })).isError).toBe(true);
+      expect((await db.select().from(calendarEventsTable)).map((r) => r.sourceRef)).toEqual(["existing"]);
+    }
+    await c.close();
+  });
+
+  it("omits unstructured and mixed-attendee calendar disclosures of hidden entities", async () => {
+    const hiddenProject = await project("Secret merger", { aiAccess: false });
+    const hiddenPerson = await person("Hidden attendee", { confidential: true });
+    await db.update(peopleTable).set({ email: "hidden@example.test" }).where(eq(peopleTable.id, hiddenPerson.id));
+    const visible = await person("Public attendee");
+    const { calendarEventsTable } = await import("@workspace/db");
+    const day = londonRange(todayLondon(), 1).start.getTime();
+    const baseEvent = { startsAt: new Date(day + 10 * 3600_000), endsAt: new Date(day + 11 * 3600_000) };
+    await db.insert(calendarEventsTable).values([
+      { ...baseEvent, sourceRef: "title", title: `Discuss ${hiddenProject.name}` },
+      { ...baseEvent, sourceRef: "attendees", title: "Meeting", attendees: ["HIDDEN@example.test"] },
+      { ...baseEvent, sourceRef: "location", title: "Meeting", location: hiddenProject.slug },
+      { ...baseEvent, sourceRef: "mixed", title: "Meeting", personIds: [visible.id, hiddenPerson.id] },
+      { ...baseEvent, sourceRef: "safe", title: "Public meeting", personIds: [visible.id] },
+    ]);
+    const c = await mcp((await connect()).access_token);
+    const result = await c.readResource({ uri: "ollieos://today" });
+    const today = JSON.parse((result.contents[0] as { text: string }).text);
+    expect(today.calendar.map((r: { title: string }) => r.title)).toEqual(["Public meeting"]);
+    await c.close();
   });
 
   it("logs activity once per source_ref and links it to people and projects", async () => {

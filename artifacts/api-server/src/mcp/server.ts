@@ -104,7 +104,7 @@ async function resolveNames(scope: AiScope, names: string[] | undefined, type: P
   return { ids, unmatched };
 }
 
-export function buildMcpServer(scope: AiScope, writer: Writer): McpServer {
+export function buildMcpServer(scope: AiScope, writer: Writer, permissions: readonly string[]): McpServer {
   const server = new McpServer({ name: "OllieOS", version: "1.0.0" }, { instructions: SOURCE_OF_TRUTH });
 
   /* ---------- Reads ---------- */
@@ -157,6 +157,8 @@ export function buildMcpServer(scope: AiScope, writer: Writer): McpServer {
 
   /* ---------- Tasks ---------- */
 
+  // Unregistered tools cannot be dispatched, even if a caller knows their names.
+  if (permissions.includes("write")) {
   server.registerTool(
     "create_task",
     {
@@ -527,6 +529,9 @@ export function buildMcpServer(scope: AiScope, writer: Writer): McpServer {
           const people = await resolveNames(scope, e.people, "person");
           people.unmatched.forEach((u) => unmatched.add(u));
           const project = e.project ? await resolvePick(scope, e.project, ["project"]) : null;
+          if ((e.project && !project) || people.unmatched.length) {
+            return err("invalid_input", "Every calendar association must match a visible project or person.");
+          }
           events.push({
             sourceRef: e.source_ref,
             title: e.title,
@@ -543,6 +548,8 @@ export function buildMcpServer(scope: AiScope, writer: Writer): McpServer {
         return ok({ replaced: r.replaced, unmatched_people: [...unmatched], ...(r.outsideWindow ? { skipped_outside_window: r.outsideWindow } : {}) });
       }),
   );
+
+  }
 
   /* ---------- Resources ---------- */
 

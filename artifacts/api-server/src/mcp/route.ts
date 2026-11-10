@@ -14,6 +14,7 @@ declare global {
   namespace Express {
     interface Request {
       aiScope?: AiScope;
+      mcpScopes?: string[];
     }
   }
 }
@@ -30,14 +31,19 @@ function bearer(req: Request): string {
 async function requireToken(req: Request, res: Response, next: NextFunction) {
   try {
     const tokenValue = bearer(req);
-    const client = tokenValue ? await clientForAccessToken(tokenValue) : null;
-    if (!client) {
+    const token = tokenValue ? await clientForAccessToken(tokenValue) : null;
+    if (!token) {
       const parts = [`resource_metadata="${resourceMetadataUrl(req)}"`];
       if (tokenValue) parts.push('error="invalid_token"', 'error_description="The access token is invalid, expired or revoked"');
       res.status(401).set("WWW-Authenticate", `Bearer ${parts.join(", ")}`).json({ error: "Sign in to OllieOS to use this connector" });
       return;
     }
-    req.aiScope = await buildScope({ id: client.id, name: client.name });
+    if (!token.scopes.includes("read")) {
+      res.status(403).set("WWW-Authenticate", 'Bearer error="insufficient_scope", scope="read"').json({ error: "Read access is required" });
+      return;
+    }
+    req.aiScope = await buildScope({ id: token.client.id, name: token.client.name });
+    req.mcpScopes = token.scopes;
     next();
   } catch (err) {
     next(err);
@@ -48,7 +54,7 @@ const router: IRouter = Router();
 
 router.post(MCP_PATH, requireToken, async (req, res, next) => {
   const scope = req.aiScope!;
-  const server = buildMcpServer(scope, { actor: scope.actor, clientId: scope.clientId });
+  const server = buildMcpServer(scope, { actor: scope.actor, clientId: scope.clientId }, req.mcpScopes!);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
   res.on("close", () => {
     void transport.close();

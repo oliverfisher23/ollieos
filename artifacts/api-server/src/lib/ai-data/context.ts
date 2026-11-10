@@ -524,7 +524,8 @@ export interface CalendarOut {
 
 /**
  * Calendar events for a London day range, without any event tied to a hidden project or whose
- * people are all hidden. Events have no confidential flag of their own.
+ * people include hidden entities. Unstructured fields must not disclose hidden identities
+ * either, even on old events that were stored without associations.
  */
 async function calendarFor(scope: AiScope, start: Date, end: Date): Promise<CalendarOut[]> {
   const rows = await db
@@ -535,8 +536,24 @@ async function calendarFor(scope: AiScope, start: Date, end: Date): Promise<Cale
   const projectIds = [...new Set(rows.map((r) => r.projectId).filter((x): x is number => x != null))];
   const personIds = [...new Set(rows.flatMap((r) => r.personIds))];
   const names = await visibleNames(scope, projectIds, personIds);
+  const [hiddenProjects, hiddenPeople, hiddenOrganisations] = await Promise.all([
+    db.select({ name: projectsTable.name, slug: projectsTable.slug }).from(projectsTable)
+      .where(sql.raw(`not (${projectVisible("projects", scope.grants)})`)),
+    db.select({ name: peopleTable.name, slug: peopleTable.slug, email: peopleTable.email }).from(peopleTable)
+      .where(sql.raw(`not (${personVisible("people", scope.grants)})`)),
+    db.select({ name: organisationsTable.name, slug: organisationsTable.slug }).from(organisationsTable)
+      .where(sql.raw(`not (${organisationVisible("organisations", scope.grants)})`)),
+  ]);
+  const hiddenTerms = [...hiddenProjects, ...hiddenPeople, ...hiddenOrganisations].flatMap((r) =>
+    Object.values(r).filter((v): v is string => typeof v === "string" && v.trim().length > 0).map((v) => v.normalize("NFKC").toLowerCase()),
+  );
   return rows
-    .filter((r) => (r.projectId == null || names.projects.has(r.projectId)) && (!r.personIds.length || r.personIds.some((p) => names.people.has(p))))
+    .filter((r) => {
+      if (r.projectId != null && !names.projects.has(r.projectId)) return false;
+      if (r.personIds.some((p) => !names.people.has(p))) return false;
+      const text = [r.title, r.location ?? "", ...r.attendees].join("\n").normalize("NFKC").toLowerCase();
+      return !hiddenTerms.some((term) => text.includes(term));
+    })
     .map((r) => ({
       title: r.title,
       starts_at: r.startsAt.toISOString(),

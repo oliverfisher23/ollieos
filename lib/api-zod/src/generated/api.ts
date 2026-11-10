@@ -27,7 +27,7 @@ export const GetCurrentAuthUserHeader = zod.object({
 export const GetCurrentAuthUserResponse = zod.object({
   "user": zod.union([zod.object({
   "id": zod.string(),
-  "email": zod.string().email().nullable(),
+  "email": zod.email().nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
   "profileImageUrl": zod.string().nullable()
@@ -51,7 +51,7 @@ export const BeginBrowserLoginResponse = zod.void()
 export const HandleBrowserLoginCallbackQueryParams = zod.object({
   "code": zod.coerce.string().optional(),
   "state": zod.coerce.string().optional(),
-  "iss": zod.coerce.string().url().optional()
+  "iss": zod.url().optional()
 })
 
 export const HandleBrowserLoginCallbackResponse = zod.void()
@@ -86,7 +86,7 @@ export const LogoutBrowserSessionResponse = zod.void()
 export const ExchangeMobileAuthorizationCodeBody = zod.object({
   "code": zod.string().min(1),
   "code_verifier": zod.string().min(1),
-  "redirect_uri": zod.string().url().min(1),
+  "redirect_uri": zod.url().min(1),
   "state": zod.string().min(1),
   "nonce": zod.string().min(1).optional()
 })
@@ -114,7 +114,7 @@ export const LogoutMobileSessionResponse = zod.object({
 export const GetHomeResponse = zod.object({
   "doNext": zod.array(zod.object({
   "task": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -132,19 +132,19 @@ export const GetHomeResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -159,7 +159,7 @@ export const GetHomeResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -169,15 +169,15 @@ export const GetHomeResponse = zod.object({
   "reason": zod.string().describe('One-line reason, e.g. "Overdue by 2 days" or "High priority, due Friday 13th November"')
 })).describe('Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped.'),
   "inbox": zod.object({
-  "count": zod.number().int(),
+  "count": zod.int(),
   "bySource": zod.array(zod.object({
   "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
-  "count": zod.number().int()
+  "count": zod.int()
 }))
 }),
   "waitingOn": zod.array(zod.object({
   "task": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -195,19 +195,19 @@ export const GetHomeResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -222,17 +222,17 @@ export const GetHomeResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
   "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 }),
-  "daysWaiting": zod.number().int().describe('Whole days since waitingSince (or updatedAt if unknown). Amber at 5 or more.')
+  "daysWaiting": zod.int().describe('Whole days since waitingSince (or updatedAt if unknown). Amber at 5 or more.')
 })),
   "promises": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -250,19 +250,19 @@ export const GetHomeResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -277,7 +277,7 @@ export const GetHomeResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -285,9 +285,9 @@ export const GetHomeResponse = zod.object({
   "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 })).describe('Open tasks with kind promise'),
   "doneThisWeek": zod.object({
-  "count": zod.number().int(),
+  "count": zod.int(),
   "latest": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -305,19 +305,19 @@ export const GetHomeResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -332,7 +332,7 @@ export const GetHomeResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -342,7 +342,7 @@ export const GetHomeResponse = zod.object({
 }),
   "lastSweepAt": zod.coerce.date().nullable().describe('When the last successful sweep finished. Null until the sweep runs (milestone 5).'),
   "today": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date(),
@@ -356,9 +356,9 @@ export const GetHomeResponse = zod.object({
 })).describe('Today\'s calendar events, in start order. Empty until the sweep writes calendar data (milestone 5).'),
   "access": zod.object({
   "pending": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "client": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string()
 }),
   "requestedName": zod.string().describe('What the AI asked for'),
@@ -368,7 +368,7 @@ export const GetHomeResponse = zod.object({
   "item": zod.union([zod.object({
   "ref": zod.string(),
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "path": zod.string().nullable(),
   "confidential": zod.boolean().describe('The item\'s own confidential flag')
@@ -378,9 +378,9 @@ export const GetHomeResponse = zod.object({
   "expiresAt": zod.coerce.date().nullable()
 })),
   "open": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "client": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string()
 }),
   "requestedName": zod.string().describe('What the AI asked for'),
@@ -390,7 +390,7 @@ export const GetHomeResponse = zod.object({
   "item": zod.union([zod.object({
   "ref": zod.string(),
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "path": zod.string().nullable(),
   "confidential": zod.boolean().describe('The item\'s own confidential flag')
@@ -415,7 +415,7 @@ export const ListTasksQueryParams = zod.object({
 })
 
 export const ListTasksResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -433,19 +433,19 @@ export const ListTasksResponseItem = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -460,7 +460,7 @@ export const ListTasksResponseItem = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -479,19 +479,19 @@ export const GetTaskSummaryQueryParams = zod.object({
 
 export const GetTaskSummaryResponse = zod.object({
   "tabs": zod.object({
-  "inbox": zod.number().int(),
-  "open": zod.number().int().describe('inbox + now + backlog + waiting'),
-  "now": zod.number().int(),
-  "backlog": zod.number().int(),
-  "waiting": zod.number().int(),
-  "done": zod.number().int(),
-  "noise": zod.number().int()
+  "inbox": zod.int(),
+  "open": zod.int().describe('inbox + now + backlog + waiting'),
+  "now": zod.int(),
+  "backlog": zod.int(),
+  "waiting": zod.int(),
+  "done": zod.int(),
+  "noise": zod.int()
 }),
   "stats": zod.object({
-  "inboxToTriage": zod.number().int(),
-  "dueThisWeek": zod.number().int(),
-  "waitingOnOthers": zod.number().int(),
-  "doneThisWeek": zod.number().int()
+  "inboxToTriage": zod.int(),
+  "dueThisWeek": zod.int(),
+  "waitingOnOthers": zod.int(),
+  "doneThisWeek": zod.int()
 })
 })
 
@@ -508,7 +508,7 @@ export const QuickAddTaskBody = zod.object({
 
 export const QuickAddTaskResponse = zod.object({
   "task": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -526,19 +526,19 @@ export const QuickAddTaskResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -553,7 +553,7 @@ export const QuickAddTaskResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -573,7 +573,7 @@ export const GetTaskParams = zod.object({
 
 export const GetTaskResponse = zod.object({
   "task": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -591,19 +591,19 @@ export const GetTaskResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -618,7 +618,7 @@ export const GetTaskResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -626,7 +626,7 @@ export const GetTaskResponse = zod.object({
   "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 }),
   "history": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "actor": zod.string().describe('ollie, claude, ingest, or the AI client name'),
   "action": zod.string(),
   "summary": zod.string().describe('Plain British English description, e.g. "Status changed from Inbox to Now"'),
@@ -652,14 +652,14 @@ export const UpdateTaskBody = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']).optional(),
   "dueDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
-  "projectId": zod.number().int().nullish(),
-  "personId": zod.number().int().nullish(),
-  "waitingOnPersonId": zod.number().int().nullish(),
+  "projectId": zod.int().nullish(),
+  "personId": zod.int().nullish(),
+  "waitingOnPersonId": zod.int().nullish(),
   "confidential": zod.boolean().nullish()
 })
 
 export const UpdateTaskResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -677,19 +677,19 @@ export const UpdateTaskResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -704,7 +704,7 @@ export const UpdateTaskResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -721,7 +721,7 @@ export const SnoozeTaskParams = zod.object({
 })
 
 export const SnoozeTaskResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -739,19 +739,19 @@ export const SnoozeTaskResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -766,7 +766,7 @@ export const SnoozeTaskResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -796,7 +796,7 @@ export const GetWeeklyUpdateQueryParams = zod.object({
 
 export const GetWeeklyUpdateResponse = zod.object({
   "text": zod.string(),
-  "count": zod.number().int(),
+  "count": zod.int(),
   "weekStart": zod.coerce.date()
 })
 
@@ -813,7 +813,7 @@ export const TriageTaskParams = zod.object({
 
 export const TriageTaskBody = zod.object({
   "action": zod.enum(['now', 'backlog', 'waiting', 'noise']),
-  "waitingOnPersonId": zod.number().int().nullish().describe('For waiting. If left out, keeps the current Waiting on, or uses the For person.'),
+  "waitingOnPersonId": zod.int().nullish().describe('For waiting. If left out, keeps the current Waiting on, or uses the For person.'),
   "noiseRule": zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string().min(1)
@@ -822,7 +822,7 @@ export const TriageTaskBody = zod.object({
 
 export const TriageTaskResponse = zod.object({
   "task": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -840,19 +840,19 @@ export const TriageTaskResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -867,7 +867,7 @@ export const TriageTaskResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -875,15 +875,15 @@ export const TriageTaskResponse = zod.object({
   "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 }),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string(),
   "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),zod.null()]),
   "enabled": zod.boolean(),
-  "hitCount": zod.number().int(),
+  "hitCount": zod.int(),
   "lastHitAt": zod.coerce.date().nullable(),
-  "createdFromTaskId": zod.number().int().nullable(),
+  "createdFromTaskId": zod.int().nullable(),
   "createdAt": zod.coerce.date()
 }),zod.null()])
 })
@@ -897,7 +897,7 @@ export const UndoTaskParams = zod.object({
 })
 
 export const UndoTaskResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -915,19 +915,19 @@ export const UndoTaskResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -942,7 +942,7 @@ export const UndoTaskResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -959,7 +959,7 @@ export const RestoreTaskParams = zod.object({
 })
 
 export const RestoreTaskResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -977,19 +977,19 @@ export const RestoreTaskResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -1004,7 +1004,7 @@ export const RestoreTaskResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -1044,15 +1044,15 @@ export const GetNoiseRuleOptionsResponse = zod.array(GetNoiseRuleOptionsResponse
  * @summary All noise rules with hit counts
  */
 export const ListNoiseRulesResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string(),
   "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),zod.null()]),
   "enabled": zod.boolean(),
-  "hitCount": zod.number().int(),
+  "hitCount": zod.int(),
   "lastHitAt": zod.coerce.date().nullable(),
-  "createdFromTaskId": zod.number().int().nullable(),
+  "createdFromTaskId": zod.int().nullable(),
   "createdAt": zod.coerce.date()
 })
 export const ListNoiseRulesResponse = zod.array(ListNoiseRulesResponseItem)
@@ -1070,15 +1070,15 @@ export const UpdateNoiseRuleBody = zod.object({
 })
 
 export const UpdateNoiseRuleResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string(),
   "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),zod.null()]),
   "enabled": zod.boolean(),
-  "hitCount": zod.number().int(),
+  "hitCount": zod.int(),
   "lastHitAt": zod.coerce.date().nullable(),
-  "createdFromTaskId": zod.number().int().nullable(),
+  "createdFromTaskId": zod.int().nullable(),
   "createdAt": zod.coerce.date()
 })
 
@@ -1091,14 +1091,14 @@ export const ListProjectsQueryParams = zod.object({
 })
 
 export const ListProjectsResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
   "area": zod.string().nullable(),
   "status": zod.string().nullable(),
-  "openTaskCount": zod.number().int(),
+  "openTaskCount": zod.int(),
   "updatedAt": zod.coerce.date()
 })
 export const ListProjectsResponse = zod.array(ListProjectsResponseItem)
@@ -1121,7 +1121,7 @@ export const CreateProjectBody = zod.object({
 })
 
 export const CreateProjectResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "area": zod.string().nullable(),
@@ -1144,7 +1144,7 @@ export const GetProjectParams = zod.object({
 
 export const GetProjectResponse = zod.object({
   "project": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "area": zod.string().nullable(),
@@ -1157,22 +1157,22 @@ export const GetProjectResponse = zod.object({
   "updatedAt": zod.coerce.date()
 }),
   "facts": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "entityType": zod.string(),
-  "entityId": zod.number().int(),
+  "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "history": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "text": zod.string(),
   "createdAt": zod.coerce.date(),
   "createdBy": zod.string()
 })).describe('Earlier versions this fact replaced, newest first')
 })),
   "decisions": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "text": zod.string(),
   "decidedAt": zod.coerce.date(),
   "decidedBy": zod.string().nullable(),
@@ -1180,7 +1180,7 @@ export const GetProjectResponse = zod.object({
   "confidential": zod.boolean().nullable().describe('null means it follows its project'),
   "hiddenFromAi": zod.boolean(),
   "project": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -1189,7 +1189,7 @@ export const GetProjectResponse = zod.object({
   "createdAt": zod.coerce.date()
 })),
   "openTasks": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -1207,19 +1207,19 @@ export const GetProjectResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -1234,7 +1234,7 @@ export const GetProjectResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -1242,7 +1242,7 @@ export const GetProjectResponse = zod.object({
   "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 })),
   "people": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean(),
@@ -1251,21 +1251,21 @@ export const GetProjectResponse = zod.object({
   "linked": zod.boolean()
 })),
   "organisations": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean(),
   "linked": zod.boolean().describe('True when joined by a link Ollie can remove')
 })),
   "notes": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "confidential": zod.boolean().nullable().describe('null means it follows what it is attached to'),
   "hiddenFromAi": zod.boolean(),
   "entity": zod.object({
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string().nullable()
 }),
@@ -1307,7 +1307,7 @@ export const UpdateProjectBody = zod.object({
 })
 
 export const UpdateProjectResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "area": zod.string().nullable(),
@@ -1325,21 +1325,21 @@ export const UpdateProjectResponse = zod.object({
  * @summary People with what is open between Ollie and each of them
  */
 export const ListPeopleResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
   "role": zod.string().nullable(),
   "organisation": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "lastContactAt": zod.coerce.date().nullable(),
-  "iOweCount": zod.number().int(),
-  "theyOweCount": zod.number().int()
+  "iOweCount": zod.int(),
+  "theyOweCount": zod.int()
 })
 export const ListPeopleResponse = zod.array(ListPeopleResponseItem)
 
@@ -1353,7 +1353,7 @@ export const createPersonBodyNameMax = 200;
 
 export const CreatePersonBody = zod.object({
   "name": zod.string().min(1).max(createPersonBodyNameMax),
-  "organisationId": zod.number().int().nullish(),
+  "organisationId": zod.int().nullish(),
   "role": zod.string().nullish(),
   "email": zod.string().nullish(),
   "relationshipSummary": zod.string().nullish(),
@@ -1362,7 +1362,7 @@ export const CreatePersonBody = zod.object({
 })
 
 export const CreatePersonResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "role": zod.string().nullable(),
@@ -1372,7 +1372,7 @@ export const CreatePersonResponse = zod.object({
   "aiAccess": zod.boolean(),
   "lastContactAt": zod.coerce.date().nullable(),
   "organisation": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -1391,7 +1391,7 @@ export const GetPersonParams = zod.object({
 
 export const GetPersonResponse = zod.object({
   "person": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "role": zod.string().nullable(),
@@ -1401,7 +1401,7 @@ export const GetPersonResponse = zod.object({
   "aiAccess": zod.boolean(),
   "lastContactAt": zod.coerce.date().nullable(),
   "organisation": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -1410,7 +1410,7 @@ export const GetPersonResponse = zod.object({
   "updatedAt": zod.coerce.date()
 }),
   "iOwe": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -1428,19 +1428,19 @@ export const GetPersonResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -1455,7 +1455,7 @@ export const GetPersonResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -1463,7 +1463,7 @@ export const GetPersonResponse = zod.object({
   "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 })),
   "theyOwe": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -1481,19 +1481,19 @@ export const GetPersonResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -1508,7 +1508,7 @@ export const GetPersonResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -1516,36 +1516,36 @@ export const GetPersonResponse = zod.object({
   "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
 })),
   "projects": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean(),
   "linked": zod.boolean().describe('True when joined by a link Ollie can remove')
 })),
   "facts": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "entityType": zod.string(),
-  "entityId": zod.number().int(),
+  "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "history": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "text": zod.string(),
   "createdAt": zod.coerce.date(),
   "createdBy": zod.string()
 })).describe('Earlier versions this fact replaced, newest first')
 })),
   "notes": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "confidential": zod.boolean().nullable().describe('null means it follows what it is attached to'),
   "hiddenFromAi": zod.boolean(),
   "entity": zod.object({
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string().nullable()
 }),
@@ -1578,7 +1578,7 @@ export const updatePersonBodyNameMax = 200;
 
 export const UpdatePersonBody = zod.object({
   "name": zod.string().min(1).max(updatePersonBodyNameMax).optional(),
-  "organisationId": zod.number().int().nullish(),
+  "organisationId": zod.int().nullish(),
   "role": zod.string().nullish(),
   "email": zod.string().nullish(),
   "relationshipSummary": zod.string().nullish(),
@@ -1587,7 +1587,7 @@ export const UpdatePersonBody = zod.object({
 })
 
 export const UpdatePersonResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "role": zod.string().nullable(),
@@ -1597,7 +1597,7 @@ export const UpdatePersonResponse = zod.object({
   "aiAccess": zod.boolean(),
   "lastContactAt": zod.coerce.date().nullable(),
   "organisation": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -1611,13 +1611,13 @@ export const UpdatePersonResponse = zod.object({
  * @summary Organisations
  */
 export const ListOrganisationsResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
   "type": zod.string().nullable(),
-  "peopleCount": zod.number().int()
+  "peopleCount": zod.int()
 })
 export const ListOrganisationsResponse = zod.array(ListOrganisationsResponseItem)
 
@@ -1638,7 +1638,7 @@ export const CreateOrganisationBody = zod.object({
 })
 
 export const CreateOrganisationResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "type": zod.string().nullable(),
@@ -1659,7 +1659,7 @@ export const GetOrganisationParams = zod.object({
 
 export const GetOrganisationResponse = zod.object({
   "organisation": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "type": zod.string().nullable(),
@@ -1670,7 +1670,7 @@ export const GetOrganisationResponse = zod.object({
   "updatedAt": zod.coerce.date()
 }),
   "people": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean(),
@@ -1679,36 +1679,36 @@ export const GetOrganisationResponse = zod.object({
   "linked": zod.boolean()
 })),
   "projects": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean(),
   "linked": zod.boolean().describe('True when joined by a link Ollie can remove')
 })),
   "facts": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "entityType": zod.string(),
-  "entityId": zod.number().int(),
+  "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "history": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "text": zod.string(),
   "createdAt": zod.coerce.date(),
   "createdBy": zod.string()
 })).describe('Earlier versions this fact replaced, newest first')
 })),
   "notes": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "confidential": zod.boolean().nullable().describe('null means it follows what it is attached to'),
   "hiddenFromAi": zod.boolean(),
   "entity": zod.object({
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string().nullable()
 }),
@@ -1748,7 +1748,7 @@ export const UpdateOrganisationBody = zod.object({
 })
 
 export const UpdateOrganisationResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "type": zod.string().nullable(),
@@ -1764,7 +1764,7 @@ export const UpdateOrganisationResponse = zod.object({
  * @summary All decisions, newest first
  */
 export const ListDecisionsResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "text": zod.string(),
   "decidedAt": zod.coerce.date(),
   "decidedBy": zod.string().nullable(),
@@ -1772,7 +1772,7 @@ export const ListDecisionsResponseItem = zod.object({
   "confidential": zod.boolean().nullable().describe('null means it follows its project'),
   "hiddenFromAi": zod.boolean(),
   "project": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -1791,7 +1791,7 @@ export const createDecisionBodyTextMax = 5000;
 
 
 export const CreateDecisionBody = zod.object({
-  "projectId": zod.number().int(),
+  "projectId": zod.int(),
   "text": zod.string().min(1).max(createDecisionBodyTextMax),
   "decidedAt": zod.coerce.date(),
   "decidedBy": zod.string().nullish(),
@@ -1800,7 +1800,7 @@ export const CreateDecisionBody = zod.object({
 })
 
 export const CreateDecisionResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "text": zod.string(),
   "decidedAt": zod.coerce.date(),
   "decidedBy": zod.string().nullable(),
@@ -1808,7 +1808,7 @@ export const CreateDecisionResponse = zod.object({
   "confidential": zod.boolean().nullable().describe('null means it follows its project'),
   "hiddenFromAi": zod.boolean(),
   "project": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -1826,7 +1826,7 @@ export const GetDecisionParams = zod.object({
 })
 
 export const GetDecisionResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "text": zod.string(),
   "decidedAt": zod.coerce.date(),
   "decidedBy": zod.string().nullable(),
@@ -1834,7 +1834,7 @@ export const GetDecisionResponse = zod.object({
   "confidential": zod.boolean().nullable().describe('null means it follows its project'),
   "hiddenFromAi": zod.boolean(),
   "project": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -1856,7 +1856,7 @@ export const updateDecisionBodyTextMax = 5000;
 
 
 export const UpdateDecisionBody = zod.object({
-  "projectId": zod.number().int().optional(),
+  "projectId": zod.int().optional(),
   "text": zod.string().min(1).max(updateDecisionBodyTextMax).optional(),
   "decidedAt": zod.coerce.date().optional(),
   "decidedBy": zod.string().nullish(),
@@ -1865,7 +1865,7 @@ export const UpdateDecisionBody = zod.object({
 })
 
 export const UpdateDecisionResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "text": zod.string(),
   "decidedAt": zod.coerce.date(),
   "decidedBy": zod.string().nullable(),
@@ -1873,7 +1873,7 @@ export const UpdateDecisionResponse = zod.object({
   "confidential": zod.boolean().nullable().describe('null means it follows its project'),
   "hiddenFromAi": zod.boolean(),
   "project": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -1887,14 +1887,14 @@ export const UpdateDecisionResponse = zod.object({
  * @summary All notes, most recently updated first
  */
 export const ListNotesResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "confidential": zod.boolean().nullable().describe('null means it follows what it is attached to'),
   "hiddenFromAi": zod.boolean(),
   "entity": zod.object({
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string().nullable()
 }),
@@ -1913,21 +1913,21 @@ export const ListNotesResponse = zod.array(ListNotesResponseItem)
 
 export const CreateNoteBody = zod.object({
   "entityType": zod.enum(['project', 'person', 'organisation', 'task', 'decision']),
-  "entityId": zod.number().int(),
+  "entityId": zod.int(),
   "title": zod.string().nullish(),
   "body": zod.string().min(1),
   "confidential": zod.boolean().nullish()
 })
 
 export const CreateNoteResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "confidential": zod.boolean().nullable().describe('null means it follows what it is attached to'),
   "hiddenFromAi": zod.boolean(),
   "entity": zod.object({
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string().nullable()
 }),
@@ -1945,14 +1945,14 @@ export const GetNoteParams = zod.object({
 })
 
 export const GetNoteResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "confidential": zod.boolean().nullable().describe('null means it follows what it is attached to'),
   "hiddenFromAi": zod.boolean(),
   "entity": zod.object({
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string().nullable()
 }),
@@ -1979,14 +1979,14 @@ export const UpdateNoteBody = zod.object({
 })
 
 export const UpdateNoteResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string().nullable(),
   "body": zod.string(),
   "confidential": zod.boolean().nullable().describe('null means it follows what it is attached to'),
   "hiddenFromAi": zod.boolean(),
   "entity": zod.object({
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string().nullable()
 }),
@@ -2005,21 +2005,21 @@ export const createFactBodyTextMax = 2000;
 
 export const CreateFactBody = zod.object({
   "entityType": zod.enum(['project', 'person', 'organisation']),
-  "entityId": zod.number().int(),
+  "entityId": zod.int(),
   "text": zod.string().min(1).max(createFactBodyTextMax),
   "source": zod.string().nullish()
 })
 
 export const CreateFactResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "entityType": zod.string(),
-  "entityId": zod.number().int(),
+  "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "history": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "text": zod.string(),
   "createdAt": zod.coerce.date(),
   "createdBy": zod.string()
@@ -2044,15 +2044,15 @@ export const SupersedeFactBody = zod.object({
 })
 
 export const SupersedeFactResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "entityType": zod.string(),
-  "entityId": zod.number().int(),
+  "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "history": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "text": zod.string(),
   "createdAt": zod.coerce.date(),
   "createdBy": zod.string()
@@ -2065,9 +2065,9 @@ export const SupersedeFactResponse = zod.object({
  */
 export const CreateLinkBody = zod.object({
   "fromType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note']),
-  "fromId": zod.number().int(),
+  "fromId": zod.int(),
   "toType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note']),
-  "toId": zod.number().int()
+  "toId": zod.int()
 })
 
 export const CreateLinkResponse = zod.object({
@@ -2080,9 +2080,9 @@ export const CreateLinkResponse = zod.object({
  */
 export const RemoveLinkBody = zod.object({
   "fromType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note']),
-  "fromId": zod.number().int(),
+  "fromId": zod.int(),
   "toType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note']),
-  "toId": zod.number().int()
+  "toId": zod.int()
 })
 
 export const RemoveLinkResponse = zod.object({
@@ -2102,7 +2102,7 @@ export const SearchKnowledgeResponse = zod.object({
   "q": zod.string(),
   "hits": zod.array(zod.object({
   "type": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note', 'fact']),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "snippet": zod.string().nullable(),
   "slug": zod.string().nullable(),
@@ -2110,7 +2110,7 @@ export const SearchKnowledgeResponse = zod.object({
   "hiddenFromAi": zod.boolean(),
   "parent": zod.union([zod.object({
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string().nullable()
 }),zod.null()])
@@ -2122,7 +2122,7 @@ export const SearchKnowledgeResponse = zod.object({
  * @summary Recent questions
  */
 export const ListAskThreadsResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "question": zod.string(),
   "createdAt": zod.coerce.date()
 })
@@ -2138,14 +2138,14 @@ export const askOllieOSBodyQuestionMax = 1000;
 
 export const AskOllieOSBody = zod.object({
   "question": zod.string().min(1).max(askOllieOSBodyQuestionMax),
-  "parentId": zod.number().int().nullish()
+  "parentId": zod.int().nullish()
 })
 
 export const AskOllieOSResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "turns": zod.array(zod.object({
-  "id": zod.number().int(),
-  "parentId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "parentId": zod.int().nullable(),
   "question": zod.string(),
   "createdAt": zod.coerce.date(),
   "model": zod.string().nullable(),
@@ -2172,7 +2172,7 @@ export const AskOllieOSResponse = zod.object({
   "path": zod.string().nullable(),
   "confidential": zod.boolean()
 })),
-  "sourceCount": zod.number().int(),
+  "sourceCount": zod.int(),
   "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
   "hiddenItems": zod.array(zod.object({
   "ref": zod.string(),
@@ -2192,7 +2192,7 @@ export const AskOllieOSResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -2210,19 +2210,19 @@ export const AskOllieOSResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -2237,7 +2237,7 @@ export const AskOllieOSResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -2261,8 +2261,8 @@ export const GetAskThreadParams = zod.object({
 
 export const GetAskThreadResponse = zod.object({
   "turns": zod.array(zod.object({
-  "id": zod.number().int(),
-  "parentId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "parentId": zod.int().nullable(),
   "question": zod.string(),
   "createdAt": zod.coerce.date(),
   "model": zod.string().nullable(),
@@ -2289,7 +2289,7 @@ export const GetAskThreadResponse = zod.object({
   "path": zod.string().nullable(),
   "confidential": zod.boolean()
 })),
-  "sourceCount": zod.number().int(),
+  "sourceCount": zod.int(),
   "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
   "hiddenItems": zod.array(zod.object({
   "ref": zod.string(),
@@ -2309,7 +2309,7 @@ export const GetAskThreadResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -2327,19 +2327,19 @@ export const GetAskThreadResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -2354,7 +2354,7 @@ export const GetAskThreadResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -2378,8 +2378,8 @@ export const DraftAskReplyParams = zod.object({
 
 export const DraftAskReplyResponse = zod.object({
   "turns": zod.array(zod.object({
-  "id": zod.number().int(),
-  "parentId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "parentId": zod.int().nullable(),
   "question": zod.string(),
   "createdAt": zod.coerce.date(),
   "model": zod.string().nullable(),
@@ -2406,7 +2406,7 @@ export const DraftAskReplyResponse = zod.object({
   "path": zod.string().nullable(),
   "confidential": zod.boolean()
 })),
-  "sourceCount": zod.number().int(),
+  "sourceCount": zod.int(),
   "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
   "hiddenItems": zod.array(zod.object({
   "ref": zod.string(),
@@ -2426,7 +2426,7 @@ export const DraftAskReplyResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -2444,19 +2444,19 @@ export const DraftAskReplyResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -2471,7 +2471,7 @@ export const DraftAskReplyResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -2495,8 +2495,8 @@ export const AllowAskTurnParams = zod.object({
 
 export const AllowAskTurnResponse = zod.object({
   "turns": zod.array(zod.object({
-  "id": zod.number().int(),
-  "parentId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "parentId": zod.int().nullable(),
   "question": zod.string(),
   "createdAt": zod.coerce.date(),
   "model": zod.string().nullable(),
@@ -2523,7 +2523,7 @@ export const AllowAskTurnResponse = zod.object({
   "path": zod.string().nullable(),
   "confidential": zod.boolean()
 })),
-  "sourceCount": zod.number().int(),
+  "sourceCount": zod.int(),
   "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
   "hiddenItems": zod.array(zod.object({
   "ref": zod.string(),
@@ -2543,7 +2543,7 @@ export const AllowAskTurnResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -2561,19 +2561,19 @@ export const AllowAskTurnResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -2588,7 +2588,7 @@ export const AllowAskTurnResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -2619,10 +2619,10 @@ export const BundleAskTasksBody = zod.object({
 })
 
 export const BundleAskTasksResponse = zod.object({
-  "taskId": zod.number().int(),
+  "taskId": zod.int(),
   "turns": zod.array(zod.object({
-  "id": zod.number().int(),
-  "parentId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "parentId": zod.int().nullable(),
   "question": zod.string(),
   "createdAt": zod.coerce.date(),
   "model": zod.string().nullable(),
@@ -2649,7 +2649,7 @@ export const BundleAskTasksResponse = zod.object({
   "path": zod.string().nullable(),
   "confidential": zod.boolean()
 })),
-  "sourceCount": zod.number().int(),
+  "sourceCount": zod.int(),
   "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
   "hiddenItems": zod.array(zod.object({
   "ref": zod.string(),
@@ -2669,7 +2669,7 @@ export const BundleAskTasksResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -2687,19 +2687,19 @@ export const BundleAskTasksResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -2714,7 +2714,7 @@ export const BundleAskTasksResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -2738,8 +2738,8 @@ export const UndoAskBundleParams = zod.object({
 
 export const UndoAskBundleResponse = zod.object({
   "turns": zod.array(zod.object({
-  "id": zod.number().int(),
-  "parentId": zod.number().int().nullable(),
+  "id": zod.int(),
+  "parentId": zod.int().nullable(),
   "question": zod.string(),
   "createdAt": zod.coerce.date(),
   "model": zod.string().nullable(),
@@ -2766,7 +2766,7 @@ export const UndoAskBundleResponse = zod.object({
   "path": zod.string().nullable(),
   "confidential": zod.boolean()
 })),
-  "sourceCount": zod.number().int(),
+  "sourceCount": zod.int(),
   "hiddenMatches": zod.boolean().describe('Items hidden from AI also matched the question and were not used'),
   "hiddenItems": zod.array(zod.object({
   "ref": zod.string(),
@@ -2786,7 +2786,7 @@ export const UndoAskBundleResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise']),
@@ -2804,19 +2804,19 @@ export const UndoAskBundleResponse = zod.object({
   "suggestedAction": zod.string().nullable(),
   "notes": zod.string().nullable(),
   "project": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "person": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
   "waitingOn": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
@@ -2831,7 +2831,7 @@ export const UndoAskBundleResponse = zod.object({
   "triagedAt": zod.coerce.date().nullable(),
   "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
   "noiseRule": zod.union([zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
@@ -2851,9 +2851,9 @@ export const UndoAskBundleResponse = zod.object({
  */
 export const ListAccessRequestsResponse = zod.object({
   "pending": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "client": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string()
 }),
   "requestedName": zod.string().describe('What the AI asked for'),
@@ -2863,7 +2863,7 @@ export const ListAccessRequestsResponse = zod.object({
   "item": zod.union([zod.object({
   "ref": zod.string(),
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "path": zod.string().nullable(),
   "confidential": zod.boolean().describe('The item\'s own confidential flag')
@@ -2873,9 +2873,9 @@ export const ListAccessRequestsResponse = zod.object({
   "expiresAt": zod.coerce.date().nullable()
 })),
   "open": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "client": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string()
 }),
   "requestedName": zod.string().describe('What the AI asked for'),
@@ -2885,7 +2885,7 @@ export const ListAccessRequestsResponse = zod.object({
   "item": zod.union([zod.object({
   "ref": zod.string(),
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "path": zod.string().nullable(),
   "confidential": zod.boolean().describe('The item\'s own confidential flag')
@@ -2895,9 +2895,9 @@ export const ListAccessRequestsResponse = zod.object({
   "expiresAt": zod.coerce.date().nullable()
 })),
   "recent": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "client": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string()
 }),
   "requestedName": zod.string().describe('What the AI asked for'),
@@ -2907,7 +2907,7 @@ export const ListAccessRequestsResponse = zod.object({
   "item": zod.union([zod.object({
   "ref": zod.string(),
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "path": zod.string().nullable(),
   "confidential": zod.boolean().describe('The item\'s own confidential flag')
@@ -2928,13 +2928,13 @@ export const ApproveAccessRequestParams = zod.object({
 
 export const ApproveAccessRequestBody = zod.object({
   "entityType": zod.enum(['project', 'person', 'organisation', 'task', 'decision', 'note']).optional(),
-  "entityId": zod.number().int().optional()
+  "entityId": zod.int().optional()
 })
 
 export const ApproveAccessRequestResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "client": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string()
 }),
   "requestedName": zod.string().describe('What the AI asked for'),
@@ -2944,7 +2944,7 @@ export const ApproveAccessRequestResponse = zod.object({
   "item": zod.union([zod.object({
   "ref": zod.string(),
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "path": zod.string().nullable(),
   "confidential": zod.boolean().describe('The item\'s own confidential flag')
@@ -2963,9 +2963,9 @@ export const DeclineAccessRequestParams = zod.object({
 })
 
 export const DeclineAccessRequestResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "client": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string()
 }),
   "requestedName": zod.string().describe('What the AI asked for'),
@@ -2975,7 +2975,7 @@ export const DeclineAccessRequestResponse = zod.object({
   "item": zod.union([zod.object({
   "ref": zod.string(),
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "path": zod.string().nullable(),
   "confidential": zod.boolean().describe('The item\'s own confidential flag')
@@ -2994,9 +2994,9 @@ export const EndAccessParams = zod.object({
 })
 
 export const EndAccessResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "client": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string()
 }),
   "requestedName": zod.string().describe('What the AI asked for'),
@@ -3006,7 +3006,7 @@ export const EndAccessResponse = zod.object({
   "item": zod.union([zod.object({
   "ref": zod.string(),
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "path": zod.string().nullable(),
   "confidential": zod.boolean().describe('The item\'s own confidential flag')
@@ -3021,7 +3021,7 @@ export const EndAccessResponse = zod.object({
  * @summary AI tools that can read OllieOS
  */
 export const ListAiClientsResponseItem = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "kind": zod.string(),
   "auth": zod.string(),
@@ -3042,7 +3042,7 @@ export const RevokeAiClientParams = zod.object({
 })
 
 export const RevokeAiClientResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "kind": zod.string(),
   "auth": zod.string(),
@@ -3060,7 +3060,7 @@ export const ReconnectAiClientParams = zod.object({
 })
 
 export const ReconnectAiClientResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "kind": zod.string(),
   "auth": zod.string(),
@@ -3076,20 +3076,20 @@ export const ReconnectAiClientResponse = zod.object({
 export const GetSweepStatusResponse = zod.object({
   "keyConfigured": zod.boolean(),
   "client": zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "lastUsedAt": zod.coerce.date().nullable(),
   "revokedAt": zod.coerce.date().nullable()
 }),
   "cursor": zod.coerce.date().nullable(),
   "runs": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "startedAt": zod.coerce.date(),
   "finishedAt": zod.coerce.date().nullable(),
-  "itemsCreated": zod.number().int(),
-  "itemsNoise": zod.number().int(),
-  "itemsDuplicate": zod.number().int(),
-  "activityLogged": zod.number().int(),
+  "itemsCreated": zod.int(),
+  "itemsNoise": zod.int(),
+  "itemsDuplicate": zod.int(),
+  "activityLogged": zod.int(),
   "errors": zod.array(zod.string())
 }))
 })
@@ -3127,14 +3127,14 @@ export const DecideOAuthConsentResponse = zod.object({
  * @summary Counts for the AI access settings page
  */
 export const GetAiAccessSummaryResponse = zod.object({
-  "connectedTools": zod.number().int(),
-  "pendingRequests": zod.number().int(),
-  "openGrants": zod.number().int(),
-  "readsToday": zod.number().int(),
+  "connectedTools": zod.int(),
+  "pendingRequests": zod.int(),
+  "openGrants": zod.int(),
+  "readsToday": zod.int(),
   "hidden": zod.object({
-  "projects": zod.number().int(),
-  "people": zod.number().int(),
-  "organisations": zod.number().int()
+  "projects": zod.int(),
+  "people": zod.int(),
+  "organisations": zod.int()
 })
 })
 
@@ -3156,11 +3156,11 @@ export const ListAiActivityResponseItem = zod.object({
   "actor": zod.string(),
   "kind": zod.enum(['read', 'search', 'request', 'write']),
   "action": zod.string(),
-  "count": zod.number().int(),
+  "count": zod.int(),
   "items": zod.array(zod.object({
   "ref": zod.string(),
   "type": zod.string(),
-  "id": zod.number().int(),
+  "id": zod.int(),
   "name": zod.string(),
   "path": zod.string().nullable(),
   "confidential": zod.boolean().describe('The item\'s own confidential flag')

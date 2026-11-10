@@ -246,7 +246,9 @@ router.post(
       const people = await resolveAll(scope, e.people ?? [], "person");
       people.unmatched.forEach((u) => unmatched.add(u));
       const project = e.project ? await resolvePick(scope, e.project, ["project"]) : null;
-      if (e.project && !project) unmatched.add(e.project);
+      if ((e.project && !project) || people.unmatched.length) {
+        throw new ValidationError("Every calendar association must match a visible project or person.");
+      }
       events.push({
         sourceRef: e.source_ref,
         title: e.title,

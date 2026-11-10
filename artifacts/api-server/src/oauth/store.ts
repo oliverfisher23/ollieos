@@ -274,10 +274,10 @@ export async function revokeToken(value: string): Promise<void> {
 }
 
 /** The client behind a live access token, or null. A revoked client's tokens stop working at once. */
-export async function clientForAccessToken(value: string): Promise<AiClient | null> {
+export async function clientForAccessToken(value: string): Promise<{ client: AiClient; scopes: string[] } | null> {
   if (!value) return null;
   const [row] = await db
-    .select({ client: aiClientsTable })
+    .select({ client: aiClientsTable, scopes: oauthTokensTable.scopes })
     .from(oauthTokensTable)
     .innerJoin(aiClientsTable, eq(aiClientsTable.id, oauthTokensTable.clientId))
     .where(
@@ -289,7 +289,7 @@ export async function clientForAccessToken(value: string): Promise<AiClient | nu
         isNull(aiClientsTable.revokedAt),
       ),
     );
-  return row?.client ?? null;
+  return row ?? null;
 }
 
 /** Revoking a connected tool: every token it holds stops working. */
