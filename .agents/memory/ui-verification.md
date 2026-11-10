@@ -32,3 +32,7 @@ A second API instance pointed at the dev database starts the connector timer, so
 There is no `POST /api/tasks` or plain `POST /api/decisions` seeding route: insert tasks and decisions by SQL with `created_by = 'ollie'` (and `decided_at` for decisions). Organisations, people, projects, links and relationships seed fine through the API.
 
 Plan my day fits tasks from the current London time, so an evening UI check makes nothing fit. To see the timeline, save the plan through the UI, then set `day_plans.items` starts by SQL and reload. Vitest uses the same `ollieos_test` database, so stop the test API before running the suite.
+
+Start the test API with `OLLIEOS_CONNECTOR_TIMER=off` so it never runs real connector checks into the test database. `/tmp/tdb` does not survive a sandbox restart: rebuild it from `DATABASE_URL` with the path swapped to `/ollieos_test`.
+
+Screens that read Gmail (thread, summary, attachments) cannot show seeded fake emails, since the test API still calls the real Gmail connector. Answer those routes in the Playwright route handler with JSON (`route.fulfill({ json })`) and pass the rest through to the test API.

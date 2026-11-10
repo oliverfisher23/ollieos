@@ -8,6 +8,7 @@ import { useInvalidateTasks } from '@/lib/task-cache';
 import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
 import ConnectorsSettings from './settings-connectors';
+import EmailSettings from './settings-email';
 import KnowledgeSettings from './settings-knowledge';
 import PlanningSettings from './settings-planning';
 
@@ -16,6 +17,7 @@ const MOVED: Record<string, string> = { 'ai-access': 'connectors', sweep: 'conne
 
 const SECTIONS = [
   { slug: 'connectors', label: 'Connectors', milestone: 8, line: '' },
+  { slug: 'email', label: 'Email', milestone: 0, line: '' },
   { slug: 'knowledge', label: 'Knowledge', milestone: 6, line: '' },
   { slug: 'noise-rules', label: 'Noise rules', milestone: 2, line: '' },
   { slug: 'planning', label: 'Planning', milestone: 0, line: '' },
@@ -47,6 +49,8 @@ export default function SettingsPage() {
           <NoiseRules />
         ) : current.slug === 'connectors' ? (
           <ConnectorsSettings />
+        ) : current.slug === 'email' ? (
+          <EmailSettings />
         ) : current.slug === 'knowledge' ? (
           <KnowledgeSettings />
         ) : current.slug === 'planning' ? (

@@ -3,7 +3,7 @@ import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { handle } from "../lib/handle";
 import { getNoReplyScan, resumeNoReplyScan, startNoReplyScan, stopNoReplyScan } from "../services/connectors/noReply";
-import { decideReview, listReview, REVIEW_ACTIONS } from "../services/review";
+import { decideReview, listReview, REVIEW_ACTIONS, setExpectedBy } from "../services/review";
 
 const router: IRouter = Router();
 
@@ -21,6 +21,16 @@ router.post(
   handle(async (req, res) => {
     const b = DecideBody.parse(req.body ?? {});
     res.json({ items: await decideReview(b.ids, { action: b.action, waitingOnPersonId: b.waitingOnPersonId }) });
+  }),
+);
+
+// Waiting for a reply: the day a reply is expected by.
+router.put(
+  "/review/:id/expected-by",
+  handle(async (req, res) => {
+    const id = z.coerce.number().int().positive().parse(req.params.id);
+    const b = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).strict().parse(req.body ?? {});
+    res.json(await setExpectedBy(id, b.date));
   }),
 );
 

@@ -31,6 +31,8 @@ export const reviewItemsTable = pgTable(
     email: text("email"),
     /** no_reply: why Ollie was expecting an answer */
     reason: text("reason"),
+    /** no_reply: the day a reply is expected by; it turns due on that day. Null means 3 working days after it was sent */
+    expectedBy: date("expected_by", { mode: "string" }),
     /** The action, written as a task title */
     text: text("text").notNull(),
     /** The next step for Ollie, in one sentence */

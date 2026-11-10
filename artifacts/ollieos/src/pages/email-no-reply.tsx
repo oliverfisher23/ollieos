@@ -5,6 +5,7 @@ import {
   getGetNoReplyScanQueryKey,
   getListReviewQueryKey,
   resumeNoReplyScan,
+  setReviewExpectedBy,
   startNoReplyScan,
   stopNoReplyScan,
   useGetNoReplyScan,
@@ -13,8 +14,9 @@ import {
   type ReviewDecideInputAction,
   type ReviewItem,
 } from '@workspace/api-client-react';
-import { formatLong } from '@workspace/shared';
+import { addDays, formatLong, formatShort, todayLondon, weekday } from '@workspace/shared';
 import { Skel } from '@/components/bits';
+import { Dropdown, type DropdownOption } from '@/components/dropdown';
 import { PageProblem } from '@/components/knowledge/parts';
 import { ReplyDraftCard } from '@/components/reply-draft';
 import { NOBODY, OWN, WaitingPicker } from '@/components/waiting-picker';
@@ -54,7 +56,6 @@ function foundLine(s: NoReplyScan): string {
   if (c.checked - c.found > 0) skipped.push(`${c.checked - c.found} that did not need an answer`);
   if (c.already) skipped.push(`${c.already} already on your lists`);
   if (skipped.length) parts.push(`Left out ${skipped.join(', ')}.`);
-  if (c.recent) parts.push(`${n(c.recent, 'email')} sent in the last 3 working days will be checked once they are old enough.`);
   if (c.failed) parts.push(`${n(c.failed, 'email')} could not be checked; the next Gmail check tries again.`);
   return parts.join(' ');
 }
@@ -180,10 +181,11 @@ interface Group {
   items: ReviewItem[];
 }
 
-/** One group per person, the person with the newest unanswered email first. */
+/** One group per person, the person kept waiting longest first; within a person, oldest first. */
 function groupByPerson(items: ReviewItem[]): Group[] {
   const groups = new Map<string, Group>();
-  for (const it of items) {
+  const oldestFirst = [...items].sort((a, b) => new Date(a.meetingAt).getTime() - new Date(b.meetingAt).getTime());
+  for (const it of oldestFirst) {
     const key = it.person ? 'p' + it.person.id : 'e' + (it.email ?? it.owner);
     let g = groups.get(key);
     if (!g) {
@@ -201,7 +203,85 @@ interface Chased {
   name: string;
 }
 
-/** No reply yet: emails Ollie sent that asked for something and nobody answered. */
+/** Working days on from a date, skipping weekends. */
+function workingDaysOn(date: string, days: number): string {
+  let d = date;
+  let counted = 0;
+  while (counted < days) {
+    d = addDays(d, 1);
+    const w = weekday(d);
+    if (w !== 0 && w !== 6) counted++;
+  }
+  return d;
+}
+
+/** Quick choices for Change date, without repeats when two land on the same day. */
+function expectedChoices(today: string): DropdownOption[] {
+  const dow = weekday(today);
+  const toMonday = (1 - dow + 7) % 7 || 7;
+  const raw = [
+    { label: 'Tomorrow', date: addDays(today, 1) },
+    { label: 'In 3 working days', date: workingDaysOn(today, 3) },
+    { label: 'Next Monday', date: addDays(today, toMonday) },
+    { label: 'In a week', date: addDays(today, 7) },
+    { label: 'In 2 weeks', date: addDays(today, 14) },
+  ];
+  const seen = new Set<string>();
+  return raw.filter((r) => !seen.has(r.date) && seen.add(r.date)).map((r) => ({ value: r.date, label: r.label, hint: formatShort(r.date) }));
+}
+
+/** "Change date": the day a reply is expected by, when it turns due. */
+function ChangeDate({ it }: { it: ReviewItem }) {
+  const qc = useQueryClient();
+  const [saving, setSaving] = useState(false);
+  const save = async (date: string) => {
+    if (!date || date === it.expectedBy) return;
+    setSaving(true);
+    try {
+      await setReviewExpectedBy(it.id, { date });
+      await qc.invalidateQueries({ queryKey: getListReviewQueryKey() });
+      notify('Date changed', `A reply is now expected by ${formatLong(date)}.`);
+    } catch (err) {
+      reportApiError(err);
+      notify('That did not save', errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <Dropdown
+      variant="compact"
+      ariaLabel={`Change the date a reply to "${it.text}" is expected by`}
+      value={it.expectedBy ?? ''}
+      onChange={(v) => void save(v)}
+      searchable={false}
+      disabled={saving}
+      options={expectedChoices(todayLondon())}
+      trigger={<span>Change date</span>}
+      footer={(close) => (
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span>Pick a date</span>
+          <input
+            type="date"
+            className="oo-input"
+            style={{ minHeight: 34, fontSize: 13 }}
+            defaultValue={it.expectedBy ?? ''}
+            onChange={(e) => {
+              // Typing a year fires changes for 0002, 0020 and so on; wait for a real one.
+              if (!e.target.value || Number(e.target.value.slice(0, 4)) < 2000) return;
+              void save(e.target.value);
+              close();
+            }}
+            data-testid={'input-waiting-date-' + it.id}
+          />
+        </label>
+      )}
+      testId={'button-waiting-date-' + it.id}
+    />
+  );
+}
+
+/** Waiting for a reply: emails Ollie sent that asked for something and nobody has answered yet. */
 export function NoReplyTab() {
   const q = useListReview();
   const items = useMemo(() => (q.data?.items ?? []).filter((i) => i.kind === 'no_reply'), [q.data]);
@@ -228,7 +308,7 @@ export function NoReplyTab() {
   return (
     <>
       <p className="oo-muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-        Emails you sent where you wrote last and nobody has answered, once 3 working days have passed. Chase makes a Waiting on task, and can write a follow-up for you to save to Gmail. Nothing is sent.
+        Emails you sent that asked for something and nobody has answered yet. Each shows up as soon as it is sent and turns due on the day a reply is expected by, 3 working days later unless you change it. Chase makes a Waiting on task, and can write a follow-up for you to save to Gmail. Nothing is sent.
       </p>
 
       <ScanPanel />
@@ -259,7 +339,7 @@ export function NoReplyTab() {
         <PageProblem notFound={false} what="review list" onRetry={() => q.refetch()} back={{ href: '/tasks', label: 'Tasks' }} />
       ) : items.length === 0 ? (
         <p className="oo-muted" style={{ margin: 0, fontSize: 14 }} data-testid="state-no-reply-empty">
-          No unanswered emails to review.
+          Nobody owes you a reply.
         </p>
       ) : (
         <>
@@ -344,6 +424,12 @@ function Row({ it, busy, checked, onToggle, chaseOpen, onChoose, onChase, onCanc
             {it.sourceUrl ? <a href={it.sourceUrl} target="_blank" rel="noreferrer">{it.meetingTitle}</a> : it.meetingTitle}, sent {formatLong(it.meetingAt)}
           </span>
           <span data-testid={'text-no-reply-age-' + it.id}>{waitingFor(it.meetingAt)}</span>
+          {it.expectedBy && (
+            <span data-testid={'text-waiting-expected-' + it.id}>
+              {it.due ? (it.expectedBy < todayLondon() ? `Reply expected by ${formatShort(it.expectedBy)}` : 'Reply expected today') : `Reply expected by ${formatShort(it.expectedBy)}`}
+            </span>
+          )}
+          {it.due && <span className="oo-pill" data-tone="now" data-testid={'pill-waiting-due-' + it.id}>Due</span>}
           {it.project && <span>{it.project.name}</span>}
           {it.priority === 'high' && <span className="oo-pill" data-tone="now">High</span>}
           {it.confidential && <span className="oo-pill">Confidential</span>}
@@ -361,6 +447,7 @@ function Row({ it, busy, checked, onToggle, chaseOpen, onChoose, onChase, onCanc
               {b.label}
             </button>
           ))}
+          <ChangeDate it={it} />
         </div>
         {chaseOpen && (
           <WaitingPicker busy={busy} initial={it.person ? String(it.person.id) : NOBODY} hint={it.person ? undefined : it.owner} confirmLabel="Chase"

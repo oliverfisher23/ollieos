@@ -169,6 +169,7 @@ const KEPT_WORDS: Record<string, string> = {
   pasted: 'Pasted',
   upload: 'Uploaded',
   claude: 'Saved by Claude',
+  email: 'From an email',
 };
 
 function DocTitle({ d }: { d: LibraryDocument }) {

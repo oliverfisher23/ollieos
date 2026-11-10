@@ -45,6 +45,13 @@ export interface ReviewItem {
      * @nullable
      */
   reason: string | null;
+  /**
+     * Unanswered email: the day a reply is expected by
+     * @nullable
+     */
+  expectedBy: Date | null;
+  /** Unanswered email: the expected day has come */
+  due: boolean;
   suggestedType: ReviewItemSuggestedType;
   /** Who owns it: You, or the other person's name */
   owner: string;

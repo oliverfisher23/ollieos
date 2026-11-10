@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { ReplyDraftState } from './replyDraftState';
 
 export interface ReplyDraft {
   taskId: number;
@@ -31,5 +32,16 @@ export interface ReplyDraft {
      * @nullable
      */
   sentAt: Date | null;
+  /**
+     * Ollie's one-line brief, from Brief a reply
+     * @nullable
+     */
+  brief: string | null;
+  state: ReplyDraftState;
+  /**
+     * Why it could not be written
+     * @nullable
+     */
+  error: string | null;
   updatedAt: Date;
 }

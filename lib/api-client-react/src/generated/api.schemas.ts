@@ -1070,6 +1070,20 @@ export interface ReplyDraftWriteInput {
   current?: string;
 }
 
+export interface EmailAttachment {
+  partId: string;
+  filename: string;
+  /** Bytes */
+  size: number;
+  /** A PDF, Word or text file under 10 MB */
+  canSave: boolean;
+  /**
+     * The Library document it was saved as
+     * @nullable
+     */
+  documentId: number | null;
+}
+
 export interface EmailThreadMessage {
   id: string;
   /** @nullable */
@@ -1081,6 +1095,7 @@ export interface EmailThreadMessage {
   at: string;
   text: string;
   fromOllie: boolean;
+  attachments: EmailAttachment[];
 }
 
 export interface EmailThread {
@@ -1090,6 +1105,92 @@ export interface EmailThread {
   gmailUrl: string | null;
   messages: EmailThreadMessage[];
 }
+
+export interface ReplyBriefInput {
+  /**
+     * What the reply should say
+     * @minLength 1
+     * @maxLength 500
+     */
+  brief: string;
+}
+
+export interface EmailAttachmentInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  messageId: string;
+  /** @maxLength 50 */
+  partId: string;
+}
+
+/**
+ * Why there is no summary
+ * @nullable
+ */
+export type ThreadSummaryWhy = typeof ThreadSummaryWhy[keyof typeof ThreadSummaryWhy] | null;
+
+
+export const ThreadSummaryWhy = {
+  short: 'short',
+  hidden: 'hidden',
+  not_in_gmail: 'not_in_gmail',
+} as const;
+
+export interface ThreadSummary {
+  /** @nullable */
+  summary: string | null;
+  messages: number;
+  /**
+     * Why there is no summary
+     * @nullable
+     */
+  why: ThreadSummaryWhy;
+  /** @nullable */
+  at: string | null;
+}
+
+export type WritingStyleStatus = typeof WritingStyleStatus[keyof typeof WritingStyleStatus];
+
+
+export const WritingStyleStatus = {
+  idle: 'idle',
+  reading: 'reading',
+  ready: 'ready',
+  failed: 'failed',
+} as const;
+
+export interface WritingStyle {
+  /** @nullable */
+  note: string | null;
+  /**
+     * When it was last made from sent email
+     * @nullable
+     */
+  readAt: string | null;
+  /** How many emails it was made from */
+  emails: number;
+  /** @nullable */
+  editedAt: string | null;
+  status: WritingStyleStatus;
+  /** @nullable */
+  error: string | null;
+}
+
+export interface WritingStyleInput {
+  /** @maxLength 4000 */
+  note: string;
+}
+
+export type ReplyDraftState = typeof ReplyDraftState[keyof typeof ReplyDraftState];
+
+
+export const ReplyDraftState = {
+  writing: 'writing',
+  ready: 'ready',
+  failed: 'failed',
+} as const;
 
 export interface ReplyDraft {
   taskId: number;
@@ -1116,6 +1217,17 @@ export interface ReplyDraft {
      * @nullable
      */
   sentAt: string | null;
+  /**
+     * Ollie's one-line brief, from Brief a reply
+     * @nullable
+     */
+  brief: string | null;
+  state: ReplyDraftState;
+  /**
+     * Why it could not be written
+     * @nullable
+     */
+  error: string | null;
   updatedAt: string;
 }
 
@@ -1533,6 +1645,13 @@ export interface ReviewItem {
      * @nullable
      */
   reason: string | null;
+  /**
+     * Unanswered email: the day a reply is expected by
+     * @nullable
+     */
+  expectedBy: string | null;
+  /** Unanswered email: the expected day has come */
+  due: boolean;
   suggestedType: ReviewItemSuggestedType;
   /** Who owns it: You, or the other person's name */
   owner: string;
@@ -1549,6 +1668,10 @@ export interface ReviewItem {
   decidedAt: string | null;
 }
 
+export interface ExpectedByInput {
+  date: string;
+}
+
 export interface ReviewList {
   items: ReviewItem[];
   pending: number;
@@ -1556,6 +1679,8 @@ export interface ReviewList {
   actions: number;
   /** Pending unanswered emails */
   noReply: number;
+  /** Unanswered emails whose expected day has come */
+  noReplyDue: number;
 }
 
 export interface NoReplyCounts {
@@ -2089,6 +2214,7 @@ export const LibraryDocumentTextOrigin = {
   pasted: 'pasted',
   upload: 'upload',
   claude: 'claude',
+  email: 'email',
 } as const;
 
 export type DocumentKnowledgeStatus = typeof DocumentKnowledgeStatus[keyof typeof DocumentKnowledgeStatus];

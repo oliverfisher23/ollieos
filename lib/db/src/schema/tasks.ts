@@ -173,6 +173,12 @@ export const replyDraftsTable = pgTable("reply_drafts", {
   sentAt: timestamp("sent_at", { withTimezone: true }),
   /** When Ollie took it off the Drafts list on the Email page; the draft stays on the task */
   dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+  /** Ollie's one-line brief from "Brief a reply"; the draft is written from it in the background */
+  brief: text("brief"),
+  /** Ready to look at, still being written, or the background write failed */
+  state: text("state", { enum: ["ready", "writing", "failed"] }).notNull().default("ready"),
+  /** Why the background write failed */
+  error: text("error"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
@@ -180,4 +186,15 @@ export const replyDraftsTable = pgTable("reply_drafts", {
     .$onUpdate(() => new Date()),
 });
 
+/** Short summaries of long email threads, kept until a new message arrives. */
+export const threadSummariesTable = pgTable("thread_summaries", {
+  threadId: text("thread_id").primaryKey(),
+  /** The newest message when the summary was written; a newer one means it is out of date */
+  lastMessageId: text("last_message_id").notNull(),
+  messageCount: integer("message_count").notNull(),
+  summary: text("summary").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type ThreadSummary = typeof threadSummariesTable.$inferSelect;
 export type ReplyDraft = typeof replyDraftsTable.$inferSelect;

@@ -4,6 +4,7 @@ import {
   getGetReplyDraftQueryKey,
   getGetTaskQueryKey,
   getListEmailDraftsQueryKey,
+  briefReplyDraft,
   saveReplyDraftToGmail,
   useGetReplyDraft,
   writeReplyDraft,
@@ -30,10 +31,13 @@ const same = (a: Fields, b: Fields) => a.to === b.to && a.cc === b.cc && a.subje
  * steered by what Ollie says it should say; he can ask for changes, edit it, and save it as a draft
  * in the Gmail thread. OllieOS never sends email.
  */
-export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** A follow-up from No reply yet: written straight away when there is none yet */ chase?: boolean }) {
+export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** A follow-up from Waiting for a reply: written straight away when there is none yet */ chase?: boolean }) {
   const autoWrite = chase;
   const qc = useQueryClient();
-  const saved = useGetReplyDraft(taskId);
+  // A briefed draft is written in the background: look again every few seconds until it is ready.
+  const saved = useGetReplyDraft(taskId, {
+    query: { queryKey: getGetReplyDraftQueryKey(taskId), refetchInterval: (q) => (q.state.data?.draft?.state === 'writing' ? 3_000 : false) },
+  });
   const [draft, setDraft] = useState<ReplyDraft | null>(null);
   const [fields, setFields] = useState<Fields | null>(null);
   const [writing, setWriting] = useState<false | 'new' | 'change'>(false);
@@ -43,16 +47,20 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
   const [confirmRewrite, setConfirmRewrite] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Start from the draft saved earlier, if there is one.
+  // Start from the draft saved earlier, if there is one, and pick up a background draft once written.
   useEffect(() => {
     const d = saved.data?.draft;
-    if (d && !draft) {
+    if (d && (!draft || (draft.state !== 'ready' && (d.state !== draft.state || d.updatedAt !== draft.updatedAt)))) {
       setDraft(d);
       setFields(fieldsOf(d));
+      if (draft && draft.state === 'writing' && d.state !== 'writing') {
+        qc.invalidateQueries({ queryKey: getListEmailDraftsQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetTaskQueryKey(taskId) });
+      }
     }
-  }, [saved.data, draft]);
+  }, [saved.data, draft, qc, taskId]);
 
-  // Chase from No reply yet: start writing as soon as it is clear there is no draft yet.
+  // Chase from Waiting for a reply: start writing as soon as it is clear there is no draft yet.
   const [autoStarted, setAutoStarted] = useState(false);
   useEffect(() => {
     if (!autoWrite || autoStarted || saved.isLoading || !saved.data || saved.data.draft) return;
@@ -63,6 +71,22 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
   }, [autoWrite, autoStarted, saved.isLoading, saved.data]);
 
   const dirty = !!draft && !!fields && !same(fields, fieldsOf(draft));
+  const background = draft?.state === 'writing' ? 'writing' : draft?.state === 'failed' ? 'failed' : null;
+
+  /** Try again on a briefed draft that could not be written */
+  const retry = async () => {
+    if (!draft?.brief) return;
+    setError(null);
+    try {
+      const d = await briefReplyDraft(taskId, { brief: draft.brief });
+      setDraft(d);
+      qc.setQueryData(getGetReplyDraftQueryKey(taskId), { draft: d });
+      qc.invalidateQueries({ queryKey: getListEmailDraftsQueryKey() });
+    } catch (err) {
+      reportApiError(err);
+      setError(errorMessage(err, 'The draft could not be started just now. Try again in a moment.'));
+    }
+  };
 
   const take = (d: ReplyDraft) => {
     setDraft(d);
@@ -123,8 +147,25 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
             </span>
             <Skel h={14} w="90%" /><Skel h={14} w="80%" /><Skel h={14} w="55%" />
           </div>
-        ) : !draft || !fields ? (
+        ) : background === 'writing' ? (
+          <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 8 }} data-testid="state-reply-background">
+            <span className="oo-muted" style={{ fontSize: 13, lineHeight: 1.5 }}>
+              Writing from your brief{draft?.brief ? `: ${draft.brief}` : ''}. Once written it is saved to Gmail as a draft. You can leave this page.
+            </span>
+            <Skel h={14} w="90%" /><Skel h={14} w="80%" /><Skel h={14} w="55%" />
+          </div>
+        ) : !draft || !fields || background === 'failed' ? (
           <>
+            {background === 'failed' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} data-testid="state-reply-failed">
+                <span style={{ fontSize: 13, lineHeight: 1.5 }} role="alert">
+                  {draft?.error ?? 'The draft could not be written.'}{draft?.brief ? ` Your brief was: ${draft.brief}` : ''}
+                </span>
+                {draft?.brief && (
+                  <div><button type="button" className="oo-btn oo-btn-ink" onClick={() => void retry()} data-testid="button-reply-retry">Try again</button></div>
+                )}
+              </div>
+            )}
             <span className="oo-soft" style={{ fontSize: 13, lineHeight: 1.5 }}>
               Writes a {chase ? 'follow-up' : 'reply'} from the email thread, what OllieOS knows about the people and work involved, and your playbooks. You edit it and save it to Gmail. Nothing is sent.
             </span>
@@ -134,7 +175,7 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
                 placeholder={chase ? 'For example: keep it light, mention the Friday deadline' : 'For example: yes to Tuesday, ask for the budget first'}
                 style={{ resize: 'vertical', borderRadius: 'var(--oo-r-input-lg)', padding: '10px 12px', lineHeight: 1.5 }} data-testid="input-reply-ask" />
             </div>
-            <div><button type="button" className="oo-btn oo-btn-ink" onClick={() => void write()} data-testid="button-draft-reply">{chase ? 'Draft chase email' : 'Draft reply'}</button></div>
+            <div><button type="button" className={background === 'failed' ? 'oo-btn oo-btn-outline' : 'oo-btn oo-btn-ink'} onClick={() => void write()} data-testid="button-draft-reply">{chase ? 'Draft chase email' : 'Draft reply'}</button></div>
           </>
         ) : (
           <>

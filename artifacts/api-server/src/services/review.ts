@@ -12,8 +12,10 @@
  */
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db, peopleTable, projectsTable, reviewItemsTable, tasksTable, type ReviewItem } from "@workspace/db";
+import { todayLondon } from "@workspace/shared";
 import { writeAudit } from "../lib/audit";
 import { captureTask } from "./aiWrites";
+import { expectedByDate } from "./connectors/noReply";
 import { NotFoundError, ValidationError } from "./tasks";
 import type { EntitySummary } from "./taskView";
 
@@ -34,6 +36,10 @@ export interface ReviewItemView {
   sourceUrl: string | null;
   email: string | null;
   reason: string | null;
+  /** no_reply: the day a reply is expected by */
+  expectedBy: string | null;
+  /** no_reply: the expected day has come */
+  due: boolean;
   suggestedType: string;
   owner: string;
   person: EntitySummary | null;
@@ -46,7 +52,12 @@ export interface ReviewItemView {
   decidedAt: Date | null;
 }
 
-async function toViews(rows: ReviewItem[]): Promise<ReviewItemView[]> {
+/** The day a reply to an unanswered email is expected by. */
+export const expectedByOf = (r: Pick<ReviewItem, "kind" | "expectedBy" | "meetingAt">): string | null =>
+  r.kind === "no_reply" ? (r.expectedBy ?? expectedByDate(r.meetingAt)) : null;
+
+async function toViews(rows: ReviewItem[], now = new Date()): Promise<ReviewItemView[]> {
+  const today = todayLondon(now);
   if (!rows.length) return [];
   const personIds = [...new Set(rows.map((r) => r.personId).filter((x): x is number => x != null))];
   const projectIds = [...new Set(rows.map((r) => r.projectId).filter((x): x is number => x != null))];
@@ -72,6 +83,8 @@ async function toViews(rows: ReviewItem[]): Promise<ReviewItemView[]> {
     sourceUrl: r.sourceUrl,
     email: r.email,
     reason: r.reason,
+    expectedBy: expectedByOf(r),
+    due: r.kind === "no_reply" && expectedByOf(r)! <= today,
     suggestedType: r.suggestedType,
     owner: r.owner,
     person: r.personId != null ? (person.get(r.personId) ?? null) : null,
@@ -86,7 +99,7 @@ async function toViews(rows: ReviewItem[]): Promise<ReviewItemView[]> {
 }
 
 /** Pending items, newest meeting or email first. */
-export async function listReview(): Promise<{ items: ReviewItemView[]; pending: number; actions: number; noReply: number }> {
+export async function listReview(): Promise<{ items: ReviewItemView[]; pending: number; actions: number; noReply: number; noReplyDue: number }> {
   const rows = await db
     .select()
     .from(reviewItemsTable)
@@ -94,7 +107,19 @@ export async function listReview(): Promise<{ items: ReviewItemView[]; pending: 
     .orderBy(desc(reviewItemsTable.meetingAt), asc(reviewItemsTable.sourceRef))
     .limit(1000);
   const noReply = rows.filter((r) => r.kind === "no_reply").length;
-  return { items: await toViews(rows), pending: rows.length, actions: rows.length - noReply, noReply };
+  const items = await toViews(rows);
+  return { items, pending: rows.length, actions: rows.length - noReply, noReply, noReplyDue: items.filter((i) => i.due).length };
+}
+
+/** Change date on an email waiting for a reply: the day it turns due. */
+export async function setExpectedBy(id: number, date: string): Promise<ReviewItemView> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date + "T00:00:00Z"))) throw new ValidationError("Pick a date");
+  const [row] = await db.select().from(reviewItemsTable).where(eq(reviewItemsTable.id, id));
+  if (!row || row.kind !== "no_reply") throw new NotFoundError("That email is not waiting for a reply");
+  if (row.state !== "pending") throw new ValidationError("That email is no longer waiting for a reply");
+  const [updated] = await db.update(reviewItemsTable).set({ expectedBy: date }).where(eq(reviewItemsTable.id, id)).returning();
+  await writeAudit(db, { actor: ACTOR, action: "update", entityType: "review_item", entityId: id, payload: { expectedBy: date } });
+  return (await toViews([updated]))[0];
 }
 
 export interface ReviewChoice {

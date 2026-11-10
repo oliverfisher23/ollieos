@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { EmailAttachment } from './emailAttachment';
 
 export interface EmailThreadMessage {
   id: string;
@@ -17,4 +18,5 @@ export interface EmailThreadMessage {
   at: Date;
   text: string;
   fromOllie: boolean;
+  attachments: EmailAttachment[];
 }

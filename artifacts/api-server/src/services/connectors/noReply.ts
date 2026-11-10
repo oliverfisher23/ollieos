@@ -50,7 +50,7 @@ export interface NoReplyCounts {
   answered: number;
   /** Bulk, automated, calendar, to himself, or a thank-you */
   left_out: number;
-  /** Sent too recently; looked at again when old enough */
+  /** Sent too recently to check; no longer used, as sent email is checked straight away */
   recent: number;
   /** Already on the list, already checked, or already a Waiting on task */
   already: number;
@@ -136,6 +136,18 @@ async function saveMemory(m: Memory, now: Date) {
 /* ---------- Working days ---------- */
 
 /** The moment `days` working days (Monday to Friday, London) after `at`. */
+/** The London date a reply is expected by: the given number of working days after it was sent. */
+export function expectedByDate(at: Date, days = WAIT_WORKING_DAYS): string {
+  let date = todayLondon(at);
+  let counted = 0;
+  while (counted < days) {
+    date = addDays(date, 1);
+    const d = weekday(date);
+    if (d !== 0 && d !== 6) counted++;
+  }
+  return date;
+}
+
 export function afterWorkingDays(at: Date, days = WAIT_WORKING_DAYS): Date {
   const start = todayLondon(at);
   let date = start;
@@ -225,7 +237,6 @@ export type Look =
   | { kind: "gone" }
   | { kind: "answered" }
   | { kind: "left_out"; lastId: string; why: "bulk" | "automated" | "calendar" | "self" | "closed" }
-  | { kind: "recent"; lastId: string; dueAt: Date }
   | { kind: "due"; last: MetaMessage; ids: string[] };
 
 const CLOSING = /^(many thanks|thanks|thank you|thx|cheers|great|perfect|brilliant|lovely|amazing|ok|okay|sounds good|no worries|will do|noted|got it|appreciate it)\b[^?]{0,60}$/i;
@@ -241,7 +252,7 @@ function snippetHead(snippet: string): string {
 }
 
 /** Where a thread stands, from its headers alone. */
-export function look(msgs: MetaMessage[] | null, me: Set<string>, now: Date): Look {
+export function look(msgs: MetaMessage[] | null, me: Set<string>, _now: Date): Look {
   if (!msgs) return { kind: "gone" };
   const mine = (m: MetaMessage) => (m.from.email != null && me.has(m.from.email)) || m.labels.has("SENT");
   // Drafts never count; out-of-office and other automatic replies are not an answer.
@@ -257,8 +268,8 @@ export function look(msgs: MetaMessage[] | null, me: Set<string>, now: Date): Lo
   if (others.every((a) => AUTOMATED.test(a.email!))) return { kind: "left_out", lastId: last.id, why: "automated" };
   const head = snippetHead(last.snippet);
   if (head && head.length <= 80 && CLOSING.test(head)) return { kind: "left_out", lastId: last.id, why: "closed" };
-  const dueAt = afterWorkingDays(last.at);
-  if (now.getTime() < dueAt.getTime()) return { kind: "recent", lastId: last.id, dueAt };
+  // Checked straight away: a sent email that asks for something is on the list from the start,
+  // and turns due on the day a reply is expected by.
   return { kind: "due", last, ids: real.map((m) => m.id) };
 }
 
@@ -322,12 +333,6 @@ async function settle(threadId: string, l: Look, w: Work): Promise<Candidate | n
   if (l.kind === "left_out") {
     delete w.mem.watch[threadId];
     w.counts.left_out++;
-    await closeOpen(threadId, refOf(l.lastId), "superseded", w.now);
-    return null;
-  }
-  if (l.kind === "recent") {
-    w.mem.watch[threadId] = l.dueAt.toISOString();
-    w.counts.recent++;
     await closeOpen(threadId, refOf(l.lastId), "superseded", w.now);
     return null;
   }
@@ -441,6 +446,7 @@ async function addItem(c: Candidate, input: NoReplyCandidate, v: NoReplyVerdict,
       action: v.chase.trim() || null,
       quote: v.quote.trim() || null,
       reason: v.reason.trim() || null,
+      expectedBy: expectedByDate(input.sentAt),
       suggestedType: "waiting",
       owner: person?.name ?? who?.name ?? who?.email ?? "Someone",
       personId: person?.id ?? null,
@@ -501,7 +507,7 @@ async function pendingCount(): Promise<number> {
 export async function getNoReplyScan(now = new Date()): Promise<NoReplyScanView> {
   const [s, mem, pending] = await Promise.all([getSetting<Saved>(STATE_KEY), loadMemory(), pendingCount()]);
   if (!s) {
-    return { status: "idle", listing: false, days: SCAN_DAYS, startedAt: null, finishedAt: null, total: 0, done: 0, counts: emptyCounts(), error: null, refreshedAt: null, pending };
+    return { status: "idle", listing: false, days: SCAN_DAYS, startedAt: null, finishedAt: null, total: 0, done: 0, counts: emptyCounts(), error: null, refreshedAt: mem.refreshedAt, pending };
   }
   let status: NoReplyStatus = s.status;
   let error = s.error;
@@ -519,7 +525,7 @@ export async function getNoReplyScan(now = new Date()): Promise<NoReplyScanView>
     done: s.position,
     counts: s.counts,
     error,
-    refreshedAt: s.status === "done" ? mem.refreshedAt : null,
+    refreshedAt: s.status === "running" ? null : mem.refreshedAt,
     pending,
   };
 }
@@ -666,7 +672,8 @@ async function beat(s: Saved) {
 export async function refreshNoReply(now = new Date()): Promise<NoReplyCounts | null> {
   if (active || refreshing) return null;
   const s = await getSetting<Saved>(STATE_KEY);
-  if (!s || s.status !== "done") return null;
+  // Any time no look through is running: new sent email goes on the list without one.
+  if (s?.status === "running" && Date.now() - new Date(s.heartbeat).getTime() <= STALE_MS) return null;
   refreshing = true;
   try {
     const { account, me } = await myself();

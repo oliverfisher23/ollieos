@@ -15,6 +15,7 @@ import { documentVisible, sessionVisible } from "../../lib/ai-data/visibility";
 import { ConnectorError } from "../connectors/http";
 import { cleanDriveLink, driveFile, driveFileId, driveFileText, driveFolderId, folderFiles, canReadText, CONTENT_CHARS } from "../connectors/drive";
 import { dropboxText, pathFromDropboxLink } from "../connectors/dropbox";
+import { gmailThreadUrl } from "../connectors/gmail";
 import { documentView, insertDocument, keepDocumentText, parseLink, type DocumentView } from "../library";
 import { ACTOR } from "../knowledge/common";
 import { NotFoundError, ValidationError } from "../tasks";
@@ -51,7 +52,19 @@ async function documentSource(row: KnowledgeSource, now: Date): Promise<Source> 
   if (!doc) throw new ReadError("The document is no longer in the Library.");
   if (!doc.visible) throw new ReadError("This document is hidden from AI, so OllieOS does not read it for knowledge.");
   const [kept] = await db.select().from(documentContentsTable).where(eq(documentContentsTable.documentId, id));
-  let text: string | null = kept && ["pasted", "upload", "claude"].includes(kept.origin) ? kept.text : null;
+  let text: string | null = kept && ["pasted", "upload", "claude", "email"].includes(kept.origin) ? kept.text : null;
+  if (kept?.origin === "email") {
+    // An attachment saved from an email: cite the email it came with.
+    const threadId = /^gmail:([^/]+)\//.exec(kept.fileId ?? "")?.[1] ?? null;
+    const url = threadId ? gmailThreadUrl(null, threadId) : null;
+    return {
+      text: kept.text,
+      where: `Attachment "${kept.originName ?? doc.title}" from an email${url ? ` (${url})` : ""}`,
+      label: `Email attachment: ${doc.title}`,
+      url,
+      document: { id: doc.id, title: doc.title, url: doc.url },
+    };
+  }
 
   if (text == null && doc.url) {
     const fileId = driveFileId(doc.url);

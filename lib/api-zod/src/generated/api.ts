@@ -2217,6 +2217,9 @@ export const GetReplyDraftResponse = zod.object({
   "savedAt": zod.coerce.date().nullable().describe('When it was last saved to Gmail'),
   "gmailUrl": zod.string().nullable().describe('Opens the thread in Gmail, with the draft in it'),
   "sentAt": zod.coerce.date().nullable().describe('When a Gmail check saw an email sent in the thread after this draft'),
+  "brief": zod.string().nullable().describe('Ollie\'s one-line brief, from Brief a reply'),
+  "state": zod.enum(['writing', 'ready', 'failed']),
+  "error": zod.string().nullable().describe('Why it could not be written'),
   "updatedAt": zod.coerce.date()
 }),zod.null()])
 })
@@ -2250,6 +2253,9 @@ export const WriteReplyDraftResponse = zod.object({
   "savedAt": zod.coerce.date().nullable().describe('When it was last saved to Gmail'),
   "gmailUrl": zod.string().nullable().describe('Opens the thread in Gmail, with the draft in it'),
   "sentAt": zod.coerce.date().nullable().describe('When a Gmail check saw an email sent in the thread after this draft'),
+  "brief": zod.string().nullable().describe('Ollie\'s one-line brief, from Brief a reply'),
+  "state": zod.enum(['writing', 'ready', 'failed']),
+  "error": zod.string().nullable().describe('Why it could not be written'),
   "updatedAt": zod.coerce.date()
 })
 
@@ -2288,6 +2294,9 @@ export const SaveReplyDraftToGmailResponse = zod.object({
   "savedAt": zod.coerce.date().nullable().describe('When it was last saved to Gmail'),
   "gmailUrl": zod.string().nullable().describe('Opens the thread in Gmail, with the draft in it'),
   "sentAt": zod.coerce.date().nullable().describe('When a Gmail check saw an email sent in the thread after this draft'),
+  "brief": zod.string().nullable().describe('Ollie\'s one-line brief, from Brief a reply'),
+  "state": zod.enum(['writing', 'ready', 'failed']),
+  "error": zod.string().nullable().describe('Why it could not be written'),
   "updatedAt": zod.coerce.date()
 })
 
@@ -2309,7 +2318,149 @@ export const DismissEmailDraftResponse = zod.object({
   "savedAt": zod.coerce.date().nullable().describe('When it was last saved to Gmail'),
   "gmailUrl": zod.string().nullable().describe('Opens the thread in Gmail, with the draft in it'),
   "sentAt": zod.coerce.date().nullable().describe('When a Gmail check saw an email sent in the thread after this draft'),
+  "brief": zod.string().nullable().describe('Ollie\'s one-line brief, from Brief a reply'),
+  "state": zod.enum(['writing', 'ready', 'failed']),
+  "error": zod.string().nullable().describe('Why it could not be written'),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Brief a reply: keeps a one-line brief, puts the email on Drafts as Writing, and writes the draft in the background. Once written it is saved to Gmail as a draft. Never sent.
+ */
+export const BriefReplyDraftParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const briefReplyDraftBodyBriefMax = 500;
+
+
+
+export const BriefReplyDraftBody = zod.object({
+  "brief": zod.string().min(1).max(briefReplyDraftBodyBriefMax).describe('What the reply should say')
+})
+
+export const BriefReplyDraftResponse = zod.object({
+  "taskId": zod.int(),
+  "to": zod.string().describe('Comma-separated addresses'),
+  "cc": zod.string().describe('Comma-separated addresses'),
+  "subject": zod.string(),
+  "body": zod.string(),
+  "canSaveToGmail": zod.boolean().describe('False when the email did not come from Gmail directly, so there is no thread to save into'),
+  "savedAt": zod.coerce.date().nullable().describe('When it was last saved to Gmail'),
+  "gmailUrl": zod.string().nullable().describe('Opens the thread in Gmail, with the draft in it'),
+  "sentAt": zod.coerce.date().nullable().describe('When a Gmail check saw an email sent in the thread after this draft'),
+  "brief": zod.string().nullable().describe('Ollie\'s one-line brief, from Brief a reply'),
+  "state": zod.enum(['writing', 'ready', 'failed']),
+  "error": zod.string().nullable().describe('Why it could not be written'),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary A few lines on a long email thread (4 or more messages), kept until a new message arrives
+ */
+export const GetTaskThreadSummaryParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetTaskThreadSummaryResponse = zod.object({
+  "summary": zod.string().nullable(),
+  "messages": zod.int(),
+  "why": zod.union([zod.literal('short'),zod.literal('hidden'),zod.literal('not_in_gmail'),zod.literal(null)]).nullable().describe('Why there is no summary'),
+  "at": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Saves a PDF, Word or text attachment under 10 MB to the Library and queues it to be read for knowledge
+ */
+export const SaveEmailAttachmentParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const saveEmailAttachmentBodyMessageIdMax = 200;
+
+export const saveEmailAttachmentBodyPartIdMax = 50;
+
+
+
+export const SaveEmailAttachmentBody = zod.object({
+  "messageId": zod.string().min(1).max(saveEmailAttachmentBodyMessageIdMax),
+  "partId": zod.string().max(saveEmailAttachmentBodyPartIdMax)
+})
+
+export const SaveEmailAttachmentResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "url": zod.string().nullable().describe('Null for text kept in OllieOS'),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other', 'ollieos']),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked projects'),
+  "lastConfirmedAt": zod.coerce.date().describe('Shown as Updated'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "hiddenFromAi": zod.boolean(),
+  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal('email'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "knowledge": zod.union([zod.object({
+  "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
+  "lastReadAt": zod.coerce.date().nullable(),
+  "lastResult": zod.string().nullable().describe('What the last read proposed, in words'),
+  "error": zod.string().nullable()
+}),zod.null()])
+})
+
+
+/**
+ * @summary How you write: the note every draft follows
+ */
+export const GetWritingStyleResponse = zod.object({
+  "note": zod.string().nullable(),
+  "readAt": zod.coerce.date().nullable().describe('When it was last made from sent email'),
+  "emails": zod.int().describe('How many emails it was made from'),
+  "editedAt": zod.coerce.date().nullable(),
+  "status": zod.enum(['idle', 'reading', 'ready', 'failed']),
+  "error": zod.string().nullable()
+})
+
+
+/**
+ * @summary Saves Ollie's edits to the note
+ */
+export const saveWritingStyleBodyNoteMax = 4000;
+
+
+
+export const SaveWritingStyleBody = zod.object({
+  "note": zod.string().max(saveWritingStyleBodyNoteMax)
+})
+
+export const SaveWritingStyleResponse = zod.object({
+  "note": zod.string().nullable(),
+  "readAt": zod.coerce.date().nullable().describe('When it was last made from sent email'),
+  "emails": zod.int().describe('How many emails it was made from'),
+  "editedAt": zod.coerce.date().nullable(),
+  "status": zod.enum(['idle', 'reading', 'ready', 'failed']),
+  "error": zod.string().nullable()
+})
+
+
+/**
+ * @summary Reads up to 200 emails sent in the last 6 months, in the background, and writes the note again
+ */
+export const ReadWritingStyleResponse = zod.object({
+  "note": zod.string().nullable(),
+  "readAt": zod.coerce.date().nullable().describe('When it was last made from sent email'),
+  "emails": zod.int().describe('How many emails it was made from'),
+  "editedAt": zod.coerce.date().nullable(),
+  "status": zod.enum(['idle', 'reading', 'ready', 'failed']),
+  "error": zod.string().nullable()
 })
 
 
@@ -2331,7 +2482,14 @@ export const GetTaskThreadResponse = zod.object({
   "cc": zod.string(),
   "at": zod.coerce.date(),
   "text": zod.string(),
-  "fromOllie": zod.boolean()
+  "fromOllie": zod.boolean(),
+  "attachments": zod.array(zod.object({
+  "partId": zod.string(),
+  "filename": zod.string(),
+  "size": zod.int().describe('Bytes'),
+  "canSave": zod.boolean().describe('A PDF, Word or text file under 10 MB'),
+  "documentId": zod.int().nullable().describe('The Library document it was saved as')
+}))
 }))
 })
 
@@ -2351,6 +2509,9 @@ export const ListEmailDraftsResponse = zod.object({
   "savedAt": zod.coerce.date().nullable().describe('When it was last saved to Gmail'),
   "gmailUrl": zod.string().nullable().describe('Opens the thread in Gmail, with the draft in it'),
   "sentAt": zod.coerce.date().nullable().describe('When a Gmail check saw an email sent in the thread after this draft'),
+  "brief": zod.string().nullable().describe('Ollie\'s one-line brief, from Brief a reply'),
+  "state": zod.enum(['writing', 'ready', 'failed']),
+  "error": zod.string().nullable().describe('Why it could not be written'),
   "updatedAt": zod.coerce.date()
 }),
   "task": zod.object({
@@ -2537,7 +2698,7 @@ export const GetProjectResponse = zod.object({
 })),
   "hiddenFromAi": zod.boolean(),
   "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
-  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal('email'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
   "knowledge": zod.union([zod.object({
   "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
   "lastReadAt": zod.coerce.date().nullable(),
@@ -4227,7 +4388,7 @@ export const ListDocumentsResponseItem = zod.object({
 })),
   "hiddenFromAi": zod.boolean(),
   "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
-  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal('email'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
   "knowledge": zod.union([zod.object({
   "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
   "lastReadAt": zod.coerce.date().nullable(),
@@ -4275,7 +4436,7 @@ export const CreateDocumentResponse = zod.object({
 })),
   "hiddenFromAi": zod.boolean(),
   "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
-  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal('email'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
   "knowledge": zod.union([zod.object({
   "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
   "lastReadAt": zod.coerce.date().nullable(),
@@ -4322,7 +4483,7 @@ export const CreateTextDocumentResponse = zod.object({
 })),
   "hiddenFromAi": zod.boolean(),
   "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
-  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal('email'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
   "knowledge": zod.union([zod.object({
   "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
   "lastReadAt": zod.coerce.date().nullable(),
@@ -4371,7 +4532,7 @@ export const UploadDocumentResponse = zod.object({
 })),
   "hiddenFromAi": zod.boolean(),
   "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
-  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal('email'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
   "knowledge": zod.union([zod.object({
   "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
   "lastReadAt": zod.coerce.date().nullable(),
@@ -4415,7 +4576,7 @@ export const ImportDriveDocumentsResponse = zod.object({
 })),
   "hiddenFromAi": zod.boolean(),
   "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
-  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal('email'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
   "knowledge": zod.union([zod.object({
   "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
   "lastReadAt": zod.coerce.date().nullable(),
@@ -4450,7 +4611,7 @@ export const BuildDocumentKnowledgeResponse = zod.object({
 })),
   "hiddenFromAi": zod.boolean(),
   "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
-  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal('email'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
   "knowledge": zod.union([zod.object({
   "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
   "lastReadAt": zod.coerce.date().nullable(),
@@ -5203,7 +5364,7 @@ export const UpdateDocumentResponse = zod.object({
 })),
   "hiddenFromAi": zod.boolean(),
   "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
-  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal('email'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
   "knowledge": zod.union([zod.object({
   "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
   "lastReadAt": zod.coerce.date().nullable(),
@@ -7886,6 +8047,8 @@ export const ListReviewResponse = zod.object({
   "sourceUrl": zod.string().nullable(),
   "email": zod.string().nullable().describe('Unanswered email: the address of the person who should answer'),
   "reason": zod.string().nullable().describe('Unanswered email: why Ollie expected an answer'),
+  "expectedBy": zod.coerce.date().nullable().describe('Unanswered email: the day a reply is expected by'),
+  "due": zod.boolean().describe('Unanswered email: the expected day has come'),
   "suggestedType": zod.enum(['task', 'promise', 'waiting']),
   "owner": zod.string().describe('Who owns it: You, or the other person\'s name'),
   "person": zod.union([zod.object({
@@ -7909,7 +8072,56 @@ export const ListReviewResponse = zod.object({
 })),
   "pending": zod.int(),
   "actions": zod.int().describe('Pending actions from a look back'),
-  "noReply": zod.int().describe('Pending unanswered emails')
+  "noReply": zod.int().describe('Pending unanswered emails'),
+  "noReplyDue": zod.int().describe('Unanswered emails whose expected day has come')
+})
+
+
+/**
+ * @summary Change date on an email waiting for a reply: the day it turns due
+ */
+export const SetReviewExpectedByParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const SetReviewExpectedByBody = zod.object({
+  "date": zod.coerce.date()
+})
+
+export const SetReviewExpectedByResponse = zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['action', 'no_reply']).describe('action: from a Granola look back; no_reply: an email Ollie sent that nobody answered'),
+  "state": zod.enum(['pending', 'accepted', 'done', 'dropped', 'answered']).describe('answered means someone wrote back before Ollie decided'),
+  "text": zod.string().describe('The action, or for an unanswered email the ask: who owes what'),
+  "action": zod.string().nullable().describe('The next step (or chase line), in one sentence'),
+  "quote": zod.string().nullable().describe('The line in the notes or email it came from'),
+  "meetingTitle": zod.string().describe('The meeting title'),
+  "meetingAt": zod.coerce.date().describe('When the meeting was'),
+  "sourceUrl": zod.string().nullable(),
+  "email": zod.string().nullable().describe('Unanswered email: the address of the person who should answer'),
+  "reason": zod.string().nullable().describe('Unanswered email: why Ollie expected an answer'),
+  "expectedBy": zod.coerce.date().nullable().describe('Unanswered email: the day a reply is expected by'),
+  "due": zod.boolean().describe('Unanswered email: the expected day has come'),
+  "suggestedType": zod.enum(['task', 'promise', 'waiting']),
+  "owner": zod.string().describe('Who owns it: You, or the other person\'s name'),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "dueDate": zod.coerce.date().nullable(),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "confidential": zod.boolean(),
+  "taskId": zod.int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable()
 })
 
 
@@ -8047,6 +8259,8 @@ export const DecideReviewResponse = zod.object({
   "sourceUrl": zod.string().nullable(),
   "email": zod.string().nullable().describe('Unanswered email: the address of the person who should answer'),
   "reason": zod.string().nullable().describe('Unanswered email: why Ollie expected an answer'),
+  "expectedBy": zod.coerce.date().nullable().describe('Unanswered email: the day a reply is expected by'),
+  "due": zod.boolean().describe('Unanswered email: the expected day has come'),
   "suggestedType": zod.enum(['task', 'promise', 'waiting']),
   "owner": zod.string().describe('Who owns it: You, or the other person\'s name'),
   "person": zod.union([zod.object({

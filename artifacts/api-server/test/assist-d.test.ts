@@ -6,7 +6,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db, peopleTable, replyDraftsTable, reviewItemsTable, tasksTable } from "@workspace/db";
-import { afterWorkingDays, refreshNoReply, waitForNoReplyScan } from "../src/services/connectors/noReply";
+import { todayLondon } from "@workspace/shared";
+import { afterWorkingDays, expectedByDate, refreshNoReply, waitForNoReplyScan } from "../src/services/connectors/noReply";
 import { checkSentDrafts } from "../src/services/email";
 import type { NoReplyCandidate, NoReplyVerdict } from "../src/services/connectors/noReplyJudge";
 import { api, OLLIE, useServer } from "./harness";
@@ -209,9 +210,9 @@ describe("No reply yet", () => {
     expect(s.counts.threads).toBe(10);
     expect(listQueries[0]).toMatch(/^in:sent after:\d+$/);
 
-    // Only the real asks and the FYI reach AI; an out-of-office is not an answer.
-    expect(judged.map((c) => c.subject).sort()).toEqual(["FYI", "Re: Contract", "Venue"]);
-    expect(s.counts).toMatchObject({ answered: 1, left_out: 5, recent: 1, checked: 3, found: 2, failed: 0 });
+    // Only the real asks and the FYI reach AI, including one sent an hour ago; an out-of-office is not an answer.
+    expect(judged.map((c) => c.subject).sort()).toEqual(["FYI", "Pricing", "Re: Contract", "Venue"]);
+    expect(s.counts).toMatchObject({ answered: 1, left_out: 5, checked: 4, found: 2, failed: 0 });
     const contract = judged.find((c) => c.subject === "Re: Contract")!;
     expect(contract.text).toContain("signed copy");
     expect(contract.earlier).toHaveLength(1);
@@ -300,43 +301,56 @@ describe("No reply yet", () => {
     expect(await pendingNoReply()).toHaveLength(0);
   });
 
-  it("each Gmail check closes answered emails and adds ones that are now old enough", async () => {
+  it("each Gmail check closes answered emails and adds new sent ones straight away", async () => {
     mixedSentMail();
     await scan();
     expect((await pendingNoReply()).map((i) => i.text)).toEqual(["Jo to book the venue", "Sam to send the signed contract"]);
 
-    // Sam answers; a new email goes out; Lou's pricing email gets older.
+    // Sam answers; a new email goes out.
     threads.contract.push({ id: "c3", from: "Sam Lee <sam@client.com>", to: ME, subject: "Re: Contract", at: new Date(), text: "Signed copy attached." });
     threads.agenda = [{ id: "g1", from: ME, to: "Pat <pat@client.com>", subject: "Agenda", at: new Date(), text: "Could you send the agenda?" }];
-    verdicts.Pricing = { ask: "Lou to confirm the price", reason: "You asked Lou to confirm it.", chase: "Ask Lou about the price.", person: "Lou" };
     verdicts.Agenda = { ask: "Pat to send the agenda", reason: "You asked for the agenda.", chase: "Ask Pat for the agenda.", person: "Pat" };
     judged = [];
 
     const soon = new Date(Date.now() + 60_000);
     const first = await refreshNoReply(soon);
-    expect(first).toMatchObject({ found: 0, answered: 1 });
-    expect((await pendingNoReply()).map((i) => i.text)).toEqual(["Jo to book the venue"]);
+    expect(first).toMatchObject({ found: 1, answered: 1 });
+    expect(judged.map((c) => c.subject)).toEqual(["Agenda"]);
+    expect((await pendingNoReply()).map((i) => i.text).sort()).toEqual(["Jo to book the venue", "Pat to send the agenda"]);
     const [closed] = await db.select().from(reviewItemsTable).where(eq(reviewItemsTable.sourceRef, "gmail:c2"));
     expect(closed.state).toBe("answered");
 
-    // A week later both are old enough.
-    const later = new Date(Date.now() + 7 * DAY);
-    const second = await refreshNoReply(later);
-    expect(second!.found).toBe(2);
-    expect(judged.map((c) => c.subject).sort()).toEqual(["Agenda", "Pricing"]);
-    expect((await pendingNoReply()).map((i) => i.text).sort()).toEqual(["Jo to book the venue", "Lou to confirm the price", "Pat to send the agenda"]);
-
     // Nothing changed: the next check reads nothing again.
     judged = [];
-    const third = await refreshNoReply(new Date(later.getTime() + 60_000));
-    expect(third!.checked).toBe(0);
+    const again = await refreshNoReply(new Date(soon.getTime() + 60_000));
+    expect(again!.checked).toBe(0);
     expect(judged).toHaveLength(0);
   });
 
-  it("does nothing on a Gmail check before the first look through has finished", async () => {
+  it("a new email is expected back in 3 working days, turns due that day, and the date can be changed", async () => {
     mixedSentMail();
-    expect(await refreshNoReply()).toBeNull();
-    expect(listQueries).toHaveLength(0);
+    verdicts.Pricing = { ask: "Lou to confirm the price", reason: "You asked Lou to confirm it.", chase: "Ask Lou about the price.", person: "Lou" };
+    await scan();
+    const items = await pendingNoReply();
+    const lou = items.find((i) => i.text.startsWith("Lou"))!;
+    expect(lou).toMatchObject({ expectedBy: expectedByDate(new Date()), due: false });
+    expect(items.find((i) => i.text.startsWith("Sam"))).toMatchObject({ expectedBy: expectedByDate(ago(10)), due: true });
+    expect((await api("review")).body).toMatchObject({ noReply: 3, noReplyDue: 2 });
+
+    const r = await api(`review/${lou.id}/expected-by`, { method: "PUT", body: { date: todayLondon() } });
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ expectedBy: todayLondon(), due: true });
+    expect((await api("review")).body.noReplyDue).toBe(3);
+    expect((await api(`review/${lou.id}/expected-by`, { method: "PUT", body: { date: "next week" } })).status).toBe(400);
+  });
+
+  it("a Gmail check before any look through reads only the last day's sent email", async () => {
+    mixedSentMail();
+    const counts = await refreshNoReply();
+    expect(counts).toMatchObject({ threads: 1, checked: 1 });
+    expect(judged.map((c) => c.subject)).toEqual(["Pricing"]);
+    const after = Number(/after:(\d+)/.exec(listQueries[0])![1]) * 1000;
+    expect(Date.now() - after).toBeLessThan(DAY + 120_000);
   });
 
   it("can be stopped and resumed", async () => {

@@ -70,10 +70,12 @@ import type {
   DropboxFolderInput,
   DropboxFolderPreview,
   DropboxFolderPreviewInput,
+  EmailAttachmentInput,
   EmailDraftList,
   EmailThread,
   ErrorEnvelope,
   ErrorResponse,
+  ExpectedByInput,
   ExploreGraphParams,
   Fact,
   FactCheckResult,
@@ -160,6 +162,7 @@ import type {
   RelationshipPair,
   RelationshipRemoved,
   RelationshipView,
+  ReplyBriefInput,
   ReplyDraft,
   ReplyDraftInput,
   ReplyDraftResult,
@@ -167,6 +170,7 @@ import type {
   ResearchStart,
   ReviewDecideInput,
   ReviewDecideResult,
+  ReviewItem,
   ReviewList,
   SearchKnowledgeParams,
   SearchResult,
@@ -184,10 +188,13 @@ import type {
   TaskDetail,
   TaskSummary,
   TaskUpdate,
+  ThreadSummary,
   TriageInput,
   TriageResult,
   WeeklyUpdate,
-  WorkingHours
+  WorkingHours,
+  WritingStyle,
+  WritingStyleInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -3221,6 +3228,548 @@ export const useDismissEmailDraft = <TError = ErrorType<NotAuthorisedResponse | 
         TContext
       > => {
       return useMutation(getDismissEmailDraftMutationOptions(options), queryClient);
+    }
+
+export const getBriefReplyDraftUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/reply-draft/brief`
+}
+
+/**
+ * @summary Brief a reply: keeps a one-line brief, puts the email on Drafts as Writing, and writes the draft in the background. Once written it is saved to Gmail as a draft. Never sent.
+ */
+export const briefReplyDraft = async (id: number,
+    replyBriefInput: ReplyBriefInput, options?: Parameters<typeof customFetch>[1]): Promise<ReplyDraft> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReplyDraft>(getBriefReplyDraftUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(replyBriefInput)
+  }
+);}
+
+
+
+
+
+export const getBriefReplyDraftMutationKey = () => ['briefReplyDraft'] as const;
+
+export const getBriefReplyDraftMutationOptions = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof briefReplyDraft>>, TError,BriefReplyDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof briefReplyDraft>>, TError,BriefReplyDraftMutationVariables, TContext> => {
+
+const mutationKey = getBriefReplyDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof briefReplyDraft>>, BriefReplyDraftMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  briefReplyDraft(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BriefReplyDraftMutationResult = NonNullable<Awaited<ReturnType<typeof briefReplyDraft>>>
+    export type BriefReplyDraftMutationBody = BodyType<ReplyBriefInput>
+    export type BriefReplyDraftMutationError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>
+    export type BriefReplyDraftMutationVariables = {id: number;data: BodyType<ReplyBriefInput>}
+
+    /**
+ * @summary Brief a reply: keeps a one-line brief, puts the email on Drafts as Writing, and writes the draft in the background. Once written it is saved to Gmail as a draft. Never sent.
+ */
+export const useBriefReplyDraft = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof briefReplyDraft>>, TError,BriefReplyDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof briefReplyDraft>>,
+        TError,
+        BriefReplyDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBriefReplyDraftMutationOptions(options), queryClient);
+    }
+
+export const getGetTaskThreadSummaryUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/thread/summary`
+}
+
+/**
+ * @summary A few lines on a long email thread (4 or more messages), kept until a new message arrives
+ */
+export const getTaskThreadSummary = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ThreadSummary> => {
+
+  return customFetch<ThreadSummary>(getGetTaskThreadSummaryUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTaskThreadSummaryQueryKey = (id: number,) => {
+    return [
+    `/api/tasks/${id}/thread/summary`
+    ] as const;
+    }
+
+
+export const getGetTaskThreadSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getTaskThreadSummary>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskThreadSummary>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTaskThreadSummaryQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTaskThreadSummary>>> = ({ signal }) => getTaskThreadSummary(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTaskThreadSummary>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTaskThreadSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getTaskThreadSummary>>>
+export type GetTaskThreadSummaryQueryError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+
+
+export function useGetTaskThreadSummary<TData = Awaited<ReturnType<typeof getTaskThreadSummary>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskThreadSummary>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskThreadSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskThreadSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskThreadSummary<TData = Awaited<ReturnType<typeof getTaskThreadSummary>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskThreadSummary>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskThreadSummary>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskThreadSummary>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskThreadSummary<TData = Awaited<ReturnType<typeof getTaskThreadSummary>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskThreadSummary>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary A few lines on a long email thread (4 or more messages), kept until a new message arrives
+ */
+
+export function useGetTaskThreadSummary<TData = Awaited<ReturnType<typeof getTaskThreadSummary>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskThreadSummary>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTaskThreadSummaryQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveEmailAttachmentUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/thread/attachments`
+}
+
+/**
+ * @summary Saves a PDF, Word or text attachment under 10 MB to the Library and queues it to be read for knowledge
+ */
+export const saveEmailAttachment = async (id: number,
+    emailAttachmentInput: EmailAttachmentInput, options?: Parameters<typeof customFetch>[1]): Promise<LibraryDocument> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<LibraryDocument>(getSaveEmailAttachmentUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(emailAttachmentInput)
+  }
+);}
+
+
+
+
+
+export const getSaveEmailAttachmentMutationKey = () => ['saveEmailAttachment'] as const;
+
+export const getSaveEmailAttachmentMutationOptions = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveEmailAttachment>>, TError,SaveEmailAttachmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveEmailAttachment>>, TError,SaveEmailAttachmentMutationVariables, TContext> => {
+
+const mutationKey = getSaveEmailAttachmentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveEmailAttachment>>, SaveEmailAttachmentMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  saveEmailAttachment(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveEmailAttachmentMutationResult = NonNullable<Awaited<ReturnType<typeof saveEmailAttachment>>>
+    export type SaveEmailAttachmentMutationBody = BodyType<EmailAttachmentInput>
+    export type SaveEmailAttachmentMutationError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>
+    export type SaveEmailAttachmentMutationVariables = {id: number;data: BodyType<EmailAttachmentInput>}
+
+    /**
+ * @summary Saves a PDF, Word or text attachment under 10 MB to the Library and queues it to be read for knowledge
+ */
+export const useSaveEmailAttachment = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveEmailAttachment>>, TError,SaveEmailAttachmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveEmailAttachment>>,
+        TError,
+        SaveEmailAttachmentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveEmailAttachmentMutationOptions(options), queryClient);
+    }
+
+export const getGetWritingStyleUrl = () => {
+
+
+
+
+  return `/api/email/style`
+}
+
+/**
+ * @summary How you write: the note every draft follows
+ */
+export const getWritingStyle = async ( options?: Parameters<typeof customFetch>[1]): Promise<WritingStyle> => {
+
+  return customFetch<WritingStyle>(getGetWritingStyleUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWritingStyleQueryKey = () => {
+    return [
+    `/api/email/style`
+    ] as const;
+    }
+
+
+export const getGetWritingStyleQueryOptions = <TData = Awaited<ReturnType<typeof getWritingStyle>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWritingStyle>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWritingStyleQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWritingStyle>>> = ({ signal }) => getWritingStyle({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWritingStyle>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetWritingStyleQueryResult = NonNullable<Awaited<ReturnType<typeof getWritingStyle>>>
+export type GetWritingStyleQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetWritingStyle<TData = Awaited<ReturnType<typeof getWritingStyle>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWritingStyle>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWritingStyle>>,
+          TError,
+          Awaited<ReturnType<typeof getWritingStyle>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWritingStyle<TData = Awaited<ReturnType<typeof getWritingStyle>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWritingStyle>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWritingStyle>>,
+          TError,
+          Awaited<ReturnType<typeof getWritingStyle>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWritingStyle<TData = Awaited<ReturnType<typeof getWritingStyle>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWritingStyle>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary How you write: the note every draft follows
+ */
+
+export function useGetWritingStyle<TData = Awaited<ReturnType<typeof getWritingStyle>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWritingStyle>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetWritingStyleQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveWritingStyleUrl = () => {
+
+
+
+
+  return `/api/email/style`
+}
+
+/**
+ * @summary Saves Ollie's edits to the note
+ */
+export const saveWritingStyle = async (writingStyleInput: WritingStyleInput, options?: Parameters<typeof customFetch>[1]): Promise<WritingStyle> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WritingStyle>(getSaveWritingStyleUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(writingStyleInput)
+  }
+);}
+
+
+
+
+
+export const getSaveWritingStyleMutationKey = () => ['saveWritingStyle'] as const;
+
+export const getSaveWritingStyleMutationOptions = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveWritingStyle>>, TError,SaveWritingStyleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveWritingStyle>>, TError,SaveWritingStyleMutationVariables, TContext> => {
+
+const mutationKey = getSaveWritingStyleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveWritingStyle>>, SaveWritingStyleMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveWritingStyle(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveWritingStyleMutationResult = NonNullable<Awaited<ReturnType<typeof saveWritingStyle>>>
+    export type SaveWritingStyleMutationBody = BodyType<WritingStyleInput>
+    export type SaveWritingStyleMutationError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>
+    export type SaveWritingStyleMutationVariables = {data: BodyType<WritingStyleInput>}
+
+    /**
+ * @summary Saves Ollie's edits to the note
+ */
+export const useSaveWritingStyle = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveWritingStyle>>, TError,SaveWritingStyleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveWritingStyle>>,
+        TError,
+        SaveWritingStyleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveWritingStyleMutationOptions(options), queryClient);
+    }
+
+export const getReadWritingStyleUrl = () => {
+
+
+
+
+  return `/api/email/style/read`
+}
+
+/**
+ * @summary Reads up to 200 emails sent in the last 6 months, in the background, and writes the note again
+ */
+export const readWritingStyle = async ( options?: Parameters<typeof customFetch>[1]): Promise<WritingStyle> => {
+
+  return customFetch<WritingStyle>(getReadWritingStyleUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getReadWritingStyleMutationKey = () => ['readWritingStyle'] as const;
+
+export const getReadWritingStyleMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof readWritingStyle>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof readWritingStyle>>, TError,void, TContext> => {
+
+const mutationKey = getReadWritingStyleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof readWritingStyle>>, void> = () => {
+
+
+          return  readWritingStyle(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReadWritingStyleMutationResult = NonNullable<Awaited<ReturnType<typeof readWritingStyle>>>
+
+    export type ReadWritingStyleMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+
+
+    /**
+ * @summary Reads up to 200 emails sent in the last 6 months, in the background, and writes the note again
+ */
+export const useReadWritingStyle = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof readWritingStyle>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof readWritingStyle>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getReadWritingStyleMutationOptions(options), queryClient);
     }
 
 export const getGetTaskThreadUrl = (id: number,) => {
@@ -13607,6 +14156,95 @@ export function useListReview<TData = Awaited<ReturnType<typeof listReview>>, TE
 
 
 
+
+export const getSetReviewExpectedByUrl = (id: number,) => {
+
+
+
+
+  return `/api/review/${id}/expected-by`
+}
+
+/**
+ * @summary Change date on an email waiting for a reply: the day it turns due
+ */
+export const setReviewExpectedBy = async (id: number,
+    expectedByInput: ExpectedByInput, options?: Parameters<typeof customFetch>[1]): Promise<ReviewItem> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReviewItem>(getSetReviewExpectedByUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(expectedByInput)
+  }
+);}
+
+
+
+
+
+export const getSetReviewExpectedByMutationKey = () => ['setReviewExpectedBy'] as const;
+
+export const getSetReviewExpectedByMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setReviewExpectedBy>>, TError,SetReviewExpectedByMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setReviewExpectedBy>>, TError,SetReviewExpectedByMutationVariables, TContext> => {
+
+const mutationKey = getSetReviewExpectedByMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setReviewExpectedBy>>, SetReviewExpectedByMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setReviewExpectedBy(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetReviewExpectedByMutationResult = NonNullable<Awaited<ReturnType<typeof setReviewExpectedBy>>>
+    export type SetReviewExpectedByMutationBody = BodyType<ExpectedByInput>
+    export type SetReviewExpectedByMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SetReviewExpectedByMutationVariables = {id: number;data: BodyType<ExpectedByInput>}
+
+    /**
+ * @summary Change date on an email waiting for a reply: the day it turns due
+ */
+export const useSetReviewExpectedBy = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setReviewExpectedBy>>, TError,SetReviewExpectedByMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setReviewExpectedBy>>,
+        TError,
+        SetReviewExpectedByMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetReviewExpectedByMutationOptions(options), queryClient);
+    }
 
 export const getGetNoReplyScanUrl = () => {
 

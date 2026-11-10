@@ -35,6 +35,7 @@ const ORIGIN_WORDS: Record<string, string> = {
   pasted: 'Text pasted into OllieOS',
   upload: 'Text from an uploaded file',
   claude: 'Saved by Claude',
+  email: 'Text from an email attachment',
   gdrive: 'Text read from Google Drive',
   dropbox: 'Text read from Dropbox',
 };

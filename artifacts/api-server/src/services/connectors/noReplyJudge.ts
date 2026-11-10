@@ -68,7 +68,7 @@ const SCHEMA = {
 function systemPrompt(me: string, projects: string[], now: Date): string {
   return [
     `You check emails Ollie Fisher sent that nobody has answered, for OllieOS, his personal task system. Ollie works at Springpod. ${me}`,
-    `Today is ${formatLong(todayLondon(now), { withYear: true })} (London). Each email in <emails> was the last message in its thread, and nobody has written since.`,
+    `Today is ${formatLong(todayLondon(now), { withYear: true })} (London). Each email in <emails> was the last message in its thread, and nobody has written since. Some were sent only minutes ago: judge whether Ollie should expect a reply, not whether one is late.`,
     `For each email, return one entry in "results" with its "id".`,
     `- "expectsReply" is true only when Ollie asked a question, asked someone to do, send, decide or confirm something, or proposed something that needs a yes or no. It is false when the email only shares information, sends something with no ask, says thanks, agrees, confirms, signs off, introduces people and steps back, answers a question, or closes the conversation ("no need to reply", "speak soon"). When unsure, false.`,
     `- When "expectsReply" is false, leave "ask", "reason", "chase", "person" and "quote" as "".`,

@@ -21,7 +21,8 @@ interface GmailPart {
   mimeType?: string;
   filename?: string;
   headers?: { name: string; value: string }[];
-  body?: { data?: string; size?: number };
+  partId?: string;
+  body?: { data?: string; size?: number; attachmentId?: string };
   parts?: GmailPart[];
 }
 
@@ -272,6 +273,56 @@ export interface ThreadMessage {
   messageId: string | null;
   references: string | null;
   text: string;
+  /** Files attached to the message (not pictures placed in the text) */
+  attachments: GmailAttachment[];
+}
+
+export interface GmailAttachment {
+  /** Gmail's part id within the message, which stays the same between reads */
+  partId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+}
+
+/** The attached files in a message, leaving out pictures shown inside the text. */
+export function attachmentsOf(p: GmailPart | undefined): GmailAttachment[] {
+  const out: GmailAttachment[] = [];
+  const walk = (x: GmailPart | undefined) => {
+    if (!x) return;
+    const inline = x.headers?.some((h) => h.name.toLowerCase() === "content-disposition" && /^\s*inline/i.test(h.value) ) && (x.mimeType ?? "").startsWith("image/");
+    if (x.filename && (x.body?.attachmentId || x.body?.data) && !inline) {
+      out.push({ partId: x.partId ?? "", filename: x.filename, mimeType: x.mimeType ?? "application/octet-stream", size: x.body?.size ?? 0 });
+    }
+    for (const c of x.parts ?? []) walk(c);
+  };
+  walk(p);
+  return out;
+}
+
+function findPartById(p: GmailPart | undefined, partId: string): GmailPart | null {
+  if (!p) return null;
+  if ((p.partId ?? "") === partId && p.filename) return p;
+  for (const c of p.parts ?? []) {
+    const hit = findPartById(c, partId);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** One attached file's bytes, with its name, or null when the message or file is gone. Read only. */
+export async function readGmailAttachment(messageId: string, partId: string): Promise<{ filename: string; mimeType: string; bytes: Buffer; threadId: string } | null> {
+  const m = (await proxyJsonOrNull(CONNECTOR, NAME, `/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=full`)) as GmailMessage | null;
+  if (!m) return null;
+  const part = findPartById(m.payload, partId);
+  if (!part?.filename) return null;
+  let data = part.body?.data ?? null;
+  if (!data && part.body?.attachmentId) {
+    const a = await proxyJsonOrNull(CONNECTOR, NAME, `/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(part.body.attachmentId)}`);
+    data = typeof a?.data === "string" ? a.data : null;
+  }
+  if (!data) return null;
+  return { filename: part.filename, mimeType: part.mimeType ?? "application/octet-stream", bytes: Buffer.from(data.replace(/-/g, "+").replace(/_/g, "/"), "base64"), threadId: m.threadId };
 }
 
 export interface GmailThread {
@@ -316,6 +367,7 @@ export async function readGmailThread(threadId: string, maxChars = MAX_TEXT, kno
       messageId: header("message-id")?.trim() || null,
       references: header("references")?.trim() || null,
       text: trimText(stripQuoted(raw), maxChars),
+      attachments: attachmentsOf(m.payload),
     });
   }
   messages.sort((a, b) => a.at.getTime() - b.at.getTime());
@@ -378,4 +430,61 @@ export async function saveGmailDraft(threadId: string, draftId: string | null, d
   const created = await proxyWriteJson(CONNECTOR, NAME, "POST", "/gmail/v1/users/me/drafts", { message });
   if (!created || typeof created.id !== "string") throw new ConnectorError("Gmail did not save the draft. Try again in a moment.");
   return created.id;
+}
+
+// ---- "How you write": a sample of Ollie's own sent email. Read only. ----
+
+export interface SentSample {
+  at: Date;
+  subject: string | null;
+  /** How many people it went to */
+  recipients: number;
+  /** A reply in a thread, rather than a new email */
+  reply: boolean;
+  text: string;
+}
+
+/** Shortest sent email worth reading for how Ollie writes, in words */
+const STYLE_MIN_WORDS = 25;
+
+/**
+ * Up to `max` emails Ollie wrote himself in the last `days` days, newest first, with automatic,
+ * bulk, calendar and very short emails left out, and quoted earlier messages cut.
+ */
+export async function readSentSamples(max: number, days: number, chars: number): Promise<{ samples: SentSample[]; looked: number }> {
+  const account = await gmailAccount();
+  const ids: string[] = [];
+  let pageToken: string | undefined;
+  // Read more than needed, as some are left out.
+  for (let page = 0; page < 4 && ids.length < max * 2; page++) {
+    const p = new URLSearchParams({ q: `in:sent newer_than:${days}d -in:chats`, maxResults: "200" });
+    if (pageToken) p.set("pageToken", pageToken);
+    const body = await getJson("/gmail/v1/users/me/messages?" + p.toString());
+    ids.push(...((body.messages as { id: string }[] | undefined) ?? []).map((m) => m.id));
+    pageToken = typeof body.nextPageToken === "string" ? body.nextPageToken : undefined;
+    if (!pageToken) break;
+  }
+  const todo = [...new Set(ids)].slice(0, max * 2);
+  const messages = await inPool(todo, 5, (id) => proxyJsonOrNull(CONNECTOR, NAME, `/gmail/v1/users/me/messages/${id}?format=full`) as Promise<GmailMessage | null>);
+  const samples: SentSample[] = [];
+  for (const m of messages) {
+    if (!m || samples.length >= max) continue;
+    const labels = new Set(m.labelIds ?? []);
+    if (labels.has("DRAFT") || !labels.has("SENT")) continue;
+    const header = (name: string) => m.payload?.headers?.find((h) => h.name.toLowerCase() === name)?.value;
+    const subject = header("subject")?.trim() || null;
+    const auto = header("auto-submitted")?.toLowerCase() ?? "";
+    if ((auto && auto !== "no") || header("list-unsubscribe") || header("list-id")) continue;
+    if ((subject && INVITE.test(subject)) || hasPart(m.payload, "text/calendar")) continue;
+    if (subject && /^(fwd?|fw):/i.test(subject)) continue;
+    const recipients = [...parseAddresses(header("to")), ...parseAddresses(header("cc"))].filter((a) => a.email && a.email !== account);
+    if (!recipients.length || recipients.every((a) => AUTOMATED.test(a.email!))) continue;
+    const plain = findPart(m.payload, "text/plain");
+    const html = plain ? null : findPart(m.payload, "text/html");
+    const raw = plain?.body?.data ? decode(plain.body.data) : html?.body?.data ? htmlToText(decode(html.body.data)) : "";
+    const text = trimText(stripQuoted(raw), chars);
+    if (text.split(/\s+/).filter(Boolean).length < STYLE_MIN_WORDS) continue;
+    samples.push({ at: new Date(Number(m.internalDate ?? 0)), subject, recipients: recipients.length, reply: !!header("in-reply-to"), text });
+  }
+  return { samples, looked: todo.length };
 }

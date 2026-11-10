@@ -15,7 +15,8 @@ import { askScope } from "./ask/ask";
 import { draftEmailReplyFromDocs, type ReplyThreadMessage } from "./ask/model";
 import { ConnectorError } from "./connectors/http";
 import { gmailThreadIdOf, gmailThreadUrl, readGmailThread, saveGmailDraft, type Address, type GmailThread, type ThreadMessage } from "./connectors/gmail";
-import { ConflictError, NotFoundError, UpstreamError, loadTask } from "./tasks";
+import { ConflictError, NotFoundError, UpstreamError, ValidationError, loadTask } from "./tasks";
+import { writingStyleNote } from "./writingStyle";
 
 export interface ReplyDraftView {
   taskId: number;
@@ -28,6 +29,12 @@ export interface ReplyDraftView {
   gmailUrl: string | null;
   /** When a Gmail check saw an email sent in the thread after this draft */
   sentAt: Date | null;
+  /** Ollie's one-line brief, when the draft came from "Brief a reply" */
+  brief: string | null;
+  /** Writing in the background, ready to look at, or the background write failed */
+  state: "writing" | "ready" | "failed";
+  /** Why it could not be written */
+  error: string | null;
   updatedAt: Date;
 }
 
@@ -35,7 +42,11 @@ export interface ReplyDraftView {
 const THREAD_MESSAGES = 8;
 const MESSAGE_CHARS = 2500;
 
-export function view(r: ReplyDraftRow): ReplyDraftView {
+/** A background write that has not finished in this long stopped (OllieOS restarted, say). */
+export const WRITING_STALE_MS = 10 * 60_000;
+
+export function view(r: ReplyDraftRow, now = new Date()): ReplyDraftView {
+  const stale = r.state === "writing" && now.getTime() - r.updatedAt.getTime() > WRITING_STALE_MS;
   return {
     taskId: r.taskId,
     to: r.toLine,
@@ -46,8 +57,18 @@ export function view(r: ReplyDraftRow): ReplyDraftView {
     savedAt: r.savedAt,
     gmailUrl: r.threadId && r.gmailDraftId ? gmailThreadUrl(r.account, r.threadId) : null,
     sentAt: r.sentAt,
+    brief: r.brief,
+    state: stale ? "failed" : r.state,
+    error: stale ? "Writing the draft stopped part way. Try again." : r.error,
     updatedAt: r.updatedAt,
   };
+}
+
+async function assertVisibleToAi(task: TaskRow): Promise<void> {
+  const taskRef = toRef("task", task.id);
+  if (!(await visibleRefs(await askScope(), [taskRef])).has(taskRef)) {
+    throw new ConflictError("This email is hidden from AI, so OllieOS cannot draft a reply. Write it yourself, or allow AI on the task.");
+  }
 }
 
 export function loadEmailTask(t: TaskRow): void {
@@ -157,16 +178,13 @@ function when(d: Date): string {
 export async function writeReplyDraft(
   id: number,
   actor: string,
-  input: { instructions?: string; current?: string } = {},
+  input: { instructions?: string; current?: string; brief?: string } = {},
 ): Promise<ReplyDraftView> {
   const task = await loadTask(id);
   loadEmailTask(task);
 
   const scope = await askScope();
-  const taskRef = toRef("task", task.id);
-  if (!(await visibleRefs(scope, [taskRef])).has(taskRef)) {
-    throw new ConflictError("This email is hidden from AI, so OllieOS cannot draft a reply. Write it yourself, or allow AI on the task.");
-  }
+  await assertVisibleToAi(task);
 
   let thread: GmailThread | null = null;
   try {
@@ -211,13 +229,14 @@ export async function writeReplyDraft(
   const playbooks = await loadVisibleDocs(scope, await applicablePlaybookRefs(scope, refs));
   const docs = [...playbooks, ...items];
   await recordReads(scope, docs.map((d) => d.ref), { via: "reply_draft", task: task.id });
+  const style = await writingStyleNote();
 
   const greet = env.to[0]?.name ?? env.target?.from.name ?? task.fromName ?? null;
   let body: string;
   try {
     // Ollie wrote last and nobody answered (No reply yet): the draft is a follow-up, not a reply.
     const chase = messages.length > 0 && messages[messages.length - 1].fromOllie;
-    body = await draftEmailReplyFromDocs({ to: greet, task: task.title, thread: messages, docs, chase, instructions: input.instructions, current: input.current?.trim() || undefined });
+    body = await draftEmailReplyFromDocs({ to: greet, task: task.title, thread: messages, docs, chase, instructions: input.instructions, current: input.current?.trim() || undefined, style });
   } catch (err) {
     logger.error({ err }, "Reply draft failed");
     throw new UpstreamError("The reply could not be written just now. Try again in a moment.");
@@ -237,6 +256,9 @@ export async function writeReplyDraft(
     // A new draft is back on the Email page's Drafts list.
     sentAt: null,
     dismissedAt: null,
+    state: "ready" as const,
+    error: null,
+    ...(input.brief !== undefined ? { brief: input.brief } : {}),
   };
   // A rewrite keeps the Gmail draft id, so the next save replaces the same draft.
   const [row] = await db
@@ -273,4 +295,84 @@ export async function saveReplyDraftToGmail(
     .returning();
   await writeAudit(db, { actor, action: "reply_draft", entityType: "task", entityId: id, payload: { saved: true } });
   return view(saved);
+}
+
+/* ---------- Brief a reply: written in the background ---------- */
+
+const BRIEF_CHARS = 500;
+/** How many drafts are written at once */
+const WRITERS = 2;
+const waiting: { id: number; actor: string }[] = [];
+let writers = 0;
+const finished = new Set<() => void>();
+
+/** Resolves once no draft is being written in the background. For tests. */
+export function waitForBriefedDrafts(): Promise<void> {
+  if (!writers && !waiting.length) return Promise.resolve();
+  return new Promise((resolve) => finished.add(resolve));
+}
+
+/**
+ * "Brief a reply": keeps Ollie's one line, puts the email on Drafts as Writing, and writes the
+ * draft in the background. Once written it is saved to the Gmail thread as a draft, never sent.
+ */
+export async function briefReply(id: number, brief: string, actor: string): Promise<ReplyDraftView> {
+  const line = brief.trim().replace(/\s+/g, " ");
+  if (!line) throw new ValidationError("Say in a line what the reply should say");
+  if (line.length > BRIEF_CHARS) throw new ValidationError(`Keep the brief under ${BRIEF_CHARS} characters`);
+  const task = await loadTask(id);
+  loadEmailTask(task);
+  await assertVisibleToAi(task);
+  const [existing] = await db.select({ state: replyDraftsTable.state, updatedAt: replyDraftsTable.updatedAt }).from(replyDraftsTable).where(eq(replyDraftsTable.taskId, id));
+  if (existing?.state === "writing" && Date.now() - existing.updatedAt.getTime() <= WRITING_STALE_MS) {
+    throw new ConflictError("OllieOS is already writing this draft");
+  }
+  const values = { brief: line, state: "writing" as const, error: null, sentAt: null, dismissedAt: null };
+  const [row] = await db
+    .insert(replyDraftsTable)
+    .values({ taskId: id, body: "", ...values })
+    .onConflictDoUpdate({ target: replyDraftsTable.taskId, set: values })
+    .returning();
+  await writeAudit(db, { actor, action: "reply_draft", entityType: "task", entityId: id, payload: { briefed: true } });
+  waiting.push({ id, actor });
+  pump();
+  return view(row);
+}
+
+function pump() {
+  while (writers < WRITERS && waiting.length) {
+    const job = waiting.shift()!;
+    writers++;
+    void writeBriefed(job.id, job.actor).finally(() => {
+      writers--;
+      pump();
+      if (!writers && !waiting.length) {
+        for (const f of finished) f();
+        finished.clear();
+      }
+    });
+  }
+}
+
+async function writeBriefed(id: number, actor: string): Promise<void> {
+  try {
+    const [row] = await db.select().from(replyDraftsTable).where(eq(replyDraftsTable.taskId, id));
+    if (!row || row.state !== "writing") return;
+    const d = await writeReplyDraft(id, actor, { instructions: row.brief ?? undefined, brief: row.brief ?? undefined });
+    if (d.canSaveToGmail) {
+      try {
+        await saveReplyDraftToGmail(id, { to: d.to, cc: d.cc, subject: d.subject, body: d.body }, actor);
+      } catch (err) {
+        // The draft is still on Drafts, ready to look at; Save to Gmail can be tried by hand.
+        logger.warn({ err, task: id }, "A briefed draft could not be saved to Gmail");
+      }
+    }
+  } catch (err) {
+    const message =
+      err instanceof UpstreamError || err instanceof ConflictError || err instanceof NotFoundError || err instanceof ValidationError
+        ? err.message
+        : "The draft could not be written just now. Try again in a moment.";
+    if (!(err instanceof UpstreamError || err instanceof ConflictError)) logger.error({ err, task: id }, "Briefed draft failed");
+    await db.update(replyDraftsTable).set({ state: "failed", error: message }).where(eq(replyDraftsTable.taskId, id));
+  }
 }

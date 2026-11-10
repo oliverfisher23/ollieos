@@ -14,4 +14,6 @@ export interface ReviewList {
   actions: number;
   /** Pending unanswered emails */
   noReply: number;
+  /** Unanswered emails whose expected day has come */
+  noReplyDue: number;
 }

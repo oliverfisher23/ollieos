@@ -43,7 +43,7 @@ export const documentContentsTable = pgTable(
     /** The Drive file id or Dropbox path the text came from; null for text kept in OllieOS */
     fileId: text("file_id"),
     /** Where the text came from */
-    origin: text("origin", { enum: ["gdrive", "dropbox", "pasted", "upload", "claude"] }).notNull().default("gdrive"),
+    origin: text("origin", { enum: ["gdrive", "dropbox", "pasted", "upload", "claude", "email"] }).notNull().default("gdrive"),
     /** For uploads and Claude: the file name or kind Ollie or Claude gave */
     originName: text("origin_name"),
     text: text("text").notNull(),

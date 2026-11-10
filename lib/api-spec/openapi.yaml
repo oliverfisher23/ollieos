@@ -820,6 +820,190 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /tasks/{id}/reply-draft/brief:
+    post:
+      operationId: briefReplyDraft
+      tags: [email]
+      summary: "Brief a reply: keeps a one-line brief, puts the email on Drafts as Writing, and writes the draft in the background. Once written it is saved to Gmail as a draft. Never sent."
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplyBriefInput"
+      responses:
+        "202":
+          description: The draft, being written
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReplyDraft"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Not an email task, hidden from AI, or already being written
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/thread/summary:
+    get:
+      operationId: getTaskThreadSummary
+      tags: [email]
+      summary: A few lines on a long email thread (4 or more messages), kept until a new message arrives
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: The summary, or why there is none
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThreadSummary"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Not an email task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: Gmail or the summary could not be reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/thread/attachments:
+    post:
+      operationId: saveEmailAttachment
+      tags: [email]
+      summary: Saves a PDF, Word or text attachment under 10 MB to the Library and queues it to be read for knowledge
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailAttachmentInput"
+      responses:
+        "201":
+          description: The Library document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LibraryDocument"
+        "400":
+          description: Not a readable file, or too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: The attachment is gone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Already in the Library, or not an email task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: Gmail could not be reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /email/style:
+    get:
+      operationId: getWritingStyle
+      tags: [email]
+      summary: "How you write: the note every draft follows"
+      responses:
+        "200":
+          description: The note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WritingStyle"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+    put:
+      operationId: saveWritingStyle
+      tags: [email]
+      summary: Saves Ollie's edits to the note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WritingStyleInput"
+      responses:
+        "200":
+          description: The note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WritingStyle"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /email/style/read:
+    post:
+      operationId: readWritingStyle
+      tags: [email]
+      summary: Reads up to 200 emails sent in the last 6 months, in the background, and writes the note again
+      responses:
+        "202":
+          description: Reading
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WritingStyle"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "409":
+          description: Already reading
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /tasks/{id}/thread:
     get:
       operationId: getTaskThread
@@ -2834,6 +3018,28 @@ paths:
               schema: { $ref: "#/components/schemas/ReviewList" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /review/{id}/expected-by:
+    put:
+      operationId: setReviewExpectedBy
+      tags: [tasks]
+      summary: "Change date on an email waiting for a reply: the day it turns due"
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExpectedByInput" }
+      responses:
+        "200":
+          description: The item
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReviewItem" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /review/no-reply:
     get:
       operationId: getNoReplyScan
@@ -4167,9 +4373,55 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/EmailThreadMessage"
+    ReplyBriefInput:
+      type: object
+      additionalProperties: false
+      required: [brief]
+      properties:
+        brief: { type: string, minLength: 1, maxLength: 500, description: What the reply should say, in a line }
+    EmailAttachmentInput:
+      type: object
+      additionalProperties: false
+      required: [messageId, partId]
+      properties:
+        messageId: { type: string, minLength: 1, maxLength: 200 }
+        partId: { type: string, maxLength: 50 }
+    EmailAttachment:
+      type: object
+      required: [partId, filename, size, canSave, documentId]
+      properties:
+        partId: { type: string }
+        filename: { type: string }
+        size: { type: integer, description: Bytes }
+        canSave: { type: boolean, description: "A PDF, Word or text file under 10 MB" }
+        documentId: { type: [integer, "null"], description: The Library document it was saved as }
+    ThreadSummary:
+      type: object
+      required: [summary, messages, why, at]
+      properties:
+        summary: { type: [string, "null"] }
+        messages: { type: integer }
+        why: { type: [string, "null"], enum: [short, hidden, not_in_gmail, null], description: Why there is no summary }
+        at: { type: [string, "null"], format: date-time }
+    WritingStyle:
+      type: object
+      required: [note, readAt, emails, editedAt, status, error]
+      properties:
+        note: { type: [string, "null"] }
+        readAt: { type: [string, "null"], format: date-time, description: When it was last made from sent email }
+        emails: { type: integer, description: How many emails it was made from }
+        editedAt: { type: [string, "null"], format: date-time }
+        status: { type: string, enum: [idle, reading, ready, failed] }
+        error: { type: [string, "null"] }
+    WritingStyleInput:
+      type: object
+      additionalProperties: false
+      required: [note]
+      properties:
+        note: { type: string, maxLength: 4000 }
     EmailThreadMessage:
       type: object
-      required: [id, fromName, fromEmail, to, cc, at, text, fromOllie]
+      required: [id, fromName, fromEmail, to, cc, at, text, fromOllie, attachments]
       properties:
         id: { type: string }
         fromName: { type: [string, "null"] }
@@ -4179,6 +4431,7 @@ components:
         at: { type: string, format: date-time }
         text: { type: string }
         fromOllie: { type: boolean }
+        attachments: { type: array, items: { $ref: "#/components/schemas/EmailAttachment" } }
     EmailDraftList:
       type: object
       required: [items]
@@ -4210,7 +4463,7 @@ components:
           description: A follow-up to an email nobody answered, rather than a reply
     ReplyDraft:
       type: object
-      required: [taskId, to, cc, subject, body, canSaveToGmail, savedAt, gmailUrl, sentAt, updatedAt]
+      required: [taskId, to, cc, subject, body, canSaveToGmail, savedAt, gmailUrl, sentAt, brief, state, error, updatedAt]
       properties:
         taskId: { type: integer }
         to: { type: string, description: Comma-separated addresses }
@@ -4231,6 +4484,9 @@ components:
           type: [string, "null"]
           format: date-time
           description: When a Gmail check saw an email sent in the thread after this draft
+        brief: { type: [string, "null"], description: "Ollie's one-line brief, from Brief a reply" }
+        state: { type: string, enum: [writing, ready, failed] }
+        error: { type: [string, "null"], description: Why it could not be written }
         updatedAt:
           type: string
           format: date-time
@@ -4456,7 +4712,7 @@ components:
 
     ReviewItem:
       type: object
-      required: [id, kind, state, text, action, quote, meetingTitle, meetingAt, sourceUrl, email, reason, suggestedType, owner, person, project, dueDate, priority, confidential, taskId, createdAt, decidedAt]
+      required: [id, kind, state, text, action, quote, meetingTitle, meetingAt, sourceUrl, email, reason, expectedBy, due, suggestedType, owner, person, project, dueDate, priority, confidential, taskId, createdAt, decidedAt]
       properties:
         id: { type: integer }
         kind: { type: string, enum: [action, no_reply], description: "action: from a Granola look back; no_reply: an email Ollie sent that nobody answered" }
@@ -4469,6 +4725,8 @@ components:
         sourceUrl: { type: [string, "null"] }
         email: { type: [string, "null"], description: "Unanswered email: the address of the person who should answer" }
         reason: { type: [string, "null"], description: "Unanswered email: why Ollie expected an answer" }
+        expectedBy: { type: [string, "null"], format: date, description: "Unanswered email: the day a reply is expected by" }
+        due: { type: boolean, description: "Unanswered email: the expected day has come" }
         suggestedType: { type: string, enum: [task, promise, waiting] }
         owner: { type: string, description: "Who owns it: You, or the other person's name" }
         person:
@@ -4486,14 +4744,22 @@ components:
         createdAt: { type: string, format: date-time }
         decidedAt: { type: [string, "null"], format: date-time }
 
+    ExpectedByInput:
+      type: object
+      additionalProperties: false
+      required: [date]
+      properties:
+        date: { type: string, format: date }
+
     ReviewList:
       type: object
-      required: [items, pending, actions, noReply]
+      required: [items, pending, actions, noReply, noReplyDue]
       properties:
         items: { type: array, items: { $ref: "#/components/schemas/ReviewItem" } }
         pending: { type: integer }
         actions: { type: integer, description: Pending actions from a look back }
         noReply: { type: integer, description: Pending unanswered emails }
+        noReplyDue: { type: integer, description: Unanswered emails whose expected day has come }
 
     NoReplyCounts:
       type: object
@@ -5736,7 +6002,7 @@ components:
         projects: { type: array, items: { $ref: "#/components/schemas/NamedLink" } }
         hiddenFromAi: { type: boolean }
         contentsReadAt: { type: [string, "null"], format: date-time, description: When OllieOS last read or was given the text }
-        textOrigin: { type: [string, "null"], enum: [gdrive, dropbox, pasted, upload, claude, null], description: Where the kept text came from }
+        textOrigin: { type: [string, "null"], enum: [gdrive, dropbox, pasted, upload, claude, email, null], description: Where the kept text came from }
         knowledge:
           oneOf:
             - { $ref: "#/components/schemas/DocumentKnowledge" }

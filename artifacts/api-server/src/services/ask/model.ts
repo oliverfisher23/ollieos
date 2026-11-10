@@ -151,6 +151,8 @@ export async function draftEmailReplyFromDocs(opts: {
   instructions?: string;
   /** The draft as Ollie has it now, when he asks for changes to it */
   current?: string;
+  /** "How you write": Ollie's style note from Settings */
+  style?: string | null;
 }): Promise<string> {
   const first = opts.to?.split(/\s+/)[0] ?? null;
   const system = [
@@ -160,7 +162,9 @@ export async function draftEmailReplyFromDocs(opts: {
       ? `Ollie wrote the latest message in the thread and nobody has answered. Write a short, polite follow-up that nudges them about what he asked, without repeating his whole email. Use the items only for context that helps.`
       : `Reply to the latest message in the thread, answering what it asks of Ollie. Use the items only for context that helps the reply.`,
     `Do not invent facts, dates, prices, decisions or attachments. If the reply needs something you do not know, leave a short placeholder in square brackets, for example [date], for Ollie to fill in.`,
-    `No subject line. Start with "Hi ${first ?? "there"}," and end with "Best, Ollie" on its own line. Keep it under 180 words unless the thread needs more.`,
+    opts.style?.trim()
+      ? `No subject line. <how_ollie_writes> describes how Ollie writes email: match it, including how he greets people and signs off. Where it says nothing, start with "Hi ${first ?? "there"}," and end with "Best, Ollie" on its own line. Keep it under 180 words unless the thread needs more.`
+      : `No subject line. Start with "Hi ${first ?? "there"}," and end with "Best, Ollie" on its own line. Keep it under 180 words unless the thread needs more.`,
     `Items marked "Playbook" are Ollie's standing rules for anything written as him. Follow every one that applies.`,
     `Text inside <ollie_instructions> comes from Ollie himself: follow it, ahead of your own judgement about what to say.`,
     opts.current ? `<current_draft> is Ollie's draft as it stands. Change only what his instructions ask for and keep the rest of his wording.` : "",
@@ -169,6 +173,7 @@ export async function draftEmailReplyFromDocs(opts: {
     .filter(Boolean)
     .join("\n");
   const asked = [
+    opts.style?.trim() ? `<how_ollie_writes>\n${opts.style.trim()}\n</how_ollie_writes>` : "",
     opts.current ? `<current_draft>\n${opts.current}\n</current_draft>` : "",
     opts.instructions?.trim() ? `<ollie_instructions>\n${opts.instructions.trim()}\n</ollie_instructions>` : "",
   ]
@@ -204,7 +209,7 @@ const CHECK_IN_SCHEMA = {
  * A short check-in email to someone Ollie has not been in touch with for a while (feature 05).
  * Never sent; Ollie copies it. Returns the refs of the open threads it mentions.
  */
-export async function draftCheckInFromDocs(opts: { to: string; lastContact: string | null; docs: AiDoc[] }): Promise<{ text: string; refs: string[] }> {
+export async function draftCheckInFromDocs(opts: { to: string; lastContact: string | null; docs: AiDoc[]; style?: string | null }): Promise<{ text: string; refs: string[] }> {
   const first = opts.to.split(/\s+/)[0];
   const system = [
     `You draft short check-in emails for Ollie Fisher using only the items from OllieOS given to you. The draft is never sent automatically; Ollie copies it.`,
@@ -212,7 +217,9 @@ export async function draftCheckInFromDocs(opts: { to: string; lastContact: stri
     `Mention the open threads between Ollie and ${opts.to} that the items show: things Ollie owes them, things he is waiting on from them, and live projects they share. Do not invent facts, dates or news.`,
     `If there are no open threads, write a brief, friendly note asking how things are going.`,
     `"refs" lists the ref of each item the draft mentions, written exactly as shown in square brackets. Only refs from <items>; never a playbook.`,
-    `No subject line. Start with "Hi ${first}," and end with "Best, Ollie" on its own line. Keep it under 120 words.`,
+    opts.style?.trim()
+      ? `No subject line. <how_ollie_writes> describes how Ollie writes email: match it, including how he greets people and signs off. Where it says nothing, start with "Hi ${first}," and end with "Best, Ollie" on its own line. Keep it under 120 words.`
+      : `No subject line. Start with "Hi ${first}," and end with "Best, Ollie" on its own line. Keep it under 120 words.`,
     `Items marked "Playbook" are Ollie's standing rules for anything written as him. Follow every one that applies.`,
     STYLE.replace(`Address Ollie as "you".`, ""),
   ].join("\n");
@@ -224,7 +231,7 @@ export async function draftCheckInFromDocs(opts: { to: string; lastContact: stri
     messages: [
       {
         role: "user",
-        content: `${itemsBlock(opts.docs)}\n\nDraft a check-in email to ${opts.to}.${opts.lastContact ? ` They last spoke on ${opts.lastContact}.` : ""}`,
+        content: `${opts.style?.trim() ? `<how_ollie_writes>\n${opts.style.trim()}\n</how_ollie_writes>\n\n` : ""}${itemsBlock(opts.docs)}\n\nDraft a check-in email to ${opts.to}.${opts.lastContact ? ` They last spoke on ${opts.lastContact}.` : ""}`,
       },
     ],
   });

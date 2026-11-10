@@ -13,6 +13,7 @@ import { askScope } from "./ask/ask";
 import { draftCheckInFromDocs } from "./ask/model";
 import { projectsForPeople } from "./cadence";
 import { ConflictError, NotFoundError, UpstreamError } from "./tasks";
+import { writingStyleNote } from "./writingStyle";
 
 export interface CheckInThread {
   ref: string;
@@ -62,6 +63,7 @@ export async function checkInDraft(slug: string): Promise<CheckInDraft> {
       to: person.name,
       lastContact: person.lastContactAt ? formatLong(person.lastContactAt, { withYear: true }) : null,
       docs,
+      style: await writingStyleNote(),
     });
   } catch (err) {
     logger.error({ err }, "Check-in draft failed");

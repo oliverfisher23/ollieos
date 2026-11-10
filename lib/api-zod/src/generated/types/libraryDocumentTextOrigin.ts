@@ -19,4 +19,5 @@ export const LibraryDocumentTextOrigin = {
   pasted: 'pasted',
   upload: 'upload',
   claude: 'claude',
+  email: 'email',
 } as const;

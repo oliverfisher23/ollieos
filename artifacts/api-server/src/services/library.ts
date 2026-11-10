@@ -158,7 +158,7 @@ export function parseLink(raw: string): URL {
   return url;
 }
 
-export type TextOrigin = "gdrive" | "dropbox" | "pasted" | "upload" | "claude";
+export type TextOrigin = "gdrive" | "dropbox" | "pasted" | "upload" | "claude" | "email";
 
 export interface KnowledgeView {
   status: "idle" | "queued" | "reading" | "failed";

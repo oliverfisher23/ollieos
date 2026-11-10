@@ -50,7 +50,7 @@ export default function ReviewPage() {
   const [, navigate] = useLocation();
   const movedToEmail = new URLSearchParams(search).get('tab') === 'no-reply';
   useEffect(() => {
-    if (movedToEmail) navigate('/email?tab=no-reply', { replace: true });
+    if (movedToEmail) navigate('/email?tab=waiting', { replace: true });
   }, [movedToEmail, navigate]);
 
   return (
@@ -60,7 +60,7 @@ export default function ReviewPage() {
           <h1 className="oo-h1">Review</h1>
           <p className="oo-muted" style={{ margin: 0, fontSize: 14, maxWidth: '64ch', lineHeight: 1.5 }}>
             Actions from your older Granola notes, kept out of your Inbox so they do not flood it. Emails nobody answered are on{' '}
-            <Link href="/email?tab=no-reply" className="oo-link">Email</Link>.
+            <Link href="/email?tab=waiting" className="oo-link">Email</Link>.
           </p>
         </div>
         <span className="oo-serif" style={{ fontSize: 22 }} data-testid="text-review-count">{q.data ? `${q.data.actions} to review` : '…'}</span>
