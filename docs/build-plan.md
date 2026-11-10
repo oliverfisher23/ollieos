@@ -572,6 +572,7 @@ Dates and times always go through `lib/shared/dates.ts`: long form "Friday 13th 
 | 6 | **Trust:** Knowledge Inbox, stale and conflicting facts (features 01, 02) | Feature 01 criteria 1 to 5, feature 02 criteria 1 to 5 |
 | 7 | **Direction:** goals, relationship cadence, document index, playbooks (features 04 to 07) | Feature 04 to 07 criteria |
 | 8 | **Preparation:** meeting briefs, daily digest (features 03, 08) | Feature 03 and 08 criteria |
+| 8 follow-on | **Connectors** (section 12), then **Assist** parts A to F (section 13), each signed off on its own | Section 12 and 13 checks |
 | 9 | Original milestone 6 (phone Home and Triage, swipe, home screen install, CSV export, imports, `APP_GUIDE.md`) plus voice capture (feature 09) | Criterion 8 on phone, feature 09 criteria, full acceptance run of PRD and all feature PRDs |
 
 At each sign-off I will list every relevant criterion as met or not met, with how it was checked.
@@ -913,3 +914,62 @@ Goal: OllieOS reads Ollie's services itself and stops relying on the Claude swee
 - **Page:** Settings → Connectors, first in the list. `/settings/ai-access` and `/settings/sweep` redirect there.
 - **Publishing:** deployment must be a Reserved VM so the timer keeps running; connections must also be set for the published app in Publishing settings.
 
+
+---
+
+## 13. Assist (milestone 8 follow-on, agreed 10th November 2026)
+
+Goal: OllieOS does more of the work around email, meetings and knowledge, and keeps a full record of Claude Cowork sessions. Comes before milestone 9. Each part is its own sign-off, in this order.
+
+| Part | Features | Size |
+|---|---|---|
+| A | Dropped status; "Probably noise" in the Inbox; Draft reply saved as a Gmail draft | Medium |
+| B | Meetings page in the navigation with all research and prep | Small to medium |
+| C | Look back at Granola: decisions over 6 months, actions over the last month | Medium to large |
+| D | No reply yet: sent emails from the last 6 months that got no answer | Medium |
+| E | Build knowledge from Google documents, pasted text, uploads and Claude artifacts | Medium |
+| F | Cowork sessions library and knowledge taken from it | Medium |
+
+### Part A: Dropped, noise and email drafts
+
+- **Dropped status.** New `dropped` task status: "this was real, but I've decided not to do it". Differs from Noise, which means it should never have come in and teaches rules. Dropped tab on Tasks, a Dropped button and the D key in triage and on Inbox rows, in the status dropdowns, with Undo and Restore. Left out of counts, Do next, Waiting on, the digest and stale checks. MCP and Ask treat it as closed (AI can set it through `update_task`).
+- **Probably noise.** When the sorter is unsure, it marks an email or Slack item as likely noise with a short reason, rather than leaving it as a normal Inbox item. The Inbox shows these as a separate group, each with the reason. Ollie can move them all to Noise in one go, keep one, or make a rule from one.
+- **Draft reply.** Email tasks get "Draft reply". It reads the whole Gmail thread, what OllieOS knows about the people and organisation, open promises, and playbooks. It writes a draft (Ask's model) that Ollie can edit, then "Save to Gmail" makes a draft in that thread (Gmail `drafts.create` with the thread id; the connection already has compose permission). OllieOS never sends. The draft opens in Gmail from a link. Writes go into the AI read log as usual; confidential items are held back the same way as Ask.
+- **Checked by:** dropping and restoring a task by button, key and dropdown; counts and Do next leave it out; Claude sees it as closed; a known newsletter lands in Probably noise with a reason and "Move all to Noise" clears the group; a draft appears in the right Gmail thread and nothing is sent.
+
+### Part B: Meetings page
+
+- **Meetings** in the icon rail (desktop) between Tasks and People, at `/meetings`. On a phone it is reached from Home's Today strip and a link on the Tasks page, since the bottom bar is full.
+- List of work meetings for today, tomorrow and the rest of the week, each showing who is coming and how ready it is (brief written, open promises, items waiting on them). Past meetings for the last 2 weeks underneath, with their Granola notes.
+- Each meeting opens its prep page (the current brief, extended): why it matters, who is in the room with their facts and cadence, the last Granola notes with the same people, recent email and Slack threads with them, open tasks and promises both ways, documents, playbook watch-outs, a suggested agenda and questions, and the notes-for-after box.
+- **Checked by:** Meetings visible in the navigation on every page; every work meeting this week listed with its prep; a meeting with a past Granola note shows it; phone layout at 375px.
+
+### Part C: Look back at Granola
+
+- A one-off **Look back** run, started from Settings → Connectors → Granola, choosing the range (defaults: decisions 6 months, actions 1 month). It runs in the background in batches with a progress bar and can be stopped and resumed. It reads only meetings Ollie was in.
+- **Decisions** go to the Knowledge Inbox as suggestions, marked "From look back" with a filter, where Ollie approves or rejects them as today. Ones OllieOS already has are left out.
+- **Actions** go to a new **Review** page, not the Inbox, so 4 weeks of actions do not flood it. Each one shows the meeting, date, who owns it and the line it came from. Buttons: Now, Backlog, Waiting on (with the person), Already done, Dropped. Bulk select for each. Actions that already match a task are left out.
+- **Data:** `review_items` (kind, source ref, meeting, text, owner, suggested project and person, state pending, accepted, done or dropped, the task it became). The dedupe uses source refs and a close-title check against open tasks.
+- **Checked by:** a look back over a real month finds the meetings, puts decisions in the Knowledge Inbox with no duplicates, actions on Review; each button does what it says; running it again adds nothing new.
+
+### Part D: No reply yet
+
+- Reads Gmail sent mail for the last 6 months: threads where Ollie wrote last and nobody has answered since. Leaves out automated and bulk mail, replies to newsletters, and threads he closed himself ("thanks", "no need to reply"). AI then checks each one for whether he asked for something or expected an answer, and why.
+- Shows on the Review page under a **No reply yet** tab, newest first, grouped by person, with the ask in one line. Buttons: **Chase** (makes a Waiting on task with the person, with the chase line, and optionally a Gmail draft in the thread from Part A), **Already handled**, **Dropped**.
+- Refreshed on each Gmail check after the first run, so new unanswered emails older than 3 working days appear without another full run.
+- **Checked by:** a known unanswered email appears with the right ask; one that was answered does not; Chase makes a Waiting on task and an optional draft; Dropped and Already handled keep it off the list.
+
+### Part E: Knowledge from documents
+
+- **Build knowledge from this** on any Library document, and from a pasted Google Doc link or Drive folder. OllieOS reads the text (Drive already can) and proposes facts, decisions, people, organisations and project links into the Knowledge Inbox, each citing the document.
+- **Add to the Library** also takes pasted text and uploaded Markdown, Word and PDF files, stored with the document.
+- **Claude artifacts:** they cannot be fetched from claude.ai, so Claude gets a new MCP tool `save_document` (title, content, kind, optional project). From any Claude chat or Cowork session: "save this to OllieOS". It lands in the Library as a document marked "From Claude" and goes through the same knowledge step. Approval-only like other AI proposals.
+- **Checked by:** a Drive document and a pasted artifact each produce suggestions that cite them; approving writes facts; a folder adds each of its documents once.
+
+### Part F: Cowork sessions library
+
+- **Sessions page** under Knowledge (`/knowledge/sessions`): every Cowork session with its date, title, summary, what was done, decisions, tasks created, documents produced and the projects and people it touched. Searchable, and part of Ask and search.
+- **Going forward:** new MCP tool `save_session` (title, summary, transcript or key parts, outcomes, artifacts). The OllieOS server instructions and a ready-made block for Cowork's instructions tell Claude to call `get_context` at the start of a session and `save_session` at the end. Artifacts in it go through Part E.
+- **Knowledge:** each saved session is read for facts, decisions, people and project updates, which go to the Knowledge Inbox citing the session; tasks and promises go to the Inbox. Kept relevant: facts from sessions use the existing stale and conflicting fact checks, and a session older than 90 days with nothing linked to it is marked archived (kept, but left out of briefs).
+- **Earlier sessions:** imported from Claude's data export file (Settings → Privacy → Export data), uploaded in Settings. Whether Cowork sessions are in that export needs checking with a real export before this part starts; if they are not, only sessions from now on can be kept.
+- **Checked by:** a Cowork session ends with `save_session` and shows on Sessions with its outcomes; its decisions reach the Knowledge Inbox; Ask can answer from it; an uploaded export adds past sessions once.
