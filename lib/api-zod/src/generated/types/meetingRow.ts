@@ -7,6 +7,7 @@
  */
 import type { MeetingRowAttendeesItem } from './meetingRowAttendeesItem';
 import type { MeetingRowPrep } from './meetingRowPrep';
+import type { MeetingScope } from './meetingScope';
 
 export interface MeetingRow {
   id: number;
@@ -20,6 +21,8 @@ export interface MeetingRow {
   /** @nullable */
   location: string | null;
   attendees: MeetingRowAttendeesItem[];
+  scope: MeetingScope;
+  companies: string[];
   /** none means nobody or nothing OllieOS knows is on it, so there is no prep page */
   prep: MeetingRowPrep;
   /** Open promises to people on the meeting */

@@ -11,4 +11,6 @@ export interface KnowledgeInboxCounts {
   conflicts: number;
   stale: number;
   total: number;
+  /** Pending suggestions from a Granola look back (Knowledge Inbox only) */
+  lookBack?: number;
 }

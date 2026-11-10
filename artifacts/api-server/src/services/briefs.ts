@@ -34,6 +34,8 @@ import { describeRefs, grantDirect } from "./access";
 import { askScope } from "./ask/ask";
 import { writeBriefFromDocs } from "./ask/model";
 import { projectsForPeople, stateFor } from "./cadence";
+import { loadScopeContext, scopeOf, type MeetingScope, type ScopeContext } from "./meetingScope";
+import { researchViews, type ResearchView } from "./research";
 import { ConflictError, NotFoundError } from "./tasks";
 
 export const BRIEF_MAX_AGE_MS = 3 * 60 * 60 * 1000;
@@ -50,15 +52,17 @@ export interface Matchers {
   projects: { id: number; name: string; re: RegExp }[];
   orgs: { id: number; name: string; re: RegExp }[];
   selfEmail: string | null;
+  scope: ScopeContext;
 }
 
 export async function loadMatchers(): Promise<Matchers> {
-  const [people, projects, orgs] = await Promise.all([
+  const [people, projects, orgs, scope] = await Promise.all([
     db
       .select({ id: peopleTable.id, name: peopleTable.name, email: peopleTable.email, organisationId: peopleTable.organisationId, isSelf: peopleTable.isSelf })
       .from(peopleTable),
     db.select({ id: projectsTable.id, name: projectsTable.name }).from(projectsTable).where(eq(projectsTable.archived, false)),
     db.select({ id: organisationsTable.id, name: organisationsTable.name }).from(organisationsTable),
+    loadScopeContext(),
   ]);
   const usable = (n: string) => n.trim().length >= 3;
   return {
@@ -66,6 +70,7 @@ export async function loadMatchers(): Promise<Matchers> {
     projects: projects.filter((p) => usable(p.name)).map((p) => ({ ...p, re: wholeWord(p.name) })),
     orgs: orgs.filter((o) => usable(o.name)).map((o) => ({ ...o, re: wholeWord(o.name) })),
     selfEmail: process.env.ALLOWED_EMAIL?.trim().toLowerCase() || null,
+    scope,
   };
 }
 
@@ -78,6 +83,12 @@ export interface EventMatch {
   personIds: number[];
   projectIds: number[];
   orgIds: number[];
+  /** External when anyone on it is from outside Ollie's company */
+  scope: MeetingScope;
+  /** The outside companies on an external meeting: organisation names, else email domains */
+  companies: string[];
+  /** The email domains of the outside companies, for research */
+  domains: string[];
 }
 
 /**
@@ -120,12 +131,12 @@ export function matchEvent(e: CalendarEvent, m: Matchers): EventMatch {
       ...personIds.map((id) => byId.get(id)?.organisationId).filter((x): x is number => x != null),
     ]),
   ];
-  return { attendees, personIds, projectIds, orgIds };
+  return { attendees, personIds, projectIds, orgIds, ...scopeOf(attendees, m.scope) };
 }
 
-/** Feature 03 rule 1: not personal, and a known attendee or organisation, or a project. */
+/** Feature 03 rule 1: not personal, and a known attendee or organisation, or a project, or someone from an outside company. */
 export function eligible(e: CalendarEvent, match: EventMatch): boolean {
-  return !e.personal && (match.personIds.length > 0 || match.orgIds.length > 0 || match.projectIds.length > 0);
+  return !e.personal && (match.personIds.length > 0 || match.orgIds.length > 0 || match.projectIds.length > 0 || match.companies.length > 0);
 }
 
 /** Which of these events get a brief. */
@@ -451,7 +462,9 @@ export interface BriefSource {
 }
 
 export interface BriefView {
-  event: { id: number; title: string; startsAt: Date; endsAt: Date; location: string | null; platform: string | null };
+  event: { id: number; title: string; startsAt: Date; endsAt: Date; location: string | null; platform: string | null; scope: MeetingScope; companies: string[] };
+  /** What the research agent found about each outside company on the meeting */
+  research: ResearchView[];
   generatedAt: Date;
   failed: boolean;
   notMuch: boolean;
@@ -646,7 +659,17 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
   const order = (ids: number[]) => (a: { id: number }, b: { id: number }) => ids.indexOf(a.id) - ids.indexOf(b.id);
 
   return {
-    event: { id: event.id, title: event.title, startsAt: event.startsAt, endsAt: event.endsAt, location: event.location, platform: event.platform },
+    event: {
+      id: event.id,
+      title: event.title,
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
+      location: event.location,
+      platform: event.platform,
+      scope: inputs.match.scope,
+      companies: inputs.match.companies,
+    },
+    research: await researchViews(inputs.match.domains),
     generatedAt: brief.generatedAt,
     failed: brief.failed,
     notMuch: !brief.why && !brief.failed,

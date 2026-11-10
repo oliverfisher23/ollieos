@@ -29,6 +29,9 @@ export type FactAttribute = (typeof FACT_ATTRIBUTES)[number];
 export const SUGGESTION_SOURCES = ["email", "meeting", "chat", "recording", "voice", "calendar", "slack", "document"] as const;
 export type SuggestionKind = Suggestion["kind"];
 
+/** Who proposes what a Granola look back finds, so the Knowledge Inbox can mark and filter them. */
+export const LOOK_BACK_PROPOSER = "Granola look back";
+
 /** How long a rejected suggestion blocks the same one coming back. */
 export const REJECTED_MEMORY_DAYS = 30;
 
@@ -47,6 +50,8 @@ export interface DecisionPayload {
   decided_by?: string | null;
   source?: string | null;
   confidential?: boolean | null;
+  /** What the decision is about when no project matched, so Ollie can file it under a project on approval */
+  project_hint?: string | null;
 }
 export interface PersonPayload {
   name: string;
@@ -103,7 +108,8 @@ export interface SummaryChangePayload {
 
 export type Proposal =
   | { kind: "fact"; entityType: EntityKind; entityId: number; payload: FactPayload }
-  | { kind: "decision"; entityType: "project"; entityId: number; payload: DecisionPayload }
+  /** A decision with no project can be filed under one when Ollie approves it, or stand on its own. */
+  | { kind: "decision"; entityType: "project" | null; entityId: number | null; payload: DecisionPayload }
   | { kind: "person"; payload: PersonPayload }
   | { kind: "organisation"; payload: OrganisationPayload }
   | { kind: "project"; payload: ProjectPayload }
@@ -398,11 +404,13 @@ export async function applySuggestion(
     }
     case "decision": {
       const p = payload as unknown as DecisionPayload;
-      await resolveEntity("project", s.entityId!, tx);
+      // A decision proposed without a project, and approved without one, stands on its own.
+      const projectId = s.entityId ?? null;
+      if (projectId != null) await resolveEntity("project", projectId, tx);
       const [created] = await tx
         .insert(decisionsTable)
         .values({
-          projectId: s.entityId!,
+          projectId,
           text: p.text,
           decidedAt: p.decided_at,
           decidedBy: str(p.decided_by),
@@ -413,8 +421,8 @@ export async function applySuggestion(
           suggestionId: s.id,
         })
         .returning();
-      await touch(tx, "project", s.entityId!);
-      await audit("create", "decision", created.id, { projectId: s.entityId });
+      if (projectId != null) await touch(tx, "project", projectId);
+      await audit("create", "decision", created.id, { projectId });
       return { type: "decision", id: created.id };
     }
     case "person": {
@@ -523,10 +531,40 @@ export async function applySuggestion(
   }
 }
 
-export async function approveSuggestion(id: number, edits?: Record<string, string>, now = new Date()) {
+/** For a decision proposed without a project: a project Ollie chose, a new one he named, or none. */
+export interface ApproveProject {
+  projectId?: number;
+  newProjectName?: string;
+}
+
+async function projectForDecision(tx: DbOrTx, choice: ApproveProject | undefined): Promise<number | null> {
+  const name = cleanText(choice?.newProjectName);
+  if (name) {
+    const slug = await uniqueSlug(tx, "project", name);
+    const [row] = await tx.insert(projectsTable).values({ name, slug }).returning({ id: projectsTable.id });
+    await writeAudit(tx, { actor: ACTOR, action: "create", entityType: "project", entityId: row.id, payload: { name, via: "decision_approval" } });
+    return row.id;
+  }
+  if (choice?.projectId == null) return null;
+  const [p] = await tx.select({ id: projectsTable.id, archived: projectsTable.archived }).from(projectsTable).where(eq(projectsTable.id, choice.projectId));
+  if (!p) throw new ValidationError("That project does not exist");
+  if (p.archived) throw new ValidationError("That project is archived");
+  return p.id;
+}
+
+export async function approveSuggestion(id: number, edits?: Record<string, string>, now = new Date(), project?: ApproveProject) {
   return db.transaction(async (tx) => {
-    const s = await loadPending(tx, id);
+    let s = await loadPending(tx, id);
     if (await inPendingConflict(tx, id)) throw new ValidationError("This one disagrees with a current fact. Choose on the Conflicts tab.");
+    if (s.kind === "decision" && s.entityId == null) {
+      const projectId = await projectForDecision(tx, project);
+      if (projectId != null) {
+        await tx.update(suggestionsTable).set({ entityType: "project", entityId: projectId }).where(eq(suggestionsTable.id, id));
+        s = { ...s, entityType: "project", entityId: projectId };
+      }
+    } else if (project?.projectId != null || cleanText(project?.newProjectName)) {
+      throw new ValidationError("Only a decision without a project takes a project here");
+    }
     const payload = withEdits(s, edits);
     const result = await applySuggestion(tx, s, payload, now);
     const done = await tx

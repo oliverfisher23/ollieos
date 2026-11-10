@@ -149,7 +149,7 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
     if (t.waitingOnPersonId) nameRefs.push({ type: "person", id: t.waitingOnPersonId });
   }
   for (const p of people) if (p.organisationId) nameRefs.push({ type: "organisation", id: p.organisationId });
-  for (const d of decisions) nameRefs.push({ type: "project", id: d.projectId });
+  for (const d of decisions) if (d.projectId != null) nameRefs.push({ type: "project", id: d.projectId });
   for (const n of [...notes, ...facts, ...activity]) {
     const r = parseRef(`${n.entityType}:${n.entityId}`);
     if (r) nameRefs.push(r);
@@ -228,7 +228,7 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
   }
   for (const d of decisions) {
     const ref = toRef("decision", d.id);
-    const project = name("project", d.projectId);
+    const project = d.projectId != null ? name("project", d.projectId) : null;
     docs.push({
       ref,
       type: "decision",

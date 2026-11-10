@@ -117,7 +117,8 @@ export const GetHomeResponse = zod.object({
   "suggested": zod.int(),
   "conflicts": zod.int(),
   "stale": zod.int(),
-  "total": zod.int()
+  "total": zod.int(),
+  "lookBack": zod.int().optional().describe('Pending suggestions from a Granola look back (Knowledge Inbox only)')
 }),
   "doNext": zod.array(zod.object({
   "task": zod.object({
@@ -1480,14 +1481,14 @@ export const GetProjectResponse = zod.object({
   "decidedAt": zod.coerce.date(),
   "decidedBy": zod.string().nullable(),
   "source": zod.string().nullable(),
-  "confidential": zod.boolean().nullable().describe('null means it follows its project'),
+  "confidential": zod.boolean().nullable().describe('null means it follows its project, or is not confidential when it has none'),
   "hiddenFromAi": zod.boolean(),
-  "project": zod.object({
+  "project": zod.union([zod.object({
   "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
-}),
+}),zod.null()]).describe('The project it belongs to; null for a decision that stands on its own'),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date()
 })),
@@ -2044,6 +2045,8 @@ export const ListMeetingsResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string().nullable().describe('The person\'s slug when they are in People')
 })),
+  "scope": zod.enum(['internal', 'external']).describe('External when anyone on the meeting is from outside Ollie\'s own company'),
+  "companies": zod.array(zod.string()),
   "prep": zod.enum(['ready', 'not_much', 'failed', 'not_written', 'none']).describe('none means nobody or nothing OllieOS knows is on it, so there is no prep page'),
   "promises": zod.int().describe('Open promises to people on the meeting'),
   "waiting": zod.int().describe('Tasks waiting on people on the meeting'),
@@ -2061,6 +2064,8 @@ export const ListMeetingsResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string().nullable().describe('The person\'s slug when they are in People')
 })),
+  "scope": zod.enum(['internal', 'external']).describe('External when anyone on the meeting is from outside Ollie\'s own company'),
+  "companies": zod.array(zod.string()),
   "prep": zod.enum(['ready', 'not_much', 'failed', 'not_written', 'none']).describe('none means nobody or nothing OllieOS knows is on it, so there is no prep page'),
   "promises": zod.int().describe('Open promises to people on the meeting'),
   "waiting": zod.int().describe('Tasks waiting on people on the meeting'),
@@ -2079,8 +2084,54 @@ export const GetNextBriefResponse = zod.object({
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date(),
   "location": zod.string().nullable(),
-  "platform": zod.string().nullable()
+  "platform": zod.string().nullable(),
+  "scope": zod.enum(['internal', 'external']).describe('External when anyone on the meeting is from outside Ollie\'s own company'),
+  "companies": zod.array(zod.string()).describe('The outside companies on an external meeting: organisation names, else email domains')
 }),
+  "research": zod.array(zod.object({
+  "domain": zod.string(),
+  "status": zod.enum(['none', 'running', 'ready', 'failed']),
+  "organisation": zod.union([zod.null(),zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string()
+})]),
+  "body": zod.union([zod.null(),zod.object({
+  "name": zod.string(),
+  "website": zod.string().nullable(),
+  "overview": zod.string(),
+  "facts": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string(),
+  "url": zod.string().nullable()
+})),
+  "news": zod.array(zod.object({
+  "date": zod.string().nullable(),
+  "text": zod.string(),
+  "url": zod.string().nullable()
+})),
+  "people": zod.array(zod.object({
+  "name": zod.string(),
+  "role": zod.string().nullable(),
+  "note": zod.string().nullable(),
+  "url": zod.string().nullable()
+})),
+  "relationship": zod.string().nullable().describe('Where things stand with Ollie, from his email'),
+  "openAsks": zod.array(zod.string()),
+  "angles": zod.array(zod.string()),
+  "sources": zod.array(zod.object({
+  "title": zod.string(),
+  "url": zod.string()
+}))
+})]),
+  "emailThreads": zod.int(),
+  "emailNote": zod.string().nullable(),
+  "searches": zod.int(),
+  "startedAt": zod.coerce.date().nullable(),
+  "researchedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Older than 30 days'),
+  "error": zod.string().nullable()
+})),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
   "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),
@@ -2222,8 +2273,54 @@ export const GetBriefResponse = zod.object({
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date(),
   "location": zod.string().nullable(),
-  "platform": zod.string().nullable()
+  "platform": zod.string().nullable(),
+  "scope": zod.enum(['internal', 'external']).describe('External when anyone on the meeting is from outside Ollie\'s own company'),
+  "companies": zod.array(zod.string()).describe('The outside companies on an external meeting: organisation names, else email domains')
 }),
+  "research": zod.array(zod.object({
+  "domain": zod.string(),
+  "status": zod.enum(['none', 'running', 'ready', 'failed']),
+  "organisation": zod.union([zod.null(),zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string()
+})]),
+  "body": zod.union([zod.null(),zod.object({
+  "name": zod.string(),
+  "website": zod.string().nullable(),
+  "overview": zod.string(),
+  "facts": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string(),
+  "url": zod.string().nullable()
+})),
+  "news": zod.array(zod.object({
+  "date": zod.string().nullable(),
+  "text": zod.string(),
+  "url": zod.string().nullable()
+})),
+  "people": zod.array(zod.object({
+  "name": zod.string(),
+  "role": zod.string().nullable(),
+  "note": zod.string().nullable(),
+  "url": zod.string().nullable()
+})),
+  "relationship": zod.string().nullable().describe('Where things stand with Ollie, from his email'),
+  "openAsks": zod.array(zod.string()),
+  "angles": zod.array(zod.string()),
+  "sources": zod.array(zod.object({
+  "title": zod.string(),
+  "url": zod.string()
+}))
+})]),
+  "emailThreads": zod.int(),
+  "emailNote": zod.string().nullable(),
+  "searches": zod.int(),
+  "startedAt": zod.coerce.date().nullable(),
+  "researchedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Older than 30 days'),
+  "error": zod.string().nullable()
+})),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
   "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),
@@ -2389,8 +2486,54 @@ export const RefreshBriefResponse = zod.object({
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date(),
   "location": zod.string().nullable(),
-  "platform": zod.string().nullable()
+  "platform": zod.string().nullable(),
+  "scope": zod.enum(['internal', 'external']).describe('External when anyone on the meeting is from outside Ollie\'s own company'),
+  "companies": zod.array(zod.string()).describe('The outside companies on an external meeting: organisation names, else email domains')
 }),
+  "research": zod.array(zod.object({
+  "domain": zod.string(),
+  "status": zod.enum(['none', 'running', 'ready', 'failed']),
+  "organisation": zod.union([zod.null(),zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string()
+})]),
+  "body": zod.union([zod.null(),zod.object({
+  "name": zod.string(),
+  "website": zod.string().nullable(),
+  "overview": zod.string(),
+  "facts": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string(),
+  "url": zod.string().nullable()
+})),
+  "news": zod.array(zod.object({
+  "date": zod.string().nullable(),
+  "text": zod.string(),
+  "url": zod.string().nullable()
+})),
+  "people": zod.array(zod.object({
+  "name": zod.string(),
+  "role": zod.string().nullable(),
+  "note": zod.string().nullable(),
+  "url": zod.string().nullable()
+})),
+  "relationship": zod.string().nullable().describe('Where things stand with Ollie, from his email'),
+  "openAsks": zod.array(zod.string()),
+  "angles": zod.array(zod.string()),
+  "sources": zod.array(zod.object({
+  "title": zod.string(),
+  "url": zod.string()
+}))
+})]),
+  "emailThreads": zod.int(),
+  "emailNote": zod.string().nullable(),
+  "searches": zod.int(),
+  "startedAt": zod.coerce.date().nullable(),
+  "researchedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Older than 30 days'),
+  "error": zod.string().nullable()
+})),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
   "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),
@@ -2532,8 +2675,54 @@ export const AllowForBriefResponse = zod.object({
   "startsAt": zod.coerce.date(),
   "endsAt": zod.coerce.date(),
   "location": zod.string().nullable(),
-  "platform": zod.string().nullable()
+  "platform": zod.string().nullable(),
+  "scope": zod.enum(['internal', 'external']).describe('External when anyone on the meeting is from outside Ollie\'s own company'),
+  "companies": zod.array(zod.string()).describe('The outside companies on an external meeting: organisation names, else email domains')
 }),
+  "research": zod.array(zod.object({
+  "domain": zod.string(),
+  "status": zod.enum(['none', 'running', 'ready', 'failed']),
+  "organisation": zod.union([zod.null(),zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string()
+})]),
+  "body": zod.union([zod.null(),zod.object({
+  "name": zod.string(),
+  "website": zod.string().nullable(),
+  "overview": zod.string(),
+  "facts": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string(),
+  "url": zod.string().nullable()
+})),
+  "news": zod.array(zod.object({
+  "date": zod.string().nullable(),
+  "text": zod.string(),
+  "url": zod.string().nullable()
+})),
+  "people": zod.array(zod.object({
+  "name": zod.string(),
+  "role": zod.string().nullable(),
+  "note": zod.string().nullable(),
+  "url": zod.string().nullable()
+})),
+  "relationship": zod.string().nullable().describe('Where things stand with Ollie, from his email'),
+  "openAsks": zod.array(zod.string()),
+  "angles": zod.array(zod.string()),
+  "sources": zod.array(zod.object({
+  "title": zod.string(),
+  "url": zod.string()
+}))
+})]),
+  "emailThreads": zod.int(),
+  "emailNote": zod.string().nullable(),
+  "searches": zod.int(),
+  "startedAt": zod.coerce.date().nullable(),
+  "researchedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Older than 30 days'),
+  "error": zod.string().nullable()
+})),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
   "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),
@@ -3152,6 +3341,50 @@ export const GetOrganisationParams = zod.object({
 })
 
 export const GetOrganisationResponse = zod.object({
+  "research": zod.array(zod.object({
+  "domain": zod.string(),
+  "status": zod.enum(['none', 'running', 'ready', 'failed']),
+  "organisation": zod.union([zod.null(),zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string()
+})]),
+  "body": zod.union([zod.null(),zod.object({
+  "name": zod.string(),
+  "website": zod.string().nullable(),
+  "overview": zod.string(),
+  "facts": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string(),
+  "url": zod.string().nullable()
+})),
+  "news": zod.array(zod.object({
+  "date": zod.string().nullable(),
+  "text": zod.string(),
+  "url": zod.string().nullable()
+})),
+  "people": zod.array(zod.object({
+  "name": zod.string(),
+  "role": zod.string().nullable(),
+  "note": zod.string().nullable(),
+  "url": zod.string().nullable()
+})),
+  "relationship": zod.string().nullable().describe('Where things stand with Ollie, from his email'),
+  "openAsks": zod.array(zod.string()),
+  "angles": zod.array(zod.string()),
+  "sources": zod.array(zod.object({
+  "title": zod.string(),
+  "url": zod.string()
+}))
+})]),
+  "emailThreads": zod.int(),
+  "emailNote": zod.string().nullable(),
+  "searches": zod.int(),
+  "startedAt": zod.coerce.date().nullable(),
+  "researchedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Older than 30 days'),
+  "error": zod.string().nullable()
+})),
   "organisation": zod.object({
   "id": zod.int(),
   "name": zod.string(),
@@ -3270,14 +3503,14 @@ export const ListDecisionsResponseItem = zod.object({
   "decidedAt": zod.coerce.date(),
   "decidedBy": zod.string().nullable(),
   "source": zod.string().nullable(),
-  "confidential": zod.boolean().nullable().describe('null means it follows its project'),
+  "confidential": zod.boolean().nullable().describe('null means it follows its project, or is not confidential when it has none'),
   "hiddenFromAi": zod.boolean(),
-  "project": zod.object({
+  "project": zod.union([zod.object({
   "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
-}),
+}),zod.null()]).describe('The project it belongs to; null for a decision that stands on its own'),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date()
 })
@@ -3292,7 +3525,7 @@ export const createDecisionBodyTextMax = 5000;
 
 
 export const CreateDecisionBody = zod.object({
-  "projectId": zod.int(),
+  "projectId": zod.int().nullish().describe('Optional; a decision can stand on its own'),
   "text": zod.string().min(1).max(createDecisionBodyTextMax),
   "decidedAt": zod.coerce.date(),
   "decidedBy": zod.string().nullish(),
@@ -3306,14 +3539,14 @@ export const CreateDecisionResponse = zod.object({
   "decidedAt": zod.coerce.date(),
   "decidedBy": zod.string().nullable(),
   "source": zod.string().nullable(),
-  "confidential": zod.boolean().nullable().describe('null means it follows its project'),
+  "confidential": zod.boolean().nullable().describe('null means it follows its project, or is not confidential when it has none'),
   "hiddenFromAi": zod.boolean(),
-  "project": zod.object({
+  "project": zod.union([zod.object({
   "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
-}),
+}),zod.null()]).describe('The project it belongs to; null for a decision that stands on its own'),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date()
 })
@@ -3332,14 +3565,14 @@ export const GetDecisionResponse = zod.object({
   "decidedAt": zod.coerce.date(),
   "decidedBy": zod.string().nullable(),
   "source": zod.string().nullable(),
-  "confidential": zod.boolean().nullable().describe('null means it follows its project'),
+  "confidential": zod.boolean().nullable().describe('null means it follows its project, or is not confidential when it has none'),
   "hiddenFromAi": zod.boolean(),
-  "project": zod.object({
+  "project": zod.union([zod.object({
   "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
-}),
+}),zod.null()]).describe('The project it belongs to; null for a decision that stands on its own'),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date()
 })
@@ -3357,7 +3590,7 @@ export const updateDecisionBodyTextMax = 5000;
 
 
 export const UpdateDecisionBody = zod.object({
-  "projectId": zod.int().optional(),
+  "projectId": zod.int().nullish().describe('null takes the decision off its project'),
   "text": zod.string().min(1).max(updateDecisionBodyTextMax).optional(),
   "decidedAt": zod.coerce.date().optional(),
   "decidedBy": zod.string().nullish(),
@@ -3371,14 +3604,14 @@ export const UpdateDecisionResponse = zod.object({
   "decidedAt": zod.coerce.date(),
   "decidedBy": zod.string().nullable(),
   "source": zod.string().nullable(),
-  "confidential": zod.boolean().nullable().describe('null means it follows its project'),
+  "confidential": zod.boolean().nullable().describe('null means it follows its project, or is not confidential when it has none'),
   "hiddenFromAi": zod.boolean(),
-  "project": zod.object({
+  "project": zod.union([zod.object({
   "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
   "confidential": zod.boolean()
-}),
+}),zod.null()]).describe('The project it belongs to; null for a decision that stands on its own'),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date()
 })
@@ -3574,9 +3807,11 @@ export const SupersedeFactResponse = zod.object({
  * @summary Knowledge Inbox items for one tab, with the open count for every tab
  */
 export const listKnowledgeInboxQueryTabDefault = `suggested`;
+export const listKnowledgeInboxQueryOriginDefault = `all`;
 
 export const ListKnowledgeInboxQueryParams = zod.object({
-  "tab": zod.enum(['suggested', 'conflicts', 'stale']).default(listKnowledgeInboxQueryTabDefault)
+  "tab": zod.enum(['suggested', 'conflicts', 'stale']).default(listKnowledgeInboxQueryTabDefault),
+  "origin": zod.enum(['all', 'look_back']).default(listKnowledgeInboxQueryOriginDefault).describe('look_back shows only suggestions from a Granola look back')
 })
 
 export const ListKnowledgeInboxResponse = zod.object({
@@ -3584,7 +3819,8 @@ export const ListKnowledgeInboxResponse = zod.object({
   "suggested": zod.int(),
   "conflicts": zod.int(),
   "stale": zod.int(),
-  "total": zod.int()
+  "total": zod.int(),
+  "lookBack": zod.int().optional().describe('Pending suggestions from a Granola look back (Knowledge Inbox only)')
 }),
   "items": zod.array(zod.object({
   "key": zod.string(),
@@ -3617,7 +3853,10 @@ export const ListKnowledgeInboxResponse = zod.object({
   "label": zod.string(),
   "text": zod.string()
 })),
-  "lastConfirmedAt": zod.coerce.date().nullable()
+  "lastConfirmedAt": zod.coerce.date().nullable(),
+  "lookBack": zod.boolean().describe('Found by a Granola look back'),
+  "needsProject": zod.boolean().describe('A decision with no project; Ollie may file it under one when approving'),
+  "projectHint": zod.string().nullable().describe('What a decision with no project is about')
 }))
 })
 
@@ -3631,10 +3870,14 @@ export const ApproveSuggestionParams = zod.object({
 
 export const approveSuggestionBodyFieldsMaxOne = 5000;
 
+export const approveSuggestionBodyNewProjectNameMax = 200;
+
 
 
 export const ApproveSuggestionBody = zod.object({
-  "fields": zod.record(zod.string(), zod.string().max(approveSuggestionBodyFieldsMaxOne)).optional().describe('Edited values by field key')
+  "fields": zod.record(zod.string(), zod.string().max(approveSuggestionBodyFieldsMaxOne)).optional().describe('Edited values by field key'),
+  "projectId": zod.int().optional().describe('For a decision with no project, the project to file it under'),
+  "newProjectName": zod.string().min(1).max(approveSuggestionBodyNewProjectNameMax).optional().describe('For a decision with no project, a new project to create and file it under')
 })
 
 export const ApproveSuggestionResponse = zod.object({
@@ -5006,6 +5249,434 @@ export const CheckConnectorResponse = zod.object({
   "account": zod.string().nullable(),
   "error": zod.string().nullable(),
   "needsReconnect": zod.boolean()
+})
+
+
+/**
+ * @summary The Granola look back, how far it has got and what it found
+ */
+export const GetLookBackResponse = zod.object({
+  "status": zod.enum(['idle', 'running', 'stopped', 'done', 'failed']),
+  "listing": zod.boolean().describe('True while the notes in range are still being listed'),
+  "decisionsDays": zod.int(),
+  "actionsDays": zod.int(),
+  "startedAt": zod.coerce.date().nullable(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "total": zod.int().describe('Notes to read'),
+  "done": zod.int().describe('Notes read so far'),
+  "counts": zod.object({
+  "listed": zod.int().describe('Notes in range'),
+  "already": zod.int().describe('Notes an earlier look back already read'),
+  "meetings": zod.int().describe('Meetings Ollie was in'),
+  "left_out": zod.int().describe('Notes from meetings he was not in'),
+  "decisions": zod.int(),
+  "actions": zod.int(),
+  "duplicates": zod.int().describe('Decisions and actions OllieOS already had'),
+  "failed": zod.int().describe('Notes that could not be read; a rerun tries them again')
+}),
+  "error": zod.string().nullable(),
+  "reviewPending": zod.int().describe('Actions waiting on the Review page')
+})
+
+
+/**
+ * @summary Start a new look back over older Granola notes, in the background
+ */
+export const StartLookBackBody = zod.object({
+  "decisionsDays": zod.union([zod.literal(30),zod.literal(91),zod.literal(183),zod.literal(365)]),
+  "actionsDays": zod.union([zod.literal(0),zod.literal(14),zod.literal(30),zod.literal(61)]).describe('0 looks for no actions')
+})
+
+export const StartLookBackResponse = zod.object({
+  "status": zod.enum(['idle', 'running', 'stopped', 'done', 'failed']),
+  "listing": zod.boolean().describe('True while the notes in range are still being listed'),
+  "decisionsDays": zod.int(),
+  "actionsDays": zod.int(),
+  "startedAt": zod.coerce.date().nullable(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "total": zod.int().describe('Notes to read'),
+  "done": zod.int().describe('Notes read so far'),
+  "counts": zod.object({
+  "listed": zod.int().describe('Notes in range'),
+  "already": zod.int().describe('Notes an earlier look back already read'),
+  "meetings": zod.int().describe('Meetings Ollie was in'),
+  "left_out": zod.int().describe('Notes from meetings he was not in'),
+  "decisions": zod.int(),
+  "actions": zod.int(),
+  "duplicates": zod.int().describe('Decisions and actions OllieOS already had'),
+  "failed": zod.int().describe('Notes that could not be read; a rerun tries them again')
+}),
+  "error": zod.string().nullable(),
+  "reviewPending": zod.int().describe('Actions waiting on the Review page')
+})
+
+
+/**
+ * @summary Stop the look back after the meeting it is reading
+ */
+export const StopLookBackResponse = zod.object({
+  "status": zod.enum(['idle', 'running', 'stopped', 'done', 'failed']),
+  "listing": zod.boolean().describe('True while the notes in range are still being listed'),
+  "decisionsDays": zod.int(),
+  "actionsDays": zod.int(),
+  "startedAt": zod.coerce.date().nullable(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "total": zod.int().describe('Notes to read'),
+  "done": zod.int().describe('Notes read so far'),
+  "counts": zod.object({
+  "listed": zod.int().describe('Notes in range'),
+  "already": zod.int().describe('Notes an earlier look back already read'),
+  "meetings": zod.int().describe('Meetings Ollie was in'),
+  "left_out": zod.int().describe('Notes from meetings he was not in'),
+  "decisions": zod.int(),
+  "actions": zod.int(),
+  "duplicates": zod.int().describe('Decisions and actions OllieOS already had'),
+  "failed": zod.int().describe('Notes that could not be read; a rerun tries them again')
+}),
+  "error": zod.string().nullable(),
+  "reviewPending": zod.int().describe('Actions waiting on the Review page')
+})
+
+
+/**
+ * @summary Carry on a stopped look back from where it got to
+ */
+export const ResumeLookBackResponse = zod.object({
+  "status": zod.enum(['idle', 'running', 'stopped', 'done', 'failed']),
+  "listing": zod.boolean().describe('True while the notes in range are still being listed'),
+  "decisionsDays": zod.int(),
+  "actionsDays": zod.int(),
+  "startedAt": zod.coerce.date().nullable(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "total": zod.int().describe('Notes to read'),
+  "done": zod.int().describe('Notes read so far'),
+  "counts": zod.object({
+  "listed": zod.int().describe('Notes in range'),
+  "already": zod.int().describe('Notes an earlier look back already read'),
+  "meetings": zod.int().describe('Meetings Ollie was in'),
+  "left_out": zod.int().describe('Notes from meetings he was not in'),
+  "decisions": zod.int(),
+  "actions": zod.int(),
+  "duplicates": zod.int().describe('Decisions and actions OllieOS already had'),
+  "failed": zod.int().describe('Notes that could not be read; a rerun tries them again')
+}),
+  "error": zod.string().nullable(),
+  "reviewPending": zod.int().describe('Actions waiting on the Review page')
+})
+
+
+/**
+ * @summary Actions from a Granola look back and unanswered emails, waiting for Ollie
+ */
+export const ListReviewResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['action', 'no_reply']).describe('action: from a Granola look back; no_reply: an email Ollie sent that nobody answered'),
+  "state": zod.enum(['pending', 'accepted', 'done', 'dropped', 'answered']).describe('answered means someone wrote back before Ollie decided'),
+  "text": zod.string().describe('The action, or for an unanswered email the ask: who owes what'),
+  "action": zod.string().nullable().describe('The next step (or chase line), in one sentence'),
+  "quote": zod.string().nullable().describe('The line in the notes or email it came from'),
+  "meetingTitle": zod.string().describe('The meeting title'),
+  "meetingAt": zod.coerce.date().describe('When the meeting was'),
+  "sourceUrl": zod.string().nullable(),
+  "email": zod.string().nullable().describe('Unanswered email: the address of the person who should answer'),
+  "reason": zod.string().nullable().describe('Unanswered email: why Ollie expected an answer'),
+  "suggestedType": zod.enum(['task', 'promise', 'waiting']),
+  "owner": zod.string().describe('Who owns it: You, or the other person\'s name'),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "dueDate": zod.coerce.date().nullable(),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "confidential": zod.boolean(),
+  "taskId": zod.int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable()
+})),
+  "pending": zod.int(),
+  "actions": zod.int().describe('Pending actions from a look back'),
+  "noReply": zod.int().describe('Pending unanswered emails')
+})
+
+
+/**
+ * @summary The look through sent email for emails nobody answered, how far it has got and what it found
+ */
+export const GetNoReplyScanResponse = zod.object({
+  "status": zod.enum(['idle', 'running', 'stopped', 'done', 'failed']),
+  "listing": zod.boolean().describe('True while the sent threads are still being listed'),
+  "days": zod.int(),
+  "startedAt": zod.coerce.date().nullable(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "total": zod.int().describe('Threads to read'),
+  "done": zod.int().describe('Threads read so far'),
+  "counts": zod.object({
+  "threads": zod.int().describe('Sent threads in range'),
+  "answered": zod.int().describe('Threads someone else wrote last in'),
+  "left_out": zod.int().describe('Bulk, automated, calendar, to himself, or a thank-you'),
+  "recent": zod.int().describe('Sent too recently; looked at again when old enough'),
+  "already": zod.int().describe('Already on the list, already checked, or already a Waiting on task'),
+  "checked": zod.int().describe('Emails AI checked'),
+  "found": zod.int().describe('Unanswered emails that expected an answer'),
+  "failed": zod.int().describe('Emails AI could not check; the next Gmail check tries again')
+}),
+  "error": zod.string().nullable(),
+  "refreshedAt": zod.coerce.date().nullable().describe('The last Gmail check that brought the list up to date'),
+  "pending": zod.int().describe('Unanswered emails waiting on the Review page')
+})
+
+
+/**
+ * @summary Start looking through the last 6 months of sent email, in the background
+ */
+export const StartNoReplyScanResponse = zod.object({
+  "status": zod.enum(['idle', 'running', 'stopped', 'done', 'failed']),
+  "listing": zod.boolean().describe('True while the sent threads are still being listed'),
+  "days": zod.int(),
+  "startedAt": zod.coerce.date().nullable(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "total": zod.int().describe('Threads to read'),
+  "done": zod.int().describe('Threads read so far'),
+  "counts": zod.object({
+  "threads": zod.int().describe('Sent threads in range'),
+  "answered": zod.int().describe('Threads someone else wrote last in'),
+  "left_out": zod.int().describe('Bulk, automated, calendar, to himself, or a thank-you'),
+  "recent": zod.int().describe('Sent too recently; looked at again when old enough'),
+  "already": zod.int().describe('Already on the list, already checked, or already a Waiting on task'),
+  "checked": zod.int().describe('Emails AI checked'),
+  "found": zod.int().describe('Unanswered emails that expected an answer'),
+  "failed": zod.int().describe('Emails AI could not check; the next Gmail check tries again')
+}),
+  "error": zod.string().nullable(),
+  "refreshedAt": zod.coerce.date().nullable().describe('The last Gmail check that brought the list up to date'),
+  "pending": zod.int().describe('Unanswered emails waiting on the Review page')
+})
+
+
+/**
+ * @summary Stop the look through after the emails it is reading
+ */
+export const StopNoReplyScanResponse = zod.object({
+  "status": zod.enum(['idle', 'running', 'stopped', 'done', 'failed']),
+  "listing": zod.boolean().describe('True while the sent threads are still being listed'),
+  "days": zod.int(),
+  "startedAt": zod.coerce.date().nullable(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "total": zod.int().describe('Threads to read'),
+  "done": zod.int().describe('Threads read so far'),
+  "counts": zod.object({
+  "threads": zod.int().describe('Sent threads in range'),
+  "answered": zod.int().describe('Threads someone else wrote last in'),
+  "left_out": zod.int().describe('Bulk, automated, calendar, to himself, or a thank-you'),
+  "recent": zod.int().describe('Sent too recently; looked at again when old enough'),
+  "already": zod.int().describe('Already on the list, already checked, or already a Waiting on task'),
+  "checked": zod.int().describe('Emails AI checked'),
+  "found": zod.int().describe('Unanswered emails that expected an answer'),
+  "failed": zod.int().describe('Emails AI could not check; the next Gmail check tries again')
+}),
+  "error": zod.string().nullable(),
+  "refreshedAt": zod.coerce.date().nullable().describe('The last Gmail check that brought the list up to date'),
+  "pending": zod.int().describe('Unanswered emails waiting on the Review page')
+})
+
+
+/**
+ * @summary Carry on a stopped look through from where it got to
+ */
+export const ResumeNoReplyScanResponse = zod.object({
+  "status": zod.enum(['idle', 'running', 'stopped', 'done', 'failed']),
+  "listing": zod.boolean().describe('True while the sent threads are still being listed'),
+  "days": zod.int(),
+  "startedAt": zod.coerce.date().nullable(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "total": zod.int().describe('Threads to read'),
+  "done": zod.int().describe('Threads read so far'),
+  "counts": zod.object({
+  "threads": zod.int().describe('Sent threads in range'),
+  "answered": zod.int().describe('Threads someone else wrote last in'),
+  "left_out": zod.int().describe('Bulk, automated, calendar, to himself, or a thank-you'),
+  "recent": zod.int().describe('Sent too recently; looked at again when old enough'),
+  "already": zod.int().describe('Already on the list, already checked, or already a Waiting on task'),
+  "checked": zod.int().describe('Emails AI checked'),
+  "found": zod.int().describe('Unanswered emails that expected an answer'),
+  "failed": zod.int().describe('Emails AI could not check; the next Gmail check tries again')
+}),
+  "error": zod.string().nullable(),
+  "refreshedAt": zod.coerce.date().nullable().describe('The last Gmail check that brought the list up to date'),
+  "pending": zod.int().describe('Unanswered emails waiting on the Review page')
+})
+
+
+/**
+ * @summary Turn one or more review items into tasks, or mark them done or dropped
+ */
+export const decideReviewBodyIdsMax = 500;
+
+
+
+export const DecideReviewBody = zod.object({
+  "ids": zod.array(zod.int()).min(1).max(decideReviewBodyIdsMax),
+  "action": zod.enum(['now', 'backlog', 'waiting', 'done', 'dropped']),
+  "waitingOnPersonId": zod.int().nullish().describe('For waiting. Unset keeps each item\'s own person; null is someone not in People.')
+})
+
+export const DecideReviewResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.enum(['action', 'no_reply']).describe('action: from a Granola look back; no_reply: an email Ollie sent that nobody answered'),
+  "state": zod.enum(['pending', 'accepted', 'done', 'dropped', 'answered']).describe('answered means someone wrote back before Ollie decided'),
+  "text": zod.string().describe('The action, or for an unanswered email the ask: who owes what'),
+  "action": zod.string().nullable().describe('The next step (or chase line), in one sentence'),
+  "quote": zod.string().nullable().describe('The line in the notes or email it came from'),
+  "meetingTitle": zod.string().describe('The meeting title'),
+  "meetingAt": zod.coerce.date().describe('When the meeting was'),
+  "sourceUrl": zod.string().nullable(),
+  "email": zod.string().nullable().describe('Unanswered email: the address of the person who should answer'),
+  "reason": zod.string().nullable().describe('Unanswered email: why Ollie expected an answer'),
+  "suggestedType": zod.enum(['task', 'promise', 'waiting']),
+  "owner": zod.string().describe('Who owns it: You, or the other person\'s name'),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "dueDate": zod.coerce.date().nullable(),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "confidential": zod.boolean(),
+  "taskId": zod.int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * @summary What the research agent found about these outside companies
+ */
+export const ListResearchQueryParams = zod.object({
+  "domains": zod.coerce.string().describe('Comma-separated email domains')
+})
+
+export const ListResearchResponse = zod.object({
+  "items": zod.array(zod.object({
+  "domain": zod.string(),
+  "status": zod.enum(['none', 'running', 'ready', 'failed']),
+  "organisation": zod.union([zod.null(),zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string()
+})]),
+  "body": zod.union([zod.null(),zod.object({
+  "name": zod.string(),
+  "website": zod.string().nullable(),
+  "overview": zod.string(),
+  "facts": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string(),
+  "url": zod.string().nullable()
+})),
+  "news": zod.array(zod.object({
+  "date": zod.string().nullable(),
+  "text": zod.string(),
+  "url": zod.string().nullable()
+})),
+  "people": zod.array(zod.object({
+  "name": zod.string(),
+  "role": zod.string().nullable(),
+  "note": zod.string().nullable(),
+  "url": zod.string().nullable()
+})),
+  "relationship": zod.string().nullable().describe('Where things stand with Ollie, from his email'),
+  "openAsks": zod.array(zod.string()),
+  "angles": zod.array(zod.string()),
+  "sources": zod.array(zod.object({
+  "title": zod.string(),
+  "url": zod.string()
+}))
+})]),
+  "emailThreads": zod.int(),
+  "emailNote": zod.string().nullable(),
+  "searches": zod.int(),
+  "startedAt": zod.coerce.date().nullable(),
+  "researchedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Older than 30 days'),
+  "error": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Research an outside company now (web search and Ollie's email with them)
+ */
+export const startResearchBodyDomainMin = 3;
+export const startResearchBodyDomainMax = 253;
+
+
+
+export const StartResearchBody = zod.object({
+  "domain": zod.string().min(startResearchBodyDomainMin).max(startResearchBodyDomainMax).describe('The company\'s email domain, or an address or website at it'),
+  "organisationId": zod.int().optional().describe('Files the research under this organisation')
+})
+
+export const StartResearchResponse = zod.object({
+  "domain": zod.string(),
+  "status": zod.enum(['none', 'running', 'ready', 'failed']),
+  "organisation": zod.union([zod.null(),zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string()
+})]),
+  "body": zod.union([zod.null(),zod.object({
+  "name": zod.string(),
+  "website": zod.string().nullable(),
+  "overview": zod.string(),
+  "facts": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string(),
+  "url": zod.string().nullable()
+})),
+  "news": zod.array(zod.object({
+  "date": zod.string().nullable(),
+  "text": zod.string(),
+  "url": zod.string().nullable()
+})),
+  "people": zod.array(zod.object({
+  "name": zod.string(),
+  "role": zod.string().nullable(),
+  "note": zod.string().nullable(),
+  "url": zod.string().nullable()
+})),
+  "relationship": zod.string().nullable().describe('Where things stand with Ollie, from his email'),
+  "openAsks": zod.array(zod.string()),
+  "angles": zod.array(zod.string()),
+  "sources": zod.array(zod.object({
+  "title": zod.string(),
+  "url": zod.string()
+}))
+})]),
+  "emailThreads": zod.int(),
+  "emailNote": zod.string().nullable(),
+  "searches": zod.int(),
+  "startedAt": zod.coerce.date().nullable(),
+  "researchedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Older than 30 days'),
+  "error": zod.string().nullable()
 })
 
 

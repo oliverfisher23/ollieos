@@ -196,16 +196,19 @@ export interface DecisionView {
   source: string | null;
   confidential: boolean | null;
   hiddenFromAi: boolean;
-  project: EntitySummary;
+  /** Null for a decision that stands on its own */
+  project: EntitySummary | null;
   createdBy: string;
   createdAt: Date;
 }
 
 export async function toDecisionViews(rows: DecisionRow[]): Promise<DecisionView[]> {
   if (!rows.length) return [];
-  const projectIds = [...new Set(rows.map((r) => r.projectId))];
+  const projectIds = [...new Set(rows.map((r) => r.projectId).filter((id): id is number => id != null))];
   const [projects, hidden] = await Promise.all([
-    db
+    !projectIds.length
+      ? []
+      : db
       .select({ id: projectsTable.id, name: projectsTable.name, slug: projectsTable.slug, confidential: projectsTable.confidential })
       .from(projectsTable)
       .where(inArray(projectsTable.id, projectIds)),
@@ -223,7 +226,7 @@ export async function toDecisionViews(rows: DecisionRow[]): Promise<DecisionView
     source: r.source,
     confidential: r.confidential,
     hiddenFromAi: hidden.has(r.id),
-    project: byId.get(r.projectId)!,
+    project: r.projectId != null ? (byId.get(r.projectId) ?? null) : null,
     createdBy: r.createdBy,
     createdAt: r.createdAt,
   }));
@@ -245,7 +248,8 @@ export async function getDecision(id: number): Promise<DecisionView> {
 }
 
 export interface DecisionInput {
-  projectId: number;
+  /** Optional: a decision can stand on its own */
+  projectId?: number | null;
   text: string;
   decidedAt: string;
   decidedBy?: string | null;
@@ -256,12 +260,13 @@ export interface DecisionInput {
 export async function createDecision(input: DecisionInput): Promise<DecisionView> {
   const text = cleanText(input.text);
   if (!text) throw new ValidationError("A decision needs some text");
-  await resolveEntity("project", input.projectId);
+  const projectId = input.projectId ?? null;
+  if (projectId != null) await resolveEntity("project", projectId);
   const row = await db.transaction(async (tx) => {
     const [created] = await tx
       .insert(decisionsTable)
       .values({
-        projectId: input.projectId,
+        projectId,
         text,
         decidedAt: input.decidedAt,
         decidedBy: cleanText(input.decidedBy),
@@ -270,14 +275,15 @@ export async function createDecision(input: DecisionInput): Promise<DecisionView
         createdBy: ACTOR,
       })
       .returning();
-    await touch(tx, "project", input.projectId);
-    await writeAudit(tx, { actor: ACTOR, action: "create", entityType: "decision", entityId: created.id, payload: { projectId: input.projectId } });
+    if (projectId != null) await touch(tx, "project", projectId);
+    await writeAudit(tx, { actor: ACTOR, action: "create", entityType: "decision", entityId: created.id, payload: { projectId } });
     return created;
   });
   return (await toDecisionViews([row]))[0];
 }
 
-export type DecisionUpdate = Partial<Omit<DecisionInput, "projectId">> & { projectId?: number };
+/** projectId null takes the decision off its project */
+export type DecisionUpdate = Partial<Omit<DecisionInput, "projectId">> & { projectId?: number | null };
 
 export async function updateDecision(id: number, input: DecisionUpdate): Promise<DecisionView> {
   const [current] = await db.select().from(decisionsTable).where(eq(decisionsTable.id, id));
@@ -293,13 +299,13 @@ export async function updateDecision(id: number, input: DecisionUpdate): Promise
   if (input.source !== undefined) set.source = cleanText(input.source);
   if (input.confidential !== undefined) set.confidential = input.confidential;
   if (input.projectId !== undefined) {
-    await resolveEntity("project", input.projectId);
+    if (input.projectId != null) await resolveEntity("project", input.projectId);
     set.projectId = input.projectId;
   }
   if (!Object.keys(set).length) return getDecision(id);
   const row = await db.transaction(async (tx) => {
     const [updated] = await tx.update(decisionsTable).set(set).where(eq(decisionsTable.id, id)).returning();
-    await touch(tx, "project", updated.projectId);
+    if (updated.projectId != null) await touch(tx, "project", updated.projectId);
     await writeAudit(tx, { actor: ACTOR, action: "update", entityType: "decision", entityId: id, payload: { fields: Object.keys(set) } });
     return updated;
   });

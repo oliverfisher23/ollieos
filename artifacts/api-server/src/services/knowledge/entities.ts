@@ -10,6 +10,7 @@ import {
   type Person as PersonRow,
   type Project as ProjectRow,
 } from "@workspace/db";
+import { domainsForOrganisation, researchViews, type ResearchView } from "../research";
 import { OPEN_STATUSES, type Cadence, type CadenceState, type ProjectLifecycle, type TaskStatus } from "@workspace/shared";
 import { writeAudit } from "../../lib/audit";
 import { ConflictError, NotFoundError, ValidationError } from "../tasks";
@@ -503,6 +504,8 @@ export interface OrganisationDetail {
   facts: FactView[];
   notes: NoteView[];
   timeline: TimelineItem[];
+  /** What the research agent found, by the email domains of the organisation's people; none for your own company */
+  research: ResearchView[];
 }
 
 async function loadOrg(slug: string): Promise<OrgRow> {
@@ -522,12 +525,13 @@ export async function getOrganisation(slug: string): Promise<OrganisationDetail>
     notesFor("organisation", id),
   ]);
   const memberIds = members.map((m) => m.id);
-  const [people, projects, timeline] = await Promise.all([
+  const [people, projects, timeline, research] = await Promise.all([
     personChips([...new Set([...memberIds, ...linkedPeople])], new Set(linkedPeople)),
     summaries(projectsTable, linkedProjects, new Set(linkedProjects)),
     timelineFor("organisation", id, notes, memberIds),
+    org.internal ? [] : domainsForOrganisation(id).then((d) => researchViews(d.slice(0, 3))),
   ]);
-  return { organisation: stripSearch(org), people, projects, facts, notes, timeline };
+  return { organisation: stripSearch(org), people, projects, facts, notes, timeline, research };
 }
 
 export interface OrganisationInput {

@@ -5,8 +5,13 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { ListKnowledgeInboxOrigin } from './listKnowledgeInboxOrigin';
 import type { ListKnowledgeInboxTab } from './listKnowledgeInboxTab';
 
 export type ListKnowledgeInboxParams = {
 tab?: ListKnowledgeInboxTab;
+/**
+ * look_back shows only suggestions from a Granola look back
+ */
+origin?: ListKnowledgeInboxOrigin;
 };

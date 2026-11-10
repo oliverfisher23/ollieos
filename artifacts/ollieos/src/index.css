@@ -317,6 +317,8 @@ body { font-family: var(--oo-font-sans); margin: 0; overflow-x: hidden; }
 .oo-pill[data-tone="noise"] { background: var(--oo-pill-noise-bg); color: var(--oo-pill-noise-fg); }
 .oo-pill[data-tone="dropped"] { background: var(--oo-pill-dropped-bg); color: var(--oo-pill-dropped-fg); }
 .oo-pill[data-tone="high"] { background: var(--oo-pill-high-bg); color: var(--oo-pill-high-fg); font-weight: 600; }
+.oo-pill[data-tone="external"] { background: var(--oo-src-meeting-bg); color: var(--oo-src-meeting-fg); font-weight: 600; }
+.oo-pill[data-tone="internal"] { background: var(--oo-pill-backlog-bg); color: var(--oo-pill-backlog-fg); }
 .oo-mark { flex: none; width: 24px; height: 24px; border-radius: var(--oo-r-full); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; }
 .oo-mark[data-src="email"] { background: var(--oo-src-email-bg); color: var(--oo-src-email-fg); }
 .oo-mark[data-src="slack"] { background: var(--oo-src-slack-bg); color: var(--oo-src-slack-fg); }
@@ -328,7 +330,7 @@ body { font-family: var(--oo-font-sans); margin: 0; overflow-x: hidden; }
 .oo-logo { display: inline-flex; align-items: center; justify-content: center; background: var(--oo-accent); color: var(--oo-ink); font-weight: 600; flex: none; }
 
 /* Icon rail */
-.oo-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px; background: var(--oo-glass-rail); border: 1px solid var(--oo-glass-border); border-radius: 18px; backdrop-filter: blur(18px); position: sticky; top: 32px; margin-top: 32px; }
+.oo-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px; background: var(--oo-glass-rail); border: 1px solid var(--oo-glass-border); border-radius: 18px; backdrop-filter: blur(18px); position: sticky; top: 32px; margin-top: 32px; z-index: 10; }
 .oo-rail a, .oo-rail button { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--oo-text-on-dark); background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
 .oo-rail a:hover, .oo-rail button:hover { background: var(--oo-white-12); }
 .oo-rail a[data-testid="link-rail-logo"]:hover { background: none; }
@@ -764,3 +766,19 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-dd[data-variant="bare"]:hover .oo-dd-chev, .oo-dd[data-variant="bare"]:focus-visible .oo-dd-chev, .oo-dd[data-variant="bare"][data-state="open"] .oo-dd-chev { opacity: 1; }
 @media (hover: none) { .oo-dd[data-variant="bare"] .oo-dd-chev { opacity: .6; } }
 .oo-dd-footer { border-top: 1px solid var(--oo-line-soft); margin-top: 4px; padding: 8px 4px 2px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--oo-ink-muted); }
+
+/* Look back at Granola (Settings, Connectors) */
+.oo-lookback { border-top: 1px solid var(--oo-line-soft); padding-top: 12px; margin-top: 2px; display: flex; flex-direction: column; gap: 12px; }
+.oo-progress { height: 6px; border-radius: var(--oo-r-pill); background: var(--oo-line-soft); overflow: hidden; }
+.oo-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--oo-ink); transition: width 300ms ease; }
+.oo-progress[data-listing="true"] > span { opacity: 0.25; animation: oo-progress-pulse 1.4s ease-in-out infinite; }
+@keyframes oo-progress-pulse { 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { .oo-progress > span { transition: none; } .oo-progress[data-listing="true"] > span { animation: none; } }
+
+/* Review: actions from a look back */
+.oo-rv-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 14px; border: 1px solid var(--oo-line); border-radius: var(--oo-r-card-sm); position: sticky; top: 0; background: var(--oo-panel); z-index: 2; margin-bottom: -14px; }
+.oo-rv-select { width: 16px; height: 16px; flex: none; accent-color: var(--oo-ink); cursor: pointer; margin: 0; }
+.oo-rv-row { display: flex; align-items: flex-start; gap: 14px; padding: 16px 4px; border-bottom: 1px solid var(--oo-line-soft); }
+.oo-rv-row > .oo-rv-select { margin-top: 3px; }
+.oo-rv-row[data-selected="true"] { background: var(--oo-line-soft); border-radius: var(--oo-r-card-sm); }
+.oo-rv-quote { margin: 0; padding: 2px 0 2px 10px; border-left: 2px solid var(--oo-line); font-size: 13px; line-height: 1.5; color: var(--oo-ink-soft); overflow-wrap: anywhere; }

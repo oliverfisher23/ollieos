@@ -68,7 +68,7 @@ describe("Meetings list", () => {
     ]);
     const todays = await event("t1", at(0, "23:00"), { attendees: [SAM, { name: "Guest Person", email: "guest@elsewhere.test" }] });
     const later = await event("t2", at(4, "10:00"), { attendees: [SAM] });
-    const stranger = await event("t3", at(2, "09:00"), { attendees: [{ name: "Nobody Known", email: "x@y.test" }] });
+    const stranger = await event("t3", at(2, "09:00"), { attendees: [{ name: "Nobody Known", email: "x@gmail.com" }] });
     await event("t4", at(1, "12:00"), { personal: true });
     await event("t5", at(8, "12:00"), { attendees: [SAM] });
     const past = await event("p1", at(-3, "15:00"), { attendees: [SAM] });

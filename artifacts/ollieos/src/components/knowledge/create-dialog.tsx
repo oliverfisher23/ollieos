@@ -68,7 +68,7 @@ export function CreateDialog({
   const orgs = useListOrganisations({ query: { enabled: kind === 'person' || kind === 'note' } as never });
 
   const valid =
-    kind === 'decision' ? !!val('text') && !!val('projectId') :
+    kind === 'decision' ? !!val('text') :
     kind === 'note' ? !!val('body') && !!val('attach') :
     !!val('name');
 
@@ -91,7 +91,7 @@ export function CreateDialog({
       if (o) path = '/knowledge/organisations/' + o.slug;
     } else if (kind === 'decision') {
       const d = await write(
-        () => createDecision({ projectId: Number(val('projectId')), text: val('text')!, decidedAt: val('decidedAt') ?? todayLondon(), decidedBy: val('decidedBy'), confidential: confidential || null }),
+        () => createDecision({ projectId: val('projectId') ? Number(val('projectId')) : null, text: val('text')!, decidedAt: val('decidedAt') ?? todayLondon(), decidedBy: val('decidedBy'), confidential: confidential || null }),
         { done: 'Decision recorded', fail: 'Could not record that decision' },
       );
       if (d) path = '/knowledge/decisions/' + d.id;
@@ -163,9 +163,9 @@ export function CreateDialog({
               {kind === 'decision' && (
                 <>
                   <div className="oo-dd-field">
-                    <label htmlFor="new-decision-project">Project</label>
-                    <Dropdown id="new-decision-project" value={v.projectId ?? ''} onChange={pick('projectId')} placeholder="Choose a project…" testId="select-new-decision-project" searchPlaceholder="Search projects"
-                      options={projectOptions(projects.data)} />
+                    <label htmlFor="new-decision-project">Project (optional)</label>
+                    <Dropdown id="new-decision-project" value={v.projectId ?? ''} onChange={pick('projectId')} placeholder="No project" testId="select-new-decision-project" searchPlaceholder="Search projects"
+                      options={[{ value: '', label: 'No project' }, ...projectOptions(projects.data)]} />
                   </div>
                   <label>
                     <span>What was decided</span>

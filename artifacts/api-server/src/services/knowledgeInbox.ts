@@ -17,7 +17,10 @@ import {
   type PlaybookPayload,
   type ProjectPayload,
   type SummaryChangePayload,
+  LOOK_BACK_PROPOSER,
 } from "./suggestions";
+
+const cleanHint = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
 
 export type InboxTab = "suggested" | "conflicts" | "stale";
 
@@ -73,6 +76,12 @@ export interface InboxItem {
   sourceUrl: string | null;
   options: InboxOption[];
   lastConfirmedAt: Date | null;
+  /** Found by a Granola look back */
+  lookBack: boolean;
+  /** A decision with no project yet: Ollie may file it under one when he approves it */
+  needsProject: boolean;
+  /** The project the proposer had in mind, for a decision with none */
+  projectHint: string | null;
 }
 
 /* ---------- Ollie's own person record ---------- */
@@ -282,7 +291,9 @@ function distinctLabels(options: (InboxOption & { at: Date })[]): InboxOption[] 
   return options.map(({ at, ...o }) => ((counts.get(o.label) ?? 0) > 1 ? { ...o, label: `${o.label} (${formatDayMonth(at)})` } : o));
 }
 
-export async function listInbox(tab: InboxTab) {
+export type InboxOrigin = "all" | "look_back";
+
+export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
   await ensureSelfPerson().catch(() => undefined);
   const counts = await inboxCounts();
   let items: InboxItem[] = [];
@@ -294,11 +305,12 @@ export async function listInbox(tab: InboxTab) {
       .where(
         and(
           eq(suggestionsTable.status, "pending"),
+          origin === "look_back" ? eq(suggestionsTable.proposedBy, LOOK_BACK_PROPOSER) : undefined,
           sql`not exists (select 1 from fact_reviews r where r.suggestion_id = ${suggestionsTable.id} and r.status = 'pending')`,
         ),
       )
       .orderBy(asc(suggestionsTable.createdAt), asc(suggestionsTable.id))
-      .limit(200);
+      .limit(400);
     const supersedeIds = rows.map((s) => (s.kind === "fact" ? (s.payload as FactPayload).supersedes : null)).filter((x): x is number => x != null);
     const replaced = supersedeIds.length ? await db.select({ id: factsTable.id, text: factsTable.text }).from(factsTable).where(inArray(factsTable.id, supersedeIds)) : [];
     const t = await targetsFor(rows.filter((s) => s.entityType && s.entityId != null).map((s) => ({ type: s.entityType!, id: s.entityId! })));
@@ -321,6 +333,9 @@ export async function listInbox(tab: InboxTab) {
         sourceUrl: s.sourceUrl,
         options: [],
         lastConfirmedAt: null,
+        lookBack: s.proposedBy === LOOK_BACK_PROPOSER,
+        needsProject: s.kind === "decision" && s.entityId == null,
+        projectHint: s.kind === "decision" ? (cleanHint((s.payload as DecisionPayload).project_hint) ?? null) : null,
       };
     });
   } else {
@@ -356,6 +371,9 @@ export async function listInbox(tab: InboxTab) {
           sourceUrl: null,
           options: [],
           lastConfirmedAt: first.lastConfirmedAt,
+          lookBack: false,
+          needsProject: false,
+          projectHint: null,
         });
       } else {
         const sug = sugs.find((s) => s.id === r.suggestionId && s.status === "pending");
@@ -379,9 +397,16 @@ export async function listInbox(tab: InboxTab) {
           sourceUrl: null,
           options,
           lastConfirmedAt: null,
+          lookBack: sug?.proposedBy === LOOK_BACK_PROPOSER,
+          needsProject: false,
+          projectHint: null,
         });
       }
     }
   }
-  return { counts, items };
+  const [lb] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(suggestionsTable)
+    .where(and(eq(suggestionsTable.status, "pending"), eq(suggestionsTable.proposedBy, LOOK_BACK_PROPOSER)));
+  return { counts: { ...counts, lookBack: lb?.n ?? 0 }, items };
 }

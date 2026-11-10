@@ -44,7 +44,7 @@ export function DecisionsListPage() {
     <KnowledgeLayout testId="page-decisions">
       <ListHeader
         title="Decisions"
-        line="What was decided, when, and on which project. Newest first."
+        line="What was decided, when, and on which project if any. Newest first."
         action={<button type="button" className="oo-btn oo-btn-ink" onClick={() => setCreating(true)} data-testid="button-new-decision">New decision</button>}
       />
       <ListState loading={list.isLoading} error={list.error} empty={!rows.length} emptyText="No decisions yet. Record them on a project page or with New decision." onRetry={() => list.refetch()} />
@@ -56,8 +56,8 @@ export function DecisionsListPage() {
               <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, flex: 1 }}>
                 <span style={{ overflowWrap: 'anywhere' }}>{d.text}</span>
                 <span className="oo-muted" style={{ fontSize: 13, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-                  {d.project.name}
-                  {d.hiddenFromAi && <HiddenFromAi confidential={d.confidential === true || d.project.confidential} />}
+                  {d.project ? d.project.name : 'No project'}
+                  {d.hiddenFromAi && <HiddenFromAi confidential={d.confidential === true || d.project?.confidential === true} />}
                 </span>
               </span>
             </Link>
@@ -91,14 +91,19 @@ export function DecisionPage() {
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: '1 1 320px' }}>
           <p className="oo-eyebrow">
-            Decision ·{' '}
-            <Link href={'/knowledge/projects/' + d.project.slug} style={{ color: 'inherit' }} data-testid="link-decision-project">{d.project.name}</Link>
+            Decision
+            {d.project && (
+              <>
+                {' · '}
+                <Link href={'/knowledge/projects/' + d.project.slug} style={{ color: 'inherit' }} data-testid="link-decision-project">{d.project.name}</Link>
+              </>
+            )}
           </p>
           <h1 className="oo-h1" style={{ fontSize: 26, lineHeight: 1.3 }}>
             <InlineText value={d.text} label="Decision" multiline required testId="decision-text" onSave={(v) => save({ text: v ?? d.text })} />
           </h1>
         </div>
-        <TriStateAccess value={d.confidential} hidden={d.hiddenFromAi} parent="its project" testId="decision-access" itemRef={'decision:' + d.id} onChange={(v) => save({ confidential: v }, accessMessage(v, 'its project'))} />
+        <TriStateAccess value={d.confidential} hidden={d.hiddenFromAi} parent={d.project ? 'its project' : 'the default'} testId="decision-access" itemRef={'decision:' + d.id} onChange={(v) => save({ confidential: v }, accessMessage(v, d.project ? 'its project' : 'the default'))} />
       </div>
       <dl className="oo-dl" style={{ maxWidth: 560 }}>
         <dt><label htmlFor="decision-date">Decided on</label></dt>
@@ -123,11 +128,12 @@ export function DecisionPage() {
           <Dropdown
             id="decision-project"
             variant="compact"
-            value={String(d.project.id)}
-            onChange={(v) => save({ projectId: Number(v) }, 'Moved to another project')}
+            value={d.project ? String(d.project.id) : ''}
+            onChange={(v) => save({ projectId: v ? Number(v) : null }, v ? 'Moved to another project' : 'Taken off its project')}
             searchPlaceholder="Search projects"
             options={[
-              ...((projects.data ?? []).some((p) => p.id === d.project.id) ? [] : [{ value: String(d.project.id), label: d.project.name }]),
+              { value: '', label: 'No project' },
+              ...(!d.project || (projects.data ?? []).some((p) => p.id === d.project!.id) ? [] : [{ value: String(d.project.id), label: d.project.name }]),
               ...projectOptions(projects.data),
             ]}
             testId="select-decision-project"

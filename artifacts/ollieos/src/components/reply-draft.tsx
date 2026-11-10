@@ -28,7 +28,8 @@ const same = (a: Fields, b: Fields) => a.to === b.to && a.cc === b.cc && a.subje
  * "Draft reply" on an email task. AI writes the reply from the thread and what OllieOS knows;
  * Ollie edits it and saves it as a draft in the Gmail thread. OllieOS never sends email.
  */
-export function ReplyDraftCard({ taskId }: { taskId: number }) {
+export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** A follow-up from Review (No reply yet): written straight away when there is none yet */ chase?: boolean }) {
+  const autoWrite = chase;
   const qc = useQueryClient();
   const saved = useGetReplyDraft(taskId);
   const [draft, setDraft] = useState<ReplyDraft | null>(null);
@@ -46,6 +47,16 @@ export function ReplyDraftCard({ taskId }: { taskId: number }) {
       setFields(fieldsOf(d));
     }
   }, [saved.data, draft]);
+
+  // Chase from Review: start writing as soon as it is clear there is no draft yet.
+  const [autoStarted, setAutoStarted] = useState(false);
+  useEffect(() => {
+    if (!autoWrite || autoStarted || saved.isLoading || !saved.data || saved.data.draft) return;
+    setAutoStarted(true);
+    void write();
+    // write only reads state set here, so running it once is enough.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoWrite, autoStarted, saved.isLoading, saved.data]);
 
   const dirty = !!draft && !!fields && !same(fields, fieldsOf(draft));
 
@@ -94,21 +105,21 @@ export function ReplyDraftCard({ taskId }: { taskId: number }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} data-testid="card-reply-draft">
-      <span className="oo-field-label">Reply</span>
+      <span className="oo-field-label">{chase ? 'Chase email' : 'Reply'}</span>
       <div className="oo-source" style={{ gap: 12 }}>
         {saved.isLoading ? (
           <Skel h={36} w={140} />
         ) : writing ? (
           <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 8 }} data-testid="state-reply-writing">
-            <span className="oo-muted" style={{ fontSize: 13 }}>Reading the thread and writing a reply…</span>
+            <span className="oo-muted" style={{ fontSize: 13 }}>{chase ? 'Reading the thread and writing a follow-up…' : 'Reading the thread and writing a reply…'}</span>
             <Skel h={14} w="90%" /><Skel h={14} w="80%" /><Skel h={14} w="55%" />
           </div>
         ) : !draft || !fields ? (
           <>
             <span className="oo-soft" style={{ fontSize: 13, lineHeight: 1.5 }}>
-              Writes a reply from the email thread, what OllieOS knows about the people and work involved, and your playbooks. You edit it and save it to Gmail. Nothing is sent.
+              Writes a {chase ? 'follow-up' : 'reply'} from the email thread, what OllieOS knows about the people and work involved, and your playbooks. You edit it and save it to Gmail. Nothing is sent.
             </span>
-            <div><button type="button" className="oo-btn oo-btn-ink" onClick={write} data-testid="button-draft-reply">Draft reply</button></div>
+            <div><button type="button" className="oo-btn oo-btn-ink" onClick={write} data-testid="button-draft-reply">{chase ? 'Draft chase email' : 'Draft reply'}</button></div>
           </>
         ) : (
           <>

@@ -1453,6 +1453,11 @@ paths:
           in: query
           required: false
           schema: { type: string, enum: [suggested, conflicts, stale], default: suggested }
+        - name: origin
+          in: query
+          required: false
+          description: look_back shows only suggestions from a Granola look back
+          schema: { type: string, enum: [all, look_back], default: all }
       responses:
         "200":
           description: Items and counts
@@ -1953,6 +1958,185 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ConnectorCheckResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /connectors/granola/look-back:
+    get:
+      operationId: getLookBack
+      tags: [access]
+      summary: The Granola look back, how far it has got and what it found
+      responses:
+        "200":
+          description: Look back
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LookBack" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: startLookBack
+      tags: [access]
+      summary: Start a new look back over older Granola notes, in the background
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LookBackInput" }
+      responses:
+        "200":
+          description: Look back, now running
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LookBack" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /connectors/granola/look-back/stop:
+    post:
+      operationId: stopLookBack
+      tags: [access]
+      summary: Stop the look back after the meeting it is reading
+      responses:
+        "200":
+          description: Look back, stopped
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LookBack" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /connectors/granola/look-back/resume:
+    post:
+      operationId: resumeLookBack
+      tags: [access]
+      summary: Carry on a stopped look back from where it got to
+      responses:
+        "200":
+          description: Look back, running again
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LookBack" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /review:
+    get:
+      operationId: listReview
+      tags: [tasks]
+      summary: Actions from a Granola look back and unanswered emails, waiting for Ollie
+      responses:
+        "200":
+          description: Pending review items
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReviewList" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /review/no-reply:
+    get:
+      operationId: getNoReplyScan
+      tags: [tasks]
+      summary: The look through sent email for emails nobody answered, how far it has got and what it found
+      responses:
+        "200":
+          description: Look through
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NoReplyScan" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: startNoReplyScan
+      tags: [tasks]
+      summary: Start looking through the last 6 months of sent email, in the background
+      responses:
+        "200":
+          description: Look through, now running
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NoReplyScan" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /review/no-reply/stop:
+    post:
+      operationId: stopNoReplyScan
+      tags: [tasks]
+      summary: Stop the look through after the emails it is reading
+      responses:
+        "200":
+          description: Look through, stopped
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NoReplyScan" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /review/no-reply/resume:
+    post:
+      operationId: resumeNoReplyScan
+      tags: [tasks]
+      summary: Carry on a stopped look through from where it got to
+      responses:
+        "200":
+          description: Look through, running again
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NoReplyScan" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /review/decide:
+    post:
+      operationId: decideReview
+      tags: [tasks]
+      summary: Turn one or more review items into tasks, or mark them done or dropped
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReviewDecideInput" }
+      responses:
+        "200":
+          description: The items decided
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReviewDecideResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /research:
+    get:
+      operationId: listResearch
+      tags: [preparation]
+      summary: What the research agent found about these outside companies
+      parameters:
+        - name: domains
+          in: query
+          required: true
+          description: Comma-separated email domains
+          schema: { type: string }
+      responses:
+        "200":
+          description: One entry per domain, with status none when never researched
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CompanyResearchList" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: startResearch
+      tags: [preparation]
+      summary: Research an outside company now (web search and Ollie's email with them)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ResearchStart" }
+      responses:
+        "200":
+          description: The research, now running
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CompanyResearch" }
         "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
@@ -2628,7 +2812,7 @@ components:
 
     BriefEvent:
       type: object
-      required: [id, title, startsAt, endsAt, location, platform]
+      required: [id, title, startsAt, endsAt, location, platform, scope, companies]
       properties:
         id: { type: integer }
         title: { type: string }
@@ -2636,12 +2820,108 @@ components:
         endsAt: { type: string, format: date-time }
         location: { type: [string, "null"] }
         platform: { type: [string, "null"] }
+        scope: { $ref: "#/components/schemas/MeetingScope" }
+        companies: { type: array, items: { type: string }, description: "The outside companies on an external meeting: organisation names, else email domains" }
+
+    MeetingScope:
+      type: string
+      enum: [internal, external]
+      description: External when anyone on the meeting is from outside Ollie's own company
+
+    ResearchFact:
+      type: object
+      required: [label, value, url]
+      properties:
+        label: { type: string }
+        value: { type: string }
+        url: { type: [string, "null"] }
+
+    ResearchNews:
+      type: object
+      required: [date, text, url]
+      properties:
+        date: { type: [string, "null"] }
+        text: { type: string }
+        url: { type: [string, "null"] }
+
+    ResearchPerson:
+      type: object
+      required: [name, role, note, url]
+      properties:
+        name: { type: string }
+        role: { type: [string, "null"] }
+        note: { type: [string, "null"] }
+        url: { type: [string, "null"] }
+
+    ResearchBody:
+      type: object
+      required: [name, website, overview, facts, news, people, relationship, openAsks, angles, sources]
+      properties:
+        name: { type: string }
+        website: { type: [string, "null"] }
+        overview: { type: string }
+        facts: { type: array, items: { $ref: "#/components/schemas/ResearchFact" } }
+        news: { type: array, items: { $ref: "#/components/schemas/ResearchNews" } }
+        people: { type: array, items: { $ref: "#/components/schemas/ResearchPerson" } }
+        relationship: { type: [string, "null"], description: "Where things stand with Ollie, from his email" }
+        openAsks: { type: array, items: { type: string } }
+        angles: { type: array, items: { type: string } }
+        sources:
+          type: array
+          items:
+            type: object
+            required: [title, url]
+            properties:
+              title: { type: string }
+              url: { type: string }
+
+    CompanyResearch:
+      type: object
+      required: [domain, status, organisation, body, emailThreads, emailNote, searches, startedAt, researchedAt, stale, error]
+      properties:
+        domain: { type: string }
+        status: { type: string, enum: [none, running, ready, failed] }
+        organisation:
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [id, slug, name]
+              properties:
+                id: { type: integer }
+                slug: { type: string }
+                name: { type: string }
+        body:
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/ResearchBody"
+        emailThreads: { type: integer }
+        emailNote: { type: [string, "null"] }
+        searches: { type: integer }
+        startedAt: { type: [string, "null"], format: date-time }
+        researchedAt: { type: [string, "null"], format: date-time }
+        stale: { type: boolean, description: "Older than 30 days" }
+        error: { type: [string, "null"] }
+
+    CompanyResearchList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/CompanyResearch" } }
+
+    ResearchStart:
+      type: object
+      required: [domain]
+      additionalProperties: false
+      properties:
+        domain: { type: string, minLength: 3, maxLength: 253, description: "The company's email domain, or an address or website at it" }
+        organisationId: { type: integer, description: "Files the research under this organisation" }
 
     BriefView:
       type: object
-      required: [event, generatedAt, failed, notMuch, sourcesLine, why, questions, questionsNote, agenda, attendees, promises, tasks, waitingOn, earlier, threads, projects, goals, documents, playbooks, heldBack, notes, granolaNotes, granolaRef, actions]
+      required: [event, research, generatedAt, failed, notMuch, sourcesLine, why, questions, questionsNote, agenda, attendees, promises, tasks, waitingOn, earlier, threads, projects, goals, documents, playbooks, heldBack, notes, granolaNotes, granolaRef, actions]
       properties:
         event: { $ref: "#/components/schemas/BriefEvent" }
+        research: { type: array, items: { $ref: "#/components/schemas/CompanyResearch" } }
         generatedAt: { type: string, format: date-time }
         failed: { type: boolean, description: The model could not write the brief. Refresh to try again. }
         notMuch: { type: boolean, description: Nothing citable on file. Show attendees and promises only. }
@@ -2760,7 +3040,7 @@ components:
 
     MeetingRow:
       type: object
-      required: [id, title, startsAt, endsAt, day, platform, location, attendees, prep, promises, waiting, granolaSnippet]
+      required: [id, title, startsAt, endsAt, day, platform, location, attendees, scope, companies, prep, promises, waiting, granolaSnippet]
       properties:
         id: { type: integer }
         title: { type: string }
@@ -2777,6 +3057,8 @@ components:
             properties:
               name: { type: string }
               slug: { type: [string, "null"], description: The person's slug when they are in People }
+        scope: { $ref: "#/components/schemas/MeetingScope" }
+        companies: { type: array, items: { type: string } }
         prep:
           type: string
           enum: [ready, not_much, failed, not_written, none]
@@ -3127,6 +3409,128 @@ components:
         stale: { type: integer }
         conflicts: { type: integer }
 
+    LookBackCounts:
+      type: object
+      required: [listed, already, meetings, left_out, decisions, actions, duplicates, failed]
+      properties:
+        listed: { type: integer, description: Notes in range }
+        already: { type: integer, description: Notes an earlier look back already read }
+        meetings: { type: integer, description: Meetings Ollie was in, read }
+        left_out: { type: integer, description: Notes from meetings he was not in }
+        decisions: { type: integer }
+        actions: { type: integer }
+        duplicates: { type: integer, description: Decisions and actions OllieOS already had }
+        failed: { type: integer, description: Notes that could not be read; a rerun tries them again }
+
+    LookBack:
+      type: object
+      required: [status, listing, decisionsDays, actionsDays, startedAt, finishedAt, total, done, counts, error, reviewPending]
+      properties:
+        status: { type: string, enum: [idle, running, stopped, done, failed] }
+        listing: { type: boolean, description: True while the notes in range are still being listed }
+        decisionsDays: { type: integer }
+        actionsDays: { type: integer }
+        startedAt: { type: [string, "null"], format: date-time }
+        finishedAt: { type: [string, "null"], format: date-time }
+        total: { type: integer, description: Notes to read }
+        done: { type: integer, description: Notes read so far }
+        counts: { $ref: "#/components/schemas/LookBackCounts" }
+        error: { type: [string, "null"] }
+        reviewPending: { type: integer, description: Actions waiting on the Review page }
+
+    LookBackInput:
+      type: object
+      required: [decisionsDays, actionsDays]
+      properties:
+        decisionsDays: { type: integer, enum: [30, 91, 183, 365] }
+        actionsDays: { type: integer, enum: [0, 14, 30, 61], description: 0 looks for no actions }
+
+    ReviewItem:
+      type: object
+      required: [id, kind, state, text, action, quote, meetingTitle, meetingAt, sourceUrl, email, reason, suggestedType, owner, person, project, dueDate, priority, confidential, taskId, createdAt, decidedAt]
+      properties:
+        id: { type: integer }
+        kind: { type: string, enum: [action, no_reply], description: "action: from a Granola look back; no_reply: an email Ollie sent that nobody answered" }
+        state: { type: string, enum: [pending, accepted, done, dropped, answered], description: answered means someone wrote back before Ollie decided }
+        text: { type: string, description: "The action, or for an unanswered email the ask: who owes what" }
+        action: { type: [string, "null"], description: "The next step (or chase line), in one sentence" }
+        quote: { type: [string, "null"], description: The line in the notes or email it came from }
+        meetingTitle: { type: string, description: The meeting title, or the email subject }
+        meetingAt: { type: string, format: date-time, description: When the meeting was, or when Ollie sent the email }
+        sourceUrl: { type: [string, "null"] }
+        email: { type: [string, "null"], description: "Unanswered email: the address of the person who should answer" }
+        reason: { type: [string, "null"], description: "Unanswered email: why Ollie expected an answer" }
+        suggestedType: { type: string, enum: [task, promise, waiting] }
+        owner: { type: string, description: "Who owns it: You, or the other person's name" }
+        person:
+          oneOf:
+            - $ref: "#/components/schemas/EntitySummary"
+            - type: "null"
+        project:
+          oneOf:
+            - $ref: "#/components/schemas/EntitySummary"
+            - type: "null"
+        dueDate: { type: [string, "null"], format: date }
+        priority: { $ref: "#/components/schemas/Priority" }
+        confidential: { type: boolean }
+        taskId: { type: [integer, "null"] }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, "null"], format: date-time }
+
+    ReviewList:
+      type: object
+      required: [items, pending, actions, noReply]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/ReviewItem" } }
+        pending: { type: integer }
+        actions: { type: integer, description: Pending actions from a look back }
+        noReply: { type: integer, description: Pending unanswered emails }
+
+    NoReplyCounts:
+      type: object
+      required: [threads, answered, left_out, recent, already, checked, found, failed]
+      properties:
+        threads: { type: integer, description: Sent threads in range }
+        answered: { type: integer, description: Threads someone else wrote last in }
+        left_out: { type: integer, description: "Bulk, automated, calendar, to himself, or a thank-you" }
+        recent: { type: integer, description: Sent too recently; looked at again when old enough }
+        already: { type: integer, description: "Already on the list, already checked, or already a Waiting on task" }
+        checked: { type: integer, description: Emails AI checked }
+        found: { type: integer, description: Unanswered emails that expected an answer }
+        failed: { type: integer, description: Emails AI could not check; the next Gmail check tries again }
+
+    NoReplyScan:
+      type: object
+      required: [status, listing, days, startedAt, finishedAt, total, done, counts, error, refreshedAt, pending]
+      properties:
+        status: { type: string, enum: [idle, running, stopped, done, failed] }
+        listing: { type: boolean, description: True while the sent threads are still being listed }
+        days: { type: integer }
+        startedAt: { type: [string, "null"], format: date-time }
+        finishedAt: { type: [string, "null"], format: date-time }
+        total: { type: integer, description: Threads to read }
+        done: { type: integer, description: Threads read so far }
+        counts: { $ref: "#/components/schemas/NoReplyCounts" }
+        error: { type: [string, "null"] }
+        refreshedAt: { type: [string, "null"], format: date-time, description: The last Gmail check that brought the list up to date }
+        pending: { type: integer, description: Unanswered emails waiting on the Review page }
+
+    ReviewDecideInput:
+      type: object
+      required: [ids, action]
+      properties:
+        ids: { type: array, items: { type: integer }, minItems: 1, maxItems: 500 }
+        action: { type: string, enum: [now, backlog, waiting, done, dropped] }
+        waitingOnPersonId:
+          type: [integer, "null"]
+          description: For waiting. Unset keeps each item's own person; null is someone not in People.
+
+    ReviewDecideResult:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/ReviewItem" } }
+
     KnowledgeInboxCounts:
       type: object
       required: [suggested, conflicts, stale, total]
@@ -3135,6 +3539,7 @@ components:
         conflicts: { type: integer }
         stale: { type: integer }
         total: { type: integer }
+        lookBack: { type: integer, description: Pending suggestions from a Granola look back (Knowledge Inbox only) }
 
     KnowledgeInboxTarget:
       type: object
@@ -3166,7 +3571,7 @@ components:
 
     KnowledgeInboxItem:
       type: object
-      required: [key, id, group, kind, target, by, createdAt, text, fields, attribute, replaces, source, sourceUrl, options, lastConfirmedAt]
+      required: [key, id, group, kind, target, by, createdAt, text, fields, attribute, replaces, source, sourceUrl, options, lastConfirmedAt, lookBack, needsProject, projectHint]
       properties:
         key: { type: string }
         id: { type: integer, description: Suggestion id on the Suggested tab, review id otherwise }
@@ -3188,6 +3593,9 @@ components:
         sourceUrl: { type: [string, "null"] }
         options: { type: array, items: { $ref: "#/components/schemas/KnowledgeInboxOption" } }
         lastConfirmedAt: { type: [string, "null"], format: date-time }
+        lookBack: { type: boolean, description: Found by a Granola look back }
+        needsProject: { type: boolean, description: A decision with no project; Ollie may file it under one when approving }
+        projectHint: { type: [string, "null"], description: What a decision with no project is about }
 
     KnowledgeInbox:
       type: object
@@ -3203,6 +3611,8 @@ components:
           type: object
           additionalProperties: { type: string, maxLength: 5000 }
           description: Edited values by field key
+        projectId: { type: integer, description: "For a decision with no project, the project to file it under" }
+        newProjectName: { type: string, minLength: 1, maxLength: 200, description: "For a decision with no project, a new project to create and file it under" }
 
     SuggestionDecision:
       type: object
@@ -3292,17 +3702,21 @@ components:
         decidedAt: { type: string, format: date }
         decidedBy: { type: [string, "null"] }
         source: { type: [string, "null"] }
-        confidential: { type: [boolean, "null"], description: null means it follows its project }
+        confidential: { type: [boolean, "null"], description: "null means it follows its project, or is not confidential when it has none" }
         hiddenFromAi: { type: boolean }
-        project: { $ref: "#/components/schemas/EntitySummary" }
+        project:
+          description: The project it belongs to; null for a decision that stands on its own
+          oneOf:
+            - $ref: "#/components/schemas/EntitySummary"
+            - type: "null"
         createdBy: { type: string }
         createdAt: { type: string, format: date-time }
 
     DecisionInput:
       type: object
-      required: [projectId, text, decidedAt]
+      required: [text, decidedAt]
       properties:
-        projectId: { type: integer }
+        projectId: { type: [integer, "null"], description: Optional; a decision can stand on its own }
         text: { type: string, minLength: 1, maxLength: 5000 }
         decidedAt: { type: string, format: date }
         decidedBy: { type: [string, "null"] }
@@ -3312,7 +3726,7 @@ components:
     DecisionUpdate:
       type: object
       properties:
-        projectId: { type: integer }
+        projectId: { type: [integer, "null"], description: null takes the decision off its project }
         text: { type: string, minLength: 1, maxLength: 5000 }
         decidedAt: { type: string, format: date }
         decidedBy: { type: [string, "null"] }
@@ -3528,8 +3942,9 @@ components:
 
     OrganisationDetail:
       type: object
-      required: [organisation, people, projects, facts, notes, timeline]
+      required: [organisation, people, projects, facts, notes, timeline, research]
       properties:
+        research: { type: array, items: { $ref: "#/components/schemas/CompanyResearch" } }
         organisation: { $ref: "#/components/schemas/Organisation" }
         people: { type: array, items: { $ref: "#/components/schemas/PersonChip" } }
         projects: { type: array, items: { $ref: "#/components/schemas/LinkedEntity" } }

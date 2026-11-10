@@ -86,7 +86,7 @@ const OrganisationUpdate = OrganisationCreate.partial().strict();
 
 const DecisionCreate = z
   .object({
-    projectId: id,
+    projectId: id.nullable().optional(),
     text: z.string().min(1).max(5000),
     decidedAt: isoDate,
     decidedBy: shortText(),

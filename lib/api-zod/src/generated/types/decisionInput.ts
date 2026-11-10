@@ -7,7 +7,11 @@
  */
 
 export interface DecisionInput {
-  projectId: number;
+  /**
+     * Optional; a decision can stand on its own
+     * @nullable
+     */
+  projectId?: number | null;
   /**
      * @minLength 1
      * @maxLength 5000

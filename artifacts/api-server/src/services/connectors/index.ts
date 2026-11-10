@@ -22,6 +22,7 @@ import { ConnectorError, readGoogleCalendar } from "./googleCalendar";
 import { readDrive, type DriveState } from "./drive";
 import { readGranola, type GranolaState } from "./granola";
 import { captureMeetings } from "./meetingCapture";
+import { refreshNoReply } from "./noReply";
 import { readSlack, type SlackState } from "./slack";
 
 export const SERVICE_KEYS = ["calendar", "gmail", "slack", "drive", "granola"] as const;
@@ -205,7 +206,16 @@ async function readGmailRun(now: Date) {
   const c = await sortAndCapture(r.units, { me: `His email address is ${r.account}.`, now });
   // Only move on once everything read has been captured, so a failed check is read again.
   await putState("gmail", { after: (r.newest ?? since).toISOString() });
-  return { found: r.found, account: r.account, counts: { ...c, left_out: r.leftOut, more: r.more ? 1 : 0 } };
+  // Keeps No reply yet up to date; a problem there never fails the Gmail check.
+  let noReply: Record<string, number> = {};
+  try {
+    const n = await refreshNoReply(now);
+    if (n) noReply = { no_reply_found: n.found, no_reply_checked: n.checked };
+  } catch (err) {
+    logger.warn({ err }, "No reply yet could not be brought up to date");
+    noReply = { no_reply_failed: 1 };
+  }
+  return { found: r.found, account: r.account, counts: { ...c, left_out: r.leftOut, more: r.more ? 1 : 0, ...noReply } };
 }
 
 async function readSlackRun(now: Date) {
@@ -226,7 +236,7 @@ async function readDriveRun(now: Date) {
  * Ollie's own addresses, so Granola notes from meetings he was in can be told apart from
  * colleagues' notes: the accounts Calendar and Gmail last read, and the address he signs in with.
  */
-async function myAddresses(): Promise<Set<string>> {
+export async function myAddresses(): Promise<Set<string>> {
   const out = new Set<string>();
   for (const key of ["calendar", "gmail"] as const) {
     const a = (await lastGoodRun(key))?.account;

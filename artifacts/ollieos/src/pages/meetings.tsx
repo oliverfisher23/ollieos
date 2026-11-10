@@ -1,6 +1,7 @@
 import { Link } from 'wouter';
 import { useListMeetings, type MeetingRow } from '@workspace/api-client-react';
 import { addDays, formatLong, formatShort, formatTime } from '@workspace/shared';
+import { ScopePill } from '@/components/research';
 import { Avatar, Skel } from '@/components/bits';
 import { PageProblem } from '@/components/knowledge/parts';
 
@@ -112,6 +113,11 @@ function Row({ r, past = false, finished = false }: { r: MeetingRow; past?: bool
           )}
           <span className="oo-muted" style={{ fontSize: 13, overflowWrap: 'anywhere' }} data-testid={'text-meeting-who-' + r.id}>{who(r.attendees)}</span>
         </span>
+        {past && (
+          <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <ScopePill scope={r.scope} companies={r.companies} testId={'pill-scope-' + r.id} />
+          </span>
+        )}
         {past ? (
           r.granolaSnippet ? (
             <span style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--oo-ink-soft)', overflowWrap: 'anywhere' }} data-testid={'text-meeting-granola-' + r.id}>
@@ -122,6 +128,7 @@ function Row({ r, past = false, finished = false }: { r: MeetingRow; past?: bool
           )
         ) : (
           <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }} data-testid={'readiness-' + r.id}>
+            <ScopePill scope={r.scope} companies={r.companies} testId={'pill-scope-' + r.id} />
             {finished && <span className="oo-pill">Finished</span>}
             <span className="oo-pill" data-tone={prep.tone} data-testid={'pill-prep-' + r.id}>{prep.label}</span>
             {r.promises > 0 && <span className="oo-pill" data-tone="now" data-testid={'pill-promises-' + r.id}>{plural(r.promises, 'open promise', 'open promises')}</span>}

@@ -10,4 +10,12 @@ import type { SuggestionApproveFields } from './suggestionApproveFields';
 export interface SuggestionApprove {
   /** Edited values by field key */
   fields?: SuggestionApproveFields;
+  /** For a decision with no project, the project to file it under */
+  projectId?: number;
+  /**
+     * For a decision with no project, a new project to create and file it under
+     * @minLength 1
+     * @maxLength 200
+     */
+  newProjectName?: string;
 }

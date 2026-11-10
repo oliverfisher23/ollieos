@@ -16,12 +16,13 @@ export interface Decision {
   /** @nullable */
   source: string | null;
   /**
-     * null means it follows its project
+     * null means it follows its project, or is not confidential when it has none
      * @nullable
      */
   confidential: boolean | null;
   hiddenFromAi: boolean;
-  project: EntitySummary;
+  /** The project it belongs to; null for a decision that stands on its own */
+  project: EntitySummary | null;
   createdBy: string;
   createdAt: Date;
 }

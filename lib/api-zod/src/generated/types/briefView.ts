@@ -18,9 +18,11 @@ import type { BriefViewProjectsItem } from './briefViewProjectsItem';
 import type { BriefViewTasksItem } from './briefViewTasksItem';
 import type { BriefViewThreadsItem } from './briefViewThreadsItem';
 import type { BriefViewWaitingOnItem } from './briefViewWaitingOnItem';
+import type { CompanyResearch } from './companyResearch';
 
 export interface BriefView {
   event: BriefEvent;
+  research: CompanyResearch[];
   generatedAt: Date;
   /** The model could not write the brief. Refresh to try again. */
   failed: boolean;

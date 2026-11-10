@@ -7,7 +7,11 @@
  */
 
 export interface DecisionUpdate {
-  projectId?: number;
+  /**
+     * null takes the decision off its project
+     * @nullable
+     */
+  projectId?: number | null;
   /**
      * @minLength 1
      * @maxLength 5000

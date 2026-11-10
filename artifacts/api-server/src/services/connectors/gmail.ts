@@ -122,8 +122,8 @@ export function stripQuoted(text: string): string {
   return out.join("\n");
 }
 
-const AUTOMATED = /(^|[._-])(no-?reply|do-?not-?reply|notifications?|mailer-daemon|postmaster|bounce)([._+-]|@)/i;
-const INVITE = /^(invitation|updated invitation|accepted|declined|tentatively accepted|cancelled event|canceled event|new event)( with note)?:/i;
+export const AUTOMATED = /(^|[._-])(no-?reply|do-?not-?reply|notifications?|mailer-daemon|postmaster|bounce)([._+-]|@)/i;
+export const INVITE = /^(invitation|updated invitation|accepted|declined|tentatively accepted|cancelled event|canceled event|new event)( with note)?:/i;
 
 export interface MappedMessage {
   unit: WorkUnit | null;
@@ -209,7 +209,7 @@ export interface GmailRead {
 
 const getJson = (path: string) => proxyJson(CONNECTOR, NAME, path);
 
-async function inPool<T, R>(items: T[], size: number, fn: (t: T) => Promise<R>): Promise<R[]> {
+export async function inPool<T, R>(items: T[], size: number, fn: (t: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
   let next = 0;
   await Promise.all(
@@ -281,6 +281,12 @@ export interface GmailThread {
   messages: ThreadMessage[];
 }
 
+/** The address of the Gmail account OllieOS reads. */
+export async function gmailAccount(): Promise<string> {
+  const profile = await getJson("/gmail/v1/users/me/profile");
+  return String(profile.emailAddress ?? "").toLowerCase();
+}
+
 /** The thread a message belongs to, or null when the message is gone. */
 export async function gmailThreadIdOf(messageId: string): Promise<string | null> {
   const m = await proxyJsonOrNull(CONNECTOR, NAME, `/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=minimal`);
@@ -288,9 +294,8 @@ export async function gmailThreadIdOf(messageId: string): Promise<string | null>
 }
 
 /** One thread with the new text of each message, or null when it is gone. */
-export async function readGmailThread(threadId: string, maxChars = MAX_TEXT): Promise<GmailThread | null> {
-  const profile = await getJson("/gmail/v1/users/me/profile");
-  const account = String(profile.emailAddress ?? "").toLowerCase();
+export async function readGmailThread(threadId: string, maxChars = MAX_TEXT, knownAccount?: string): Promise<GmailThread | null> {
+  const account = knownAccount ?? (await gmailAccount());
   const body = await proxyJsonOrNull(CONNECTOR, NAME, `/gmail/v1/users/me/threads/${encodeURIComponent(threadId)}?format=full`);
   if (!body) return null;
   const messages: ThreadMessage[] = [];
@@ -315,6 +320,13 @@ export async function readGmailThread(threadId: string, maxChars = MAX_TEXT): Pr
   }
   messages.sort((a, b) => a.at.getTime() - b.at.getTime());
   return { account, threadId, messages };
+}
+
+/** Thread ids matching a Gmail search, newest first. */
+export async function findGmailThreads(q: string, max: number): Promise<string[]> {
+  const p = new URLSearchParams({ q, maxResults: String(max) });
+  const body = await getJson("/gmail/v1/users/me/threads?" + p.toString());
+  return ((body.threads as { id: string }[] | undefined) ?? []).map((t) => t.id);
 }
 
 export function gmailThreadUrl(account: string | null, threadId: string): string {

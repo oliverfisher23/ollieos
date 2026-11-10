@@ -45,6 +45,8 @@ import type {
   CadencePage,
   CheckInDraft,
   ClipboardText,
+  CompanyResearch,
+  CompanyResearchList,
   ConnectorCheckResult,
   ConnectorKey,
   ConnectorReadByInput,
@@ -88,12 +90,16 @@ import type {
   ListDocumentsParams,
   ListKnowledgeInboxParams,
   ListProjectsParams,
+  ListResearchParams,
   ListTasksParams,
   LogoutBrowserSessionParams,
   LogoutSuccess,
+  LookBack,
+  LookBackInput,
   MeetingsList,
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
+  NoReplyScan,
   NoiseRule,
   NoiseRuleOption,
   NoiseRuleUpdate,
@@ -126,6 +132,10 @@ import type {
   ReplyDraft,
   ReplyDraftInput,
   ReplyDraftResult,
+  ResearchStart,
+  ReviewDecideInput,
+  ReviewDecideResult,
+  ReviewList,
   SearchKnowledgeParams,
   SearchResult,
   SuggestionApprove,
@@ -9192,6 +9202,1051 @@ export const useCheckConnector = <TError = ErrorType<ErrorResponse | NotAuthoris
         TContext
       > => {
       return useMutation(getCheckConnectorMutationOptions(options), queryClient);
+    }
+
+export const getGetLookBackUrl = () => {
+
+
+
+
+  return `/api/connectors/granola/look-back`
+}
+
+/**
+ * @summary The Granola look back, how far it has got and what it found
+ */
+export const getLookBack = async ( options?: Parameters<typeof customFetch>[1]): Promise<LookBack> => {
+
+  return customFetch<LookBack>(getGetLookBackUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLookBackQueryKey = () => {
+    return [
+    `/api/connectors/granola/look-back`
+    ] as const;
+    }
+
+
+export const getGetLookBackQueryOptions = <TData = Awaited<ReturnType<typeof getLookBack>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLookBack>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLookBackQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLookBack>>> = ({ signal }) => getLookBack({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLookBack>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetLookBackQueryResult = NonNullable<Awaited<ReturnType<typeof getLookBack>>>
+export type GetLookBackQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetLookBack<TData = Awaited<ReturnType<typeof getLookBack>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLookBack>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLookBack>>,
+          TError,
+          Awaited<ReturnType<typeof getLookBack>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLookBack<TData = Awaited<ReturnType<typeof getLookBack>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLookBack>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLookBack>>,
+          TError,
+          Awaited<ReturnType<typeof getLookBack>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLookBack<TData = Awaited<ReturnType<typeof getLookBack>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLookBack>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The Granola look back, how far it has got and what it found
+ */
+
+export function useGetLookBack<TData = Awaited<ReturnType<typeof getLookBack>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLookBack>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetLookBackQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartLookBackUrl = () => {
+
+
+
+
+  return `/api/connectors/granola/look-back`
+}
+
+/**
+ * @summary Start a new look back over older Granola notes, in the background
+ */
+export const startLookBack = async (lookBackInput: LookBackInput, options?: Parameters<typeof customFetch>[1]): Promise<LookBack> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<LookBack>(getStartLookBackUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(lookBackInput)
+  }
+);}
+
+
+
+
+
+export const getStartLookBackMutationKey = () => ['startLookBack'] as const;
+
+export const getStartLookBackMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startLookBack>>, TError,StartLookBackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startLookBack>>, TError,StartLookBackMutationVariables, TContext> => {
+
+const mutationKey = getStartLookBackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startLookBack>>, StartLookBackMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  startLookBack(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartLookBackMutationResult = NonNullable<Awaited<ReturnType<typeof startLookBack>>>
+    export type StartLookBackMutationBody = BodyType<LookBackInput>
+    export type StartLookBackMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type StartLookBackMutationVariables = {data: BodyType<LookBackInput>}
+
+    /**
+ * @summary Start a new look back over older Granola notes, in the background
+ */
+export const useStartLookBack = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startLookBack>>, TError,StartLookBackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof startLookBack>>,
+        TError,
+        StartLookBackMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartLookBackMutationOptions(options), queryClient);
+    }
+
+export const getStopLookBackUrl = () => {
+
+
+
+
+  return `/api/connectors/granola/look-back/stop`
+}
+
+/**
+ * @summary Stop the look back after the meeting it is reading
+ */
+export const stopLookBack = async ( options?: Parameters<typeof customFetch>[1]): Promise<LookBack> => {
+
+  return customFetch<LookBack>(getStopLookBackUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getStopLookBackMutationKey = () => ['stopLookBack'] as const;
+
+export const getStopLookBackMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stopLookBack>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof stopLookBack>>, TError,void, TContext> => {
+
+const mutationKey = getStopLookBackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof stopLookBack>>, void> = () => {
+
+
+          return  stopLookBack(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StopLookBackMutationResult = NonNullable<Awaited<ReturnType<typeof stopLookBack>>>
+
+    export type StopLookBackMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Stop the look back after the meeting it is reading
+ */
+export const useStopLookBack = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stopLookBack>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof stopLookBack>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getStopLookBackMutationOptions(options), queryClient);
+    }
+
+export const getResumeLookBackUrl = () => {
+
+
+
+
+  return `/api/connectors/granola/look-back/resume`
+}
+
+/**
+ * @summary Carry on a stopped look back from where it got to
+ */
+export const resumeLookBack = async ( options?: Parameters<typeof customFetch>[1]): Promise<LookBack> => {
+
+  return customFetch<LookBack>(getResumeLookBackUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResumeLookBackMutationKey = () => ['resumeLookBack'] as const;
+
+export const getResumeLookBackMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeLookBack>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resumeLookBack>>, TError,void, TContext> => {
+
+const mutationKey = getResumeLookBackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resumeLookBack>>, void> = () => {
+
+
+          return  resumeLookBack(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResumeLookBackMutationResult = NonNullable<Awaited<ReturnType<typeof resumeLookBack>>>
+
+    export type ResumeLookBackMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+    /**
+ * @summary Carry on a stopped look back from where it got to
+ */
+export const useResumeLookBack = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeLookBack>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resumeLookBack>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getResumeLookBackMutationOptions(options), queryClient);
+    }
+
+export const getListReviewUrl = () => {
+
+
+
+
+  return `/api/review`
+}
+
+/**
+ * @summary Actions from a Granola look back and unanswered emails, waiting for Ollie
+ */
+export const listReview = async ( options?: Parameters<typeof customFetch>[1]): Promise<ReviewList> => {
+
+  return customFetch<ReviewList>(getListReviewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReviewQueryKey = () => {
+    return [
+    `/api/review`
+    ] as const;
+    }
+
+
+export const getListReviewQueryOptions = <TData = Awaited<ReturnType<typeof listReview>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReview>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReviewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReview>>> = ({ signal }) => listReview({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReview>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListReviewQueryResult = NonNullable<Awaited<ReturnType<typeof listReview>>>
+export type ListReviewQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListReview<TData = Awaited<ReturnType<typeof listReview>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReview>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReview>>,
+          TError,
+          Awaited<ReturnType<typeof listReview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReview<TData = Awaited<ReturnType<typeof listReview>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReview>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReview>>,
+          TError,
+          Awaited<ReturnType<typeof listReview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReview<TData = Awaited<ReturnType<typeof listReview>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReview>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Actions from a Granola look back and unanswered emails, waiting for Ollie
+ */
+
+export function useListReview<TData = Awaited<ReturnType<typeof listReview>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReview>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListReviewQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetNoReplyScanUrl = () => {
+
+
+
+
+  return `/api/review/no-reply`
+}
+
+/**
+ * @summary The look through sent email for emails nobody answered, how far it has got and what it found
+ */
+export const getNoReplyScan = async ( options?: Parameters<typeof customFetch>[1]): Promise<NoReplyScan> => {
+
+  return customFetch<NoReplyScan>(getGetNoReplyScanUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetNoReplyScanQueryKey = () => {
+    return [
+    `/api/review/no-reply`
+    ] as const;
+    }
+
+
+export const getGetNoReplyScanQueryOptions = <TData = Awaited<ReturnType<typeof getNoReplyScan>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNoReplyScan>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetNoReplyScanQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNoReplyScan>>> = ({ signal }) => getNoReplyScan({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNoReplyScan>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetNoReplyScanQueryResult = NonNullable<Awaited<ReturnType<typeof getNoReplyScan>>>
+export type GetNoReplyScanQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetNoReplyScan<TData = Awaited<ReturnType<typeof getNoReplyScan>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNoReplyScan>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getNoReplyScan>>,
+          TError,
+          Awaited<ReturnType<typeof getNoReplyScan>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetNoReplyScan<TData = Awaited<ReturnType<typeof getNoReplyScan>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNoReplyScan>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getNoReplyScan>>,
+          TError,
+          Awaited<ReturnType<typeof getNoReplyScan>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetNoReplyScan<TData = Awaited<ReturnType<typeof getNoReplyScan>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNoReplyScan>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The look through sent email for emails nobody answered, how far it has got and what it found
+ */
+
+export function useGetNoReplyScan<TData = Awaited<ReturnType<typeof getNoReplyScan>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNoReplyScan>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetNoReplyScanQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartNoReplyScanUrl = () => {
+
+
+
+
+  return `/api/review/no-reply`
+}
+
+/**
+ * @summary Start looking through the last 6 months of sent email, in the background
+ */
+export const startNoReplyScan = async ( options?: Parameters<typeof customFetch>[1]): Promise<NoReplyScan> => {
+
+  return customFetch<NoReplyScan>(getStartNoReplyScanUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getStartNoReplyScanMutationKey = () => ['startNoReplyScan'] as const;
+
+export const getStartNoReplyScanMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startNoReplyScan>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startNoReplyScan>>, TError,void, TContext> => {
+
+const mutationKey = getStartNoReplyScanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startNoReplyScan>>, void> = () => {
+
+
+          return  startNoReplyScan(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartNoReplyScanMutationResult = NonNullable<Awaited<ReturnType<typeof startNoReplyScan>>>
+
+    export type StartNoReplyScanMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+    /**
+ * @summary Start looking through the last 6 months of sent email, in the background
+ */
+export const useStartNoReplyScan = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startNoReplyScan>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof startNoReplyScan>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getStartNoReplyScanMutationOptions(options), queryClient);
+    }
+
+export const getStopNoReplyScanUrl = () => {
+
+
+
+
+  return `/api/review/no-reply/stop`
+}
+
+/**
+ * @summary Stop the look through after the emails it is reading
+ */
+export const stopNoReplyScan = async ( options?: Parameters<typeof customFetch>[1]): Promise<NoReplyScan> => {
+
+  return customFetch<NoReplyScan>(getStopNoReplyScanUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getStopNoReplyScanMutationKey = () => ['stopNoReplyScan'] as const;
+
+export const getStopNoReplyScanMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stopNoReplyScan>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof stopNoReplyScan>>, TError,void, TContext> => {
+
+const mutationKey = getStopNoReplyScanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof stopNoReplyScan>>, void> = () => {
+
+
+          return  stopNoReplyScan(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StopNoReplyScanMutationResult = NonNullable<Awaited<ReturnType<typeof stopNoReplyScan>>>
+
+    export type StopNoReplyScanMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Stop the look through after the emails it is reading
+ */
+export const useStopNoReplyScan = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stopNoReplyScan>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof stopNoReplyScan>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getStopNoReplyScanMutationOptions(options), queryClient);
+    }
+
+export const getResumeNoReplyScanUrl = () => {
+
+
+
+
+  return `/api/review/no-reply/resume`
+}
+
+/**
+ * @summary Carry on a stopped look through from where it got to
+ */
+export const resumeNoReplyScan = async ( options?: Parameters<typeof customFetch>[1]): Promise<NoReplyScan> => {
+
+  return customFetch<NoReplyScan>(getResumeNoReplyScanUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResumeNoReplyScanMutationKey = () => ['resumeNoReplyScan'] as const;
+
+export const getResumeNoReplyScanMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeNoReplyScan>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resumeNoReplyScan>>, TError,void, TContext> => {
+
+const mutationKey = getResumeNoReplyScanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resumeNoReplyScan>>, void> = () => {
+
+
+          return  resumeNoReplyScan(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResumeNoReplyScanMutationResult = NonNullable<Awaited<ReturnType<typeof resumeNoReplyScan>>>
+
+    export type ResumeNoReplyScanMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+    /**
+ * @summary Carry on a stopped look through from where it got to
+ */
+export const useResumeNoReplyScan = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeNoReplyScan>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resumeNoReplyScan>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getResumeNoReplyScanMutationOptions(options), queryClient);
+    }
+
+export const getDecideReviewUrl = () => {
+
+
+
+
+  return `/api/review/decide`
+}
+
+/**
+ * @summary Turn one or more review items into tasks, or mark them done or dropped
+ */
+export const decideReview = async (reviewDecideInput: ReviewDecideInput, options?: Parameters<typeof customFetch>[1]): Promise<ReviewDecideResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReviewDecideResult>(getDecideReviewUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(reviewDecideInput)
+  }
+);}
+
+
+
+
+
+export const getDecideReviewMutationKey = () => ['decideReview'] as const;
+
+export const getDecideReviewMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideReview>>, TError,DecideReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideReview>>, TError,DecideReviewMutationVariables, TContext> => {
+
+const mutationKey = getDecideReviewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideReview>>, DecideReviewMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  decideReview(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideReviewMutationResult = NonNullable<Awaited<ReturnType<typeof decideReview>>>
+    export type DecideReviewMutationBody = BodyType<ReviewDecideInput>
+    export type DecideReviewMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type DecideReviewMutationVariables = {data: BodyType<ReviewDecideInput>}
+
+    /**
+ * @summary Turn one or more review items into tasks, or mark them done or dropped
+ */
+export const useDecideReview = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideReview>>, TError,DecideReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof decideReview>>,
+        TError,
+        DecideReviewMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDecideReviewMutationOptions(options), queryClient);
+    }
+
+export const getListResearchUrl = (params: ListResearchParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/research?${stringifiedParams}` : `/api/research`
+}
+
+/**
+ * @summary What the research agent found about these outside companies
+ */
+export const listResearch = async (params: ListResearchParams, options?: Parameters<typeof customFetch>[1]): Promise<CompanyResearchList> => {
+
+  return customFetch<CompanyResearchList>(getListResearchUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListResearchQueryKey = (params?: ListResearchParams,) => {
+    return [
+    `/api/research`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListResearchQueryOptions = <TData = Awaited<ReturnType<typeof listResearch>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(params: ListResearchParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listResearch>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListResearchQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listResearch>>> = ({ signal }) => listResearch(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listResearch>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListResearchQueryResult = NonNullable<Awaited<ReturnType<typeof listResearch>>>
+export type ListResearchQueryError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+export function useListResearch<TData = Awaited<ReturnType<typeof listResearch>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: ListResearchParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listResearch>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listResearch>>,
+          TError,
+          Awaited<ReturnType<typeof listResearch>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListResearch<TData = Awaited<ReturnType<typeof listResearch>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: ListResearchParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listResearch>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listResearch>>,
+          TError,
+          Awaited<ReturnType<typeof listResearch>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListResearch<TData = Awaited<ReturnType<typeof listResearch>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: ListResearchParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listResearch>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary What the research agent found about these outside companies
+ */
+
+export function useListResearch<TData = Awaited<ReturnType<typeof listResearch>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: ListResearchParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listResearch>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListResearchQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartResearchUrl = () => {
+
+
+
+
+  return `/api/research`
+}
+
+/**
+ * @summary Research an outside company now (web search and Ollie's email with them)
+ */
+export const startResearch = async (researchStart: ResearchStart, options?: Parameters<typeof customFetch>[1]): Promise<CompanyResearch> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CompanyResearch>(getStartResearchUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(researchStart)
+  }
+);}
+
+
+
+
+
+export const getStartResearchMutationKey = () => ['startResearch'] as const;
+
+export const getStartResearchMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startResearch>>, TError,StartResearchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startResearch>>, TError,StartResearchMutationVariables, TContext> => {
+
+const mutationKey = getStartResearchMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startResearch>>, StartResearchMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  startResearch(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartResearchMutationResult = NonNullable<Awaited<ReturnType<typeof startResearch>>>
+    export type StartResearchMutationBody = BodyType<ResearchStart>
+    export type StartResearchMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type StartResearchMutationVariables = {data: BodyType<ResearchStart>}
+
+    /**
+ * @summary Research an outside company now (web search and Ollie's email with them)
+ */
+export const useStartResearch = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startResearch>>, TError,StartResearchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof startResearch>>,
+        TError,
+        StartResearchMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartResearchMutationOptions(options), queryClient);
     }
 
 export const getGetOAuthConsentUrl = (params: GetOAuthConsentParams,) => {

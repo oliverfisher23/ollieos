@@ -22,6 +22,7 @@ export const entityTypeEnum = pgEnum("entity_type", [
   "playbook",
   "meeting_brief",
   "digest",
+  "review_item",
 ]);
 export const activityKindEnum = pgEnum("activity_kind", ["email", "meeting", "slack", "note", "task"]);
 export const captureOutcomeEnum = pgEnum("capture_outcome", ["created", "duplicate", "noise", "error"]);
@@ -48,6 +49,9 @@ export const suggestionKindEnum = pgEnum("suggestion_kind", [
 ]);
 export const suggestionStatusEnum = pgEnum("suggestion_status", ["pending", "approved", "rejected"]);
 /** Stale and conflicting facts (feature 02). */
+/** The Review page (Assist Part C): look-back actions; Part D adds unanswered email. */
+export const reviewItemKindEnum = pgEnum("review_item_kind", ["action", "no_reply"]);
+export const reviewItemStateEnum = pgEnum("review_item_state", ["pending", "accepted", "done", "dropped", "answered"]);
 export const reviewKindEnum = pgEnum("review_kind", ["stale", "conflict"]);
 export const reviewStatusEnum = pgEnum("review_status", ["pending", "resolved"]);
 /** Fixed list of fact attributes (build plan question 42); null means a general fact. */

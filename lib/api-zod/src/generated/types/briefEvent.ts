@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { MeetingScope } from './meetingScope';
 
 export interface BriefEvent {
   id: number;
@@ -15,4 +16,7 @@ export interface BriefEvent {
   location: string | null;
   /** @nullable */
   platform: string | null;
+  scope: MeetingScope;
+  /** The outside companies on an external meeting: organisation names, else email domains */
+  companies: string[];
 }

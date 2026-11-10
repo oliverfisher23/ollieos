@@ -5,12 +5,15 @@ import {
   rejectSuggestion,
   resolveFactReview,
   useListKnowledgeInbox,
+  useListProjects,
   type FactReviewResolve,
   type KnowledgeInboxItem,
   type KnowledgeInboxItemKind,
 } from '@workspace/api-client-react';
 import { daysBetween, formatDayMonth, formatTime, londonDate, todayLondon } from '@workspace/shared';
 import { CharCount, Skel } from '@/components/bits';
+import { Dropdown } from '@/components/dropdown';
+import { projectOptions } from '@/components/dropdown-options';
 import { KnowledgeLayout } from '@/components/knowledge/layout';
 import { entityPath, useKnowledgeWrite } from '@/lib/knowledge';
 
@@ -61,7 +64,8 @@ export default function KnowledgeInboxPage() {
   const [, navigate] = useLocation();
   const raw = new URLSearchParams(search).get('tab');
   const tab: Tab = raw === 'conflicts' || raw === 'stale' ? raw : 'suggested';
-  const inbox = useListKnowledgeInbox({ tab });
+  const lookBackOnly = tab === 'suggested' && new URLSearchParams(search).get('from') === 'look-back';
+  const inbox = useListKnowledgeInbox({ tab, origin: lookBackOnly ? 'look_back' : 'all' });
   const [done, setDone] = useState<Record<string, Done>>({});
 
   const counts = inbox.data?.counts;
@@ -102,6 +106,22 @@ export default function KnowledgeInboxPage() {
         </div>
       </div>
 
+      {tab === 'suggested' && (lookBackOnly || (counts?.lookBack ?? 0) > 0) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: -4 }}>
+          <Dropdown
+            variant="control"
+            ariaLabel="Show suggestions from"
+            value={lookBackOnly ? 'look-back' : ''}
+            onChange={(v) => navigate(v ? '/knowledge/inbox?from=look-back' : '/knowledge/inbox', { replace: true })}
+            options={[
+              { value: '', label: 'All suggestions' },
+              { value: 'look-back', label: 'From look back', hint: String(counts?.lookBack ?? 0) },
+            ]}
+            testId="select-inbox-origin"
+          />
+        </div>
+      )}
+
       <div role="tabpanel" aria-label={TABS.find((t) => t.id === tab)!.label} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: -6 }}>
         {inbox.isLoading ? (
           [0, 1, 2].map((i) => <Skel key={i} h={150} />)
@@ -111,7 +131,9 @@ export default function KnowledgeInboxPage() {
             <div><button type="button" className="oo-btn oo-btn-outline" onClick={() => inbox.refetch()}>Try again</button></div>
           </div>
         ) : items.length === 0 ? (
-          <p className="oo-muted" style={{ margin: 0, fontSize: 14, padding: '8px 0' }} data-testid="text-inbox-empty">{EMPTY[tab]}</p>
+          <p className="oo-muted" style={{ margin: 0, fontSize: 14, padding: '8px 0' }} data-testid="text-inbox-empty">
+            {lookBackOnly ? 'Nothing from a look back is waiting. Start one from Settings, Connectors, Granola.' : EMPTY[tab]}
+          </p>
         ) : (
           items.map((it) => (
             <InboxCard key={it.key} item={it} done={done[it.key]} onDone={(result, ok) => setDone((d) => ({ ...d, [it.key]: { item: it, result, ok } }))} />
@@ -147,6 +169,11 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
   const [mode, setMode] = useState<'view' | 'edit' | 'own'>('view');
   const kind = KIND[it.kind];
   const testKey = it.key.replace(':', '-');
+  // A decision with no project: file it under one, a new one, or none.
+  const [project, setProject] = useState('');
+  const [newName, setNewName] = useState(it.projectHint ?? '');
+  const filing = it.needsProject && !done ? (project === NEW ? { newProjectName: newName.trim() } : project ? { projectId: Number(project) } : {}) : {};
+  const filingBlocked = project === NEW && !newName.trim();
 
   const run = async (fn: () => Promise<unknown>, result: string, ok: boolean) => {
     if (busy) return;
@@ -172,6 +199,7 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
         <span className="oo-kind" data-tone={kind.tone}>{kind.label}</span>
         <Target it={it} />
         <span>· {byLine(it)}</span>
+        {it.lookBack && <span className="oo-pill" data-testid={'pill-look-back-' + testKey}>From look back</span>}
         {it.attribute && it.group !== 'conflicts' && <span className="oo-pill">{it.attribute}</span>}
       </div>
 
@@ -189,10 +217,11 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
           it={it}
           busy={busy}
           onCancel={() => setMode('view')}
+          blocked={filingBlocked}
           onSave={(fields) =>
             it.group === 'stale'
               ? resolve({ action: 'edit', text: fields.text ?? '' }, 'Updated and confirmed today', true)
-              : run(() => approveSuggestion(it.id, { fields }), (APPROVED[it.kind] ?? 'Added to knowledge') + ', with your edits', true)
+              : run(() => approveSuggestion(it.id, { fields, ...filing }), approvedText(it, project, newName) + ', with your edits', true)
           }
         />
       ) : (
@@ -218,6 +247,10 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
         </p>
       )}
 
+      {it.needsProject && !done && mode !== 'own' && (
+        <ProjectPicker testKey={testKey} hint={it.projectHint} value={project} onChange={setProject} newName={newName} onNewName={setNewName} />
+      )}
+
       {mode === 'own' && !done && (
         <OwnForm
           busy={busy}
@@ -233,7 +266,7 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
         <div className="oo-icard-actions">
           {it.group === 'suggested' && (
             <>
-              <button type="button" className="oo-btn oo-btn-ink" disabled={busy} onClick={() => run(() => approveSuggestion(it.id, {}), APPROVED[it.kind] ?? 'Added to knowledge', true)} data-testid={'button-approve-' + testKey}>Approve</button>
+              <button type="button" className="oo-btn oo-btn-ink" disabled={busy || filingBlocked} onClick={() => run(() => approveSuggestion(it.id, filing), approvedText(it, project, newName), true)} data-testid={'button-approve-' + testKey}>Approve</button>
               {it.fields.some((f) => f.editable) && (
                 <button type="button" className="oo-btn oo-btn-outline" disabled={busy} onClick={() => setMode('edit')} data-testid={'button-edit-' + testKey}>Edit, then approve</button>
               )}
@@ -274,10 +307,55 @@ const LONG = new Set(['text', 'summary', 'relationship_summary', 'rule']);
 const REQUIRED = new Set(['text', 'name', 'title', 'applies_when', 'rule']);
 const MAX: Record<string, number> = { rule: 400 };
 
-function EditForm({ it, busy, onSave, onCancel }: { it: KnowledgeInboxItem; busy: boolean; onSave: (fields: Record<string, string>) => void; onCancel: () => void }) {
+const NEW = '__new';
+
+function approvedText(it: KnowledgeInboxItem, project: string, newName: string): string {
+  if (!it.needsProject) return APPROVED[it.kind] ?? 'Added to knowledge';
+  if (project === NEW) return `Added to knowledge, under the new project ${newName.trim()}`;
+  return project ? 'Added to knowledge, under that project' : 'Added to knowledge, with no project';
+}
+
+/** For a decision that matched no project: file it under one, start a new one, or leave it on its own. */
+function ProjectPicker({ testKey, hint, value, onChange, newName, onNewName }: { testKey: string; hint: string | null; value: string; onChange: (v: string) => void; newName: string; onNewName: (v: string) => void }) {
+  const projects = useListProjects();
+  const id = 'decision-project-' + testKey;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-testid={'picker-project-' + testKey}>
+      <label htmlFor={id} className="oo-muted" style={{ fontSize: 12 }}>
+        File under a project (optional){hint ? ` · looks to be about ${hint}` : ''}
+      </label>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+        <Dropdown
+          id={id}
+          variant="compact"
+          value={value}
+          onChange={onChange}
+          searchPlaceholder="Search projects"
+          options={[{ value: '', label: 'No project' }, ...projectOptions(projects.data), { value: NEW, label: 'New project…' }]}
+          testId={'select-project-' + testKey}
+        />
+        {value === NEW && (
+          <input
+            className="oo-input"
+            style={{ width: 'auto', flex: '1 1 200px', minHeight: 32, padding: '3px 8px' }}
+            aria-label="New project name"
+            placeholder="Project name"
+            autoFocus
+            value={newName}
+            maxLength={200}
+            onChange={(e) => onNewName(e.target.value)}
+            data-testid={'input-new-project-' + testKey}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EditForm({ it, busy, blocked, onSave, onCancel }: { it: KnowledgeInboxItem; busy: boolean; blocked?: boolean; onSave: (fields: Record<string, string>) => void; onCancel: () => void }) {
   const editable = it.fields.filter((f) => f.editable);
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(editable.map((f) => [f.key, f.value ?? ''])));
-  const missing = editable.some((f) => (REQUIRED.has(f.key) && !values[f.key]?.trim()) || (MAX[f.key] !== undefined && (values[f.key] ?? '').trim().length > MAX[f.key]));
+  const missing = !!blocked || editable.some((f) => (REQUIRED.has(f.key) && !values[f.key]?.trim()) || (MAX[f.key] !== undefined && (values[f.key] ?? '').trim().length > MAX[f.key]));
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (missing || busy) return;

@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { CompanyResearch } from './companyResearch';
 import type { Fact } from './fact';
 import type { LinkedEntity } from './linkedEntity';
 import type { Note } from './note';
@@ -13,6 +14,7 @@ import type { PersonChip } from './personChip';
 import type { TimelineItem } from './timelineItem';
 
 export interface OrganisationDetail {
+  research: CompanyResearch[];
   organisation: Organisation;
   people: PersonChip[];
   projects: LinkedEntity[];

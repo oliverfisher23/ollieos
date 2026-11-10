@@ -10,6 +10,7 @@ import {
   type OrganisationUpdate,
 } from '@workspace/api-client-react';
 import { Skel } from '@/components/bits';
+import { ResearchList } from '@/components/research';
 import { InlineText } from '@/components/inline-text';
 import { KnowledgeLayout, ListHeader } from '@/components/knowledge/layout';
 import { CreateDialog } from '@/components/knowledge/create-dialog';
@@ -133,7 +134,7 @@ export function OrganisationPage() {
       </KnowledgeLayout>
     );
   }
-  const { organisation: o, people, projects, facts, timeline } = q.data;
+  const { organisation: o, people, projects, facts, timeline, research } = q.data;
 
   return (
     <KnowledgeLayout testId="page-organisation">
@@ -191,6 +192,18 @@ export function OrganisationPage() {
         </section>
         <FactsSection entityType="organisation" entityId={o.id} facts={facts} />
       </div>
+
+      {!o.internal && (
+        <section aria-labelledby="ors-h" style={{ display: 'flex', flexDirection: 'column', gap: 12 }} data-testid="section-org-research">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <h2 id="ors-h" className="oo-h2">Research</h2>
+            <p className="oo-muted" style={{ margin: 0, fontSize: 13, maxWidth: '72ch' }}>
+              From the web and your email with them. Runs before meetings with them, and when you ask. Nothing here is added to your knowledge unless you add it.
+            </p>
+          </div>
+          <ResearchList items={research} organisationId={o.id} testId="org-research" />
+        </section>
+      )}
 
       <section aria-labelledby="otl-h" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <h2 id="otl-h" className="oo-h2">Timeline</h2>

@@ -21,6 +21,7 @@ import { LockMark, PageProblem, PageSkeleton } from '@/components/knowledge/part
 import { isNotFound } from '@/lib/knowledge';
 import { errorMessage, notify } from '@/lib/notify';
 import { cadenceStatusLabel } from '@/pages/people-cadence';
+import { ResearchList, ScopePill } from '@/components/research';
 
 const CARD = { background: 'var(--oo-panel)', borderRadius: 'var(--oo-r-panel)', boxShadow: 'var(--oo-shadow-panel)' } as const;
 
@@ -143,6 +144,7 @@ function Brief({ brief }: { brief: BriefView }) {
             Brief · {formatLong(e.startsAt)}, {formatTime(e.startsAt)} to {formatTime(e.endsAt)}{e.platform ? ' · ' + e.platform : ''}
           </p>
           <h1 className="oo-h1" style={{ color: 'var(--oo-text-on-dark)', overflowWrap: 'anywhere' }} data-testid="text-brief-title">{e.title}</h1>
+          <div><ScopePill scope={e.scope} companies={e.companies} testId="pill-brief-scope" /></div>
           <p style={{ margin: 0, fontSize: 14, color: 'var(--oo-text-on-dark-2)' }} data-testid="text-brief-built">
             Written {formatLong(brief.generatedAt) === formatLong(new Date()) ? 'today' : formatDayMonth(brief.generatedAt)} at {formatTime(brief.generatedAt)}.
             {brief.sourcesLine ? ' ' + brief.sourcesLine + '.' : ''}
@@ -199,6 +201,12 @@ function Brief({ brief }: { brief: BriefView }) {
               </div>
             )}
           </Panel>
+
+          {brief.research.length > 0 && (
+            <Panel id="b-research" title={brief.research.length === 1 ? 'Research on the company' : 'Research on the companies'}>
+              <ResearchList items={brief.research} />
+            </Panel>
+          )}
 
           {showContext && brief.agenda && brief.agenda.length > 0 && (
             <Panel id="b-agenda" title="Suggested agenda">
@@ -388,9 +396,18 @@ const RESPONSE: Record<string, string> = {
   none: 'invite not yet accepted',
 };
 
+/** An email address that wraps before the @ rather than in the middle of a word. */
+function breakable(text: string) {
+  const at = text.indexOf('@');
+  if (at <= 0 || /\s/.test(text)) return text;
+  return <>{text.slice(0, at)}<wbr />{text.slice(at)}</>;
+}
+
 function AttendeeCard({ a, index }: { a: BriefAttendee; index: number }) {
   const p = a.person;
-  const role = p ? [p.role, p.organisation].filter(Boolean).join(', ') : a.email;
+  // With no name on the invite the name is the email address, so it is shown once.
+  const nameIsEmail = !!a.email && a.name.trim().toLowerCase() === a.email.toLowerCase();
+  const role = p ? [p.role, p.organisation].filter(Boolean).join(', ') : nameIsEmail ? null : a.email;
   const meta = [
     p ? (p.lastContactAt ? 'Last contact ' + formatDayMonth(p.lastContactAt) : 'No contact logged yet') : 'No previous contact',
     a.organiser ? 'organiser' : null,
@@ -401,8 +418,10 @@ function AttendeeCard({ a, index }: { a: BriefAttendee; index: number }) {
     <>
       <Avatar name={a.name} id={p?.id ?? a.name} size={36} />
       <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-        <span style={{ fontSize: 14, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{a.name}{p?.confidential && <LockMark />}</span>
-        {role && <span style={{ fontSize: 13, color: 'var(--oo-ink-muted)', overflowWrap: 'anywhere' }}>{role}</span>}
+        <span style={{ fontSize: 14, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+          <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{breakable(a.name)}</span>{p?.confidential && <LockMark />}
+        </span>
+        {role && <span style={{ fontSize: 13, color: 'var(--oo-ink-muted)', overflowWrap: 'anywhere' }}>{breakable(role)}</span>}
         <span style={{ fontSize: 12, color: 'var(--oo-ink-muted)' }}>{meta}</span>
         {cadence && <span style={{ fontSize: 12, color: 'var(--oo-ink-muted)' }} data-testid={'text-attendee-cadence-' + index}>Cadence: {cadence}</span>}
         {p && p.facts.length > 0 && (

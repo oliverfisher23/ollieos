@@ -134,8 +134,16 @@ describe("03 Meeting briefs", () => {
   });
 
   it("an event with nobody and nothing known gets no brief", async () => {
-    const ev = await meeting("m3b", { title: "Vendor demo", attendees: ["stranger@elsewhere.test"] });
+    const ev = await meeting("m3b", { title: "Vendor demo", attendees: ["stranger@gmail.com"] });
     expect((await api(`briefs/${ev.id}`)).status).toBe(404);
+  });
+
+  it("an event with a stranger from an outside company gets a brief, marked external", async () => {
+    const ev = await meeting("m3c", { title: "Vendor demo", attendees: ["stranger@elsewhere.test"] });
+    const r = await api(`briefs/${ev.id}`);
+    expect(r.status).toBe(200);
+    expect(r.body.event).toMatchObject({ scope: "external", companies: ["elsewhere.test"] });
+    expect(r.body.research).toEqual([expect.objectContaining({ domain: "elsewhere.test", status: "none", body: null })]);
   });
 
   it("criterion 4: open promises to any attendee appear in What you promised", async () => {

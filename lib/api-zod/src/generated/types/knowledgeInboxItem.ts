@@ -37,4 +37,13 @@ export interface KnowledgeInboxItem {
   options: KnowledgeInboxOption[];
   /** @nullable */
   lastConfirmedAt: Date | null;
+  /** Found by a Granola look back */
+  lookBack: boolean;
+  /** A decision with no project; Ollie may file it under one when approving */
+  needsProject: boolean;
+  /**
+     * What a decision with no project is about
+     * @nullable
+     */
+  projectHint: string | null;
 }

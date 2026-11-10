@@ -12,6 +12,8 @@ import goalsRouter from "./goals";
 import libraryRouter from "./library";
 import briefsRouter from "./briefs";
 import connectorsRouter from "./connectors";
+import reviewRouter from "./review";
+import researchRouter from "./research";
 import ingestRouter from "./ingest";
 import { oauthConsentRouter, oauthPublicRouter } from "../oauth/routes";
 import { requireOllie } from "../middlewares/requireOllie";
@@ -39,6 +41,8 @@ router.use(goalsRouter);
 router.use(libraryRouter);
 router.use(briefsRouter);
 router.use(connectorsRouter);
+router.use(reviewRouter);
+router.use(researchRouter);
 router.use(oauthConsentRouter);
 
 export default router;

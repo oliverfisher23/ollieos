@@ -387,6 +387,8 @@ export interface KnowledgeInboxCounts {
   conflicts: number;
   stale: number;
   total: number;
+  /** Pending suggestions from a Granola look back (Knowledge Inbox only) */
+  lookBack?: number;
 }
 
 export interface HomeSummary {
@@ -490,6 +492,17 @@ export interface BriefPromise {
   personName: string | null;
 }
 
+/**
+ * External when anyone on the meeting is from outside Ollie's own company
+ */
+export type MeetingScope = typeof MeetingScope[keyof typeof MeetingScope];
+
+
+export const MeetingScope = {
+  internal: 'internal',
+  external: 'external',
+} as const;
+
 export interface BriefEvent {
   id: number;
   title: string;
@@ -499,6 +512,107 @@ export interface BriefEvent {
   location: string | null;
   /** @nullable */
   platform: string | null;
+  scope: MeetingScope;
+  /** The outside companies on an external meeting: organisation names, else email domains */
+  companies: string[];
+}
+
+export interface ResearchFact {
+  label: string;
+  value: string;
+  /** @nullable */
+  url: string | null;
+}
+
+export interface ResearchNews {
+  /** @nullable */
+  date: string | null;
+  text: string;
+  /** @nullable */
+  url: string | null;
+}
+
+export interface ResearchPerson {
+  name: string;
+  /** @nullable */
+  role: string | null;
+  /** @nullable */
+  note: string | null;
+  /** @nullable */
+  url: string | null;
+}
+
+export type ResearchBodySourcesItem = {
+  title: string;
+  url: string;
+};
+
+export interface ResearchBody {
+  name: string;
+  /** @nullable */
+  website: string | null;
+  overview: string;
+  facts: ResearchFact[];
+  news: ResearchNews[];
+  people: ResearchPerson[];
+  /**
+     * Where things stand with Ollie, from his email
+     * @nullable
+     */
+  relationship: string | null;
+  openAsks: string[];
+  angles: string[];
+  sources: ResearchBodySourcesItem[];
+}
+
+export type CompanyResearchStatus = typeof CompanyResearchStatus[keyof typeof CompanyResearchStatus];
+
+
+export const CompanyResearchStatus = {
+  none: 'none',
+  running: 'running',
+  ready: 'ready',
+  failed: 'failed',
+} as const;
+
+export type CompanyResearchOrganisation = {
+  id: number;
+  slug: string;
+  name: string;
+} | null;
+
+export interface CompanyResearch {
+  domain: string;
+  status: CompanyResearchStatus;
+  organisation: CompanyResearchOrganisation;
+  body: null | ResearchBody;
+  emailThreads: number;
+  /** @nullable */
+  emailNote: string | null;
+  searches: number;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  researchedAt: string | null;
+  /** Older than 30 days */
+  stale: boolean;
+  /** @nullable */
+  error: string | null;
+}
+
+export interface CompanyResearchList {
+  items: CompanyResearch[];
+}
+
+export interface ResearchStart {
+  /**
+     * The company's email domain, or an address or website at it
+     * @minLength 3
+     * @maxLength 253
+     */
+  domain: string;
+  /** Files the research under this organisation */
+  organisationId?: number;
 }
 
 export type BriefViewTasksItem = {
@@ -570,6 +684,7 @@ export type BriefViewActionsItem = {
 
 export interface BriefView {
   event: BriefEvent;
+  research: CompanyResearch[];
   generatedAt: string;
   /** The model could not write the brief. Refresh to try again. */
   failed: boolean;
@@ -655,6 +770,8 @@ export interface MeetingRow {
   /** @nullable */
   location: string | null;
   attendees: MeetingRowAttendeesItem[];
+  scope: MeetingScope;
+  companies: string[];
   /** none means nobody or nothing OllieOS knows is on it, so there is no prep page */
   prep: MeetingRowPrep;
   /** Open promises to people on the meeting */
@@ -1019,6 +1136,261 @@ export interface FactCheckResult {
   conflicts: number;
 }
 
+export interface LookBackCounts {
+  /** Notes in range */
+  listed: number;
+  /** Notes an earlier look back already read */
+  already: number;
+  /** Meetings Ollie was in */
+  meetings: number;
+  /** Notes from meetings he was not in */
+  left_out: number;
+  decisions: number;
+  actions: number;
+  /** Decisions and actions OllieOS already had */
+  duplicates: number;
+  /** Notes that could not be read; a rerun tries them again */
+  failed: number;
+}
+
+export type LookBackStatus = typeof LookBackStatus[keyof typeof LookBackStatus];
+
+
+export const LookBackStatus = {
+  idle: 'idle',
+  running: 'running',
+  stopped: 'stopped',
+  done: 'done',
+  failed: 'failed',
+} as const;
+
+export interface LookBack {
+  status: LookBackStatus;
+  /** True while the notes in range are still being listed */
+  listing: boolean;
+  decisionsDays: number;
+  actionsDays: number;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  finishedAt: string | null;
+  /** Notes to read */
+  total: number;
+  /** Notes read so far */
+  done: number;
+  counts: LookBackCounts;
+  /** @nullable */
+  error: string | null;
+  /** Actions waiting on the Review page */
+  reviewPending: number;
+}
+
+export type LookBackInputDecisionsDays = typeof LookBackInputDecisionsDays[keyof typeof LookBackInputDecisionsDays];
+
+
+export const LookBackInputDecisionsDays = {
+  NUMBER_30: 30,
+  NUMBER_91: 91,
+  NUMBER_183: 183,
+  NUMBER_365: 365,
+} as const;
+
+/**
+ * 0 looks for no actions
+ */
+export type LookBackInputActionsDays = typeof LookBackInputActionsDays[keyof typeof LookBackInputActionsDays];
+
+
+export const LookBackInputActionsDays = {
+  NUMBER_0: 0,
+  NUMBER_14: 14,
+  NUMBER_30: 30,
+  NUMBER_61: 61,
+} as const;
+
+export interface LookBackInput {
+  decisionsDays: LookBackInputDecisionsDays;
+  /** 0 looks for no actions */
+  actionsDays: LookBackInputActionsDays;
+}
+
+/**
+ * action: from a Granola look back; no_reply: an email Ollie sent that nobody answered
+ */
+export type ReviewItemKind = typeof ReviewItemKind[keyof typeof ReviewItemKind];
+
+
+export const ReviewItemKind = {
+  action: 'action',
+  no_reply: 'no_reply',
+} as const;
+
+/**
+ * answered means someone wrote back before Ollie decided
+ */
+export type ReviewItemState = typeof ReviewItemState[keyof typeof ReviewItemState];
+
+
+export const ReviewItemState = {
+  pending: 'pending',
+  accepted: 'accepted',
+  done: 'done',
+  dropped: 'dropped',
+  answered: 'answered',
+} as const;
+
+export type ReviewItemSuggestedType = typeof ReviewItemSuggestedType[keyof typeof ReviewItemSuggestedType];
+
+
+export const ReviewItemSuggestedType = {
+  task: 'task',
+  promise: 'promise',
+  waiting: 'waiting',
+} as const;
+
+export interface ReviewItem {
+  id: number;
+  /** action: from a Granola look back; no_reply: an email Ollie sent that nobody answered */
+  kind: ReviewItemKind;
+  /** answered means someone wrote back before Ollie decided */
+  state: ReviewItemState;
+  /** The action, or for an unanswered email the ask: who owes what */
+  text: string;
+  /**
+     * The next step (or chase line), in one sentence
+     * @nullable
+     */
+  action: string | null;
+  /**
+     * The line in the notes or email it came from
+     * @nullable
+     */
+  quote: string | null;
+  /** The meeting title */
+  meetingTitle: string;
+  /** When the meeting was */
+  meetingAt: string;
+  /** @nullable */
+  sourceUrl: string | null;
+  /**
+     * Unanswered email: the address of the person who should answer
+     * @nullable
+     */
+  email: string | null;
+  /**
+     * Unanswered email: why Ollie expected an answer
+     * @nullable
+     */
+  reason: string | null;
+  suggestedType: ReviewItemSuggestedType;
+  /** Who owns it: You, or the other person's name */
+  owner: string;
+  person: EntitySummary | null;
+  project: EntitySummary | null;
+  /** @nullable */
+  dueDate: string | null;
+  priority: Priority;
+  confidential: boolean;
+  /** @nullable */
+  taskId: number | null;
+  createdAt: string;
+  /** @nullable */
+  decidedAt: string | null;
+}
+
+export interface ReviewList {
+  items: ReviewItem[];
+  pending: number;
+  /** Pending actions from a look back */
+  actions: number;
+  /** Pending unanswered emails */
+  noReply: number;
+}
+
+export interface NoReplyCounts {
+  /** Sent threads in range */
+  threads: number;
+  /** Threads someone else wrote last in */
+  answered: number;
+  /** Bulk, automated, calendar, to himself, or a thank-you */
+  left_out: number;
+  /** Sent too recently; looked at again when old enough */
+  recent: number;
+  /** Already on the list, already checked, or already a Waiting on task */
+  already: number;
+  /** Emails AI checked */
+  checked: number;
+  /** Unanswered emails that expected an answer */
+  found: number;
+  /** Emails AI could not check; the next Gmail check tries again */
+  failed: number;
+}
+
+export type NoReplyScanStatus = typeof NoReplyScanStatus[keyof typeof NoReplyScanStatus];
+
+
+export const NoReplyScanStatus = {
+  idle: 'idle',
+  running: 'running',
+  stopped: 'stopped',
+  done: 'done',
+  failed: 'failed',
+} as const;
+
+export interface NoReplyScan {
+  status: NoReplyScanStatus;
+  /** True while the sent threads are still being listed */
+  listing: boolean;
+  days: number;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  finishedAt: string | null;
+  /** Threads to read */
+  total: number;
+  /** Threads read so far */
+  done: number;
+  counts: NoReplyCounts;
+  /** @nullable */
+  error: string | null;
+  /**
+     * The last Gmail check that brought the list up to date
+     * @nullable
+     */
+  refreshedAt: string | null;
+  /** Unanswered emails waiting on the Review page */
+  pending: number;
+}
+
+export type ReviewDecideInputAction = typeof ReviewDecideInputAction[keyof typeof ReviewDecideInputAction];
+
+
+export const ReviewDecideInputAction = {
+  now: 'now',
+  backlog: 'backlog',
+  waiting: 'waiting',
+  done: 'done',
+  dropped: 'dropped',
+} as const;
+
+export interface ReviewDecideInput {
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  ids: number[];
+  action: ReviewDecideInputAction;
+  /**
+     * For waiting. Unset keeps each item's own person; null is someone not in People.
+     * @nullable
+     */
+  waitingOnPersonId?: number | null;
+}
+
+export interface ReviewDecideResult {
+  items: ReviewItem[];
+}
+
 export interface KnowledgeInboxTarget {
   type: string;
   /**
@@ -1102,6 +1474,15 @@ export interface KnowledgeInboxItem {
   options: KnowledgeInboxOption[];
   /** @nullable */
   lastConfirmedAt: string | null;
+  /** Found by a Granola look back */
+  lookBack: boolean;
+  /** A decision with no project; Ollie may file it under one when approving */
+  needsProject: boolean;
+  /**
+     * What a decision with no project is about
+     * @nullable
+     */
+  projectHint: string | null;
 }
 
 export interface KnowledgeInbox {
@@ -1117,6 +1498,14 @@ export type SuggestionApproveFields = {[key: string]: string};
 export interface SuggestionApprove {
   /** Edited values by field key */
   fields?: SuggestionApproveFields;
+  /** For a decision with no project, the project to file it under */
+  projectId?: number;
+  /**
+     * For a decision with no project, a new project to create and file it under
+     * @minLength 1
+     * @maxLength 200
+     */
+  newProjectName?: string;
 }
 
 export type SuggestionDecisionStatus = typeof SuggestionDecisionStatus[keyof typeof SuggestionDecisionStatus];
@@ -1280,18 +1669,23 @@ export interface Decision {
   /** @nullable */
   source: string | null;
   /**
-     * null means it follows its project
+     * null means it follows its project, or is not confidential when it has none
      * @nullable
      */
   confidential: boolean | null;
   hiddenFromAi: boolean;
-  project: EntitySummary;
+  /** The project it belongs to; null for a decision that stands on its own */
+  project: EntitySummary | null;
   createdBy: string;
   createdAt: string;
 }
 
 export interface DecisionInput {
-  projectId: number;
+  /**
+     * Optional; a decision can stand on its own
+     * @nullable
+     */
+  projectId?: number | null;
   /**
      * @minLength 1
      * @maxLength 5000
@@ -1307,7 +1701,11 @@ export interface DecisionInput {
 }
 
 export interface DecisionUpdate {
-  projectId?: number;
+  /**
+     * null takes the decision off its project
+     * @nullable
+     */
+  projectId?: number | null;
   /**
      * @minLength 1
      * @maxLength 5000
@@ -1662,6 +2060,7 @@ export interface OrganisationUpdate {
 }
 
 export interface OrganisationDetail {
+  research: CompanyResearch[];
   organisation: Organisation;
   people: PersonChip[];
   projects: LinkedEntity[];
@@ -2449,6 +2848,10 @@ projectId?: number;
 
 export type ListKnowledgeInboxParams = {
 tab?: ListKnowledgeInboxTab;
+/**
+ * look_back shows only suggestions from a Granola look back
+ */
+origin?: ListKnowledgeInboxOrigin;
 };
 
 export type ListKnowledgeInboxTab = typeof ListKnowledgeInboxTab[keyof typeof ListKnowledgeInboxTab];
@@ -2460,12 +2863,27 @@ export const ListKnowledgeInboxTab = {
   stale: 'stale',
 } as const;
 
+export type ListKnowledgeInboxOrigin = typeof ListKnowledgeInboxOrigin[keyof typeof ListKnowledgeInboxOrigin];
+
+
+export const ListKnowledgeInboxOrigin = {
+  all: 'all',
+  look_back: 'look_back',
+} as const;
+
 export type SearchKnowledgeParams = {
 q: string;
 /**
  * Comma-separated list of task, project, person, organisation, decision, note, fact
  */
 types?: string;
+};
+
+export type ListResearchParams = {
+/**
+ * Comma-separated email domains
+ */
+domains: string;
 };
 
 export type GetOAuthConsentParams = {

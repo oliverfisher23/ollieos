@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { handle } from "../lib/handle";
 import { INTERVALS, SERVICE_KEYS, runConnector, setReadBy, updateSchedule, type ServiceKey } from "../services/connectors";
+import { ACTION_RANGES, DECISION_RANGES, getLookBack, resumeLookBack, startLookBack, stopLookBack } from "../services/connectors/lookBack";
 import { connectorsView } from "../services/connectors/status";
 import { scheduledWork } from "../services/scheduledWork";
 import { ValidationError } from "../services/tasks";
@@ -15,6 +16,13 @@ const ScheduleBody = z
     everyMinutes: z.union([z.literal(INTERVALS[0]), z.literal(INTERVALS[1])]).optional(),
     start: z.string().max(5).optional(),
     end: z.string().max(5).optional(),
+  })
+  .strict();
+const inList = (list: readonly number[], message: string) => z.number().int().refine((n) => list.includes(n), message);
+const LookBackBody = z
+  .object({
+    decisionsDays: inList(DECISION_RANGES, "Choose 1, 3, 6 or 12 months for decisions."),
+    actionsDays: inList(ACTION_RANGES, "Choose none, 2 weeks, 1 month or 2 months for actions."),
   })
   .strict();
 const ReadByBody = z.object({ readBy: z.enum(["ollieos", "claude"]) }).strict();
@@ -35,6 +43,12 @@ router.patch(
     res.json(await connectorsView());
   }),
 );
+
+/* Look back at Granola: a one-off read of older meeting notes, in the background. */
+router.get("/connectors/granola/look-back", handle(async (_req, res) => void res.json(await getLookBack())));
+router.post("/connectors/granola/look-back", handle(async (req, res) => void res.json(await startLookBack(LookBackBody.parse(req.body ?? {})))));
+router.post("/connectors/granola/look-back/stop", handle(async (_req, res) => void res.json(await stopLookBack())));
+router.post("/connectors/granola/look-back/resume", handle(async (_req, res) => void res.json(await resumeLookBack())));
 
 router.patch(
   "/connectors/:key",

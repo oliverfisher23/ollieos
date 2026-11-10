@@ -136,9 +136,8 @@ export const decisionsTable = pgTable(
   "decisions",
   {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-    projectId: integer("project_id")
-      .notNull()
-      .references(() => projectsTable.id),
+    /** The project it belongs to; a decision can also stand on its own */
+    projectId: integer("project_id").references(() => projectsTable.id),
     text: text("text").notNull(),
     decidedAt: date("decided_at", { mode: "string" }).notNull(),
     decidedBy: text("decided_by"),

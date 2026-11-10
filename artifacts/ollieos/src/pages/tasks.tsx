@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import {
   useGetTaskSummary,
+  useListReview,
   useListTasks,
   updateTask,
   useUpdateTask,
@@ -98,6 +99,9 @@ export default function TasksPage() {
   const summary = useGetTaskSummary(week ? { weekStart: week } : undefined);
   const thisWeek = weekStartOf(todayLondon());
 
+  const review = useListReview();
+  const reviewCount = review.data?.pending ?? 0;
+
   const rows = list.data ?? [];
   const tabs = summary.data?.tabs;
   const stats = summary.data?.stats;
@@ -107,7 +111,12 @@ export default function TasksPage() {
       <div className="oo-list oo-panel flex flex-col gap-[22px] px-4 py-6 sm:px-10 sm:pt-9 sm:pb-7">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
           <h1 style={{ margin: 0, fontSize: 32, fontWeight: 600, letterSpacing: '-0.015em' }}>Tasks</h1>
-          <Link href="/meetings" className="oo-link sm:hidden" style={{ fontSize: 14 }} data-testid="link-meetings">Meetings</Link>
+          <span style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
+            {reviewCount > 0 && (
+              <Link href="/review" className="oo-link" style={{ fontSize: 14 }} data-testid="link-review">Review {reviewCount}</Link>
+            )}
+            <Link href="/meetings" className="oo-link sm:hidden" style={{ fontSize: 14 }} data-testid="link-meetings">Meetings</Link>
+          </span>
         </div>
 
         <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">

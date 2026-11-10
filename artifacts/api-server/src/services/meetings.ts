@@ -7,6 +7,7 @@ import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { calendarEventsTable, db, meetingBriefsTable, peopleTable, tasksTable } from "@workspace/db";
 import { OPEN_STATUSES, addDays, londonDate, londonRange, todayLondon } from "@workspace/shared";
 import { eligible, loadMatchers, matchEvent } from "./briefs";
+import type { MeetingScope } from "./meetingScope";
 
 export const MEETINGS_AHEAD_DAYS = 7;
 export const MEETINGS_PAST_DAYS = 14;
@@ -24,6 +25,10 @@ export interface MeetingRow {
   platform: string | null;
   location: string | null;
   attendees: { name: string; slug: string | null }[];
+  /** External when anyone on it is from outside Ollie's company */
+  scope: MeetingScope;
+  /** The outside companies on an external meeting */
+  companies: string[];
   /**
    * ready: brief written with a summary. not_much: written, little on file. failed: the model
    * failed last time. not_written: gets a brief, written when opened or after the next sweep.
@@ -118,6 +123,8 @@ export async function listMeetings(now = new Date()): Promise<MeetingsList> {
         const p = a.personId != null ? personOf.get(a.personId) : undefined;
         return { name: p?.name ?? a.name, slug: p?.slug ?? null };
       }),
+      scope: match.scope,
+      companies: match.companies,
       prep,
       promises: sum(match.personIds, promisesOf),
       waiting: sum(match.personIds, waitingOf),

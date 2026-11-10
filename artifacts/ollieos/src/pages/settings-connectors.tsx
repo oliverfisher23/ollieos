@@ -17,6 +17,7 @@ import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
 import { Activity, ClaudeOverview, Requests, Tools } from './settings-ai-access';
 import { ClaudeSweep } from './settings-sweep';
+import { LookBackPanel } from './settings-look-back';
 
 const H1 = { margin: 0, fontSize: 30, fontWeight: 600, letterSpacing: '-0.015em' } as const;
 const H2 = { margin: 0, fontSize: 16, fontWeight: 600 } as const;
@@ -168,6 +169,8 @@ function runLine(key: string, r: ConnectorRun): string {
     c.noise ? `${c.noise} to Noise` : '',
     c.noise_rule ? `${c.noise_rule} skipped by your noise rules` : '',
     c.left_out ? `${c.left_out} left out (${key === 'gmail' ? 'newsletters, notifications and invites' : 'bots and system messages'})` : '',
+    c.no_reply_found ? `${plural(c.no_reply_found, 'unanswered email')} to Review` : '',
+    c.no_reply_failed ? 'No reply yet could not be updated; the next check tries again' : '',
   ].filter(Boolean);
   const more = c.more ? ' More is waiting; the next check carries on.' : '';
   return `Read ${plural(r.found, noun)}: ${parts.join(', ')}.${more}`;
@@ -281,6 +284,7 @@ function ServiceCard({ s }: { s: ConnectorService }) {
             )}
           </div>
           {direct && s.runs.length > 1 && <RecentRuns runs={s.runs} keyName={s.key} />}
+          {s.key === 'granola' && <LookBackPanel />}
         </>
       ) : (
         <p className="oo-muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }} data-testid={'text-connector-later-' + s.key}>

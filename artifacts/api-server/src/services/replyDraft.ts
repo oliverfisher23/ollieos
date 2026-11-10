@@ -208,7 +208,9 @@ export async function writeReplyDraft(id: number, actor: string): Promise<ReplyD
   const greet = env.to[0]?.name ?? env.target?.from.name ?? task.fromName ?? null;
   let body: string;
   try {
-    body = await draftEmailReplyFromDocs({ to: greet, task: task.title, thread: messages, docs });
+    // Ollie wrote last and nobody answered (No reply yet): the draft is a follow-up, not a reply.
+    const chase = messages.length > 0 && messages[messages.length - 1].fromOllie;
+    body = await draftEmailReplyFromDocs({ to: greet, task: task.title, thread: messages, docs, chase });
   } catch (err) {
     logger.error({ err }, "Reply draft failed");
     throw new UpstreamError("The reply could not be written just now. Try again in a moment.");
