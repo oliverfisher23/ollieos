@@ -117,9 +117,10 @@ router.post(
       }
       const it = parsed.data;
       // OllieOS reads this service itself now, so Claude's copy would arrive twice.
-      if (it.source === "email" || it.source === "slack") {
+      if (it.source === "email" || it.source === "slack" || it.source === "meeting") {
         if (refused.has(it.source)) {
-          results.push({ source_ref: it.source_ref, outcome: "ignored", message: `OllieOS reads ${it.source === "email" ? "Gmail" : "Slack"} itself now. Stop sending these.` });
+          const name = it.source === "email" ? "Gmail" : it.source === "slack" ? "Slack" : "Granola";
+          results.push({ source_ref: it.source_ref, outcome: "ignored", message: `OllieOS reads ${name} itself now. Stop sending these.` });
           continue;
         }
       }
@@ -296,6 +297,11 @@ router.post(
   handle(async (req, res) => {
     const { scope, writer } = req.ingest!;
     const b = MeetingNotesBody.parse(req.body ?? {});
+    // OllieOS reads Granola itself now, so these notes would arrive twice.
+    if ((await refusedClaudeSources()).has("meeting")) {
+      res.json({ attached: false, ignored: true, message: "OllieOS reads Granola itself now. Stop sending meeting notes." });
+      return;
+    }
     const event = await findEventBySourceRef(b.calendar_source_ref);
     if (!event) throw new NotFoundError("No calendar event has that source_ref. Send the calendar first.");
     if (event.personal) throw new ConflictError("Personal events have no brief");
@@ -398,8 +404,9 @@ router.post(
         continue;
       }
       const a = parsed.data;
-      if ((a.kind === "email" || a.kind === "slack") && refused.has(a.kind)) {
-        results.push({ source_ref: a.source_ref ?? null, outcome: "ignored" as const, message: `OllieOS logs ${a.kind === "email" ? "email" : "Slack"} activity itself now.` });
+      if ((a.kind === "email" || a.kind === "slack" || a.kind === "meeting") && refused.has(a.kind)) {
+        const what = a.kind === "email" ? "email" : a.kind === "slack" ? "Slack" : "meeting";
+        results.push({ source_ref: a.source_ref ?? null, outcome: "ignored" as const, message: `OllieOS logs ${what} activity itself now.` });
         continue;
       }
       const [people, projects] = await Promise.all([

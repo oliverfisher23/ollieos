@@ -5,3 +5,4 @@
 - [Replit connectors SDK](replit-connectors-sdk.md) — use ReplitConnectors().proxy, not ConnectorsClient; timed checks need a Reserved VM
 - [Failed publish at promote step](publish-promote-failures.md) — build OK but app never starts: how to rule out app and schema diff, log tool quirks
 - [Slack and Gmail reading limits](slack-gmail-reading.md) — no Slack search scope, `updated` is not activity, Haiku sorting notes
+- [Drive and Granola reading](drive-granola-reading.md) — Granola takeover needs one of Ollie's own meetings; proxy 404 can mean "no connection"

@@ -1264,6 +1264,11 @@ export interface LibraryDocument {
   createdAt: string;
   projects: NamedLink[];
   hiddenFromAi: boolean;
+  /**
+     * When OllieOS last read the file's text from Google Drive
+     * @nullable
+     */
+  contentsReadAt: string | null;
 }
 
 export interface Playbook {

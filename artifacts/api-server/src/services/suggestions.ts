@@ -63,6 +63,8 @@ export interface DocumentPayload {
   project_ids?: number[];
   /** Project names when proposed, for the card */
   project_names?: string[];
+  /** Set when the proposer thinks the file is sensitive; the document is then always hidden from AI */
+  confidential?: boolean | null;
 }
 export interface PlaybookPayload {
   title: string;
@@ -308,7 +310,7 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
       });
       return { status: "conflict" as const, suggestionId: row.id, reviewId: review.id };
     }
-    const hidden = p.kind === "decision" && p.payload.confidential === true;
+    const hidden = (p.kind === "decision" || p.kind === "document") && p.payload.confidential === true;
     return { status: "suggested" as const, suggestionId: row.id, hidden };
   });
 }
@@ -492,7 +494,7 @@ export async function applySuggestion(
     case "document": {
       const p = payload as unknown as DocumentPayload;
       try {
-        const id = await insertDocument(tx, { url: p.url, title: p.title, summary: str(p.summary), projectIds: p.project_ids ?? [] }, s.proposedBy, s.id);
+        const id = await insertDocument(tx, { url: p.url, title: p.title, summary: str(p.summary), confidential: p.confidential === true ? true : null, projectIds: p.project_ids ?? [] }, s.proposedBy, s.id);
         return { type: "document", id };
       } catch (err) {
         if (err instanceof ConflictError) throw new ValidationError(err.message);

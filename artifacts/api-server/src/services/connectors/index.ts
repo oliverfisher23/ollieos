@@ -19,6 +19,9 @@ import { ValidationError } from "../tasks";
 import { sortAndCapture } from "./capture";
 import { readGmail } from "./gmail";
 import { ConnectorError, readGoogleCalendar } from "./googleCalendar";
+import { readDrive, type DriveState } from "./drive";
+import { readGranola, type GranolaState } from "./granola";
+import { captureMeetings } from "./meetingCapture";
 import { readSlack, type SlackState } from "./slack";
 
 export const SERVICE_KEYS = ["calendar", "gmail", "slack", "drive", "granola"] as const;
@@ -26,7 +29,7 @@ export type ServiceKey = (typeof SERVICE_KEYS)[number];
 export type ReadBy = "ollieos" | "claude";
 
 /** Services OllieOS can read itself today. */
-export const DIRECT_READY: ReadonlySet<ServiceKey> = new Set<ServiceKey>(["calendar", "gmail", "slack"]);
+export const DIRECT_READY: ReadonlySet<ServiceKey> = new Set<ServiceKey>(["calendar", "gmail", "slack", "drive", "granola"]);
 
 export const SERVICE_NAMES: Record<ServiceKey, string> = {
   calendar: "Google Calendar",
@@ -48,7 +51,7 @@ export interface Schedule {
 
 export interface ConnectorSettings {
   schedule: Schedule;
-  /** Only what Ollie chose. A ready service he has not chosen for moves to OllieOS after its first good read. */
+  /** Only what Ollie chose. A ready service he has not chosen for moves to OllieOS after its first good read (Granola: first read that found one of his meetings). */
   readBy: Partial<Record<ServiceKey, ReadBy>>;
 }
 
@@ -118,7 +121,21 @@ export async function readByNow(key: ServiceKey, settings?: ConnectorSettings): 
   const s = settings ?? (await getConnectorSettings());
   const chosen = s.readBy[key];
   if (chosen) return chosen;
-  return (await lastGoodRun(key)) ? "ollieos" : "claude";
+  return (await provenRun(key)) ? "ollieos" : "claude";
+}
+
+/**
+ * A good read that shows OllieOS can take over. For Granola that means it found at least one of
+ * Ollie's own meetings: a key that only sees colleagues' notes must not switch Claude's feed off.
+ */
+async function provenRun(key: ServiceKey): Promise<boolean> {
+  if (key !== "granola") return !!(await lastGoodRun(key));
+  const [row] = await db
+    .select({ id: connectorRunsTable.id })
+    .from(connectorRunsTable)
+    .where(and(eq(connectorRunsTable.connector, key), eq(connectorRunsTable.ok, true), sql`coalesce((${connectorRunsTable.counts}->>'meetings')::int, 0) > 0`))
+    .limit(1);
+  return !!row;
 }
 
 /** True when OllieOS reads this service itself, so Claude's copy must be refused. */
@@ -128,13 +145,14 @@ export async function refusesClaudeFeed(key: ServiceKey): Promise<boolean> {
 
 /**
  * Which capture sources the Claude sweep may no longer send, because OllieOS reads them itself:
- * email while OllieOS reads Gmail, slack while it reads Slack.
+ * email while OllieOS reads Gmail, slack while it reads Slack, meeting while it reads Granola.
  */
-export async function refusedClaudeSources(): Promise<Set<"email" | "slack">> {
+export async function refusedClaudeSources(): Promise<Set<"email" | "slack" | "meeting">> {
   const s = await getConnectorSettings();
-  const out = new Set<"email" | "slack">();
+  const out = new Set<"email" | "slack" | "meeting">();
   if ((await readByNow("gmail", s)) === "ollieos") out.add("email");
   if ((await readByNow("slack", s)) === "ollieos") out.add("slack");
+  if ((await readByNow("granola", s)) === "ollieos") out.add("meeting");
   return out;
 }
 
@@ -198,10 +216,42 @@ async function readSlackRun(now: Date) {
   return { found: r.found, account: r.account, counts: { ...c, left_out: r.leftOut, conversations: r.checked } };
 }
 
+async function readDriveRun(now: Date) {
+  const r = await readDrive(await getState<DriveState>("drive"), now);
+  await putState("drive", r.state);
+  return { found: r.found, account: r.account, counts: { ...r.counts } };
+}
+
+/**
+ * Ollie's own addresses, so Granola notes from meetings he was in can be told apart from
+ * colleagues' notes: the accounts Calendar and Gmail last read, and the address he signs in with.
+ */
+async function myAddresses(): Promise<Set<string>> {
+  const out = new Set<string>();
+  for (const key of ["calendar", "gmail"] as const) {
+    const a = (await lastGoodRun(key))?.account;
+    if (a && a.includes("@")) out.add(a.trim().toLowerCase());
+  }
+  const allowed = process.env.ALLOWED_EMAIL;
+  for (const a of (allowed ?? "").split(",")) if (a.includes("@")) out.add(a.trim().toLowerCase());
+  return out;
+}
+
+async function readGranolaRun(now: Date) {
+  const me = await myAddresses();
+  if (!me.size) throw new ConnectorError("OllieOS does not know your email address yet. Check Google Calendar first.");
+  const r = await readGranola(await getState<GranolaState>("granola"), me, now);
+  const c = await captureMeetings(r.notes, { me: `His email address is ${[...me][0]}.`, now });
+  await putState("granola", r.state);
+  return { found: r.found, account: null, counts: { ...c, meetings: r.notes.length, left_out: r.leftOut, more: r.more ? 1 : 0 } };
+}
+
 const READERS: Partial<Record<ServiceKey, (now: Date) => Promise<{ found: number; account: string | null; counts: Record<string, number> }>>> = {
   calendar: readCalendar,
   gmail: readGmailRun,
   slack: readSlackRun,
+  drive: readDriveRun,
+  granola: readGranolaRun,
 };
 
 /** Services being read right now in this server, so a manual check and the timer never overlap. */

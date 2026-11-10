@@ -7,6 +7,7 @@
 import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import {
   db,
+  documentContentsTable,
   documentsTable,
   linksTable,
   organisationsTable,
@@ -158,22 +159,29 @@ export interface DocumentView extends Omit<Document, "search" | "suggestionId"> 
   projects: NamedLink[];
   /** AI tools cannot read it (own flag or inherited from a project) */
   hiddenFromAi: boolean;
+  /** When OllieOS last read the file's text from Google Drive */
+  contentsReadAt: Date | null;
 }
 
 async function toDocumentViews(rows: Omit<Document, "search">[]): Promise<DocumentView[]> {
   const ids = rows.map((r) => r.id);
-  const [links, hidden] = await Promise.all([
+  const [links, hidden, contents] = await Promise.all([
     linkMap("document", ids, "project"),
     ids.length
       ? db.select({ id: documentsTable.id }).from(documentsTable).where(and(inArray(documentsTable.id, ids), sql.raw(`not ${documentVisible("documents")}`)))
       : [],
+    ids.length
+      ? db.select({ id: documentContentsTable.documentId, readAt: documentContentsTable.readAt }).from(documentContentsTable).where(inArray(documentContentsTable.documentId, ids))
+      : [],
   ]);
+  const readAt = new Map(contents.map((c) => [c.id, c.readAt]));
   const projectNames = await names("project", [...new Set([...links.values()].flat())]);
   const hiddenSet = new Set(hidden.map((h) => h.id));
   return rows.map(({ suggestionId: _s, ...r }) => ({
     ...r,
     projects: (links.get(r.id) ?? []).map((p) => projectNames.get(p)).filter((p): p is NamedLink => !!p).sort((a, b) => a.name.localeCompare(b.name, "en-GB")),
     hiddenFromAi: hiddenSet.has(r.id),
+    contentsReadAt: readAt.get(r.id) ?? null,
   }));
 }
 

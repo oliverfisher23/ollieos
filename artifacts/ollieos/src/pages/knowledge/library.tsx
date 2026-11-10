@@ -171,6 +171,7 @@ function DocTitle({ d }: { d: LibraryDocument }) {
         {d.hiddenFromAi && <HiddenFromAi confidential={d.confidential === true} />}
       </span>
       {d.summary && <span className="oo-muted" style={{ fontSize: 13, overflowWrap: 'anywhere' }}>{d.summary}</span>}
+      {d.contentsReadAt && <span className="oo-muted" style={{ fontSize: 12 }} data-testid={'text-contents-read-' + d.id}>OllieOS read the contents {formatDayMonthShort(d.contentsReadAt)}</span>}
     </span>
   );
 }

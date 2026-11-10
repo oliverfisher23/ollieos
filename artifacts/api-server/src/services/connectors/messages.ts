@@ -1,4 +1,4 @@
-/** What the Gmail and Slack readers hand to the sorter: exchanges made of messages. */
+/** What the Gmail, Slack and Granola readers hand to the sorters: exchanges made of messages. */
 
 export interface WorkMessage {
   /** The capture source_ref, for example gmail:18c2f0 or slack:D123:1731234567.000100 */
@@ -12,7 +12,7 @@ export interface WorkMessage {
 }
 
 export interface WorkUnit {
-  source: "email" | "slack";
+  source: "email" | "slack" | "meeting";
   /** Activity source_ref for this exchange */
   key: string;
   subject: string | null;

@@ -26,4 +26,9 @@ export interface LibraryDocument {
   createdAt: Date;
   projects: NamedLink[];
   hiddenFromAi: boolean;
+  /**
+     * When OllieOS last read the file's text from Google Drive
+     * @nullable
+     */
+  contentsReadAt: Date | null;
 }

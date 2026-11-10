@@ -20,8 +20,8 @@ const connectors = () => (client ??= new ReplitConnectors());
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** GET a JSON body. `name` is the service name used in messages, for example "Gmail". */
-export async function proxyJson(connector: string, name: string, path: string): Promise<Record<string, unknown>> {
+/** GET through the connector, retrying one 429 and turning access problems into ConnectorErrors. */
+async function call(connector: string, name: string, path: string): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     let res: Response;
     try {
@@ -36,14 +36,47 @@ export async function proxyJson(connector: string, name: string, path: string): 
       await sleep(wait * 1000);
       continue;
     }
-    const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    if (res.status === 401 || res.status === 403) throw new ConnectorError(`${name} refused access. Reconnect it in Replit.`, true);
-    if (res.status === 429) throw new ConnectorError(`${name} asked OllieOS to slow down. The next check will carry on.`);
-    if (!res.ok) {
-      const err = body.error as { message?: string } | string | undefined;
-      const detail = typeof err === "string" ? err : err?.message;
-      throw new ConnectorError(`${name} answered ${res.status}${detail ? ": " + detail : ""}`);
+    if (res.status === 401) throw new ConnectorError(`${name} refused access. Reconnect it in Replit.`, true);
+    // The proxy answers 404 when the connection itself is missing, which is not about one item.
+    if (res.status === 404 && /no \S+ connection found/i.test(await res.clone().text().catch(() => ""))) {
+      throw new ConnectorError(`${name} is not connected to OllieOS. Connect it in Replit under Integrations.`, true);
     }
-    return body;
+    if (res.status === 429) throw new ConnectorError(`${name} asked OllieOS to slow down. The next check will carry on.`);
+    return res;
   }
+}
+
+async function failure(name: string, res: Response): Promise<ConnectorError> {
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const err = body.error as { message?: string } | string | undefined;
+  const detail = typeof err === "string" ? err : (err?.message ?? (typeof body.message === "string" ? body.message : undefined));
+  if (res.status === 403) return new ConnectorError(`${name} refused access${detail ? ": " + detail : ""}. Reconnect it in Replit.`, true);
+  return new ConnectorError(`${name} answered ${res.status}${detail ? ": " + detail : ""}`);
+}
+
+/** GET a JSON body. `name` is the service name used in messages, for example "Gmail". */
+export async function proxyJson(connector: string, name: string, path: string): Promise<Record<string, unknown>> {
+  const res = await call(connector, name, path);
+  if (!res.ok) throw await failure(name, res);
+  return (await res.json().catch(() => ({}))) as Record<string, unknown>;
+}
+
+/** GET a JSON body, or null when the item is gone or this account cannot open it (404, or 403 on one file). */
+export async function proxyJsonOrNull(connector: string, name: string, path: string): Promise<Record<string, unknown> | null> {
+  const res = await call(connector, name, path);
+  if (res.status === 404) return null;
+  if (!res.ok) throw await failure(name, res);
+  return (await res.json().catch(() => ({}))) as Record<string, unknown>;
+}
+
+/**
+ * GET a text body, cut to `maxChars`. Null when the item is gone, cannot be exported or is too large
+ * for the service to export (404, 403 or 400 for one file is about that file, not the connection).
+ */
+export async function proxyText(connector: string, name: string, path: string, maxChars: number): Promise<{ text: string; truncated: boolean } | null> {
+  const res = await call(connector, name, path);
+  if (res.status === 404 || res.status === 403 || res.status === 400) return null;
+  if (!res.ok) throw await failure(name, res);
+  const text = await res.text();
+  return { text: text.slice(0, maxChars), truncated: text.length > maxChars };
 }

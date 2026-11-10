@@ -152,10 +152,13 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
     case "document": {
       const v = vis(documentVisible("dc", g), visibleOnly);
       return sql`select 'document' as type, dc.id, dc.title, coalesce(dc.summary, dc.url) as snippet, null as slug,
-          null as entity_type, null::int as entity_id, ${rankExpr(sql.raw("dc.search"), tsq)} as rank,
+          null as entity_type, null::int as entity_id,
+          greatest(${rankExpr(sql.raw("dc.search"), tsq)}, ${rankExpr(sql.raw("dcc.search"), tsq)} * 0.5) as rank,
           ${v.hidden} as hidden_from_ai, dc.confidential, dc.location::text as status, null::boolean as needs_check
         from documents dc
-        where (${textMatch(sql.raw("dc.search"), tsq, sql.raw("concat_ws(' ', dc.title, dc.summary)"), q, mode)})${v.where}
+        left join document_contents dcc on dcc.document_id = dc.id
+        where (${textMatch(sql.raw("dc.search"), tsq, sql.raw("concat_ws(' ', dc.title, dc.summary)"), q, mode)}
+          ${tsq ? sql`or dcc.search @@ to_tsquery('english', ${tsq})` : sql``})${v.where}
         order by rank desc, dc.last_confirmed_at desc limit ${limit}`;
     }
   }

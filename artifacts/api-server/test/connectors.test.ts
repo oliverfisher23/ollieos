@@ -176,9 +176,9 @@ describe("who reads the calendar", () => {
     expect((await db.select().from(calendarEventsTable)).map((r) => r.sourceRef)).toEqual(["claude-1"]);
   });
 
-  it("will not hand a service OllieOS cannot read yet to OllieOS", async () => {
+  it("can hand any service to OllieOS, but not one it does not know", async () => {
     const r = await api("connectors/drive", { method: "PATCH", body: { readBy: "ollieos" } });
-    expect(r.status).toBe(400);
+    expect(r.status).toBe(200);
     expect((await api("connectors/nope", { method: "PATCH", body: { readBy: "claude" } })).status).toBe(400);
   });
 });

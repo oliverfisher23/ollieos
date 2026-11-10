@@ -1269,7 +1269,8 @@ export const GetProjectResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })),
-  "hiddenFromAi": zod.boolean()
+  "hiddenFromAi": zod.boolean(),
+  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read the file\'s text from Google Drive')
 })),
   "playbooks": zod.array(zod.object({
   "id": zod.int(),
@@ -2490,7 +2491,8 @@ export const ListDocumentsResponseItem = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })),
-  "hiddenFromAi": zod.boolean()
+  "hiddenFromAi": zod.boolean(),
+  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read the file\'s text from Google Drive')
 })
 export const ListDocumentsResponse = zod.array(ListDocumentsResponseItem)
 
@@ -2530,7 +2532,8 @@ export const CreateDocumentResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })),
-  "hiddenFromAi": zod.boolean()
+  "hiddenFromAi": zod.boolean(),
+  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read the file\'s text from Google Drive')
 })
 
 
@@ -2574,7 +2577,8 @@ export const UpdateDocumentResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })),
-  "hiddenFromAi": zod.boolean()
+  "hiddenFromAi": zod.boolean(),
+  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read the file\'s text from Google Drive')
 })
 
 

@@ -27,6 +27,32 @@ export const documentsTable = pgTable(
 );
 
 /**
+ * The text of a Library document, read from Google Drive by the Drive connector so briefs and Ask
+ * OllieOS can use what is inside it. One row per document; removed with the document. Visibility
+ * follows the document itself.
+ */
+export const documentContentsTable = pgTable(
+  "document_contents",
+  {
+    documentId: integer("document_id")
+      .primaryKey()
+      .references(() => documentsTable.id, { onDelete: "cascade" }),
+    /** The Drive file id the text came from */
+    fileId: text("file_id").notNull(),
+    text: text("text").notNull(),
+    /** True when the file was longer than OllieOS keeps */
+    truncated: boolean("truncated").notNull().default(false),
+    /** The file's own modified time when it was read */
+    fileModifiedAt: timestamp("file_modified_at", { withTimezone: true }),
+    readAt: timestamp("read_at", { withTimezone: true }).notNull().defaultNow(),
+    search: tsvector("search").generatedAlwaysAs(sql`to_tsvector('english', left(coalesce(text,''), 100000))`),
+  },
+  (t) => [index("document_contents_search_idx").using("gin", t.search)],
+);
+
+export type DocumentContent = typeof documentContentsTable.$inferSelect;
+
+/**
  * Playbooks (feature 07): short standing rules every AI tool reads before drafting.
  * Global unless linked to projects or organisations through `links`. Paused ones are never sent to AI.
  */

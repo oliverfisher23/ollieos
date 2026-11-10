@@ -26,15 +26,12 @@ const WHAT: Record<string, string> = {
   calendar: 'Your meetings for today and the next 7 days, for the calendar strip, briefs and the digest.',
   gmail: 'Email that needs a reply or an action, promises you make by email, and replies you are waiting for. Newsletters, notifications and invites are left out.',
   slack: 'Direct messages, group DMs and @mentions: what people ask of you, what you promise and what you are waiting for.',
-  drive: 'Documents linked to your projects.',
-  granola: 'Meeting notes: your actions, promises and what others owe you.',
+  drive: 'Files you open that clearly belong to a project are suggested for your Library, for you to approve. OllieOS also reads what is inside the Drive documents in your Library, so briefs and Ask OllieOS can use them, and keeps their names up to date.',
+  granola: 'Notes from meetings you were in: your actions, promises and what others owe you go to your Inbox, decisions to the Knowledge Inbox, and the notes are added to the meeting brief. Colleagues\' notes from meetings you were not in are left out.',
 };
 
 /** When OllieOS reading it itself arrives, for services that are not ready yet. */
-const LATER: Record<string, string> = {
-  drive: 'OllieOS reads this itself from the step after next.',
-  granola: 'OllieOS reads this itself from the step after next.',
-};
+const LATER: Record<string, string> = {};
 
 function useConnectorsCache() {
   const qc = useQueryClient();
@@ -128,7 +125,12 @@ function plural(n: number, one: string, many = one + 's') {
 }
 
 /** Sorting by AI uses a small model; it is said once, on the cards it applies to. */
-const SORTED_BY_AI = new Set(['gmail', 'slack']);
+const SORTED_BY_AI: Record<string, string> = {
+  gmail: 'Read-only. Messages are sorted by Claude Haiku through Replit, billed to your Replit credits. Everything lands in your Inbox for you to triage.',
+  slack: 'Read-only. Messages are sorted by Claude Haiku through Replit, billed to your Replit credits. Everything lands in your Inbox for you to triage.',
+  drive: 'Read-only. Files are matched to projects by Claude Haiku through Replit, billed to your Replit credits. Files in confidential projects are never sent to it, and nothing joins your Library until you approve it.',
+  granola: 'Read-only. Notes are sorted by Claude Haiku through Replit, billed to your Replit credits. Everything lands in your Inbox and Knowledge Inbox for you to triage.',
+};
 
 /** What a check found, in words: one line per run. */
 function runLine(key: string, r: ConnectorRun): string {
@@ -137,6 +139,25 @@ function runLine(key: string, r: ConnectorRun): string {
   if (key === 'calendar') {
     const out = c.left_out ?? 0;
     return `Found ${plural(r.found, 'event')}: kept ${plural(c.kept ?? 0, 'meeting')}${out ? `, left out ${out} (all-day, declined or not a meeting)` : ''}.`;
+  }
+  if (key === 'drive') {
+    const parts = [
+      c.suggested ? `${plural(c.suggested, 'file')} suggested for your Library` : 'nothing new to suggest',
+      c.read ? `read ${plural(c.read, 'Library document')}` : '',
+      c.missing ? `${plural(c.missing, 'Library link')} Drive could not open` : '',
+    ].filter(Boolean);
+    return `Looked at ${plural(c.recent ?? r.found, 'file')} you opened: ${parts.join(', ')}.`;
+  }
+  if (key === 'granola') {
+    const added = (c.inbox ?? 0) + (c.promises ?? 0) + (c.waiting ?? 0);
+    const parts = [
+      added ? `${added} to your Inbox` : 'nothing new for your Inbox',
+      c.decisions ? `${plural(c.decisions, 'decision')} to the Knowledge Inbox` : '',
+      c.attached ? `notes added to ${plural(c.attached, 'brief')}` : '',
+      c.left_out ? `${c.left_out} left out (meetings you were not in)` : '',
+    ].filter(Boolean);
+    const more = c.more ? ' More is waiting; the next check carries on.' : '';
+    return `Read ${plural(r.found, 'new note')}, ${c.meetings ?? 0} from your meetings: ${parts.join(', ')}.${more}`;
   }
   const noun = key === 'gmail' ? 'email' : 'message';
   const added = (c.inbox ?? 0) + (c.promises ?? 0) + (c.waiting ?? 0);
@@ -155,6 +176,8 @@ function runLine(key: string, r: ConnectorRun): string {
 /** The toast after Check now. */
 function checkedLine(key: string, found: number): string {
   if (key === 'calendar') return `Found ${plural(found, 'event')}.`;
+  if (key === 'drive') return `Looked at ${plural(found, 'file')} you opened. Suggestions are in your Knowledge Inbox.`;
+  if (key === 'granola') return `Read ${plural(found, 'new note')}. New items are in your Inbox.`;
   return `Read ${plural(found, key === 'gmail' ? 'email' : 'message')}. New items are in your Inbox.`;
 }
 
@@ -213,9 +236,9 @@ function ServiceCard({ s }: { s: ConnectorService }) {
         {s.account && <span className="oo-muted" style={{ fontSize: 13 }} data-testid={'text-connector-account-' + s.key}>{s.account}</span>}
       </div>
       <p className="oo-soft" style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>{WHAT[s.key]}</p>
-      {s.canReadDirect && SORTED_BY_AI.has(s.key) && (
+      {s.canReadDirect && SORTED_BY_AI[s.key] && (
         <p className="oo-muted" style={{ margin: 0, fontSize: 12, lineHeight: 1.5 }} data-testid={'text-connector-ai-' + s.key}>
-          Read-only. Messages are sorted by Claude Haiku through Replit, billed to your Replit credits. Everything lands in your Inbox for you to triage.
+          {SORTED_BY_AI[s.key]}
         </p>
       )}
 
@@ -234,6 +257,11 @@ function ServiceCard({ s }: { s: ConnectorService }) {
           )}
           {direct && !last && (
             <p className="oo-muted" style={{ margin: 0, fontSize: 13 }}>Not checked yet. Press Check now, or wait for the timer.</p>
+          )}
+          {!direct && s.key === 'granola' && !s.chosen && last && (
+            <p className="oo-muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }} data-testid="text-connector-granola-waiting">
+              OllieOS last checked Granola {whenLabel(last.startedAt)}: {runLine(s.key, last)} It takes over from Claude once it finds notes from one of your own meetings.
+            </p>
           )}
           {!direct && (
             <p className="oo-muted" style={{ margin: 0, fontSize: 13 }}>

@@ -684,7 +684,7 @@ export async function findEventBySourceRef(sourceRef: string): Promise<CalendarE
 /** Attaches notes and action task ids to an event's brief, writing the brief first if there is none. */
 export async function attachMeetingNotes(
   event: CalendarEvent,
-  input: { granolaRef: string; notes: string; actionTaskIds: number[]; actor: string; clientId: number },
+  input: { granolaRef: string; notes: string; actionTaskIds: number[]; actor: string; clientId: number | null },
 ): Promise<MeetingBrief> {
   if (event.personal) throw new ConflictError("Personal events have no brief");
   let brief = await loadBrief(event.id);

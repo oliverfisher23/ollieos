@@ -3,6 +3,7 @@ import {
   activityTable,
   db,
   decisionsTable,
+  documentContentsTable,
   documentsTable,
   factsTable,
   goalsTable,
@@ -97,6 +98,8 @@ async function visibleNames(refs: { type: RefType; id: number }[], g: Grants): P
 
 const day = (d: Date | string | null | undefined) => (d ? formatLong(d) : null);
 const line = (parts: (string | null | undefined | false)[]) => parts.filter(Boolean).join(" | ");
+/** How much of a document's text goes to the AI with it */
+const DOC_CONTENT_CHARS = 4000;
 const clip = (s: string | null | undefined, n = 1200) => (s ? (s.length > n ? s.slice(0, n) + "…" : s) : null);
 
 /** Loads model-ready text for the given refs. Hidden refs are silently dropped. */
@@ -127,8 +130,12 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
             location: documentsTable.location,
             summary: documentsTable.summary,
             lastConfirmedAt: documentsTable.lastConfirmedAt,
+            contents: documentContentsTable.text,
+            contentsTruncated: documentContentsTable.truncated,
+            contentsReadAt: documentContentsTable.readAt,
           })
           .from(documentsTable)
+          .leftJoin(documentContentsTable, eq(documentContentsTable.documentId, documentsTable.id))
           .where(and(inArray(documentsTable.id, ids("document")), v.document))
       : [],
     ids("playbook").length ? db.select().from(playbooksTable).where(and(inArray(playbooksTable.id, ids("playbook")), v.playbook)) : [],
@@ -293,6 +300,8 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
         `[${ref}] Document: ${d.title}`,
         line([`Location: ${DOC_LOCATION_LABELS[d.location]}`, `Link: ${d.url}`, `Updated ${day(d.lastConfirmedAt)}`]),
         d.summary && `Summary: ${clip(d.summary, 800)}`,
+        d.contents &&
+          `Contents (read from Google Drive ${day(d.contentsReadAt!)}${d.contentsTruncated || d.contents.length > DOC_CONTENT_CHARS ? ", start only" : ""}):\n${clip(d.contents, DOC_CONTENT_CHARS)}`,
       ]
         .filter(Boolean)
         .join("\n"),

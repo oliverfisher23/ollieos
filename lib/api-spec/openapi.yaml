@@ -3833,7 +3833,7 @@ components:
 
     LibraryDocument:
       type: object
-      required: [id, title, url, location, summary, confidential, lastConfirmedAt, createdBy, createdAt, projects, hiddenFromAi]
+      required: [id, title, url, location, summary, confidential, lastConfirmedAt, createdBy, createdAt, projects, hiddenFromAi, contentsReadAt]
       properties:
         id: { type: integer }
         title: { type: string }
@@ -3846,6 +3846,7 @@ components:
         createdAt: { type: string, format: date-time }
         projects: { type: array, items: { $ref: "#/components/schemas/NamedLink" } }
         hiddenFromAi: { type: boolean }
+        contentsReadAt: { type: [string, "null"], format: date-time, description: When OllieOS last read the file's text from Google Drive }
 
     DocumentInput:
       type: object

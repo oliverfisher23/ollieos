@@ -40,9 +40,9 @@ export function ruledOut(rules: NoiseRule[], u: WorkUnit): boolean {
   );
 }
 
-type PersonRow = { id: number; name: string; email: string | null; confidential: boolean };
+export type PersonRow = { id: number; name: string; email: string | null; confidential: boolean };
 
-async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promise<{ byEmail: Map<string, PersonRow>; byName: Map<string, PersonRow> }> {
+export async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promise<{ byEmail: Map<string, PersonRow>; byName: Map<string, PersonRow> }> {
   const emails = new Set<string>();
   const names = new Set<string>();
   for (const u of units) {
@@ -75,8 +75,10 @@ export async function projectChoices(): Promise<{ id: number; name: string }[]> 
   return rows;
 }
 
+export const emptyCounts = (): CaptureCounts => ({ inbox: 0, promises: 0, waiting: 0, noise: 0, duplicate: 0, noise_rule: 0, activity: 0 });
+
 export async function sortAndCapture(units: WorkUnit[], ctx: { me: string; now: Date }): Promise<CaptureCounts> {
-  const counts: CaptureCounts = { inbox: 0, promises: 0, waiting: 0, noise: 0, duplicate: 0, noise_rule: 0, activity: 0 };
+  const counts = emptyCounts();
   const rules = await enabledRules();
   const keep = units.filter((u) => {
     if (!ruledOut(rules, u)) return true;
@@ -86,9 +88,24 @@ export async function sortAndCapture(units: WorkUnit[], ctx: { me: string; now: 
   if (!keep.length) return counts;
 
   const choices = await projectChoices();
-  const projects = new Map(choices.map((p) => [p.name.toLowerCase(), p.id]));
   const sorted = await sortUnits(keep, { me: ctx.me, projects: choices.map((p) => p.name), now: ctx.now });
+  await captureSorted(keep, sorted, { choices, rules, applyNoise: true, counts });
+  return counts;
+}
+
+/**
+ * Writes sorted items to the Inbox and logs Activity. Returns the task ids made or matched for each
+ * unit, in order, so meeting notes can point at their actions.
+ */
+export async function captureSorted(
+  keep: WorkUnit[],
+  sorted: SortedUnit[],
+  opts: { choices: { id: number; name: string }[]; rules: NoiseRule[]; applyNoise: boolean; counts: CaptureCounts; projectFor?: (i: number) => number | null },
+): Promise<number[][]> {
+  const { counts, rules } = opts;
+  const projects = new Map(opts.choices.map((p) => [p.name.toLowerCase(), p.id]));
   const people = await loadPeople(keep, sorted);
+  const taskIds: number[][] = keep.map(() => []);
   const personFor = (hint: string): PersonRow | null => {
     const h = hint.toLowerCase().trim();
     if (!h) return null;
@@ -99,7 +116,7 @@ export async function sortAndCapture(units: WorkUnit[], ctx: { me: string; now: 
   for (const [i, u] of keep.entries()) {
     const s = sorted[i];
     const linkedProjects = new Set<number>();
-    const unitProject = projectFor(s.project);
+    const unitProject = projectFor(s.project) ?? opts.projectFor?.(i) ?? null;
     if (unitProject) linkedProjects.add(unitProject);
 
     // One message can hold several items; each needs its own ref or the second looks like a duplicate.
@@ -136,8 +153,9 @@ export async function sortAndCapture(units: WorkUnit[], ctx: { me: string; now: 
           confidential: it.confidential || person?.confidential ? true : null,
           capturedAt: msg.at,
         },
-        { applyNoise: true, via: "connector", rules },
+        { applyNoise: opts.applyNoise, via: "connector", rules },
       );
+      if (r.taskId != null) taskIds[i].push(r.taskId);
       if (r.outcome === "duplicate") counts.duplicate++;
       else if (r.outcome === "noise") counts.noise++;
       else if (it.type === "promise") counts.promises++;
@@ -169,5 +187,5 @@ export async function sortAndCapture(units: WorkUnit[], ctx: { me: string; now: 
       if (!a.duplicate) counts.activity++;
     }
   }
-  return counts;
+  return taskIds;
 }
