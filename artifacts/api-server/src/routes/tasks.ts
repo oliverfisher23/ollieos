@@ -1,9 +1,11 @@
 import { Router, type IRouter } from "express";
 import { handle } from "../lib/handle";
 import { z } from "zod";
-import { TASK_SOURCES, TASK_STATUSES, PRIORITIES, TASK_KINDS, isIsoDate } from "@workspace/shared";
+import { REPEAT_EVERY, TASK_SOURCES, TASK_STATUSES, PRIORITIES, TASK_KINDS, isIsoDate } from "@workspace/shared";
 import {
+  MAX_STEPS,
   buildDraftPrompt,
+  continueRepeat,
   getTask,
   getTaskSummary,
   listTasks,
@@ -31,7 +33,7 @@ const ACTOR = "ollie";
 const isoDate = z.string().refine(isIsoDate, "Use a YYYY-MM-DD date");
 
 const ListQuery = z.object({
-  tab: z.enum(["inbox", "open", "now", "backlog", "waiting", "done", "noise", "dropped"]).optional(),
+  tab: z.enum(["inbox", "open", "now", "backlog", "waiting", "done", "noise", "dropped", "archived"]).optional(),
   source: z.enum(TASK_SOURCES).optional(),
   weekStart: isoDate.optional(),
   includeUndated: z
@@ -67,6 +69,15 @@ const UpdateBody = z
     confidential: z.boolean().nullable().optional(),
     goalId: z.number().int().positive().nullable().optional(),
     notGoalWork: z.boolean().optional(),
+    repeat: z
+      .object({ every: z.enum(REPEAT_EVERY), byWeekday: z.boolean().optional() })
+      .strict()
+      .nullable()
+      .optional(),
+    steps: z
+      .array(z.object({ id: z.string().max(40), title: z.string().max(300), done: z.boolean() }).strict())
+      .max(MAX_STEPS)
+      .optional(),
   })
   .strict();
 
@@ -215,6 +226,14 @@ router.post(
   handle(async (req, res) => {
     const { id } = IdParams.parse(req.params);
     res.json(await restoreFromNoise(id, ACTOR));
+  }),
+);
+
+router.post(
+  "/tasks/:id/continue-repeat",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    res.json(await continueRepeat(id, ACTOR));
   }),
 );
 

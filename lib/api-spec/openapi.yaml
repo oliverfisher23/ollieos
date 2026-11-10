@@ -469,7 +469,7 @@ paths:
     post:
       operationId: restoreTask
       tags: [tasks]
-      summary: Restore a Noise or Dropped item to the Inbox
+      summary: Restore a Noise or Dropped item to the Inbox, or an Archived one to the Backlog
       parameters:
         - $ref: "#/components/parameters/TaskId"
       responses:
@@ -493,6 +493,177 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/continue-repeat:
+    post:
+      operationId: continueRepeat
+      tags: [tasks]
+      summary: After dropping or archiving a repeating task, make the next one anyway
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "409":
+          description: It does not repeat, or the next one exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /plan:
+    get:
+      operationId: getDayPlan
+      tags: [plan]
+      summary: Today's plan, with meetings, and suggestions while there is no plan yet
+      responses:
+        "200":
+          description: Plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DayPlan"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+    put:
+      operationId: saveDayPlan
+      tags: [plan]
+      summary: Save today's tasks and fit them around the meetings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlanInput"
+      responses:
+        "200":
+          description: Plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DayPlan"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /plan/fit:
+    post:
+      operationId: refitDayPlan
+      tags: [plan]
+      summary: Fit today's unfinished tasks again from now
+      responses:
+        "200":
+          description: Plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DayPlan"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /settings/working-hours:
+    get:
+      operationId: getWorkingHours
+      tags: [plan]
+      summary: Working hours used by Plan my day
+      responses:
+        "200":
+          description: Hours
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkingHours"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+    put:
+      operationId: updateWorkingHours
+      tags: [plan]
+      summary: Change working hours
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkingHours"
+      responses:
+        "200":
+          description: Hours
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkingHours"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /backlog/clear-out:
+    get:
+      operationId: getClearOut
+      tags: [plan]
+      summary: Backlog tasks untouched for 30 days, and whether to offer the clear-out this week
+      responses:
+        "200":
+          description: Clear-out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClearOut"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /backlog/clear-out/dismiss:
+    post:
+      operationId: dismissClearOut
+      tags: [plan]
+      summary: Hide the clear-out card until the next clear-out Monday
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClearOutStatus"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /backlog/clear-out/{id}/keep:
+    post:
+      operationId: keepInBacklog
+      tags: [plan]
+      summary: Still wanted, so the 30-day clock starts again
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "409":
+          description: Not in the Backlog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
 
   /tasks/{id}/keep:
     post:
@@ -2968,7 +3139,7 @@ components:
 
     TaskStatus:
       type: string
-      enum: [inbox, now, backlog, waiting, done, noise, dropped]
+      enum: [inbox, now, backlog, waiting, done, noise, dropped, archived]
     TaskKind:
       type: string
       enum: [task, promise]
@@ -2980,7 +3151,7 @@ components:
       enum: [email, slack, meeting, quarterly, manual, session]
     TaskTab:
       type: string
-      enum: [inbox, open, now, backlog, waiting, done, noise, dropped]
+      enum: [inbox, open, now, backlog, waiting, done, noise, dropped, archived]
 
     EntitySummary:
       type: object
@@ -3033,7 +3204,18 @@ components:
         - goalId
         - notGoalWork
         - noiseHint
+        - repeat
+        - steps
       properties:
+        repeat:
+          description: How it repeats, anchored on its due date. Null when it does not.
+          oneOf:
+            - $ref: "#/components/schemas/RepeatRule"
+            - type: "null"
+        steps:
+          type: array
+          description: Checklist steps, in order
+          items: { $ref: "#/components/schemas/TaskStep" }
         id:
           type: integer
         title:
@@ -3131,6 +3313,118 @@ components:
           type: [string, "null"]
           description: Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.
 
+    RepeatEvery:
+      type: string
+      enum: [day, weekday, week, fortnight, month, quarter, year]
+
+    RepeatRule:
+      type: object
+      required: [every]
+      properties:
+        every: { $ref: "#/components/schemas/RepeatEvery" }
+        day: { type: integer, description: "Day of the month, for month, quarter and year by date" }
+        month: { type: integer, description: Month of the year, for year }
+        weekday: { type: integer, description: "Day of the week (0 is Sunday), for week, fortnight and month by weekday" }
+        nth: { type: integer, description: "Which one in the month, 1 to 4, or 5 for the last" }
+
+    RepeatInput:
+      type: object
+      required: [every]
+      properties:
+        every: { $ref: "#/components/schemas/RepeatEvery" }
+        byWeekday: { type: boolean, description: "For monthly, repeat on e.g. the second Tuesday instead of the date" }
+
+    TaskStep:
+      type: object
+      required: [id, title, done]
+      properties:
+        id: { type: string }
+        title: { type: string }
+        done: { type: boolean }
+
+    WorkingHours:
+      type: object
+      required: [start, end]
+      properties:
+        start: { type: string, description: "HH:MM, London time" }
+        end: { type: string, description: "HH:MM, London time" }
+
+    PlanItemInput:
+      type: object
+      required: [taskId, minutes]
+      properties:
+        taskId: { type: integer }
+        minutes: { type: integer, description: "15, 30, 60 or 120" }
+
+    PlanInput:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          description: In the order Ollie wants to do them
+          items: { $ref: "#/components/schemas/PlanItemInput" }
+
+    PlannedTask:
+      type: object
+      required: [task, minutes, start, end, clash]
+      properties:
+        task: { $ref: "#/components/schemas/Task" }
+        minutes: { type: integer }
+        start: { type: [string, "null"], description: "HH:MM. Null when it did not fit today." }
+        end: { type: [string, "null"] }
+        clash: { type: boolean, description: "A meeting now overlaps it, so it needs fitting again" }
+
+    PlanMeeting:
+      type: object
+      required: [id, title, personal, startsAt, endsAt]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        personal: { type: boolean }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+
+    PlanSuggestion:
+      type: object
+      required: [task, reason, carriedOver]
+      properties:
+        task: { $ref: "#/components/schemas/Task" }
+        reason: { type: string }
+        carriedOver: { type: boolean, description: In an earlier plan and not finished }
+
+    DayPlan:
+      type: object
+      required: [date, workingHours, made, items, meetings, suggestions]
+      properties:
+        date: { type: string, format: date }
+        workingHours: { $ref: "#/components/schemas/WorkingHours" }
+        made: { type: boolean, description: True once Ollie has made today's plan }
+        items: { type: array, items: { $ref: "#/components/schemas/PlannedTask" } }
+        meetings: { type: array, items: { $ref: "#/components/schemas/PlanMeeting" } }
+        suggestions:
+          type: array
+          description: Only while there is no plan yet. Unfinished tasks from the last plan first.
+          items: { $ref: "#/components/schemas/PlanSuggestion" }
+
+    ClearOutStatus:
+      type: object
+      required: [count, show]
+      properties:
+        count: { type: integer, description: Backlog tasks untouched for 30 days or more }
+        show: { type: boolean, description: Offer the clear-out on Home this week }
+
+    ClearOut:
+      type: object
+      required: [count, show, tasks]
+      properties:
+        count: { type: integer }
+        show: { type: boolean }
+        tasks:
+          type: array
+          description: Oldest first, up to 200
+          items: { $ref: "#/components/schemas/Task" }
+
     TaskGoal:
       type: object
       required: [id, name, inherited]
@@ -3168,6 +3462,15 @@ components:
           type: [integer, "null"]
         notGoalWork:
           type: boolean
+        repeat:
+          description: Null stops repeating
+          oneOf:
+            - $ref: "#/components/schemas/RepeatInput"
+            - type: "null"
+        steps:
+          type: array
+          description: The whole checklist, in order
+          items: { $ref: "#/components/schemas/TaskStep" }
 
     HistoryEvent:
       type: object
@@ -3205,8 +3508,9 @@ components:
       properties:
         tabs:
           type: object
-          required: [inbox, open, now, backlog, waiting, done, noise, dropped]
+          required: [inbox, open, now, backlog, waiting, done, noise, dropped, archived]
           properties:
+            archived: { type: integer }
             inbox: { type: integer }
             open: { type: integer, description: "inbox + now + backlog + waiting" }
             now: { type: integer }

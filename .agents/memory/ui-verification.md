@@ -30,3 +30,5 @@ A second API instance pointed at the dev database starts the connector timer, so
 - The UI check session needs a full user object (id, email, firstName, lastName, profileImageUrl) in `sess`, or `/api/auth/user` fails the response check and the app shows the login page. Background servers started with `&` inside a normal shell call die when the call ends; start them as a background task.
 
 There is no `POST /api/tasks` or plain `POST /api/decisions` seeding route: insert tasks and decisions by SQL with `created_by = 'ollie'` (and `decided_at` for decisions). Organisations, people, projects, links and relationships seed fine through the API.
+
+Plan my day fits tasks from the current London time, so an evening UI check makes nothing fit. To see the timeline, save the plan through the UI, then set `day_plans.items` starts by SQL and reload. Vitest uses the same `ollieos_test` database, so stop the test API before running the suite.

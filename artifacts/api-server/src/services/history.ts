@@ -21,12 +21,15 @@ const FIELD_LABELS: Record<string, string> = {
   confidential: "Confidential",
   goal: "Goal",
   notGoalWork: "Not goal work",
+  repeat: "Repeat",
 };
 
 function describeChange(c: FieldChange): string {
   const label = FIELD_LABELS[c.field] ?? c.field;
   if (c.field === "notes") return c.to ? "Notes edited" : "Notes cleared";
   if (c.field === "title") return `Renamed to "${c.to ?? ""}"`;
+  if (c.field === "steps") return c.to ? `Checklist updated (${c.to})` : "Checklist cleared";
+  if (c.field === "repeat") return c.to ? `Repeats: ${c.to}` : "Stopped repeating";
   if (c.to === null) return `${label} cleared`;
   if (c.from === null) return `${label} set to ${c.to}`;
   return `${label} changed from ${c.from} to ${c.to}`;
@@ -40,6 +43,7 @@ function describe(event: AuditEvent): string {
       if (via === "quick_add") return "Added with quick add";
       if (via === "seed") return "Imported from Notion";
       if (via === "bundle") return "Created by bundling tasks in Ask OllieOS";
+      if (via === "repeat") return `Made when the last one was ticked off. Due ${String(payload.dueLabel ?? "next")}`;
       return "Created";
     }
     case "update":
@@ -63,11 +67,13 @@ function describe(event: AuditEvent): string {
     case "bundle":
       return `Bundled into "${String(payload.title ?? "a new task")}" and marked done`;
     case "restore": {
-      const from = ((payload.changes ?? []) as FieldChange[]).find((c) => c.field === "status")?.from ?? "Noise";
-      return `Restored from ${from} to Inbox`;
+      const status = ((payload.changes ?? []) as FieldChange[]).find((c) => c.field === "status");
+      return `Restored from ${status?.from ?? "Noise"} to ${status?.to ?? "Inbox"}`;
     }
     case "keep":
       return `Kept in the Inbox, though it looked like noise (${String(payload.hint ?? "")})`;
+    case "keep_backlog":
+      return "Kept in the Backlog during a clear-out";
     case "reply_draft":
       return payload.saved ? "Reply draft saved to Gmail" : "Reply drafted with AI";
     case "snooze":

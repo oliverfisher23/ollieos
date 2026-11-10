@@ -8,12 +8,18 @@
 import type { EntitySummary } from './entitySummary';
 import type { NoiseRuleSummary } from './noiseRuleSummary';
 import type { Priority } from './priority';
+import type { RepeatRule } from './repeatRule';
 import type { TaskGoal } from './taskGoal';
 import type { TaskKind } from './taskKind';
 import type { TaskSource } from './taskSource';
 import type { TaskStatus } from './taskStatus';
+import type { TaskStep } from './taskStep';
 
 export interface Task {
+  /** How it repeats, anchored on its due date. Null when it does not. */
+  repeat: RepeatRule | null;
+  /** Checklist steps, in order */
+  steps: TaskStep[];
   id: number;
   title: string;
   kind: TaskKind;

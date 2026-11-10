@@ -247,6 +247,7 @@ function badgeFor(refs: string[], taskById: Map<number, TaskRow>): AskItemView["
     if (t.status === "done") return { label: `${kind} · done`, tone: "done" };
     if (t.status === "noise") return { label: `${kind} · noise`, tone: "neutral" };
     if (t.status === "dropped") return { label: `${kind} · dropped`, tone: "neutral" };
+    if (t.status === "archived") return { label: `${kind} · archived`, tone: "neutral" };
     const tone = t.priority === "high" ? "high" : "neutral";
     if (t.dueDate) return { label: `${kind} · due ${formatShort(t.dueDate).replace(/ \w+$/, "")}`, tone };
     return { label: `${kind} · ${STATUS_LABELS[t.status].toLowerCase()}`, tone };

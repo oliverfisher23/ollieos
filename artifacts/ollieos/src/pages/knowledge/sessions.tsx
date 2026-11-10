@@ -212,7 +212,7 @@ function SessionBody({ s, onDeleted }: { s: SessionDetail; onDeleted: () => void
               {s.tasks.map((t) => (
                 <Link key={t.id} href={'/tasks?task=' + t.id} className="oo-krow oo-krow-link" style={{ textDecoration: 'none' }} data-testid={'link-session-task-' + t.id}>
                   <span style={{ overflowWrap: 'anywhere', minWidth: 0 }}>{t.kind === 'promise' ? 'Promise: ' : ''}{t.title}</span>
-                  <span className="oo-pill" data-tone={t.status}>{t.status === 'done' ? 'Done' : t.status === 'dropped' ? 'Dropped' : 'Open'}</span>
+                  <span className="oo-pill" data-tone={t.status}>{t.status === 'done' ? 'Done' : t.status === 'dropped' ? 'Dropped' : t.status === 'archived' ? 'Archived' : 'Open'}</span>
                 </Link>
               ))}
             </div>

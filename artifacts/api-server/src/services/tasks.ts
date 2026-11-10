@@ -7,28 +7,34 @@ import {
   tasksTable,
   type InsertTask,
   type Task as TaskRow,
+  type TaskStep,
 } from "@workspace/db";
 import {
   OPEN_STATUSES,
   PRIORITY_LABELS,
   STATUS_LABELS,
   addDays,
+  buildRepeat,
   formatLong,
   formatTime,
   londonRange,
   parseQuickAdd,
   snoozeUntilTomorrow,
   todayLondon,
+  repeatLabel,
   weekStartOf,
   type Priority,
+  type RepeatEvery,
+  type RepeatRule,
   type TaskSource,
   type TaskStatus,
 } from "@workspace/shared";
 import { writeAudit } from "../lib/audit";
 import type { FieldChange } from "./history";
+import { makeNextCopy, withdrawNextCopy } from "./repeats";
 import { toTaskView, toTaskViews, type TaskView } from "./taskView";
 
-export type TaskTab = "inbox" | "open" | "now" | "backlog" | "waiting" | "done" | "noise" | "dropped";
+export type TaskTab = "inbox" | "open" | "now" | "backlog" | "waiting" | "done" | "noise" | "dropped" | "archived";
 
 export class NotFoundError extends Error {}
 export class ValidationError extends Error {}
@@ -106,7 +112,7 @@ export async function listTasks(params: ListTasksParams): Promise<TaskView[]> {
   const order =
     tab === "done"
       ? [desc(tasksTable.completedAt), desc(tasksTable.id)]
-      : tab === "noise" || tab === "dropped"
+      : tab === "noise" || tab === "dropped" || tab === "archived"
         ? [desc(tasksTable.updatedAt), desc(tasksTable.id)]
         : tab === "inbox"
           ? [desc(tasksTable.capturedAt), desc(tasksTable.createdAt)]
@@ -135,6 +141,7 @@ export async function getTaskSummary(weekStartParam?: string) {
       done: sql<number>`count(*) filter (where ${tasksTable.status} = 'done')::int`,
       noise: sql<number>`count(*) filter (where ${tasksTable.status} = 'noise')::int`,
       dropped: sql<number>`count(*) filter (where ${tasksTable.status} = 'dropped')::int`,
+      archived: sql<number>`count(*) filter (where ${tasksTable.status} = 'archived')::int`,
       dueThisWeek: sql<number>`count(*) filter (where ${tasksTable.status} in ('inbox','now','backlog','waiting') and ${tasksTable.dueDate} between ${ws} and ${addDays(ws, 6)})::int`,
       doneThisWeek: sql<number>`count(*) filter (where ${tasksTable.status} = 'done' and ${tasksTable.completedAt} >= ${start.toISOString()} and ${tasksTable.completedAt} < ${end.toISOString()})::int`,
     })
@@ -150,6 +157,7 @@ export async function getTaskSummary(weekStartParam?: string) {
       done: counts.done,
       noise: counts.noise,
       dropped: counts.dropped,
+      archived: counts.archived,
     },
     stats: {
       inboxToTriage: counts.inbox,
@@ -185,6 +193,32 @@ export interface TaskUpdateInput {
   goalId?: number | null;
   /** "Not goal work": the Goals page stops asking about it */
   notGoalWork?: boolean;
+  /** Repeat it, anchored on its due date (today when it has none); null stops repeating */
+  repeat?: { every: RepeatEvery; byWeekday?: boolean } | null;
+  /** The whole checklist, in order */
+  steps?: TaskStep[];
+}
+
+export const MAX_STEPS = 50;
+
+/** Tidies a checklist from a client: trims titles, drops empty ones, and makes sure ids are unique. */
+export function cleanSteps(steps: TaskStep[]): TaskStep[] {
+  const seen = new Set<string>();
+  const out: TaskStep[] = [];
+  for (const s of steps) {
+    const title = s.title.trim().slice(0, 300);
+    if (!title) continue;
+    let id = s.id.trim().slice(0, 40) || Math.random().toString(36).slice(2, 10);
+    while (seen.has(id)) id = Math.random().toString(36).slice(2, 10);
+    seen.add(id);
+    out.push({ id, title, done: !!s.done });
+  }
+  if (out.length > MAX_STEPS) throw new ValidationError(`A task can have up to ${MAX_STEPS} steps`);
+  return out;
+}
+
+export function stepsSummary(steps: TaskStep[]): string {
+  return `${steps.filter((s) => s.done).length} of ${steps.length} done`;
 }
 
 export async function personName(id: number | null): Promise<string | null> {
@@ -278,6 +312,37 @@ export async function updateTask(id: number, input: TaskUpdateInput, actor: stri
     changes.push({ field: "notGoalWork", from: current.notGoalWork ? "Yes" : "No", to: input.notGoalWork ? "Yes" : "No" });
   }
 
+  // Repeats are anchored on the due date, so moving the date moves the anchor with it.
+  const dueAfter = set.dueDate !== undefined ? set.dueDate : current.dueDate;
+  let ruleAfter: RepeatRule | null = (current.repeat as RepeatRule | null) ?? null;
+  if (input.repeat !== undefined) {
+    if (input.repeat === null) ruleAfter = null;
+    else {
+      const anchor = dueAfter ?? todayLondon(now);
+      if (!dueAfter) {
+        set.dueDate = anchor;
+        changes.push({ field: "dueDate", from: null, to: formatLong(anchor) });
+      }
+      ruleAfter = buildRepeat(input.repeat.every, anchor, !!input.repeat.byWeekday);
+    }
+  } else if (ruleAfter && set.dueDate) {
+    ruleAfter = buildRepeat(ruleAfter.every, set.dueDate, ruleAfter.nth != null);
+  }
+  if (JSON.stringify(ruleAfter) !== JSON.stringify(current.repeat ?? null)) {
+    set.repeat = ruleAfter;
+    const from = current.repeat ? repeatLabel(current.repeat as RepeatRule) : null;
+    const to = ruleAfter ? repeatLabel(ruleAfter) : null;
+    if (from !== to) changes.push({ field: "repeat", from, to });
+  }
+
+  if (input.steps !== undefined) {
+    const steps = cleanSteps(input.steps);
+    if (JSON.stringify(steps) !== JSON.stringify(current.steps ?? [])) {
+      set.steps = steps;
+      changes.push({ field: "steps", from: null, to: steps.length ? stepsSummary(steps) : null });
+    }
+  }
+
   let statusChanged = false;
   if (input.status !== undefined && input.status !== current.status) {
     statusChanged = true;
@@ -293,12 +358,17 @@ export async function updateTask(id: number, input: TaskUpdateInput, actor: stri
     if (to === "waiting") set.waitingSince = now;
     else if (current.status === "waiting") set.waitingSince = null;
 
-    if (to === "done" || to === "noise" || to === "dropped") set.snoozedUntil = null;
+    if (to === "done" || to === "noise" || to === "dropped" || to === "archived") set.snoozedUntil = null;
   }
 
   if (changes.length === 0) return toTaskView(current);
 
   const updated = await db.transaction(async (tx) => {
+    if (statusChanged && set.status === "done" && ruleAfter && !current.repeatNextId) {
+      set.repeatNextId = await makeNextCopy(tx, { ...current, ...set } as TaskRow, ruleAfter, actor, clientId, now);
+    } else if (statusChanged && current.status === "done" && current.repeatNextId) {
+      if (await withdrawNextCopy(tx, current.repeatNextId, actor)) set.repeatNextId = null;
+    }
     const [row] = await tx.update(tasksTable).set(set).where(eq(tasksTable.id, id)).returning();
     await writeAudit(tx, {
       actor,
@@ -311,6 +381,34 @@ export async function updateTask(id: number, input: TaskUpdateInput, actor: stri
     return row;
   });
 
+  return toTaskView(updated);
+}
+
+/**
+ * Dropping or archiving a repeating task stops the repeats. "Keep repeating" makes the next copy
+ * anyway, as if it had been ticked off.
+ */
+export async function continueRepeat(id: number, actor: string): Promise<TaskView> {
+  const current = await loadTask(id);
+  if (!current.repeat) throw new ConflictError("This task does not repeat");
+  if (current.repeatNextId) throw new ConflictError("The next one has already been made");
+  const updated = await db.transaction(async (tx) => {
+    const nextId = await makeNextCopy(tx, current, current.repeat!, actor, null);
+    const [row] = await tx.update(tasksTable).set({ repeatNextId: nextId }).where(eq(tasksTable.id, id)).returning();
+    return row;
+  });
+  return toTaskView(updated);
+}
+
+/** "Keep" in the Backlog clear-out: still wanted, so the 30-day clock starts again. */
+export async function keepInBacklog(id: number, actor: string): Promise<TaskView> {
+  const current = await loadTask(id);
+  if (current.status !== "backlog") throw new ConflictError("Only Backlog tasks can be kept this way");
+  const updated = await db.transaction(async (tx) => {
+    const [row] = await tx.update(tasksTable).set({ updatedAt: new Date() }).where(eq(tasksTable.id, id)).returning();
+    await writeAudit(tx, { actor, action: "keep_backlog", entityType: "task", entityId: id, payload: {} });
+    return row;
+  });
   return toTaskView(updated);
 }
 

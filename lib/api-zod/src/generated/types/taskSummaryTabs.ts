@@ -7,6 +7,7 @@
  */
 
 export type TaskSummaryTabs = {
+  archived: number;
   inbox: number;
   /** inbox + now + backlog + waiting */
   open: number;

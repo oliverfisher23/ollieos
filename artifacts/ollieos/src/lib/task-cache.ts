@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  getGetClearOutQueryKey,
+  getGetDayPlanQueryKey,
   getGetHomeQueryKey,
   getGetTaskQueryKey,
   getGetTaskSummaryQueryKey,
@@ -22,6 +24,8 @@ export function useInvalidateTasks() {
       qc.invalidateQueries({ queryKey: getListNoiseRulesQueryKey() });
       qc.invalidateQueries({ queryKey: getListGoalsQueryKey() });
       qc.invalidateQueries({ queryKey: getListEmailDraftsQueryKey() });
+      qc.invalidateQueries({ queryKey: getGetDayPlanQueryKey() });
+      qc.invalidateQueries({ queryKey: getGetClearOutQueryKey() });
     },
     [qc],
   );

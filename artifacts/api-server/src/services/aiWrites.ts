@@ -59,6 +59,8 @@ export interface CaptureInput {
   waitingOnPersonId?: number | null;
   confidential?: boolean | null;
   capturedAt?: Date | null;
+  /** Checklist steps, in order */
+  steps?: string[];
 }
 
 export interface CaptureResult {
@@ -158,6 +160,11 @@ export async function captureTask(w: CaptureWriter, item: CaptureInput, opts: { 
         confidential: item.confidential ?? null,
         capturedAt: item.capturedAt ?? now,
         createdBy: w.actor,
+        steps: (item.steps ?? [])
+          .map((t) => cleanText(t)?.slice(0, 300))
+          .filter((t): t is string => !!t)
+          .slice(0, 50)
+          .map((title, i) => ({ id: `s${i + 1}${Math.random().toString(36).slice(2, 7)}`, title, done: false })),
       })
       .returning({ id: tasksTable.id });
     if (logId != null) await tx.update(captureLogTable).set({ taskId: created.id }).where(eq(captureLogTable.id, logId));

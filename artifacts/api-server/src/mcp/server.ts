@@ -53,7 +53,7 @@ export const SERVER_INSTRUCTIONS = [
   "For questions of direction or priority, read Ollie's strategy and open ideas with get_strategy. When an idea worth coming back to comes up, add it with add_idea; it goes straight onto his list, marked as yours.",
 ].join(" ");
 
-const STATUSES = ["inbox", "now", "backlog", "waiting", "done", "noise", "dropped"] as const;
+const STATUSES = ["inbox", "now", "backlog", "waiting", "done", "noise", "dropped", "archived"] as const;
 const PRIORITIES = ["high", "medium", "low"] as const;
 const SOURCES = ["email", "slack", "meeting", "quarterly", "manual", "session"] as const;
 const ENTITY_TYPES = ["project", "person", "organisation"] as const;
@@ -346,6 +346,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
         source_url: z.string().url().max(2000).optional(),
         source_quote: z.string().max(2000).optional(),
         confidential: z.boolean().optional(),
+        steps: z.array(z.string().min(1).max(300)).max(50).optional().describe("Checklist steps inside the task, in order"),
       },
     },
     async (a) =>
@@ -375,6 +376,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
             personId: person?.id ?? null,
             waitingOnPersonId: waiting?.id ?? null,
             confidential: a.confidential ?? null,
+            steps: a.steps,
           },
           { applyNoise: true, via: "mcp" },
         );
@@ -387,7 +389,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
   server.registerTool(
     "update_task",
     {
-      description: describe("Changes a task: title, status (including done, noise and dropped), priority, due date, links, or adds to its notes. Done, noise or dropped takes a task off Ollie's lists. Dropped means it was real but Ollie decided not to do it; noise means it should never have come in."),
+      description: describe("Changes a task: title, status (including done, noise, dropped and archived), priority, due date, links, or adds to its notes. Done, noise, dropped or archived takes a task off Ollie's lists. Dropped means it was real but Ollie decided not to do it; archived means keep it, but not now; noise means it should never have come in. Repeats and checklist steps are shown on each task but only Ollie changes them here."),
       inputSchema: {
         ref: z.string().max(40).describe("A task ref such as task:42"),
         title: z.string().min(1).max(300).optional(),

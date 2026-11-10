@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'wouter';
+import { useQueryClient } from '@tanstack/react-query';
 import {
+  dismissClearOut,
+  getGetClearOutQueryKey,
+  useGetClearOut,
   useGetHome,
   type CalendarEvent,
   type DoNextItem,
@@ -9,6 +13,9 @@ import {
 } from '@workspace/api-client-react';
 import { SOURCE_LABELS, WAITING_AMBER_DAYS, formatLong, formatShort, formatTime, greeting, todayLondon } from '@workspace/shared';
 import { AddBox } from '@/components/add-box';
+import { DayPlanCard } from '@/components/day-plan';
+import { errorMessage, notify } from '@/lib/notify';
+import { reportApiError } from '@/lib/forbidden';
 import { Avatar, PriorityPill, Skel } from '@/components/bits';
 import { IconArrowOut, IconCheck, IconLock, IconSettings } from '@/components/icons';
 import { requestItemName, useAccessActions, whenLabel } from '@/lib/access';
@@ -171,6 +178,7 @@ export default function HomePage() {
     body = (
       <>
         <DoNextCard items={d.doNext} phone />
+        <DayPlanCard phone />
         <Link href={d.inbox.count ? '/triage' : '/tasks?tab=inbox'} className="oo-dark-card oo-glass" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-inbox-phone">
           <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span className="oo-label" style={{ fontSize: 12 }}>Inbox</span>
@@ -181,6 +189,7 @@ export default function HomePage() {
             <span className="oo-btn oo-btn-white" style={{ borderRadius: 999, minHeight: 40 }}>{d.inbox.count ? 'Triage' : 'Open'}</span>
           </span>
         </Link>
+        <ClearOutCard phone />
         <TodayPhone events={d.today} />
         <WaitingCard items={d.waitingOn} phone />
         <PromisesCard home={d} />
@@ -200,6 +209,8 @@ export default function HomePage() {
     body = (
       <>
         <TodayStrip events={d.today} />
+        <DayPlanCard />
+        <ClearOutCard />
         <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, alignItems: 'stretch' }}>
           <DoNextCard items={d.doNext} />
           <section aria-labelledby="h-inbox" className="oo-dark-card oo-glass" data-testid="card-inbox">
@@ -279,6 +290,42 @@ function DoNextCard({ items, phone = false }: { items: DoNextItem[]; phone?: boo
         <button type="button" className="oo-btn oo-btn-ink" onClick={done} disabled={busy} data-testid="button-next-done">Done</button>
         <button type="button" className="oo-btn oo-btn-outline" onClick={later} disabled={busy} data-testid="button-next-snooze">{phone ? 'Snooze' : 'Snooze to tomorrow'}</button>
       </div>
+    </section>
+  );
+}
+
+/** Every other Monday: a nudge to go through Backlog tasks nobody has touched for 30 days. */
+function ClearOutCard({ phone = false }: { phone?: boolean }) {
+  const qc = useQueryClient();
+  const clearOut = useGetClearOut();
+  const [busy, setBusy] = useState(false);
+  const d = clearOut.data;
+  if (!d?.show || !d.count) return null;
+  const dismiss = async () => {
+    setBusy(true);
+    try {
+      await dismissClearOut();
+      await qc.invalidateQueries({ queryKey: getGetClearOutQueryKey() });
+      notify('Put off until the next clear-out', 'You can start it any time from the Backlog tab.');
+    } catch (err) {
+      reportApiError(err);
+      notify('That did not save', errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section aria-labelledby="h-clear-out" className="oo-dark-card oo-glass" style={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, padding: phone ? 16 : 18 }} data-testid="card-clear-out">
+      <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+        <h2 id="h-clear-out" className="oo-label" style={{ fontSize: phone ? 12 : 13 }}>Clear out your Backlog</h2>
+        <span className="oo-t2" style={{ fontSize: 13 }} data-testid="text-clear-out-home">
+          {d.count === 1 ? '1 task untouched' : `${d.count} tasks untouched`} for 30 days or more
+        </span>
+      </span>
+      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Link href="/clear-out" className="oo-btn oo-btn-white" data-testid="link-clear-out-start">Start</Link>
+        <button type="button" className="oo-btn oo-btn-ghost" disabled={busy} onClick={dismiss} data-testid="button-clear-out-dismiss">Not this time</button>
+      </span>
     </section>
   );
 }

@@ -1,7 +1,7 @@
 import { customType, pgEnum } from "drizzle-orm/pg-core";
 
 export const taskKindEnum = pgEnum("task_kind", ["task", "promise"]);
-export const taskStatusEnum = pgEnum("task_status", ["inbox", "now", "backlog", "waiting", "done", "noise", "dropped"]);
+export const taskStatusEnum = pgEnum("task_status", ["inbox", "now", "backlog", "waiting", "done", "noise", "dropped", "archived"]);
 export const priorityEnum = pgEnum("priority", ["high", "medium", "low"]);
 export const taskSourceEnum = pgEnum("task_source", ["email", "slack", "meeting", "quarterly", "manual", "session"]);
 export const entityTypeEnum = pgEnum("entity_type", [

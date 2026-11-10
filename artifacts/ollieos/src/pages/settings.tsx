@@ -9,6 +9,7 @@ import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
 import ConnectorsSettings from './settings-connectors';
 import KnowledgeSettings from './settings-knowledge';
+import PlanningSettings from './settings-planning';
 
 /** Sections that moved into Connectors. */
 const MOVED: Record<string, string> = { 'ai-access': 'connectors', sweep: 'connectors' };
@@ -17,6 +18,7 @@ const SECTIONS = [
   { slug: 'connectors', label: 'Connectors', milestone: 8, line: '' },
   { slug: 'knowledge', label: 'Knowledge', milestone: 6, line: '' },
   { slug: 'noise-rules', label: 'Noise rules', milestone: 2, line: '' },
+  { slug: 'planning', label: 'Planning', milestone: 0, line: '' },
   { slug: 'imports', label: 'Imports', milestone: 9, line: 'Import status for your tasks, Knowledge and memory, one line per kind.' },
   { slug: 'export', label: 'Export', milestone: 9, line: 'Download your tasks and Knowledge as CSV files.' },
 ];
@@ -47,6 +49,8 @@ export default function SettingsPage() {
           <ConnectorsSettings />
         ) : current.slug === 'knowledge' ? (
           <KnowledgeSettings />
+        ) : current.slug === 'planning' ? (
+          <PlanningSettings />
         ) : (
           <section className="oo-panel flex flex-col gap-3 px-5 py-8 sm:px-8" data-testid={'page-settings-' + current.slug}>
             <span className="oo-serif oo-muted" style={{ fontSize: 18 }}>Arrives in milestone {current.milestone}</span>

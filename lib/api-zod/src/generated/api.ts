@@ -156,10 +156,22 @@ export const GetHomeResponse = zod.object({
 }),
   "doNext": zod.array(zod.object({
   "task": zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -227,10 +239,22 @@ export const GetHomeResponse = zod.object({
 }),
   "waitingOn": zod.array(zod.object({
   "task": zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -290,10 +314,22 @@ export const GetHomeResponse = zod.object({
   "daysWaiting": zod.int().describe('Whole days since waitingSince (or updatedAt if unknown). Amber at 5 or more.')
 })),
   "promises": zod.array(zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -353,10 +389,22 @@ export const GetHomeResponse = zod.object({
   "doneThisWeek": zod.object({
   "count": zod.int(),
   "latest": zod.array(zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -477,7 +525,7 @@ export const GetHomeResponse = zod.object({
  * @summary List tasks for a tab with optional filters
  */
 export const ListTasksQueryParams = zod.object({
-  "tab": zod.enum(['inbox', 'open', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']).optional(),
+  "tab": zod.enum(['inbox', 'open', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']).optional(),
   "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']).optional(),
   "weekStart": zod.date().optional().describe('Monday of the week (YYYY-MM-DD, London). Open tabs filter by due date, Done by completion date.'),
   "includeUndated": zod.coerce.boolean().optional().describe('With weekStart on open tabs, also include tasks with no due date.'),
@@ -485,10 +533,22 @@ export const ListTasksQueryParams = zod.object({
 })
 
 export const ListTasksResponseItem = zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -557,6 +617,7 @@ export const GetTaskSummaryQueryParams = zod.object({
 
 export const GetTaskSummaryResponse = zod.object({
   "tabs": zod.object({
+  "archived": zod.int(),
   "inbox": zod.int(),
   "open": zod.int().describe('inbox + now + backlog + waiting'),
   "now": zod.int(),
@@ -587,10 +648,22 @@ export const QuickAddTaskBody = zod.object({
 
 export const QuickAddTaskResponse = zod.object({
   "task": zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -660,10 +733,22 @@ export const GetTaskParams = zod.object({
 
 export const GetTaskResponse = zod.object({
   "task": zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -743,7 +828,7 @@ export const UpdateTaskParams = zod.object({
 export const UpdateTaskBody = zod.object({
   "title": zod.string().min(1).optional(),
   "kind": zod.enum(['task', 'promise']).optional(),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']).optional(),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']).optional(),
   "priority": zod.enum(['high', 'medium', 'low']).optional(),
   "dueDate": zod.coerce.date().nullish(),
   "notes": zod.string().nullish(),
@@ -752,14 +837,35 @@ export const UpdateTaskBody = zod.object({
   "waitingOnPersonId": zod.int().nullish(),
   "confidential": zod.boolean().nullish(),
   "goalId": zod.int().nullish(),
-  "notGoalWork": zod.boolean().optional()
+  "notGoalWork": zod.boolean().optional(),
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "byWeekday": zod.boolean().optional().describe('For monthly, repeat on e.g. the second Tuesday instead of the date')
+}),zod.null()]).optional().describe('Null stops repeating'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).optional().describe('The whole checklist, in order')
 })
 
 export const UpdateTaskResponse = zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -826,10 +932,22 @@ export const SnoozeTaskParams = zod.object({
 })
 
 export const SnoozeTaskResponse = zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -935,10 +1053,22 @@ export const TriageTaskBody = zod.object({
 
 export const TriageTaskResponse = zod.object({
   "task": zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -1018,10 +1148,22 @@ export const UndoTaskParams = zod.object({
 })
 
 export const UndoTaskResponse = zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -1081,17 +1223,842 @@ export const UndoTaskResponse = zod.object({
 
 
 /**
- * @summary Restore a Noise or Dropped item to the Inbox
+ * @summary Restore a Noise or Dropped item to the Inbox, or an Archived one to the Backlog
  */
 export const RestoreTaskParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
 export const RestoreTaskResponse = zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+})
+
+
+/**
+ * @summary After dropping or archiving a repeating task, make the next one anyway
+ */
+export const ContinueRepeatParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ContinueRepeatResponse = zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+})
+
+
+/**
+ * @summary Today's plan, with meetings, and suggestions while there is no plan yet
+ */
+export const GetDayPlanResponse = zod.object({
+  "date": zod.coerce.date(),
+  "workingHours": zod.object({
+  "start": zod.string().describe('HH:MM, London time'),
+  "end": zod.string().describe('HH:MM, London time')
+}),
+  "made": zod.boolean().describe('True once Ollie has made today\'s plan'),
+  "items": zod.array(zod.object({
+  "task": zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+}),
+  "minutes": zod.int(),
+  "start": zod.string().nullable().describe('HH:MM. Null when it did not fit today.'),
+  "end": zod.string().nullable(),
+  "clash": zod.boolean().describe('A meeting now overlaps it, so it needs fitting again')
+})),
+  "meetings": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "personal": zod.boolean(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date()
+})),
+  "suggestions": zod.array(zod.object({
+  "task": zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+}),
+  "reason": zod.string(),
+  "carriedOver": zod.boolean().describe('In an earlier plan and not finished')
+})).describe('Only while there is no plan yet. Unfinished tasks from the last plan first.')
+})
+
+
+/**
+ * @summary Save today's tasks and fit them around the meetings
+ */
+export const SaveDayPlanBody = zod.object({
+  "items": zod.array(zod.object({
+  "taskId": zod.int(),
+  "minutes": zod.int().describe('15, 30, 60 or 120')
+})).describe('In the order Ollie wants to do them')
+})
+
+export const SaveDayPlanResponse = zod.object({
+  "date": zod.coerce.date(),
+  "workingHours": zod.object({
+  "start": zod.string().describe('HH:MM, London time'),
+  "end": zod.string().describe('HH:MM, London time')
+}),
+  "made": zod.boolean().describe('True once Ollie has made today\'s plan'),
+  "items": zod.array(zod.object({
+  "task": zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+}),
+  "minutes": zod.int(),
+  "start": zod.string().nullable().describe('HH:MM. Null when it did not fit today.'),
+  "end": zod.string().nullable(),
+  "clash": zod.boolean().describe('A meeting now overlaps it, so it needs fitting again')
+})),
+  "meetings": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "personal": zod.boolean(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date()
+})),
+  "suggestions": zod.array(zod.object({
+  "task": zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+}),
+  "reason": zod.string(),
+  "carriedOver": zod.boolean().describe('In an earlier plan and not finished')
+})).describe('Only while there is no plan yet. Unfinished tasks from the last plan first.')
+})
+
+
+/**
+ * @summary Fit today's unfinished tasks again from now
+ */
+export const RefitDayPlanResponse = zod.object({
+  "date": zod.coerce.date(),
+  "workingHours": zod.object({
+  "start": zod.string().describe('HH:MM, London time'),
+  "end": zod.string().describe('HH:MM, London time')
+}),
+  "made": zod.boolean().describe('True once Ollie has made today\'s plan'),
+  "items": zod.array(zod.object({
+  "task": zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+}),
+  "minutes": zod.int(),
+  "start": zod.string().nullable().describe('HH:MM. Null when it did not fit today.'),
+  "end": zod.string().nullable(),
+  "clash": zod.boolean().describe('A meeting now overlaps it, so it needs fitting again')
+})),
+  "meetings": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "personal": zod.boolean(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date()
+})),
+  "suggestions": zod.array(zod.object({
+  "task": zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+}),
+  "reason": zod.string(),
+  "carriedOver": zod.boolean().describe('In an earlier plan and not finished')
+})).describe('Only while there is no plan yet. Unfinished tasks from the last plan first.')
+})
+
+
+/**
+ * @summary Working hours used by Plan my day
+ */
+export const GetWorkingHoursResponse = zod.object({
+  "start": zod.string().describe('HH:MM, London time'),
+  "end": zod.string().describe('HH:MM, London time')
+})
+
+
+/**
+ * @summary Change working hours
+ */
+export const UpdateWorkingHoursBody = zod.object({
+  "start": zod.string().describe('HH:MM, London time'),
+  "end": zod.string().describe('HH:MM, London time')
+})
+
+export const UpdateWorkingHoursResponse = zod.object({
+  "start": zod.string().describe('HH:MM, London time'),
+  "end": zod.string().describe('HH:MM, London time')
+})
+
+
+/**
+ * @summary Backlog tasks untouched for 30 days, and whether to offer the clear-out this week
+ */
+export const GetClearOutResponse = zod.object({
+  "count": zod.int(),
+  "show": zod.boolean(),
+  "tasks": zod.array(zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+})).describe('Oldest first, up to 200')
+})
+
+
+/**
+ * @summary Hide the clear-out card until the next clear-out Monday
+ */
+export const DismissClearOutResponse = zod.object({
+  "count": zod.int().describe('Backlog tasks untouched for 30 days or more'),
+  "show": zod.boolean().describe('Offer the clear-out on Home this week')
+})
+
+
+/**
+ * @summary Still wanted, so the 30-day clock starts again
+ */
+export const KeepInBacklogParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const KeepInBacklogResponse = zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -1158,10 +2125,22 @@ export const KeepTaskParams = zod.object({
 })
 
 export const KeepTaskResponse = zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -1377,7 +2356,7 @@ export const ListEmailDraftsResponse = zod.object({
   "task": zod.object({
   "id": zod.int(),
   "title": zod.string(),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "fromName": zod.string().nullable(),
   "fromAddress": zod.string().nullable(),
   "sourceSubject": zod.string().nullable(),
@@ -1624,10 +2603,22 @@ export const GetProjectResponse = zod.object({
   "createdAt": zod.coerce.date()
 })),
   "openTasks": zod.array(zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -1873,10 +2864,22 @@ export const GetPersonResponse = zod.object({
   "pausedByProjects": zod.boolean().describe('True when every linked project is paused or complete')
 }),
   "iOwe": zod.array(zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -1934,10 +2937,22 @@ export const GetPersonResponse = zod.object({
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
 })),
   "theyOwe": zod.array(zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -5414,10 +6429,22 @@ export const AskOllieOSResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -5539,10 +6566,22 @@ export const GetAskThreadResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -5664,10 +6703,22 @@ export const DraftAskReplyResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -5789,10 +6840,22 @@ export const AllowAskTurnResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -5923,10 +6986,22 @@ export const BundleAskTasksResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
@@ -6048,10 +7123,22 @@ export const UndoAskBundleResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
   "id": zod.int(),
   "title": zod.string(),
   "kind": zod.enum(['task', 'promise']),
-  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),

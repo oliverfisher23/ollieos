@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, date, index, integer, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import {
   captureOutcomeEnum,
   noiseMatchEnum,
@@ -73,6 +73,12 @@ export const tasksTable = pgTable(
     noiseHintKept: boolean("noise_hint_kept").notNull().default(false),
     /** When the noise check last looked at it; null means not yet */
     noiseCheckedAt: timestamp("noise_checked_at", { withTimezone: true }),
+    /** How it repeats, anchored on its due date; null when it does not (Part I) */
+    repeat: jsonb("repeat").$type<RepeatRule>(),
+    /** The next copy made when this one was ticked off, so it is only made once */
+    repeatNextId: integer("repeat_next_id"),
+    /** Checklist steps inside the task, in order */
+    steps: jsonb("steps").$type<TaskStep[]>().notNull().default([]),
     search: tsvector("search").generatedAlwaysAs(
       sql`to_tsvector('english', coalesce(title,'') || ' ' || coalesce(snippet,'') || ' ' || coalesce(notes,'') || ' ' || coalesce(source_quote,'') || ' ' || coalesce(from_name,''))`,
     ),
@@ -101,6 +107,40 @@ export const captureLogTable = pgTable(
   },
   (t) => [uniqueIndex("capture_log_source_ref_unique").on(t.source, t.sourceRef)],
 );
+
+/** How a task repeats; mirrors RepeatRule in @workspace/shared, which works out the dates. */
+export interface RepeatRule {
+  every: "day" | "weekday" | "week" | "fortnight" | "month" | "quarter" | "year";
+  day?: number;
+  month?: number;
+  weekday?: number;
+  nth?: number;
+}
+
+/** One step of a task's checklist. The id is a short random string made by whoever adds it. */
+export interface TaskStep {
+  id: string;
+  title: string;
+  done: boolean;
+}
+
+/** One task in a day's plan; start is "HH:MM" London time, null when it did not fit (Part I). */
+export interface PlanItem {
+  taskId: number;
+  minutes: number;
+  start: string | null;
+}
+
+/** Plan my day: the tasks Ollie picked for a day, fitted around his meetings. */
+export const dayPlansTable = pgTable("day_plans", {
+  date: date("date", { mode: "string" }).primaryKey(),
+  items: jsonb("items").$type<PlanItem[]>().notNull().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
 
 export type Task = typeof tasksTable.$inferSelect;
 export type InsertTask = typeof tasksTable.$inferInsert;

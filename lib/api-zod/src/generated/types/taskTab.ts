@@ -18,4 +18,5 @@ export const TaskTab = {
   done: 'done',
   noise: 'noise',
   dropped: 'dropped',
+  archived: 'archived',
 } as const;

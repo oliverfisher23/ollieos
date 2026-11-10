@@ -319,7 +319,7 @@ export async function describePoints(refs: string[]): Promise<Map<string, GraphN
           "task",
           r.id,
           short(r.title),
-          [r.kind === "promise" ? "Promise" : "Task", r.status === "done" ? "done" : r.status === "dropped" ? "dropped" : "open", r.due ? `due ${formatDayMonth(r.due)}` : null].filter(Boolean).join(", "),
+          [r.kind === "promise" ? "Promise" : "Task", r.status === "done" ? "done" : r.status === "dropped" ? "dropped" : r.status === "archived" ? "archived" : "open", r.due ? `due ${formatDayMonth(r.due)}` : null].filter(Boolean).join(", "),
         ),
     ),
     run(

@@ -62,6 +62,7 @@ export const TaskStatus = {
   done: 'done',
   noise: 'noise',
   dropped: 'dropped',
+  archived: 'archived',
 } as const;
 
 export type TaskKind = typeof TaskKind[keyof typeof TaskKind];
@@ -105,6 +106,7 @@ export const TaskTab = {
   done: 'done',
   noise: 'noise',
   dropped: 'dropped',
+  archived: 'archived',
 } as const;
 
 export interface EntitySummary {
@@ -112,6 +114,37 @@ export interface EntitySummary {
   name: string;
   slug: string;
   confidential: boolean;
+}
+
+export type RepeatEvery = typeof RepeatEvery[keyof typeof RepeatEvery];
+
+
+export const RepeatEvery = {
+  day: 'day',
+  weekday: 'weekday',
+  week: 'week',
+  fortnight: 'fortnight',
+  month: 'month',
+  quarter: 'quarter',
+  year: 'year',
+} as const;
+
+export interface RepeatRule {
+  every: RepeatEvery;
+  /** Day of the month, for month, quarter and year by date */
+  day?: number;
+  /** Month of the year */
+  month?: number;
+  /** Day of the week (0 is Sunday), for week, fortnight and month by weekday */
+  weekday?: number;
+  /** Which one in the month, 1 to 4, or 5 for the last */
+  nth?: number;
+}
+
+export interface TaskStep {
+  id: string;
+  title: string;
+  done: boolean;
 }
 
 export type NoiseMatchType = typeof NoiseMatchType[keyof typeof NoiseMatchType];
@@ -140,6 +173,10 @@ export interface TaskGoal {
 }
 
 export interface Task {
+  /** How it repeats, anchored on its due date. Null when it does not. */
+  repeat: RepeatRule | null;
+  /** Checklist steps, in order */
+  steps: TaskStep[];
   id: number;
   title: string;
   kind: TaskKind;
@@ -209,6 +246,84 @@ export interface Task {
   noiseHint: string | null;
 }
 
+export interface RepeatInput {
+  every: RepeatEvery;
+  /** For monthly, repeat on e.g. the second Tuesday instead of the date */
+  byWeekday?: boolean;
+}
+
+export interface WorkingHours {
+  /** HH:MM, London time */
+  start: string;
+  /** HH:MM, London time */
+  end: string;
+}
+
+export interface PlanItemInput {
+  taskId: number;
+  /** 15, 30, 60 or 120 */
+  minutes: number;
+}
+
+export interface PlanInput {
+  /** In the order Ollie wants to do them */
+  items: PlanItemInput[];
+}
+
+export interface PlannedTask {
+  task: Task;
+  minutes: number;
+  /**
+     * HH:MM. Null when it did not fit today.
+     * @nullable
+     */
+  start: string | null;
+  /** @nullable */
+  end: string | null;
+  /** A meeting now overlaps it, so it needs fitting again */
+  clash: boolean;
+}
+
+export interface PlanMeeting {
+  id: number;
+  title: string;
+  personal: boolean;
+  startsAt: string;
+  endsAt: string;
+}
+
+export interface PlanSuggestion {
+  task: Task;
+  reason: string;
+  /** In an earlier plan and not finished */
+  carriedOver: boolean;
+}
+
+export interface DayPlan {
+  date: string;
+  workingHours: WorkingHours;
+  /** True once Ollie has made today's plan */
+  made: boolean;
+  items: PlannedTask[];
+  meetings: PlanMeeting[];
+  /** Only while there is no plan yet. Unfinished tasks from the last plan first. */
+  suggestions: PlanSuggestion[];
+}
+
+export interface ClearOutStatus {
+  /** Backlog tasks untouched for 30 days or more */
+  count: number;
+  /** Offer the clear-out on Home this week */
+  show: boolean;
+}
+
+export interface ClearOut {
+  count: number;
+  show: boolean;
+  /** Oldest first, up to 200 */
+  tasks: Task[];
+}
+
 export interface TaskUpdate {
   /** @minLength 1 */
   title?: string;
@@ -230,6 +345,10 @@ export interface TaskUpdate {
   /** @nullable */
   goalId?: number | null;
   notGoalWork?: boolean;
+  /** Null stops repeating */
+  repeat?: RepeatInput | null;
+  /** The whole checklist, in order */
+  steps?: TaskStep[];
 }
 
 export interface HistoryEvent {
@@ -249,6 +368,7 @@ export interface TaskDetail {
 }
 
 export type TaskSummaryTabs = {
+  archived: number;
   inbox: number;
   /** inbox + now + backlog + waiting */
   open: number;

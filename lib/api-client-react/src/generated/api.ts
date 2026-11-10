@@ -44,6 +44,8 @@ import type {
   BundleResult,
   CadencePage,
   CheckInDraft,
+  ClearOut,
+  ClearOutStatus,
   ClipboardText,
   CompanyResearch,
   CompanyResearchList,
@@ -52,6 +54,7 @@ import type {
   ConnectorReadByInput,
   ConnectorScheduleInput,
   Connectors,
+  DayPlan,
   DecideOAuthConsent200,
   Decision,
   DecisionInput,
@@ -140,6 +143,7 @@ import type {
   PersonInput,
   PersonListItem,
   PersonUpdate,
+  PlanInput,
   Playbook,
   PlaybookInput,
   PlaybookUpdate,
@@ -182,7 +186,8 @@ import type {
   TaskUpdate,
   TriageInput,
   TriageResult,
-  WeeklyUpdate
+  WeeklyUpdate,
+  WorkingHours
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1951,7 +1956,7 @@ export const getRestoreTaskUrl = (id: number,) => {
 }
 
 /**
- * @summary Restore a Noise or Dropped item to the Inbox
+ * @summary Restore a Noise or Dropped item to the Inbox, or an Archived one to the Backlog
  */
 export const restoreTask = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
 
@@ -2003,7 +2008,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type RestoreTaskMutationVariables = {id: number}
 
     /**
- * @summary Restore a Noise or Dropped item to the Inbox
+ * @summary Restore a Noise or Dropped item to the Inbox, or an Archived one to the Backlog
  */
 export const useRestoreTask = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreTask>>, TError,RestoreTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -2014,6 +2019,781 @@ export const useRestoreTask = <TError = ErrorType<NotAuthorisedResponse | ErrorE
         TContext
       > => {
       return useMutation(getRestoreTaskMutationOptions(options), queryClient);
+    }
+
+export const getContinueRepeatUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/continue-repeat`
+}
+
+/**
+ * @summary After dropping or archiving a repeating task, make the next one anyway
+ */
+export const continueRepeat = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
+
+  return customFetch<Task>(getContinueRepeatUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getContinueRepeatMutationKey = () => ['continueRepeat'] as const;
+
+export const getContinueRepeatMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof continueRepeat>>, TError,ContinueRepeatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof continueRepeat>>, TError,ContinueRepeatMutationVariables, TContext> => {
+
+const mutationKey = getContinueRepeatMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof continueRepeat>>, ContinueRepeatMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  continueRepeat(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ContinueRepeatMutationResult = NonNullable<Awaited<ReturnType<typeof continueRepeat>>>
+
+    export type ContinueRepeatMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+    export type ContinueRepeatMutationVariables = {id: number}
+
+    /**
+ * @summary After dropping or archiving a repeating task, make the next one anyway
+ */
+export const useContinueRepeat = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof continueRepeat>>, TError,ContinueRepeatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof continueRepeat>>,
+        TError,
+        ContinueRepeatMutationVariables,
+        TContext
+      > => {
+      return useMutation(getContinueRepeatMutationOptions(options), queryClient);
+    }
+
+export const getGetDayPlanUrl = () => {
+
+
+
+
+  return `/api/plan`
+}
+
+/**
+ * @summary Today's plan, with meetings, and suggestions while there is no plan yet
+ */
+export const getDayPlan = async ( options?: Parameters<typeof customFetch>[1]): Promise<DayPlan> => {
+
+  return customFetch<DayPlan>(getGetDayPlanUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDayPlanQueryKey = () => {
+    return [
+    `/api/plan`
+    ] as const;
+    }
+
+
+export const getGetDayPlanQueryOptions = <TData = Awaited<ReturnType<typeof getDayPlan>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayPlan>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDayPlanQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDayPlan>>> = ({ signal }) => getDayPlan({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDayPlan>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetDayPlanQueryResult = NonNullable<Awaited<ReturnType<typeof getDayPlan>>>
+export type GetDayPlanQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetDayPlan<TData = Awaited<ReturnType<typeof getDayPlan>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayPlan>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDayPlan>>,
+          TError,
+          Awaited<ReturnType<typeof getDayPlan>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDayPlan<TData = Awaited<ReturnType<typeof getDayPlan>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayPlan>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDayPlan>>,
+          TError,
+          Awaited<ReturnType<typeof getDayPlan>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDayPlan<TData = Awaited<ReturnType<typeof getDayPlan>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayPlan>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Today's plan, with meetings, and suggestions while there is no plan yet
+ */
+
+export function useGetDayPlan<TData = Awaited<ReturnType<typeof getDayPlan>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDayPlan>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetDayPlanQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveDayPlanUrl = () => {
+
+
+
+
+  return `/api/plan`
+}
+
+/**
+ * @summary Save today's tasks and fit them around the meetings
+ */
+export const saveDayPlan = async (planInput: PlanInput, options?: Parameters<typeof customFetch>[1]): Promise<DayPlan> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DayPlan>(getSaveDayPlanUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(planInput)
+  }
+);}
+
+
+
+
+
+export const getSaveDayPlanMutationKey = () => ['saveDayPlan'] as const;
+
+export const getSaveDayPlanMutationOptions = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveDayPlan>>, TError,SaveDayPlanMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveDayPlan>>, TError,SaveDayPlanMutationVariables, TContext> => {
+
+const mutationKey = getSaveDayPlanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveDayPlan>>, SaveDayPlanMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveDayPlan(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveDayPlanMutationResult = NonNullable<Awaited<ReturnType<typeof saveDayPlan>>>
+    export type SaveDayPlanMutationBody = BodyType<PlanInput>
+    export type SaveDayPlanMutationError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>
+    export type SaveDayPlanMutationVariables = {data: BodyType<PlanInput>}
+
+    /**
+ * @summary Save today's tasks and fit them around the meetings
+ */
+export const useSaveDayPlan = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveDayPlan>>, TError,SaveDayPlanMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveDayPlan>>,
+        TError,
+        SaveDayPlanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveDayPlanMutationOptions(options), queryClient);
+    }
+
+export const getRefitDayPlanUrl = () => {
+
+
+
+
+  return `/api/plan/fit`
+}
+
+/**
+ * @summary Fit today's unfinished tasks again from now
+ */
+export const refitDayPlan = async ( options?: Parameters<typeof customFetch>[1]): Promise<DayPlan> => {
+
+  return customFetch<DayPlan>(getRefitDayPlanUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRefitDayPlanMutationKey = () => ['refitDayPlan'] as const;
+
+export const getRefitDayPlanMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refitDayPlan>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refitDayPlan>>, TError,void, TContext> => {
+
+const mutationKey = getRefitDayPlanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refitDayPlan>>, void> = () => {
+
+
+          return  refitDayPlan(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefitDayPlanMutationResult = NonNullable<Awaited<ReturnType<typeof refitDayPlan>>>
+
+    export type RefitDayPlanMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Fit today's unfinished tasks again from now
+ */
+export const useRefitDayPlan = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refitDayPlan>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof refitDayPlan>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRefitDayPlanMutationOptions(options), queryClient);
+    }
+
+export const getGetWorkingHoursUrl = () => {
+
+
+
+
+  return `/api/settings/working-hours`
+}
+
+/**
+ * @summary Working hours used by Plan my day
+ */
+export const getWorkingHours = async ( options?: Parameters<typeof customFetch>[1]): Promise<WorkingHours> => {
+
+  return customFetch<WorkingHours>(getGetWorkingHoursUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWorkingHoursQueryKey = () => {
+    return [
+    `/api/settings/working-hours`
+    ] as const;
+    }
+
+
+export const getGetWorkingHoursQueryOptions = <TData = Awaited<ReturnType<typeof getWorkingHours>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkingHours>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWorkingHoursQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWorkingHours>>> = ({ signal }) => getWorkingHours({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWorkingHours>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetWorkingHoursQueryResult = NonNullable<Awaited<ReturnType<typeof getWorkingHours>>>
+export type GetWorkingHoursQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetWorkingHours<TData = Awaited<ReturnType<typeof getWorkingHours>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkingHours>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWorkingHours>>,
+          TError,
+          Awaited<ReturnType<typeof getWorkingHours>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWorkingHours<TData = Awaited<ReturnType<typeof getWorkingHours>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkingHours>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWorkingHours>>,
+          TError,
+          Awaited<ReturnType<typeof getWorkingHours>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWorkingHours<TData = Awaited<ReturnType<typeof getWorkingHours>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkingHours>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Working hours used by Plan my day
+ */
+
+export function useGetWorkingHours<TData = Awaited<ReturnType<typeof getWorkingHours>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWorkingHours>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetWorkingHoursQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateWorkingHoursUrl = () => {
+
+
+
+
+  return `/api/settings/working-hours`
+}
+
+/**
+ * @summary Change working hours
+ */
+export const updateWorkingHours = async (workingHours: WorkingHours, options?: Parameters<typeof customFetch>[1]): Promise<WorkingHours> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WorkingHours>(getUpdateWorkingHoursUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(workingHours)
+  }
+);}
+
+
+
+
+
+export const getUpdateWorkingHoursMutationKey = () => ['updateWorkingHours'] as const;
+
+export const getUpdateWorkingHoursMutationOptions = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWorkingHours>>, TError,UpdateWorkingHoursMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateWorkingHours>>, TError,UpdateWorkingHoursMutationVariables, TContext> => {
+
+const mutationKey = getUpdateWorkingHoursMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateWorkingHours>>, UpdateWorkingHoursMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateWorkingHours(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateWorkingHoursMutationResult = NonNullable<Awaited<ReturnType<typeof updateWorkingHours>>>
+    export type UpdateWorkingHoursMutationBody = BodyType<WorkingHours>
+    export type UpdateWorkingHoursMutationError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>
+    export type UpdateWorkingHoursMutationVariables = {data: BodyType<WorkingHours>}
+
+    /**
+ * @summary Change working hours
+ */
+export const useUpdateWorkingHours = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateWorkingHours>>, TError,UpdateWorkingHoursMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateWorkingHours>>,
+        TError,
+        UpdateWorkingHoursMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateWorkingHoursMutationOptions(options), queryClient);
+    }
+
+export const getGetClearOutUrl = () => {
+
+
+
+
+  return `/api/backlog/clear-out`
+}
+
+/**
+ * @summary Backlog tasks untouched for 30 days, and whether to offer the clear-out this week
+ */
+export const getClearOut = async ( options?: Parameters<typeof customFetch>[1]): Promise<ClearOut> => {
+
+  return customFetch<ClearOut>(getGetClearOutUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClearOutQueryKey = () => {
+    return [
+    `/api/backlog/clear-out`
+    ] as const;
+    }
+
+
+export const getGetClearOutQueryOptions = <TData = Awaited<ReturnType<typeof getClearOut>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClearOut>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClearOutQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClearOut>>> = ({ signal }) => getClearOut({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClearOut>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetClearOutQueryResult = NonNullable<Awaited<ReturnType<typeof getClearOut>>>
+export type GetClearOutQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetClearOut<TData = Awaited<ReturnType<typeof getClearOut>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClearOut>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClearOut>>,
+          TError,
+          Awaited<ReturnType<typeof getClearOut>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClearOut<TData = Awaited<ReturnType<typeof getClearOut>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClearOut>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getClearOut>>,
+          TError,
+          Awaited<ReturnType<typeof getClearOut>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetClearOut<TData = Awaited<ReturnType<typeof getClearOut>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClearOut>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Backlog tasks untouched for 30 days, and whether to offer the clear-out this week
+ */
+
+export function useGetClearOut<TData = Awaited<ReturnType<typeof getClearOut>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getClearOut>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetClearOutQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDismissClearOutUrl = () => {
+
+
+
+
+  return `/api/backlog/clear-out/dismiss`
+}
+
+/**
+ * @summary Hide the clear-out card until the next clear-out Monday
+ */
+export const dismissClearOut = async ( options?: Parameters<typeof customFetch>[1]): Promise<ClearOutStatus> => {
+
+  return customFetch<ClearOutStatus>(getDismissClearOutUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDismissClearOutMutationKey = () => ['dismissClearOut'] as const;
+
+export const getDismissClearOutMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissClearOut>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissClearOut>>, TError,void, TContext> => {
+
+const mutationKey = getDismissClearOutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissClearOut>>, void> = () => {
+
+
+          return  dismissClearOut(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissClearOutMutationResult = NonNullable<Awaited<ReturnType<typeof dismissClearOut>>>
+
+    export type DismissClearOutMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Hide the clear-out card until the next clear-out Monday
+ */
+export const useDismissClearOut = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissClearOut>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof dismissClearOut>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDismissClearOutMutationOptions(options), queryClient);
+    }
+
+export const getKeepInBacklogUrl = (id: number,) => {
+
+
+
+
+  return `/api/backlog/clear-out/${id}/keep`
+}
+
+/**
+ * @summary Still wanted, so the 30-day clock starts again
+ */
+export const keepInBacklog = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
+
+  return customFetch<Task>(getKeepInBacklogUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getKeepInBacklogMutationKey = () => ['keepInBacklog'] as const;
+
+export const getKeepInBacklogMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof keepInBacklog>>, TError,KeepInBacklogMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof keepInBacklog>>, TError,KeepInBacklogMutationVariables, TContext> => {
+
+const mutationKey = getKeepInBacklogMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof keepInBacklog>>, KeepInBacklogMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  keepInBacklog(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type KeepInBacklogMutationResult = NonNullable<Awaited<ReturnType<typeof keepInBacklog>>>
+
+    export type KeepInBacklogMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+    export type KeepInBacklogMutationVariables = {id: number}
+
+    /**
+ * @summary Still wanted, so the 30-day clock starts again
+ */
+export const useKeepInBacklog = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof keepInBacklog>>, TError,KeepInBacklogMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof keepInBacklog>>,
+        TError,
+        KeepInBacklogMutationVariables,
+        TContext
+      > => {
+      return useMutation(getKeepInBacklogMutationOptions(options), queryClient);
     }
 
 export const getKeepTaskUrl = (id: number,) => {

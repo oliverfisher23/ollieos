@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import {
+  useGetClearOut,
   useGetTaskSummary,
   useListReview,
   useListTasks,
@@ -20,6 +21,7 @@ import { Skel, SourceLabel, SourceMark } from '@/components/bits';
 import { DueCell, PriorityCell, StatusCell } from '@/components/task-cell-editors';
 import { IconCheck, IconLeft, IconRight, IconSearch } from '@/components/icons';
 import { TaskDetailPanel } from '@/components/task-detail';
+import { TaskMarks } from '@/components/task-marks';
 import { useInvalidateTasks } from '@/lib/task-cache';
 import { notify, notifyUndo } from '@/lib/notify';
 import { useTaskActions } from '@/lib/task-actions';
@@ -34,6 +36,7 @@ const TABS: { value: TaskTab; label: string }[] = [
   { value: 'done', label: 'Done' },
   { value: 'noise', label: 'Noise' },
   { value: 'dropped', label: 'Dropped' },
+  { value: 'archived', label: 'Archive' },
 ];
 const TAB_VALUES = TABS.map((t) => t.value) as string[];
 
@@ -46,6 +49,7 @@ const EMPTY: Record<TaskTab, string> = {
   done: 'Nothing done in this view yet.',
   noise: 'No noise filtered out.',
   dropped: 'Nothing dropped.',
+  archived: 'Nothing archived. Archive keeps a task for later without it counting as open.',
 };
 
 function useQueryState() {
@@ -74,7 +78,7 @@ export default function TasksPage() {
   const undated = sp.get('undated') === '1';
   const q = sp.get('q') ?? '';
   const taskId = Number(sp.get('task')) || null;
-  const openTab = tab !== 'done' && tab !== 'noise' && tab !== 'dropped';
+  const openTab = tab !== 'done' && tab !== 'noise' && tab !== 'dropped' && tab !== 'archived';
 
   const [search, setSearch] = useState(q);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -179,6 +183,7 @@ export default function TasksPage() {
           </div>
         )}
         {tab === 'done' && <WeeklyCopy weekStart={week ?? thisWeek} />}
+        {tab === 'backlog' && <ClearOutStart />}
 
         <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3.5">
           {[
@@ -215,6 +220,21 @@ export default function TasksPage() {
 
       {taskId && <TaskDetailPanel id={taskId} onClose={() => set({ task: null })} />}
     </section>
+  );
+}
+
+/** Starts the Backlog clear-out from the Backlog tab, whenever there is something untouched. */
+function ClearOutStart() {
+  const clearOut = useGetClearOut();
+  const count = clearOut.data?.count ?? 0;
+  if (!count) return null;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+      <Link href="/clear-out?from=backlog" className="oo-btn oo-btn-ink" data-testid="link-clear-out">Clear out the Backlog</Link>
+      <span className="oo-muted" style={{ fontSize: 13 }} data-testid="text-clear-out-count">
+        {count === 1 ? '1 task' : `${count} tasks`} untouched for 30 days or more.
+      </span>
+    </div>
   );
 }
 
@@ -257,7 +277,8 @@ function TaskRows({ tab, rows: allRows, selected, onOpen }: { tab: TaskTab; rows
   const inbox = tab === 'inbox';
   const noise = tab === 'noise';
   const dropped = tab === 'dropped';
-  const extraCol = inbox || noise || dropped;
+  const archived = tab === 'archived';
+  const extraCol = inbox || noise || dropped || archived;
 
   // On the Inbox tab, items the noise check flagged sit in their own group below the rest.
   const real = inbox ? rows.filter((t) => !t.noiseHint) : rows;
@@ -332,7 +353,7 @@ function TaskRows({ tab, rows: allRows, selected, onOpen }: { tab: TaskTab; rows
       { id: t.id, data: { status: next } },
       {
         onSuccess: () => {
-          notifyUndo(next === 'done' ? 'Marked done' : 'Back in Now', t.title, () => {
+          notifyUndo(next === 'done' ? 'Marked done' : 'Back in Now', next === 'done' && t.repeat ? `${t.title}. The next one is in your Backlog.` : t.title, () => {
             setPending((p) => { const c = { ...p }; delete c[t.id]; return c; });
             void actions.undo(t);
           });
@@ -360,9 +381,7 @@ function TaskRows({ tab, rows: allRows, selected, onOpen }: { tab: TaskTab; rows
   };
   const setStatus = (t: Task, status: TaskStatus) => {
     if (status === t.status) return;
-    if (status === 'done') return void runRow(t, () => actions.markDone(t));
-    if (status === 'inbox') return void saveRow(t, { status }).then(() => notify('Moved to Inbox', t.title));
-    void runRow(t, () => actions.triage(t, { action: status }));
+    void runRow(t, () => actions.setStatus(t, status));
   };
   const shownStatus = (t: Task): TaskStatus => (doneOf(t) ? 'done' : t.status === 'done' ? 'now' : t.status);
   const statusCell = (t: Task, testId: string) => (
@@ -403,7 +422,7 @@ function TaskRows({ tab, rows: allRows, selected, onOpen }: { tab: TaskTab; rows
     ) : (
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
         {noise && <span className="oo-soft" style={{ fontSize: 12 }} data-testid={'text-row-rule-' + t.id}>{t.noiseRule ? t.noiseRule.label : 'Moved by hand'}</span>}
-        <button type="button" className="oo-mini" disabled={!!acting[t.id]} aria-label={'Restore to Inbox: ' + t.title}
+        <button type="button" className="oo-mini" disabled={!!acting[t.id]} aria-label={(archived ? 'Restore to Backlog: ' : 'Restore to Inbox: ') + t.title}
           onClick={() => runRow(t, () => actions.restore(t))} data-testid={'button-restore-' + t.id}>Restore</button>
       </div>
     );
@@ -433,6 +452,7 @@ function TaskRows({ tab, rows: allRows, selected, onOpen }: { tab: TaskTab; rows
                     <button type="button" className="oo-row-title" data-done={doneOf(t)} onClick={(e) => { e.stopPropagation(); onOpen(t.id); }}
                       onFocus={() => inbox && setCursor(t.id)} aria-describedby={inbox ? 'inbox-keys' : undefined} data-testid={'button-open-task-' + t.id}>{t.title}</button>
                     {hint(t)}
+                    <TaskMarks task={t} />
                   </div>
                   {t.stale && <StalePill id={t.id} />}
                 </div>
@@ -459,6 +479,7 @@ function TaskRows({ tab, rows: allRows, selected, onOpen }: { tab: TaskTab; rows
             <button type="button" className="oo-row-title" data-done={doneOf(t)} style={{ fontSize: 15, minHeight: 24 }} onClick={() => onOpen(t.id)}
               onFocus={() => inbox && setCursor(t.id)} data-testid={'button-open-task-mobile-' + t.id}>{t.title}</button>
             {hint(t)}
+            <TaskMarks task={t} />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
               <SourceMark source={t.source} size={20} />
               {priorityCell(t, 'select-card-priority-' + t.id)}

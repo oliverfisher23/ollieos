@@ -1,6 +1,8 @@
 import { useCallback, useMemo } from 'react';
 import {
+  continueRepeat,
   getTaskChaseLine,
+  keepInBacklog,
   getWeeklyUpdate,
   keepTask,
   restoreTask,
@@ -10,11 +12,12 @@ import {
   updateTask,
   type Task,
   type TriageInput,
+  type TaskStatus,
   type TriageResult,
 } from '@workspace/api-client-react';
-import { STATUS_LABELS } from '@workspace/shared';
+import { STATUS_LABELS, formatShort, nextRepeatDate, todayLondon, type RepeatRule } from '@workspace/shared';
 import { useInvalidateTasks } from '@/lib/task-cache';
-import { errorMessage, notify, notifyUndo } from '@/lib/notify';
+import { errorMessage, notify, notifyAction, notifyUndo } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
 
 const TRIAGE_LABEL: Record<TriageInput['action'], string> = {
@@ -65,7 +68,62 @@ export function useTaskActions() {
         try {
           const t = await updateTask(task.id, { status: 'done' });
           invalidate(task.id);
-          if (opts.toast !== false) offerUndo('Marked done', task);
+          if (opts.toast !== false) {
+            if (task.repeat) {
+              const next = nextRepeatDate(task.repeat as RepeatRule, task.dueDate, todayLondon());
+              notifyUndo('Marked done', `The next one is in your Backlog, due ${formatShort(next)}`, () => void undo(task));
+            } else offerUndo('Marked done', task);
+          }
+          return t;
+        } catch (err) {
+          fail(err);
+          return null;
+        }
+      },
+
+      /**
+       * Any status from a dropdown. Triage handles most; Archived and Inbox are plain edits.
+       * Dropping or archiving a repeating task stops its repeats, with an offer to keep them going.
+       */
+      async setStatus(task: Task, status: TaskStatus, opts: { toast?: boolean } = {}): Promise<Task | null> {
+        if (status === task.status) return task;
+        if (status === 'done') return this.markDone(task, opts);
+        try {
+          let t: Task;
+          if (status === 'inbox' || status === 'archived') t = await updateTask(task.id, { status });
+          else t = (await triageTask(task.id, { action: status })).task;
+          invalidate(task.id);
+          if ((status === 'dropped' || status === 'archived') && task.repeat) {
+            notifyAction(
+              status === 'dropped' ? 'Dropped. Its repeats have stopped.' : 'Archived. Its repeats have stopped.',
+              task.title,
+              'Keep repeating',
+              async () => {
+                try {
+                  const r = await continueRepeat(task.id);
+                  invalidate(task.id);
+                  notify('The next one is in your Backlog', r.repeat ? `Due ${formatShort(nextRepeatDate(r.repeat as RepeatRule, r.dueDate, todayLondon()))}` : undefined);
+                } catch (err) {
+                  fail(err);
+                }
+              },
+              'button-toast-keep-repeating',
+            );
+          } else if (opts.toast !== false) {
+            offerUndo(status === 'archived' ? 'Archived' : status === 'dropped' ? 'Dropped' : `Moved to ${STATUS_LABELS[status]}`, task);
+          }
+          return t;
+        } catch (err) {
+          fail(err);
+          return null;
+        }
+      },
+
+      /** "Keep" in the Backlog clear-out: still wanted, so it stops counting as untouched. */
+      async keepInBacklog(task: Task) {
+        try {
+          const t = await keepInBacklog(task.id);
+          invalidate(task.id);
           return t;
         } catch (err) {
           fail(err);
@@ -104,7 +162,7 @@ export function useTaskActions() {
         try {
           const t = await restoreTask(task.id);
           invalidate(task.id);
-          offerUndo(`Restored from ${STATUS_LABELS[task.status]} to Inbox`, task);
+          offerUndo(`Restored from ${STATUS_LABELS[task.status]} to ${task.status === 'archived' ? 'Backlog' : 'Inbox'}`, task);
           return t;
         } catch (err) {
           fail(err);

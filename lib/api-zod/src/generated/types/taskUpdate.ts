@@ -6,8 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Priority } from './priority';
+import type { RepeatInput } from './repeatInput';
 import type { TaskKind } from './taskKind';
 import type { TaskStatus } from './taskStatus';
+import type { TaskStep } from './taskStep';
 
 export interface TaskUpdate {
   /** @minLength 1 */
@@ -30,4 +32,8 @@ export interface TaskUpdate {
   /** @nullable */
   goalId?: number | null;
   notGoalWork?: boolean;
+  /** Null stops repeating */
+  repeat?: RepeatInput | null;
+  /** The whole checklist, in order */
+  steps?: TaskStep[];
 }

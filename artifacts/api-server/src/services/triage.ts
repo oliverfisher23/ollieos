@@ -21,6 +21,7 @@ import {
   snapshotOf,
   type LifecycleSnapshot,
 } from "./tasks";
+import { withdrawNextCopy } from "./repeats";
 import { toTaskView, toTaskViews, type TaskView } from "./taskView";
 
 export type TriageAction = "now" | "backlog" | "waiting" | "noise" | "dropped";
@@ -157,6 +158,10 @@ export async function undoLast(id: number, actor: string): Promise<TaskView> {
   }
 
   const updated = await db.transaction(async (tx) => {
+    // Taking back a tick on a repeating task takes back the next copy too, if it is untouched.
+    if (current.status === "done" && prev.status !== "done" && current.repeatNextId) {
+      if (await withdrawNextCopy(tx, current.repeatNextId, actor)) set.repeatNextId = null;
+    }
     const [row] = await tx.update(tasksTable).set(set).where(eq(tasksTable.id, id)).returning();
     let removedRule = false;
     if (payload.createdRuleId) {
@@ -190,15 +195,22 @@ export async function undoLast(id: number, actor: string): Promise<TaskView> {
   return toTaskView(updated);
 }
 
-/** Noise or Dropped back to the Inbox, ready to triage again. */
+/** Noise or Dropped back to the Inbox, ready to triage again. Archived goes back to the Backlog. */
 export async function restoreFromNoise(id: number, actor: string): Promise<TaskView> {
   const current = await loadTask(id);
-  if (current.status !== "noise" && current.status !== "dropped") throw new ConflictError("Only items in Noise or Dropped can be restored");
+  if (current.status !== "noise" && current.status !== "dropped" && current.status !== "archived") {
+    throw new ConflictError("Only items in Noise, Dropped or Archived can be restored");
+  }
+  const archived = current.status === "archived";
   const updated = await db.transaction(async (tx) => {
     const [row] = await tx
       .update(tasksTable)
       // Bringing it back says it is real, so it no longer shows as "Probably noise".
-      .set({ status: "inbox", noiseRuleId: null, triagedAt: null, noiseHintKept: current.noiseHint ? true : current.noiseHintKept })
+      .set(
+        archived
+          ? { status: "backlog" }
+          : { status: "inbox", noiseRuleId: null, triagedAt: null, noiseHintKept: current.noiseHint ? true : current.noiseHintKept },
+      )
       .where(eq(tasksTable.id, id))
       .returning();
     await writeAudit(tx, {
@@ -206,7 +218,10 @@ export async function restoreFromNoise(id: number, actor: string): Promise<TaskV
       action: "restore",
       entityType: "task",
       entityId: id,
-      payload: { changes: [{ field: "status", from: STATUS_LABELS[current.status], to: "Inbox" }], previous: snapshotOf(current) },
+      payload: {
+        changes: [{ field: "status", from: STATUS_LABELS[current.status], to: archived ? "Backlog" : "Inbox" }],
+        previous: snapshotOf(current),
+      },
     });
     return row;
   });

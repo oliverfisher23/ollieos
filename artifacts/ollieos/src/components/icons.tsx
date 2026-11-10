@@ -21,6 +21,8 @@ export const IconUp = (p: P) => <Base strokeWidth={2} {...p}><path d="M12 19V5M5
 export const IconPlus = (p: P) => <Base strokeWidth={2.2} {...p}><path d="M12 5v14M5 12h14" /></Base>;
 export const IconCheck = (p: P) => <Base strokeWidth={2.5} {...p}><path d="m5 12 5 5 9-10" /></Base>;
 export const IconClose = (p: P) => <Base strokeWidth={2} {...p}><path d="M6 6l12 12M18 6 6 18" /></Base>;
+export const IconRepeat = (p: P) => <Base strokeWidth={2} {...p}><path d="M17 2l4 4-4 4" /><path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4" /><path d="M21 13v2a3 3 0 0 1-3 3H3" /></Base>;
+export const IconDown = (p: P) => <Base strokeWidth={2} {...p}><path d="M12 5v14M19 12l-7 7-7-7" /></Base>;
 export const IconLeft = (p: P) => <Base strokeWidth={2} {...p}><path d="m15 18-6-6 6-6" /></Base>;
 export const IconRight = (p: P) => <Base strokeWidth={2} {...p}><path d="m9 18 6-6-6-6" /></Base>;
 export const IconSearch = (p: P) => <Base strokeWidth={2} {...p}><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></Base>;

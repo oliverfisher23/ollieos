@@ -30,6 +30,7 @@ import EmailPage from '@/pages/email';
 import DigestPage from '@/pages/digest';
 import OAuthConsentPage from '@/pages/oauth-consent';
 import { TriageDialog } from '@/components/triage';
+import { ClearOutDialog } from '@/components/clear-out';
 import { NotAuthorised, SignIn, Splash } from '@/pages/auth-screens';
 import { AuthProvider } from '@/lib/auth-context';
 import { isForbiddenError, reportApiError, useForbidden } from '@/lib/forbidden';
@@ -61,6 +62,7 @@ function Router() {
       <Switch>
         <Route path="/" component={HomePage} />
         <Route path="/triage" component={TriagePage} />
+        <Route path="/clear-out" component={ClearOutPage} />
         <Route path="/tasks" component={TasksPage} />
         <Route path="/review" component={ReviewPage} />
         <Route path="/email" component={EmailPage} />
@@ -98,15 +100,27 @@ function Router() {
   );
 }
 
+/** Over Home, like Triage. Started from the Backlog tab, closing goes back there. */
+function ClearOutPage() {
+  const [, navigate] = useLocation();
+  const fromBacklog = new URLSearchParams(window.location.search).get('from') === 'backlog';
+  return (
+    <>
+      <HomePage />
+      <ClearOutDialog onClose={() => navigate(fromBacklog ? '/tasks?tab=backlog' : '/')} />
+    </>
+  );
+}
+
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   // Opening or closing Triage keeps Home mounted underneath.
-  return <ErrorBoundary resetKey={location === '/triage' ? '/' : location}>{children}</ErrorBoundary>;
+  return <ErrorBoundary resetKey={location === '/triage' || location === '/clear-out' ? '/' : location}>{children}</ErrorBoundary>;
 }
 
 function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  if (location === '/' || location === '/triage' || location === '/ask' || location.startsWith('/ask/')) return <DarkShell>{children}</DarkShell>;
+  if (location === '/' || location === '/triage' || location === '/clear-out' || location === '/ask' || location.startsWith('/ask/')) return <DarkShell>{children}</DarkShell>;
   return <LightShell>{children}</LightShell>;
 }
 

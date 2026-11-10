@@ -11,7 +11,7 @@ export interface EntitySummary {
   confidential: boolean;
 }
 
-export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "waitingOnPersonId" | "noiseRuleId" | "sourceChannel" | "noiseHintKept" | "noiseCheckedAt"> & {
+export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "waitingOnPersonId" | "noiseRuleId" | "sourceChannel" | "noiseHintKept" | "noiseCheckedAt" | "repeatNextId"> & {
   project: EntitySummary | null;
   person: EntitySummary | null;
   waitingOn: EntitySummary | null;
@@ -90,7 +90,7 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
   };
 
   return rows.map((r) => {
-    const { search: _search, personId, projectId, waitingOnPersonId, noiseRuleId, sourceChannel: _channel, noiseHintKept, noiseCheckedAt: _checked, ...rest } = r;
+    const { search: _search, personId, projectId, waitingOnPersonId, noiseRuleId, sourceChannel: _channel, noiseHintKept, noiseCheckedAt: _checked, repeatNextId: _next, ...rest } = r;
     return {
       ...rest,
       project: projectId ? (projectById.get(projectId) ?? null) : null,

@@ -22,7 +22,7 @@ import {
   type CalendarEvent,
   type Task as TaskRow,
 } from "@workspace/db";
-import { OPEN_STATUSES, londonRange, parseRef, todayLondon, toRef, type TaskStatus } from "@workspace/shared";
+import { OPEN_STATUSES, londonRange, parseRef, repeatLabel, todayLondon, toRef, type RepeatRule, type TaskStatus } from "@workspace/shared";
 import {
   activityVisible,
   decisionVisible,
@@ -150,6 +150,10 @@ export interface TaskOut {
   snoozed_until: string | null;
   created_at: string;
   completed_at: string | null;
+  /** How it repeats, such as "Every month on the 10th"; null when it does not. Only Ollie can set this. */
+  repeats: string | null;
+  /** Its checklist, in order */
+  steps: { title: string; done: boolean }[];
 }
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
@@ -198,6 +202,8 @@ export async function toTaskOuts(scope: AiScope, rows: TaskRow[]): Promise<TaskO
       snoozed_until: iso(t.snoozedUntil),
       created_at: t.createdAt.toISOString(),
       completed_at: iso(t.completedAt),
+      repeats: t.repeat ? repeatLabel(t.repeat as RepeatRule) : null,
+      steps: (t.steps ?? []).map((s) => ({ title: s.title, done: s.done })),
     };
   });
 }

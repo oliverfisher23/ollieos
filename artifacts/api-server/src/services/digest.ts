@@ -29,6 +29,7 @@ import { digestSummaryFromLines } from "./ask/model";
 import { briefableIds } from "./briefs";
 import { listCadence } from "./cadence";
 import { inboxCounts } from "./knowledgeInbox";
+import { clearOutMonday, untouchedCount } from "./planning";
 import { dueIdeas } from "./strategy";
 import { NotFoundError, ValidationError } from "./tasks";
 
@@ -80,7 +81,7 @@ async function gather(date: string, since: Date, now: Date) {
     db
       .select({ id: tasksTable.id, title: tasksTable.title })
       .from(tasksTable)
-      .where(and(eq(tasksTable.kind, "promise"), notInArray(tasksTable.status, ["noise", "dropped"]), gte(tasksTable.createdAt, since)))
+      .where(and(eq(tasksTable.kind, "promise"), notInArray(tasksTable.status, ["noise", "dropped", "archived"]), gte(tasksTable.createdAt, since)))
       .orderBy(asc(tasksTable.createdAt)),
     db
       .select({ id: peopleTable.id, name: peopleTable.name, slug: peopleTable.slug, role: peopleTable.role, org: organisationsTable.name })
@@ -175,6 +176,19 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
       refs: g.ideas.map((i) => toRef("idea", i.id)),
       confidential: false,
     });
+  }
+
+  // Every other Monday: the Backlog clear-out (Part I).
+  if (clearOutMonday(date) === date) {
+    const untouched = await untouchedCount(now);
+    if (untouched) {
+      needs.push({
+        text: `Clear out your Backlog: ${untouched} untouched for 30 days or more`,
+        href: "/clear-out",
+        refs: [],
+        confidential: false,
+      });
+    }
   }
 
   const moved: DigestItem[] = [

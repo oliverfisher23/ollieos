@@ -139,7 +139,7 @@ export function EmailReader({
     return <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>This email could not be loaded. It may have been deleted.</p>;
   }
 
-  const closed = t.status === 'done' || t.status === 'dropped' || t.status === 'noise';
+  const closed = t.status === 'done' || t.status === 'dropped' || t.status === 'noise' || t.status === 'archived';
   const subject = t.sourceSubject ?? t.title;
 
   return (

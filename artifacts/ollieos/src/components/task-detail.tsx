@@ -6,11 +6,12 @@ import {
   useListPeople,
   useListProjects,
   useUpdateTask,
+  type Task,
   type TaskStatus,
   type TaskUpdate,
   type Priority,
 } from '@workspace/api-client-react';
-import { SOURCE_LABELS, formatDayMonth, formatShort, formatTime } from '@workspace/shared';
+import { SOURCE_LABELS, formatDayMonth, formatShort, formatTime, nextRepeatDate, repeatChoiceOf, repeatChoices, todayLondon, type RepeatRule } from '@workspace/shared';
 import { Skel, SourceMark } from '@/components/bits';
 import { IconClose } from '@/components/icons';
 import { NoiseRuleChooser } from '@/components/noise-rule-chooser';
@@ -20,6 +21,7 @@ import { useTaskActions } from '@/lib/task-actions';
 import { notify } from '@/lib/notify';
 import { Dropdown } from '@/components/dropdown';
 import { ReplyDraftCard } from '@/components/reply-draft';
+import { TaskSteps } from '@/components/task-steps';
 import { goalOptions, personOptions, projectOptions } from '@/components/dropdown-options';
 
 const STATUSES: { value: TaskStatus; label: string }[] = [
@@ -29,6 +31,7 @@ const STATUSES: { value: TaskStatus; label: string }[] = [
   { value: 'waiting', label: 'Waiting on' },
   { value: 'done', label: 'Done' },
   { value: 'dropped', label: 'Dropped' },
+  { value: 'archived', label: 'Archived' },
 ];
 const PRIOS: { value: Priority; label: string }[] = [
   { value: 'high', label: 'High' },
@@ -92,9 +95,7 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
 
   const setStatus = (status: TaskStatus) => {
     if (!task) return;
-    if (status === 'done') return void run(() => actions.markDone(task));
-    if (status === 'inbox') return save({ status }, 'Moved to Inbox');
-    void run(() => actions.triage(task, { action: status }));
+    void run(() => actions.setStatus(task, status));
   };
 
   const copyDraft = async () => {
@@ -173,6 +174,15 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
               </div>
             )}
 
+            {task.status === 'archived' && (
+              <div className="oo-source" style={{ gap: 10 }} data-testid="card-archived">
+                <span style={{ fontSize: 13, fontWeight: 500 }}>Archived. Kept for later, and left out of your counts, Do next and the digest.</span>
+                <div>
+                  <button type="button" className="oo-btn oo-btn-outline" disabled={acting} onClick={() => run(() => actions.restore(task))} data-testid="button-detail-restore-archived">Restore to Backlog</button>
+                </div>
+              </div>
+            )}
+
             {task.status === 'noise' && (
               <div className="oo-source" style={{ gap: 10 }} data-testid="card-noise">
                 <span style={{ fontSize: 13, fontWeight: 500 }}>
@@ -208,6 +218,10 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                 </div>
               </div>
             </div>
+
+            <RepeatField task={task} onSave={save} />
+
+            <TaskSteps task={task} onAllDone={() => run(() => actions.markDone(task))} />
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -326,6 +340,37 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
     </>
   );
 }
+
+/** How the task repeats. The choices follow its due date, so "the second Tuesday" means the one it is due on. */
+function RepeatField({ task, onSave }: { task: Task; onSave: (data: TaskUpdate, message?: string) => void }) {
+  const today = todayLondon();
+  const anchor = task.dueDate ?? today;
+  const rule = task.repeat as RepeatRule | null;
+  const closed = task.status === 'done' || task.status === 'dropped' || task.status === 'archived' || task.status === 'noise';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label htmlFor="td-repeat" className="oo-field-label">Repeats</label>
+      <Dropdown id="td-repeat" value={repeatChoiceOf(rule)} searchable={false} testId="select-repeat"
+        onChange={(v) => {
+          if (!v) return onSave({ repeat: null }, 'Stopped repeating');
+          const repeat = v === 'month_weekday' ? { every: 'month' as const, byWeekday: true } : { every: v as RepeatInputEvery };
+          onSave({ repeat }, task.dueDate ? 'Repeat set' : 'Repeat set, starting today');
+        }}
+        options={[{ value: '', label: 'Does not repeat' }, ...repeatChoices(anchor)]} />
+      {rule && (
+        <span className="oo-muted" style={{ fontSize: 12 }} data-testid="text-repeat-next">
+          {task.status === 'done'
+            ? 'Ticked off. The next one is in your Backlog.'
+            : closed
+              ? 'No new copies are made while it is closed.'
+              : `When you tick it off, the next one goes in your Backlog, due ${formatShort(nextRepeatDate(rule, task.dueDate, today))}.`}
+        </span>
+      )}
+    </div>
+  );
+}
+
+type RepeatInputEvery = NonNullable<TaskUpdate['repeat']>['every'];
 
 /** Says where the link goes: Gmail links come from OllieOS's own reader, Superhuman ones from the Claude sweep. */
 function sourceLinkLabel(source: string, url: string): string {
