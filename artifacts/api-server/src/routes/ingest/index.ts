@@ -18,13 +18,16 @@ import {
   type PickType,
 } from "../../lib/ai-data/context";
 import { buildScope, type AiScope } from "../../lib/ai-data/scope";
-import { captureTask, enabledRules, finishSweep, logActivity, replaceCalendar, startSweep, type Writer } from "../../services/aiWrites";
+import { captureTask, clearOldCalendar, enabledRules, finishSweep, logActivity, startSweep, type Writer } from "../../services/aiWrites";
+import { attachMeetingNotes, buildUpcomingBriefs, findEventBySourceRef } from "../../services/briefs";
+import { buildDigestIfDue, clearOldDigests } from "../../services/digest";
+import { AttendeeSchema, syncCalendarFeed } from "../../services/calendarSync";
 import { captureSweepClient, ingestKeyConfigured, ingestKeyMatches, touchClient } from "../../services/clients";
 import { proposalReply, proposeOrganisation, proposePerson, proposeProject, type AiProposeResult } from "../../services/aiPropose";
 import { onSweepFinished } from "../../services/factReviews";
 import { FACT_ATTRIBUTES, SUGGESTION_SOURCES, propose, type ProposeMeta } from "../../services/suggestions";
 import { logger } from "../../lib/logger";
-import { ValidationError } from "../../services/tasks";
+import { ConflictError, NotFoundError, ValidationError } from "../../services/tasks";
 import { parseLink, titleFromUrl } from "../../services/library";
 
 declare global {
@@ -182,16 +185,29 @@ const SweepRunBody = z
 
 /**
  * Work that runs when a sweep finishes (build plan 32 and 50): the weekly fact check after
- * Sunday 18:00 and clearing old rejected suggestions. A failure here never fails the sweep.
+ * Sunday 18:00, clearing old rejected suggestions, briefs for today's and tomorrow's meetings,
+ * the morning digest and the 30-day clean-ups. Each part runs on its own, and a failure here
+ * never fails the sweep.
  */
 async function scheduledWork() {
-  try {
-    const r = await onSweepFinished(new Date());
+  const now = new Date();
+  const out: Record<string, unknown> = {};
+  const part = async (name: string, fn: () => Promise<unknown>) => {
+    try {
+      out[name] = await fn();
+    } catch (err) {
+      logger.error({ err, part: name }, "Scheduled work after the sweep failed");
+      out[name] = { error: "Did not run. It will try again after the next sweep." };
+    }
+  };
+  await part("knowledge", async () => {
+    const r = await onSweepFinished(now);
     return { rejected_cleared: r.cleared, fact_check: r.check };
-  } catch (err) {
-    logger.error({ err }, "Scheduled work after the sweep failed");
-    return { error: "Scheduled work did not run. It will try again after the next sweep." };
-  }
+  });
+  await part("briefs", () => buildUpcomingBriefs(now));
+  await part("digest", () => buildDigestIfDue(now));
+  await part("cleared", async () => ({ digests: await clearOldDigests(now), calendar_events: await clearOldCalendar(now) }));
+  return out;
 }
 
 /**
@@ -233,15 +249,127 @@ const CalendarBody = z.object({
         title: trimmed(300).min(1),
         starts_at: isoDateTime,
         ends_at: isoDateTime,
-        attendees: z.array(z.string().max(320)).max(100).optional(),
+        attendees: z.array(AttendeeSchema).max(100).optional(),
         personal: z.boolean().optional(),
         people: z.array(z.string().max(200)).max(50).optional(),
         project: optText(200),
         location: optText(500),
+        platform: optText(40),
       }),
     )
     .max(500),
 });
+
+router.post(
+  "/ingest/calendar",
+  handle(async (req, res) => {
+    const { scope, writer } = req.ingest!;
+    const body = CalendarBody.parse(Array.isArray(req.body) ? { events: req.body } : (req.body ?? {}));
+    const r = await syncCalendarFeed(scope, writer, body.events);
+    res.json({ replaced: r.replaced, removed: r.removed, skipped_outside_window: r.outsideWindow, unmatched: r.unmatched });
+  }),
+);
+
+const MeetingNotesBody = z.object({
+  calendar_source_ref: trimmed(500).min(1),
+  granola_ref: trimmed(500).min(1),
+  notes: trimmed(50000).min(1),
+  source_url: optText(2000),
+  decisions: z
+    .array(
+      z.object({
+        text: trimmed(2000).min(1),
+        decided_by: optText(200),
+        decided_at: z.string().refine(isIsoDate, "Use a YYYY-MM-DD date").nullish(),
+        project: optText(200),
+        confidential: z.boolean().nullish(),
+      }),
+    )
+    .max(50)
+    .optional(),
+  actions: z
+    .array(
+      z.object({
+        title: trimmed(300).min(1),
+        source_ref: optText(500),
+        due_date: z.string().refine(isIsoDate, "Use a YYYY-MM-DD date").nullish(),
+        priority: z.enum(["high", "medium", "low"]).nullish(),
+        person: optText(200),
+      }),
+    )
+    .max(50)
+    .optional(),
+});
+
+/**
+ * POST /api/ingest/meeting-notes (feature 03 rule 6, build plan 31). Attaches Granola notes to the
+ * meeting's brief. Actions go to the Inbox; when the sweep has already captured an action, send the
+ * same source_ref and the existing Inbox item is linked rather than duplicated. Decisions become
+ * Knowledge Inbox suggestions on the meeting's project, or the project named on the decision.
+ */
+router.post(
+  "/ingest/meeting-notes",
+  handle(async (req, res) => {
+    const { scope, writer } = req.ingest!;
+    const b = MeetingNotesBody.parse(req.body ?? {});
+    const event = await findEventBySourceRef(b.calendar_source_ref);
+    if (!event) throw new NotFoundError("No calendar event has that source_ref. Send the calendar first.");
+    if (event.personal) throw new ConflictError("Personal events have no brief");
+
+    const actions: { title: string; outcome: string; task_id?: number; error?: string }[] = [];
+    const taskIds: number[] = [];
+    for (const [i, a] of (b.actions ?? []).entries()) {
+      try {
+        const person = a.person ? await resolvePick(scope, a.person, ["person"]) : null;
+        const r = await captureTask(
+          writer,
+          {
+            title: a.title,
+            source: "meeting",
+            sourceRef: a.source_ref ?? `granola:${b.granola_ref}:${i + 1}`,
+            sourceUrl: b.source_url ?? null,
+            sourceSubject: event.title,
+            priority: a.priority ?? undefined,
+            dueDate: a.due_date ?? null,
+            projectId: event.projectId,
+            personId: person?.id ?? null,
+            capturedAt: new Date(),
+          },
+          { applyNoise: false, via: "meeting_notes" },
+        );
+        if (r.taskId != null) taskIds.push(r.taskId);
+        const visible = r.taskId != null ? await visibleTaskId(scope, `task:${r.taskId}`) : null;
+        actions.push({ title: a.title, outcome: r.outcome, ...(visible != null ? { task_id: visible } : {}) });
+      } catch (err) {
+        if (!(err instanceof ValidationError)) throw err;
+        actions.push({ title: a.title, outcome: "error", error: err.message });
+      }
+    }
+
+    const decisions: Record<string, unknown>[] = [];
+    for (const d of b.decisions ?? []) {
+      const named = d.project ? await resolvePick(scope, d.project, ["project"]) : null;
+      const projectId = named?.id ?? event.projectId;
+      if (projectId == null) {
+        decisions.push({ text: d.text, error: "A decision needs a project. Name one on the decision, or link the meeting to a project." });
+        continue;
+      }
+      const r = await propose(
+        { proposedBy: scope.actor, clientId: writer.clientId, sourceType: "meeting", sourceRef: b.granola_ref, sourceUrl: b.source_url ?? null, sourceLabel: `Granola: ${event.title}` },
+        {
+          kind: "decision",
+          entityType: "project",
+          entityId: projectId,
+          payload: { text: d.text, decided_at: d.decided_at ?? todayLondon(), decided_by: d.decided_by ?? null, source: `Granola: ${event.title}`, confidential: d.confidential ?? null },
+        },
+      );
+      decisions.push({ text: d.text, ...proposalReply(r) });
+    }
+
+    await attachMeetingNotes(event, { granolaRef: b.granola_ref, notes: b.notes, actionTaskIds: taskIds, actor: writer.actor, clientId: writer.clientId });
+    res.json({ attached: true, actions, decisions });
+  }),
+);
 
 async function resolveAll(scope: AiScope, names: string[], type: PickType) {
   const ids: number[] = [];
@@ -254,36 +382,6 @@ async function resolveAll(scope: AiScope, names: string[], type: PickType) {
   }
   return { ids, unmatched };
 }
-
-router.post(
-  "/ingest/calendar",
-  handle(async (req, res) => {
-    const { scope, writer } = req.ingest!;
-    const body = CalendarBody.parse(Array.isArray(req.body) ? { events: req.body } : (req.body ?? {}));
-    const unmatched = new Set<string>();
-    const events = [];
-    for (const e of body.events) {
-      const people = await resolveAll(scope, e.people ?? [], "person");
-      people.unmatched.forEach((u) => unmatched.add(u));
-      // Unmatched names are reported, never a reason to drop the event (build plan 30).
-      const project = e.project ? await resolvePick(scope, e.project, ["project"]) : null;
-      if (e.project && !project) unmatched.add(e.project);
-      events.push({
-        sourceRef: e.source_ref,
-        title: e.title,
-        startsAt: new Date(e.starts_at),
-        endsAt: new Date(e.ends_at),
-        attendees: e.attendees ?? [],
-        personal: e.personal ?? false,
-        personIds: people.ids,
-        projectId: project?.id ?? null,
-        location: e.location ?? null,
-      });
-    }
-    const r = await replaceCalendar(writer, events);
-    res.json({ replaced: r.replaced, skipped_outside_window: r.outsideWindow, unmatched: [...unmatched] });
-  }),
-);
 
 const hintList = z.union([z.string().max(200), z.array(z.string().max(200)).max(50)]).nullish();
 const ActivityEntry = z.object({

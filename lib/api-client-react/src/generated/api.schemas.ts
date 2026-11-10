@@ -298,20 +298,6 @@ export interface WaitingItem {
   daysWaiting: number;
 }
 
-export type CalendarBriefType = typeof CalendarBriefType[keyof typeof CalendarBriefType];
-
-
-export const CalendarBriefType = {
-  project: 'project',
-  person: 'person',
-} as const;
-
-export interface CalendarBrief {
-  type: CalendarBriefType;
-  slug: string;
-  name: string;
-}
-
 export interface CalendarEvent {
   id: number;
   title: string;
@@ -320,8 +306,8 @@ export interface CalendarEvent {
   personal: boolean;
   /** @nullable */
   location: string | null;
-  /** The project or person to read up on before this meeting (Brief me). Null when none is linked. */
-  brief: CalendarBrief | null;
+  /** A work meeting with someone or something OllieOS knows about. "Brief me" opens /briefs/{id}. */
+  hasBrief: boolean;
 }
 
 export type HomeSummaryInbox = {
@@ -396,6 +382,11 @@ export interface KnowledgeInboxCounts {
 }
 
 export interface HomeSummary {
+  /**
+     * Today's date (YYYY-MM-DD) once today's digest exists, otherwise null
+     * @nullable
+     */
+  digestDate: string | null;
   knowledgeInbox: KnowledgeInboxCounts;
   /** Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped. */
   doNext: DoNextItem[];
@@ -413,6 +404,198 @@ export interface HomeSummary {
   today: CalendarEvent[];
   /** AI access requests waiting for Ollie, and approvals still open */
   access: HomeSummaryAccess;
+}
+
+export interface BriefSource {
+  ref: string;
+  label: string;
+  /** @nullable */
+  href: string | null;
+  /** True for links outside OllieOS (an email */
+  external: boolean;
+}
+
+export interface BriefLine {
+  text: string;
+  sources: BriefSource[];
+}
+
+export interface BriefAttendeePerson {
+  id: number;
+  slug: string;
+  name: string;
+  /** @nullable */
+  role: string | null;
+  /** @nullable */
+  organisation: string | null;
+  confidential: boolean;
+  /** @nullable */
+  lastContactAt: string | null;
+}
+
+export interface BriefAttendee {
+  name: string;
+  /** @nullable */
+  email: string | null;
+  /**
+     * accepted
+     * @nullable
+     */
+  response: string | null;
+  organiser: boolean;
+  /** The matching person, or null for no previous contact */
+  person: BriefAttendeePerson | null;
+}
+
+export interface BriefPromise {
+  id: number;
+  title: string;
+  /** Where the promise came from */
+  source: string;
+  capturedAt: string;
+  /** @nullable */
+  dueDate: string | null;
+  /** @nullable */
+  personName: string | null;
+}
+
+export interface BriefEvent {
+  id: number;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  /** @nullable */
+  location: string | null;
+  /** @nullable */
+  platform: string | null;
+}
+
+export type BriefViewProjectsItem = {
+  id: number;
+  slug: string;
+  name: string;
+  confidential: boolean;
+};
+
+export type BriefViewGoalsItem = {
+  id: number;
+  name: string;
+};
+
+export type BriefViewDocumentsItem = {
+  id: number;
+  title: string;
+  url: string;
+  location: string;
+};
+
+export type BriefViewPlaybooksItem = {
+  id: number;
+  title: string;
+  rule: string;
+};
+
+export type BriefViewActionsItem = {
+  id: number;
+  title: string;
+  status: string;
+};
+
+export interface BriefView {
+  event: BriefEvent;
+  generatedAt: string;
+  /** The model could not write the brief. Refresh to try again. */
+  failed: boolean;
+  /** Nothing citable on file. Show attendees and promises only. */
+  notMuch: boolean;
+  /**
+     * e.g. "Built from 4 emails
+     * @nullable
+     */
+  sourcesLine: string | null;
+  /** @nullable */
+  why: BriefLine[] | null;
+  /** @nullable */
+  questions: BriefLine[] | null;
+  /** @nullable */
+  questionsNote: string | null;
+  attendees: BriefAttendee[];
+  promises: BriefPromise[];
+  projects: BriefViewProjectsItem[];
+  goals: BriefViewGoalsItem[];
+  documents: BriefViewDocumentsItem[];
+  playbooks: BriefViewPlaybooksItem[];
+  /** Attendees */
+  heldBack: number;
+  /**
+     * Ollie's notes for after the meeting
+     * @nullable
+     */
+  notes: string | null;
+  /** @nullable */
+  granolaNotes: string | null;
+  /** @nullable */
+  granolaRef: string | null;
+  /** Granola actions that went to the Inbox */
+  actions: BriefViewActionsItem[];
+}
+
+export interface BriefNotesInput {
+  /**
+     * @maxLength 20000
+     * @nullable
+     */
+  notes: string | null;
+}
+
+export interface DigestItem {
+  text: string;
+  /** @nullable */
+  href: string | null;
+  refs: string[];
+  /** Hidden from AI by default. Counted but never named in an email. */
+  confidential: boolean;
+}
+
+export interface DigestSection {
+  items: DigestItem[];
+  /** Items beyond the 5 shown */
+  more: number;
+  /** @nullable */
+  moreHref: string | null;
+}
+
+export interface DigestEvent {
+  eventId: number;
+  title: string;
+  startsAt: string;
+  hasBrief: boolean;
+}
+
+export interface DigestSections {
+  needs: DigestSection | null;
+  moved: DigestSection | null;
+  quiet: DigestSection | null;
+  today: DigestEvent[];
+  quietNight: boolean;
+}
+
+export interface Digest {
+  date: string;
+  windowStart: string;
+  /**
+     * One sentence. Null when the model could not write it.
+     * @nullable
+     */
+  summary: string | null;
+  sections: DigestSections;
+  createdAt: string;
+}
+
+export interface DigestListItem {
+  date: string;
+  /** @nullable */
+  summary: string | null;
 }
 
 export interface NoiseRule {

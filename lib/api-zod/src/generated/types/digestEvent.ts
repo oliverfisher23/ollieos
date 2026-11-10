@@ -6,10 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type CalendarBriefType = typeof CalendarBriefType[keyof typeof CalendarBriefType];
-
-
-export const CalendarBriefType = {
-  project: 'project',
-  person: 'person',
-} as const;
+export interface DigestEvent {
+  eventId: number;
+  title: string;
+  startsAt: Date;
+  hasBrief: boolean;
+}

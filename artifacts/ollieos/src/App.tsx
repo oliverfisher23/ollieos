@@ -20,6 +20,8 @@ import SettingsPage from '@/pages/settings';
 import GoalsPage from '@/pages/goals';
 import PeopleCadencePage from '@/pages/people-cadence';
 import LibraryPage from '@/pages/knowledge/library';
+import { BriefPage, NextBriefPage } from '@/pages/brief';
+import DigestPage from '@/pages/digest';
 import OAuthConsentPage from '@/pages/oauth-consent';
 import { TriageDialog } from '@/components/triage';
 import { NotAuthorised, SignIn, Splash } from '@/pages/auth-screens';
@@ -68,6 +70,10 @@ function Router() {
         <Route path="/knowledge/notes" component={NotesListPage} />
         <Route path="/knowledge/notes/:id" component={NotePage} />
         <Route path="/knowledge/library" component={LibraryPage} />
+        <Route path="/briefs/next" component={NextBriefPage} />
+        <Route path="/briefs/:eventId">{(p) => <BriefPage key={p.eventId} eventId={p.eventId} />}</Route>
+        <Route path="/digest">{() => <DigestPage />}</Route>
+        <Route path="/digest/:date">{(p) => <DigestPage key={p.date} date={p.date} />}</Route>
         <Route path="/goals" component={GoalsPage} />
         <Route path="/people" component={PeopleCadencePage} />
         <Route path="/people/:slug">{(p) => <Redirect to={'/knowledge/people/' + p.slug} replace />}</Route>

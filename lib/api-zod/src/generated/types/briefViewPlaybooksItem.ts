@@ -5,10 +5,9 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
-import type { CalendarBriefType } from './calendarBriefType';
 
-export interface CalendarBrief {
-  type: CalendarBriefType;
-  slug: string;
-  name: string;
-}
+export type BriefViewPlaybooksItem = {
+  id: number;
+  title: string;
+  rule: string;
+};

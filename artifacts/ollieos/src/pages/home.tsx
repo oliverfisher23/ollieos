@@ -116,6 +116,14 @@ export default function HomePage() {
           </Link>
         </>
       )}
+      {home.data.digestDate && (
+        <>
+          <span aria-hidden="true" className="oo-t4">·</span>
+          <Link href="/digest" style={{ color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-digest">
+            Today's digest
+          </Link>
+        </>
+      )}
       <AccessStatus access={home.data.access} />
     </>
   ) : (
@@ -279,18 +287,15 @@ function sweepWhen(at: string): string {
   return label.endsWith(' today') ? formatTime(at) : label;
 }
 
-function briefHref(brief: NonNullable<CalendarEvent['brief']>): string {
-  return (brief.type === 'project' ? '/knowledge/projects/' : '/knowledge/people/') + brief.slug;
-}
-
+/** Work meetings with someone or something OllieOS knows about open their brief (build plan 28). */
 function BriefLink({ e, phone = false }: { e: CalendarEvent; phone?: boolean }) {
-  if (!e.brief) return null;
+  if (!e.hasBrief) return null;
   return (
     <Link
-      href={briefHref(e.brief)}
+      href={'/briefs/' + e.id}
       className="oo-amber"
       style={{ color: 'var(--oo-accent)', fontSize: phone ? 13 : 12, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-      aria-label={'Brief me on ' + e.brief.name}
+      aria-label={'Brief me on ' + e.title}
       data-testid={'link-brief-' + e.id}
     >
       Brief me{!phone && <IconArrowOut size={12} />}

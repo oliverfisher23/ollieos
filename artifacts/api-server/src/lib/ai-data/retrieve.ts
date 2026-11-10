@@ -1,5 +1,6 @@
 import { and, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import {
+  activityTable,
   db,
   decisionsTable,
   documentsTable,
@@ -15,6 +16,7 @@ import {
 } from "@workspace/db";
 import { DOC_LOCATION_LABELS, PRIORITY_LABELS, SOURCE_LABELS, STATUS_LABELS, formatLong, parseRef, toRef, type RefType } from "@workspace/shared";
 import {
+  activityVisible,
   decisionVisible,
   documentVisible,
   factVisible,
@@ -37,6 +39,8 @@ export interface AiDoc {
   text: string;
 }
 
+const ACTIVITY_LABELS: Record<string, string> = { email: "Email", meeting: "Meeting", slack: "Slack message", note: "Note", task: "Task update" };
+
 const MAX_DOCS = 60;
 const EXPAND_ENTITIES = 4;
 const RECENT_DONE_DAYS = 60;
@@ -52,6 +56,7 @@ function filters(g: Grants) {
     fact: sql.raw(factVisible("facts", g)),
     document: sql.raw(documentVisible("documents", g)),
     playbook: sql.raw(playbookVisible("playbooks", g)),
+    activity: sql.raw(activityVisible("activity", g)),
   };
 }
 
@@ -100,7 +105,7 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
   const refs = refList.map(parseRef).filter((r): r is NonNullable<typeof r> => !!r);
   const ids = (t: RefType) => [...new Set(refs.filter((r) => r.type === t).map((r) => r.id))];
 
-  const [tasks, projects, people, orgs, decisions, notes, facts, goals, documents, playbooks] = await Promise.all([
+  const [tasks, projects, people, orgs, decisions, notes, facts, goals, documents, playbooks, activity] = await Promise.all([
     ids("task").length ? db.select().from(tasksTable).where(and(inArray(tasksTable.id, ids("task")), v.task)) : [],
     ids("project").length ? db.select().from(projectsTable).where(and(inArray(projectsTable.id, ids("project")), v.project)) : [],
     ids("person").length ? db.select().from(peopleTable).where(and(inArray(peopleTable.id, ids("person")), v.person)) : [],
@@ -127,6 +132,7 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
           .where(and(inArray(documentsTable.id, ids("document")), v.document))
       : [],
     ids("playbook").length ? db.select().from(playbooksTable).where(and(inArray(playbooksTable.id, ids("playbook")), v.playbook)) : [],
+    ids("activity").length ? db.select().from(activityTable).where(and(inArray(activityTable.id, ids("activity")), v.activity)) : [],
   ]);
 
   const nameRefs: { type: RefType; id: number }[] = [];
@@ -137,7 +143,7 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
   }
   for (const p of people) if (p.organisationId) nameRefs.push({ type: "organisation", id: p.organisationId });
   for (const d of decisions) nameRefs.push({ type: "project", id: d.projectId });
-  for (const n of [...notes, ...facts]) {
+  for (const n of [...notes, ...facts, ...activity]) {
     const r = parseRef(`${n.entityType}:${n.entityId}`);
     if (r) nameRefs.push(r);
   }
@@ -241,6 +247,17 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
       type: "fact",
       id: f.id,
       text: `[${ref}] Fact${about ? ` about ${about}` : ""}${f.needsCheck ? " (NEEDS A CHECK: may be out of date)" : ""}: ${f.text}`,
+    });
+  }
+
+  for (const a of activity) {
+    const ref = toRef("activity", a.id);
+    const about = a.entityType ? names.get(`${a.entityType}:${a.entityId}`) : undefined;
+    docs.push({
+      ref,
+      type: "activity",
+      id: a.id,
+      text: `[${ref}] ${ACTIVITY_LABELS[a.kind] ?? "Activity"}${about ? ` with ${about}` : ""}, ${day(a.occurredAt)}: ${clip(a.summary, 800)}`,
     });
   }
 

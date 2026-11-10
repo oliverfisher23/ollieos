@@ -29,10 +29,11 @@ import {
   addNote,
   captureTask,
   logActivity,
-  replaceCalendar,
   type Writer,
 } from "../services/aiWrites";
-import { updateTask, ValidationError, type TaskUpdateInput } from "../services/tasks";
+import { NotFoundError, updateTask, ValidationError, type TaskUpdateInput } from "../services/tasks";
+import { AttendeeSchema, syncCalendarFeed } from "../services/calendarSync";
+import { briefForAi, resolveEventForAi } from "../services/briefs";
 
 export const SOURCE_OF_TRUTH =
   "OllieOS is the source of truth for Ollie's work: tasks, projects, people and decisions. Check it before asking Ollie for context.";
@@ -86,6 +87,7 @@ async function guard(run: () => Promise<CallToolResult>): Promise<CallToolResult
     return await run();
   } catch (e) {
     if (e instanceof ValidationError) return err("invalid_input", e.message);
+    if (e instanceof NotFoundError) return err("not_found", e.message);
     throw e;
   }
 }
@@ -223,6 +225,24 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
       if (!hit) return NOT_FOUND("project, person or organisation");
       return ok({ context: { ref: `${hit.type}:${hit.id}`, name: hit.name }, playbooks: await getPlaybooksForAi(scope, hit) });
     },
+  );
+
+  server.registerTool(
+    "get_meeting_brief",
+    {
+      description: describe(
+        'The brief for a work meeting: why it matters (each line with the refs it rests on), who is coming, open promises to them, linked projects, goals, documents and playbooks, and questions to ask. Give "next" for the next work meeting today or tomorrow, or a calendar_event ref from ollieos://today. Personal events and meetings with nobody known have no brief.',
+      ),
+      inputSchema: {
+        event: z.string().min(1).max(60).describe('"next", or a ref such as calendar_event:12'),
+      },
+    },
+    async (a) =>
+      guard(async () => {
+        const id = await resolveEventForAi(scope, a.event);
+        if (id == null) return NOT_FOUND("work meeting with a brief");
+        return ok(await briefForAi(scope, id));
+      }),
   );
 
   /* ---------- Tasks ---------- */
@@ -608,7 +628,9 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
   server.registerTool(
     "upsert_calendar",
     {
-      description: describe("Replaces Ollie's calendar from today to seven days ahead (London time) with the events given."),
+      description: describe(
+        "Updates Ollie's calendar from today to seven days ahead (London time) with the events given. Events are matched on source_ref. Send the whole window each time: events that have not started and are not in the list drop off the calendar, and past events are kept.",
+      ),
       inputSchema: {
         events: z
           .array(
@@ -617,11 +639,12 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
               title: z.string().min(1).max(300),
               starts_at: isoDateTime,
               ends_at: isoDateTime,
-              attendees: z.array(z.string().max(320)).max(100).optional(),
+              attendees: z.array(AttendeeSchema).max(100).optional().describe("Names or emails, or objects with name, email and response"),
               personal: z.boolean().optional(),
               people: z.array(z.string().max(200)).max(50).optional(),
               project: z.string().max(200).optional(),
               location: z.string().max(500).optional(),
+              platform: z.string().max(40).optional().describe("Teams, Zoom, Meet or In person"),
             }),
           )
           .max(500),
@@ -629,30 +652,16 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     },
     async (a) =>
       guard(async () => {
-        const unmatched = new Set<string>();
-        const events = [];
-        for (const e of a.events) {
-          const people = await resolveNames(scope, e.people, "person");
-          people.unmatched.forEach((u) => unmatched.add(u));
-          // Unmatched names are reported, never a reason to drop the event (build plan 30).
-          const project = e.project ? await resolvePick(scope, e.project, ["project"]) : null;
-          if (e.project && !project) unmatched.add(e.project);
-          events.push({
-            sourceRef: e.source_ref,
-            title: e.title,
-            startsAt: new Date(e.starts_at),
-            endsAt: new Date(e.ends_at),
-            attendees: e.attendees ?? [],
-            personal: e.personal ?? false,
-            personIds: people.ids,
-            projectId: project?.id ?? null,
-            location: e.location ?? null,
-          });
-        }
-        const r = await replaceCalendar(writer, events);
-        return ok({ replaced: r.replaced, unmatched: [...unmatched], ...(r.outsideWindow ? { skipped_outside_window: r.outsideWindow } : {}) });
+        const r = await syncCalendarFeed(scope, writer, a.events);
+        return ok({
+          replaced: r.replaced,
+          removed: r.removed,
+          unmatched: r.unmatched,
+          ...(r.outsideWindow ? { skipped_outside_window: r.outsideWindow } : {}),
+        });
       }),
   );
+
 
   }
 
@@ -667,6 +676,16 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     "ollieos://today",
     { description: describe("Today: what to do next, waiting on, promises, done this week and the calendar."), mimeType: "application/json" },
     async (uri) => json(uri, await todayForAi(scope)),
+  );
+
+  server.registerResource(
+    "brief_next",
+    "ollieos://brief/next",
+    { description: describe("The brief for Ollie's next work meeting today or tomorrow, the same as get_meeting_brief with \"next\"."), mimeType: "application/json" },
+    async (uri) => {
+      const id = await resolveEventForAi(scope, "next");
+      return json(uri, id == null ? { brief: null, message: "No work meeting with a brief between now and the end of tomorrow." } : await briefForAi(scope, id));
+    },
   );
 
   for (const type of ["project", "person"] as const) {

@@ -1,10 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { activityTable, captureLogTable, db, noiseRulesTable, peopleTable, tasksTable } from "@workspace/db";
 import { londonRange, todayLondon } from "@workspace/shared";
 import { SOURCE_OF_TRUTH } from "../src/mcp/server";
 import { decision, fact, link, note, person, project, task } from "./helpers";
 import { authorize, base, call, connect, consent, ingest, mcp, pkce, register, sid, token, useServer, REDIRECT } from "./harness";
+
+// Finishing a sweep writes briefs and the digest summary; keep the model out of these tests.
+vi.mock("../src/services/ask/model", async (orig) => ({
+  ...(await orig<typeof import("../src/services/ask/model")>()),
+  writeBriefFromDocs: async () => ({ why: [], questions: [], questionsNote: "" }),
+  digestSummaryFromLines: async () => "Summary.",
+}));
 
 function item(ref: string, extra: Record<string, unknown> = {}) {
   return { source: "email", source_ref: ref, title: `Reply about ${ref}`, from_name: "Jo", from_address: "jo@example.com", ...extra };
@@ -47,7 +54,7 @@ describe("OAuth for Claude", () => {
   it("read-only tokens cannot list or dispatch mutations, including after refresh", async () => {
     const t = await connect("Read-only connector", "read");
     const c = await mcp(t.access_token);
-    expect((await c.listTools()).tools.map((tool) => tool.name).sort()).toEqual(["find_documents", "get_context", "get_playbooks", "list_goals", "list_overdue_contacts", "list_tasks", "search"]);
+    expect((await c.listTools()).tools.map((tool) => tool.name).sort()).toEqual(["find_documents", "get_context", "get_meeting_brief", "get_playbooks", "list_goals", "list_overdue_contacts", "list_tasks", "search"]);
     expect((await c.readResource({ uri: "ollieos://today" })).contents).toHaveLength(1);
     for (const [name, args] of [
       ["create_task", { title: "Forbidden task" }],
@@ -133,6 +140,7 @@ describe("no delete tool (criterion 7)", () => {
         "create_task",
         "find_documents",
         "get_context",
+        "get_meeting_brief",
         "get_playbooks",
         "list_goals",
         "list_my_suggestions",
@@ -155,7 +163,7 @@ describe("no delete tool (criterion 7)", () => {
     }
     const templates = await c.listResourceTemplates();
     expect(templates.resourceTemplates.map((r) => r.uriTemplate).sort()).toEqual(["ollieos://person/{slug}", "ollieos://project/{slug}"]);
-    expect((await c.listResources()).resources.map((r) => r.uri)).toEqual(["ollieos://today"]);
+    expect((await c.listResources()).resources.map((r) => r.uri)).toEqual(["ollieos://today", "ollieos://brief/next"]);
     await c.close();
   });
 });
@@ -332,21 +340,42 @@ describe("ingest", () => {
   it("replaces the calendar window and links Brief me on Home", async () => {
     const shed = await project("Garden shed");
     const jo = await person("Jo Bloggs");
-    const day = londonRange(todayLondon(), 1).start.getTime();
-    const ev = (ref: string, h: number, extra: Record<string, unknown> = {}) => ({
+    const { calendarEventsTable } = await import("@workspace/db");
+    // Minutes from now, so every event is still to come whatever time the test runs.
+    const ev = (ref: string, m: number, extra: Record<string, unknown> = {}) => ({
       source_ref: ref,
       title: `Meeting ${ref}`,
-      starts_at: new Date(day + h * 3600_000).toISOString(),
-      ends_at: new Date(day + (h + 1) * 3600_000).toISOString(),
+      starts_at: new Date(Date.now() + m * 60_000).toISOString(),
+      ends_at: new Date(Date.now() + (m + 5) * 60_000).toISOString(),
       ...extra,
     });
-    await ingest("calendar", { body: { events: [ev("a", 9), ev("b", 10)] } });
-    const r = await ingest("calendar", { body: { events: [ev("c", 11, { project: "Garden shed" }), ev("d", 12, { people: ["Jo Bloggs"] })] } });
-    expect(r.body).toMatchObject({ replaced: 2, unmatched: [] });
-    const home = (await (await fetch(`${base}/api/home`, { headers: { authorization: `Bearer ${sid}` } })).json()) as { today: { title: string; brief: unknown }[] };
-    expect(home.today.map((e) => e.title)).toEqual(["Meeting c", "Meeting d"]);
-    expect(home.today[0].brief).toEqual({ type: "project", slug: shed.slug, name: "Garden shed" });
-    expect(home.today[1].brief).toEqual({ type: "person", slug: jo.slug, name: "Jo Bloggs" });
+    await ingest("calendar", { body: { events: [ev("a", 10), ev("b", 20)] } });
+    const r = await ingest("calendar", { body: { events: [ev("c", 30, { project: "Garden shed" }), ev("d", 40, { people: ["Jo Bloggs"] })] } });
+    expect(r.body).toMatchObject({ replaced: 2, removed: 2, unmatched: [] });
+    const rows = await db.select().from(calendarEventsTable).orderBy(calendarEventsTable.startsAt);
+    expect(rows.map((e) => e.sourceRef)).toEqual(["c", "d"]);
+    const home = (await (await fetch(`${base}/api/home`, { headers: { authorization: `Bearer ${sid}` } })).json()) as { today: { id: number; hasBrief: boolean }[] };
+    // Linked to a project or a known person: Brief me opens the brief (build plan 28).
+    for (const e of home.today) expect(e.hasBrief).toBe(true);
+    void shed;
+    void jo;
+  });
+
+  it("keeps events that have started when they drop out of the feed (build plan 29)", async () => {
+    const { calendarEventsTable } = await import("@workspace/db");
+    const ev = (ref: string, m: number) => ({
+      source_ref: ref,
+      title: `Meeting ${ref}`,
+      starts_at: new Date(Date.now() + m * 60_000).toISOString(),
+      ends_at: new Date(Date.now() + (m + 60) * 60_000).toISOString(),
+    });
+    await ingest("calendar", { body: { events: [ev("started", -5), ev("later", 30)] } });
+    const [before] = await db.select().from(calendarEventsTable).where(eq(calendarEventsTable.sourceRef, "later"));
+    await ingest("calendar", { body: { events: [{ ...ev("later", 30), title: "Renamed" }] } });
+    const rows = await db.select().from(calendarEventsTable).orderBy(calendarEventsTable.startsAt);
+    expect(rows.map((e) => [e.sourceRef, e.title])).toEqual([["started", "Meeting started"], ["later", "Renamed"]]);
+    // Matched on source_ref, so the id (and any brief) stays.
+    expect(rows[1].id).toBe(before.id);
   });
 
   it("stores events whose names do not match and reports them, the same for hidden and unknown (build plan 30)", async () => {

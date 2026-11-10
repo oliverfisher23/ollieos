@@ -2,10 +2,10 @@
  * Writes from AI clients: the MCP tools and the ingest API (PRD 11 and 12).
  * Callers resolve names to visible ids through ai-data first; these functions only write.
  * Every write is audited with the client's actor name and client id, in the same transaction.
- * There is deliberately nothing here that deletes Ollie's data (criterion 7); calendar events are
- * replaced as a block, as the PRD specifies.
+ * There is deliberately nothing here that deletes Ollie's data (criterion 7); the calendar is a
+ * copy of Ollie's real calendar, so events dropped from the feed are removed.
  */
-import { and, eq, gte, lt, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import {
   activityTable,
   calendarEventsTable,
@@ -16,6 +16,7 @@ import {
   notesTable,
   sweepRunsTable,
   tasksTable,
+  type CalendarAttendee,
   type NoiseRule,
 } from "@workspace/db";
 import { addDays, londonRange, todayLondon, type Priority, type TaskSource, type TaskStatus } from "@workspace/shared";
@@ -280,21 +281,80 @@ export interface CalendarInput {
   title: string;
   startsAt: Date;
   endsAt: Date;
+  /** Names only, for display and the AI name filter */
   attendees: string[];
+  attendeeDetails: CalendarAttendee[];
+  platform: string | null;
   personal: boolean;
   personIds: number[];
   projectId: number | null;
   location: string | null;
 }
 
-/** Replaces every event from today 00:00 to the end of today + 7 days, London time (PRD 12). */
-export async function replaceCalendar(w: Writer, events: CalendarInput[], now = new Date()): Promise<{ replaced: number; outsideWindow: number }> {
+/** Attendees arrive as plain names or emails, or as objects with an email and response. */
+export type AttendeeInput = string | { name?: string | null; email?: string | null; response?: string | null; organiser?: boolean | null };
+
+const RESPONSES = new Set(["accepted", "tentative", "declined", "none"]);
+
+export function normaliseAttendees(list: AttendeeInput[] | undefined): { names: string[]; details: CalendarAttendee[] } {
+  const details: CalendarAttendee[] = [];
+  for (const a of list ?? []) {
+    if (typeof a === "string") {
+      const v = a.trim();
+      if (!v) continue;
+      details.push(v.includes("@") && !v.includes(" ") ? { name: v, email: v.toLowerCase() } : { name: v });
+      continue;
+    }
+    const email = cleanText(a.email)?.toLowerCase() ?? null;
+    const name = cleanText(a.name) ?? email;
+    if (!name) continue;
+    const response = a.response ? a.response.trim().toLowerCase().replace("needsaction", "none").replace("needs_action", "none") : null;
+    details.push({
+      name,
+      ...(email ? { email } : {}),
+      ...(response && RESPONSES.has(response) ? { response: response as CalendarAttendee["response"] } : {}),
+      ...(a.organiser ? { organiser: true } : {}),
+    });
+  }
+  return { names: details.map((d) => d.name), details };
+}
+
+/** Teams, Zoom, Meet or In person, from the location when the sweep does not say. */
+export function platformFor(given: string | null | undefined, location: string | null): string | null {
+  const g = cleanText(given);
+  if (g) return g;
+  const l = (location ?? "").toLowerCase();
+  if (!l) return null;
+  if (l.includes("teams.microsoft") || /\bteams\b/.test(l)) return "Teams";
+  if (l.includes("zoom.us") || /\bzoom\b/.test(l)) return "Zoom";
+  if (l.includes("meet.google") || /\bgoogle meet\b/.test(l)) return "Meet";
+  return "In person";
+}
+
+/**
+ * Brings the calendar window (today 00:00 to the end of today + 7 days, London time) in line with
+ * the feed. Events are upserted by source_ref so their ids, and the briefs hung off them, survive
+ * each sweep. Events that have not started and are no longer in the feed are removed; events that
+ * have started are kept, and cleared 30 days after they end (build plan 29).
+ */
+export async function replaceCalendar(
+  w: Writer,
+  events: CalendarInput[],
+  now = new Date(),
+): Promise<{ replaced: number; removed: number; outsideWindow: number }> {
   const window = londonRange(todayLondon(now), 8);
   const inWindow = events.filter((e) => e.startsAt >= window.start && e.startsAt < window.end);
   const seen = new Set<string>();
   const unique = inWindow.filter((e) => (seen.has(e.sourceRef) ? false : (seen.add(e.sourceRef), true)));
+  let removed = 0;
   await db.transaction(async (tx) => {
-    await tx.delete(calendarEventsTable).where(and(gte(calendarEventsTable.startsAt, window.start), lt(calendarEventsTable.startsAt, window.end)));
+    const future = await tx
+      .select({ id: calendarEventsTable.id, sourceRef: calendarEventsTable.sourceRef })
+      .from(calendarEventsTable)
+      .where(and(gte(calendarEventsTable.startsAt, now > window.start ? now : window.start), lt(calendarEventsTable.startsAt, window.end)));
+    const gone = future.filter((e) => !seen.has(e.sourceRef)).map((e) => e.id);
+    if (gone.length) await tx.delete(calendarEventsTable).where(inArray(calendarEventsTable.id, gone));
+    removed = gone.length;
     for (const e of unique) {
       const values = {
         sourceRef: e.sourceRef,
@@ -302,6 +362,8 @@ export async function replaceCalendar(w: Writer, events: CalendarInput[], now = 
         startsAt: e.startsAt,
         endsAt: e.endsAt,
         attendees: e.attendees,
+        attendeeDetails: e.attendeeDetails,
+        platform: e.platform,
         personal: e.personal,
         personIds: e.personIds,
         projectId: e.projectId,
@@ -312,12 +374,19 @@ export async function replaceCalendar(w: Writer, events: CalendarInput[], now = 
     await writeAudit(tx, {
       actor: w.actor,
       clientId: w.clientId,
-      action: "replace",
+      action: "sync",
       entityType: "calendar_event",
-      payload: { count: unique.length, from: window.start.toISOString(), to: window.end.toISOString() },
+      payload: { count: unique.length, removed, from: window.start.toISOString(), to: window.end.toISOString() },
     });
   });
-  return { replaced: unique.length, outsideWindow: events.length - inWindow.length };
+  return { replaced: unique.length, removed, outsideWindow: events.length - inWindow.length };
+}
+
+/** Clears calendar events (and their briefs) that ended more than 30 days ago. */
+export async function clearOldCalendar(now = new Date()): Promise<number> {
+  const cutoff = new Date(now.getTime() - 30 * 86_400_000);
+  const rows = await db.delete(calendarEventsTable).where(lt(calendarEventsTable.endsAt, cutoff)).returning({ id: calendarEventsTable.id });
+  return rows.length;
 }
 
 /** The last day the calendar window covers, for messages. */

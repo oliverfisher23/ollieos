@@ -38,6 +38,8 @@ import type {
   AskThreadSummary,
   AuthUserEnvelope,
   BeginBrowserLoginParams,
+  BriefNotesInput,
+  BriefView,
   BundleInput,
   BundleResult,
   CadencePage,
@@ -47,6 +49,8 @@ import type {
   Decision,
   DecisionInput,
   DecisionUpdate,
+  Digest,
+  DigestListItem,
   DocumentInput,
   DocumentUpdate,
   ErrorEnvelope,
@@ -3296,6 +3300,647 @@ export const useDraftCheckIn = <TError = ErrorType<NotAuthorisedResponse | Error
       > => {
       return useMutation(getDraftCheckInMutationOptions(options), queryClient);
     }
+
+export const getGetNextBriefUrl = () => {
+
+
+
+
+  return `/api/briefs/next`
+}
+
+/**
+ * @summary The brief for the next work meeting, today or tomorrow
+ */
+export const getNextBrief = async ( options?: Parameters<typeof customFetch>[1]): Promise<BriefView> => {
+
+  return customFetch<BriefView>(getGetNextBriefUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetNextBriefQueryKey = () => {
+    return [
+    `/api/briefs/next`
+    ] as const;
+    }
+
+
+export const getGetNextBriefQueryOptions = <TData = Awaited<ReturnType<typeof getNextBrief>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNextBrief>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetNextBriefQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNextBrief>>> = ({ signal }) => getNextBrief({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNextBrief>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetNextBriefQueryResult = NonNullable<Awaited<ReturnType<typeof getNextBrief>>>
+export type GetNextBriefQueryError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+
+
+export function useGetNextBrief<TData = Awaited<ReturnType<typeof getNextBrief>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNextBrief>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getNextBrief>>,
+          TError,
+          Awaited<ReturnType<typeof getNextBrief>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetNextBrief<TData = Awaited<ReturnType<typeof getNextBrief>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNextBrief>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getNextBrief>>,
+          TError,
+          Awaited<ReturnType<typeof getNextBrief>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetNextBrief<TData = Awaited<ReturnType<typeof getNextBrief>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNextBrief>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The brief for the next work meeting, today or tomorrow
+ */
+
+export function useGetNextBrief<TData = Awaited<ReturnType<typeof getNextBrief>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getNextBrief>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetNextBriefQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBriefUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/briefs/${eventId}`
+}
+
+/**
+ * @summary A meeting brief, written on open when missing or more than 3 hours old
+ */
+export const getBrief = async (eventId: number, options?: Parameters<typeof customFetch>[1]): Promise<BriefView> => {
+
+  return customFetch<BriefView>(getGetBriefUrl(eventId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBriefQueryKey = (eventId: number,) => {
+    return [
+    `/api/briefs/${eventId}`
+    ] as const;
+    }
+
+
+export const getGetBriefQueryOptions = <TData = Awaited<ReturnType<typeof getBrief>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(eventId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrief>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBriefQueryKey(eventId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBrief>>> = ({ signal }) => getBrief(eventId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: eventId !== null && eventId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBrief>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetBriefQueryResult = NonNullable<Awaited<ReturnType<typeof getBrief>>>
+export type GetBriefQueryError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+
+
+export function useGetBrief<TData = Awaited<ReturnType<typeof getBrief>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ eventId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrief>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBrief>>,
+          TError,
+          Awaited<ReturnType<typeof getBrief>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBrief<TData = Awaited<ReturnType<typeof getBrief>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ eventId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrief>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBrief>>,
+          TError,
+          Awaited<ReturnType<typeof getBrief>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetBrief<TData = Awaited<ReturnType<typeof getBrief>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ eventId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrief>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary A meeting brief, written on open when missing or more than 3 hours old
+ */
+
+export function useGetBrief<TData = Awaited<ReturnType<typeof getBrief>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ eventId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBrief>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetBriefQueryOptions(eventId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateBriefNotesUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/briefs/${eventId}`
+}
+
+/**
+ * @summary Ollie's notes for after the meeting
+ */
+export const updateBriefNotes = async (eventId: number,
+    briefNotesInput: BriefNotesInput, options?: Parameters<typeof customFetch>[1]): Promise<BriefNotesInput> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<BriefNotesInput>(getUpdateBriefNotesUrl(eventId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(briefNotesInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateBriefNotesMutationKey = () => ['updateBriefNotes'] as const;
+
+export const getUpdateBriefNotesMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBriefNotes>>, TError,UpdateBriefNotesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBriefNotes>>, TError,UpdateBriefNotesMutationVariables, TContext> => {
+
+const mutationKey = getUpdateBriefNotesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBriefNotes>>, UpdateBriefNotesMutationVariables> = (props) => {
+          const {eventId,data} = props ?? {};
+
+          return  updateBriefNotes(eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBriefNotesMutationResult = NonNullable<Awaited<ReturnType<typeof updateBriefNotes>>>
+    export type UpdateBriefNotesMutationBody = BodyType<BriefNotesInput>
+    export type UpdateBriefNotesMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type UpdateBriefNotesMutationVariables = {eventId: number;data: BodyType<BriefNotesInput>}
+
+    /**
+ * @summary Ollie's notes for after the meeting
+ */
+export const useUpdateBriefNotes = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBriefNotes>>, TError,UpdateBriefNotesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateBriefNotes>>,
+        TError,
+        UpdateBriefNotesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateBriefNotesMutationOptions(options), queryClient);
+    }
+
+export const getRefreshBriefUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/briefs/${eventId}/refresh`
+}
+
+/**
+ * @summary Write the brief again now
+ */
+export const refreshBrief = async (eventId: number, options?: Parameters<typeof customFetch>[1]): Promise<BriefView> => {
+
+  return customFetch<BriefView>(getRefreshBriefUrl(eventId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRefreshBriefMutationKey = () => ['refreshBrief'] as const;
+
+export const getRefreshBriefMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshBrief>>, TError,RefreshBriefMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshBrief>>, TError,RefreshBriefMutationVariables, TContext> => {
+
+const mutationKey = getRefreshBriefMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshBrief>>, RefreshBriefMutationVariables> = (props) => {
+          const {eventId} = props ?? {};
+
+          return  refreshBrief(eventId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshBriefMutationResult = NonNullable<Awaited<ReturnType<typeof refreshBrief>>>
+
+    export type RefreshBriefMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type RefreshBriefMutationVariables = {eventId: number}
+
+    /**
+ * @summary Write the brief again now
+ */
+export const useRefreshBrief = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshBrief>>, TError,RefreshBriefMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof refreshBrief>>,
+        TError,
+        RefreshBriefMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRefreshBriefMutationOptions(options), queryClient);
+    }
+
+export const getAllowForBriefUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/briefs/${eventId}/allow`
+}
+
+/**
+ * @summary Open what was held back to Ask OllieOS for one hour and write the brief again
+ */
+export const allowForBrief = async (eventId: number, options?: Parameters<typeof customFetch>[1]): Promise<BriefView> => {
+
+  return customFetch<BriefView>(getAllowForBriefUrl(eventId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAllowForBriefMutationKey = () => ['allowForBrief'] as const;
+
+export const getAllowForBriefMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allowForBrief>>, TError,AllowForBriefMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof allowForBrief>>, TError,AllowForBriefMutationVariables, TContext> => {
+
+const mutationKey = getAllowForBriefMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof allowForBrief>>, AllowForBriefMutationVariables> = (props) => {
+          const {eventId} = props ?? {};
+
+          return  allowForBrief(eventId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AllowForBriefMutationResult = NonNullable<Awaited<ReturnType<typeof allowForBrief>>>
+
+    export type AllowForBriefMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type AllowForBriefMutationVariables = {eventId: number}
+
+    /**
+ * @summary Open what was held back to Ask OllieOS for one hour and write the brief again
+ */
+export const useAllowForBrief = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof allowForBrief>>, TError,AllowForBriefMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof allowForBrief>>,
+        TError,
+        AllowForBriefMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAllowForBriefMutationOptions(options), queryClient);
+    }
+
+export const getListDigestsUrl = () => {
+
+
+
+
+  return `/api/digests`
+}
+
+/**
+ * @summary Digests from the last 30 days, newest first
+ */
+export const listDigests = async ( options?: Parameters<typeof customFetch>[1]): Promise<DigestListItem[]> => {
+
+  return customFetch<DigestListItem[]>(getListDigestsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDigestsQueryKey = () => {
+    return [
+    `/api/digests`
+    ] as const;
+    }
+
+
+export const getListDigestsQueryOptions = <TData = Awaited<ReturnType<typeof listDigests>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDigests>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDigestsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDigests>>> = ({ signal }) => listDigests({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDigests>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListDigestsQueryResult = NonNullable<Awaited<ReturnType<typeof listDigests>>>
+export type ListDigestsQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListDigests<TData = Awaited<ReturnType<typeof listDigests>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDigests>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDigests>>,
+          TError,
+          Awaited<ReturnType<typeof listDigests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDigests<TData = Awaited<ReturnType<typeof listDigests>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDigests>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDigests>>,
+          TError,
+          Awaited<ReturnType<typeof listDigests>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDigests<TData = Awaited<ReturnType<typeof listDigests>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDigests>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Digests from the last 30 days, newest first
+ */
+
+export function useListDigests<TData = Awaited<ReturnType<typeof listDigests>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDigests>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListDigestsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetDigestUrl = (date: string,) => {
+
+
+
+
+  return `/api/digests/${date}`
+}
+
+/**
+ * @summary One day's digest
+ */
+export const getDigest = async (date: string, options?: Parameters<typeof customFetch>[1]): Promise<Digest> => {
+
+  return customFetch<Digest>(getGetDigestUrl(date),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDigestQueryKey = (date: string,) => {
+    return [
+    `/api/digests/${date}`
+    ] as const;
+    }
+
+
+export const getGetDigestQueryOptions = <TData = Awaited<ReturnType<typeof getDigest>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(date: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDigest>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDigestQueryKey(date);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDigest>>> = ({ signal }) => getDigest(date, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: date !== null && date !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDigest>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetDigestQueryResult = NonNullable<Awaited<ReturnType<typeof getDigest>>>
+export type GetDigestQueryError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+export function useGetDigest<TData = Awaited<ReturnType<typeof getDigest>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ date: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDigest>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDigest>>,
+          TError,
+          Awaited<ReturnType<typeof getDigest>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDigest<TData = Awaited<ReturnType<typeof getDigest>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ date: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDigest>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDigest>>,
+          TError,
+          Awaited<ReturnType<typeof getDigest>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetDigest<TData = Awaited<ReturnType<typeof getDigest>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ date: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDigest>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary One day's digest
+ */
+
+export function useGetDigest<TData = Awaited<ReturnType<typeof getDigest>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ date: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getDigest>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetDigestQueryOptions(date,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListGoalsUrl = () => {
 

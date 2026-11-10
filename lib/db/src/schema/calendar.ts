@@ -3,7 +3,20 @@ import { boolean, index, integer, jsonb, pgTable, text, timestamp } from "drizzl
 import { aiClientsTable } from "./access";
 import { projectsTable } from "./knowledge";
 
-/** Today and the next 7 days only; replaced on each sweep. */
+/** One person on a calendar invite. response: accepted, tentative, declined or none (not answered). */
+export interface CalendarAttendee {
+  name: string;
+  email?: string | null;
+  response?: "accepted" | "tentative" | "declined" | "none" | null;
+  organiser?: boolean;
+}
+
+/**
+ * Today and the next 7 days, upserted by source_ref on each sweep so ids stay stable for briefs.
+ * Future events no longer in the feed are removed; past events are kept for 30 days (build plan 29).
+ * `attendees` holds names only (used for display and the AI name filter); `attendee_details` holds
+ * the email and response for each, when the sweep sends them.
+ */
 export const calendarEventsTable = pgTable(
   "calendar_events",
   {
@@ -13,6 +26,9 @@ export const calendarEventsTable = pgTable(
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
     attendees: text("attendees").array().notNull().default(sql`'{}'::text[]`),
+    attendeeDetails: jsonb("attendee_details").$type<CalendarAttendee[]>().notNull().default([]),
+    /** Teams, Zoom, Meet or In person; from the sweep, or worked out from the location */
+    platform: text("platform"),
     personal: boolean("personal").notNull().default(false),
     personIds: integer("person_ids").array().notNull().default(sql`'{}'::integer[]`),
     projectId: integer("project_id").references(() => projectsTable.id),

@@ -20,6 +20,8 @@ export const entityTypeEnum = pgEnum("entity_type", [
   "goal",
   "document",
   "playbook",
+  "meeting_brief",
+  "digest",
 ]);
 export const activityKindEnum = pgEnum("activity_kind", ["email", "meeting", "slack", "note", "task"]);
 export const captureOutcomeEnum = pgEnum("capture_outcome", ["created", "duplicate", "noise", "error"]);

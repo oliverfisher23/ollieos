@@ -10,6 +10,7 @@ import {
   db,
   decisionsTable,
   factsTable,
+  meetingBriefsTable,
   noiseRulesTable,
   notesTable,
   organisationsTable,
@@ -17,6 +18,7 @@ import {
   projectsTable,
   sweepRunsTable,
   tasksTable,
+  type CalendarEvent,
   type Task as TaskRow,
 } from "@workspace/db";
 import { OPEN_STATUSES, londonRange, parseRef, todayLondon, toRef, type TaskStatus } from "@workspace/shared";
@@ -546,14 +548,18 @@ function contextRefs(c: ContextOut): string[] {
 /* ---------- Today (ollieos://today) ---------- */
 
 export interface CalendarOut {
+  /** Pass to get_meeting_brief */
+  ref: string;
   title: string;
   starts_at: string;
   ends_at: string;
   personal: boolean;
   location: string | null;
+  platform: string | null;
   attendees: string[];
   project: NamedRef | null;
   people: NamedRef[];
+  has_brief: boolean;
 }
 
 /** Case-insensitive match of the whole term, not inside a longer word. */
@@ -563,19 +569,15 @@ export function wholeWord(term: string): RegExp {
 }
 
 /**
- * Calendar events for a London day range, without any event tied to a hidden project or whose
- * people include hidden entities. Unstructured fields must not disclose hidden identities
- * either, even on old events that were stored without associations.
+ * Calendar rows an AI may see: none tied to a hidden project or whose people include hidden
+ * entities. Unstructured fields (title, location, attendee names and emails) must not disclose
+ * hidden identities either, even on old events stored without associations.
  */
-async function calendarFor(scope: AiScope, start: Date, end: Date): Promise<CalendarOut[]> {
-  const rows = await db
-    .select()
-    .from(calendarEventsTable)
-    .where(and(gte(calendarEventsTable.startsAt, start), lt(calendarEventsTable.startsAt, end)))
-    .orderBy(asc(calendarEventsTable.startsAt));
+export async function visibleCalendarRows(scope: AiScope, rows: CalendarEvent[]): Promise<{ rows: CalendarEvent[]; names: Awaited<ReturnType<typeof visibleNames>> }> {
   const projectIds = [...new Set(rows.map((r) => r.projectId).filter((x): x is number => x != null))];
   const personIds = [...new Set(rows.flatMap((r) => r.personIds))];
   const names = await visibleNames(scope, projectIds, personIds);
+  if (!rows.length) return { rows, names };
   const [hiddenProjects, hiddenPeople, hiddenOrganisations] = await Promise.all([
     db.select({ name: projectsTable.name }).from(projectsTable)
       .where(sql.raw(`not (${projectVisible("projects", scope.grants)})`)),
@@ -590,23 +592,46 @@ async function calendarFor(scope: AiScope, start: Date, end: Date): Promise<Cale
     .flatMap((r) => Object.values(r))
     .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
     .map((v) => wholeWord(v));
-  return rows
-    .filter((r) => {
-      if (r.projectId != null && !names.projects.has(r.projectId)) return false;
-      if (r.personIds.some((p) => !names.people.has(p))) return false;
-      const text = [r.title, r.location ?? "", ...r.attendees].join("\n").normalize("NFKC");
-      return !hiddenTerms.some((re) => re.test(text));
-    })
-    .map((r) => ({
-      title: r.title,
-      starts_at: r.startsAt.toISOString(),
-      ends_at: r.endsAt.toISOString(),
-      personal: r.personal,
-      location: r.location,
-      attendees: r.attendees,
-      project: r.projectId != null ? { ref: toRef("project", r.projectId), name: names.projects.get(r.projectId)! } : null,
-      people: r.personIds.filter((p) => names.people.has(p)).map((p) => ({ ref: toRef("person", p), name: names.people.get(p)! })),
-    }));
+  const kept = rows.filter((r) => {
+    if (r.projectId != null && !names.projects.has(r.projectId)) return false;
+    if (r.personIds.some((p) => !names.people.has(p))) return false;
+    const emails = (r.attendeeDetails ?? []).map((a) => a.email ?? "");
+    const text = [r.title, r.location ?? "", ...r.attendees, ...emails].join("\n").normalize("NFKC");
+    return !hiddenTerms.some((re) => re.test(text));
+  });
+  return { rows: kept, names };
+}
+
+async function calendarFor(scope: AiScope, start: Date, end: Date): Promise<CalendarOut[]> {
+  const all = await db
+    .select()
+    .from(calendarEventsTable)
+    .where(and(gte(calendarEventsTable.startsAt, start), lt(calendarEventsTable.startsAt, end)))
+    .orderBy(asc(calendarEventsTable.startsAt));
+  const { rows, names } = await visibleCalendarRows(scope, all);
+  const briefs = rows.length
+    ? new Set(
+        (
+          await db
+            .select({ id: meetingBriefsTable.calendarEventId })
+            .from(meetingBriefsTable)
+            .where(and(inArray(meetingBriefsTable.calendarEventId, rows.map((r) => r.id)), eq(meetingBriefsTable.failed, false)))
+        ).map((b) => b.id),
+      )
+    : new Set<number>();
+  return rows.map((r) => ({
+    ref: `calendar_event:${r.id}`,
+    title: r.title,
+    starts_at: r.startsAt.toISOString(),
+    ends_at: r.endsAt.toISOString(),
+    personal: r.personal,
+    location: r.location,
+    platform: r.platform,
+    attendees: r.attendees,
+    project: r.projectId != null ? { ref: toRef("project", r.projectId), name: names.projects.get(r.projectId)! } : null,
+    people: r.personIds.filter((p) => names.people.has(p)).map((p) => ({ ref: toRef("person", p), name: names.people.get(p)! })),
+    has_brief: briefs.has(r.id),
+  }));
 }
 
 export interface TodayOut {

@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
-import { calendarEventsTable, db, peopleTable, projectsTable, sweepRunsTable, tasksTable } from "@workspace/db";
+import { calendarEventsTable, db, sweepRunsTable, tasksTable } from "@workspace/db";
 import {
   OPEN_STATUSES,
   daysBetween,
@@ -13,6 +13,8 @@ import {
 } from "@workspace/shared";
 import { toTaskViews, type TaskView } from "./taskView";
 import { listAccessRequests } from "./access";
+import { briefableIds } from "./briefs";
+import { todaysDigestDate } from "./digest";
 import { ensureSelfPerson, inboxCounts } from "./knowledgeInbox";
 import { ensureSeeds } from "./seeds";
 
@@ -67,36 +69,6 @@ function rankDoNext(tasks: TaskView[], today: string) {
     .map((task) => ({ task, reason: reasonFor(task, today) }));
 }
 
-export interface CalendarBrief {
-  type: "project" | "person";
-  slug: string;
-  name: string;
-}
-
-/** Brief me: each event's project, or its first linked person when there is no project. */
-async function briefsFor(events: { id: number; projectId: number | null; personIds: number[] }[]): Promise<Map<number, CalendarBrief>> {
-  const projectIds = [...new Set(events.map((e) => e.projectId).filter((x): x is number => x != null))];
-  const personIds = [...new Set(events.flatMap((e) => e.personIds.slice(0, 1)))];
-  const [projects, people] = await Promise.all([
-    projectIds.length
-      ? db.select({ id: projectsTable.id, slug: projectsTable.slug, name: projectsTable.name }).from(projectsTable).where(inArray(projectsTable.id, projectIds))
-      : [],
-    personIds.length
-      ? db.select({ id: peopleTable.id, slug: peopleTable.slug, name: peopleTable.name }).from(peopleTable).where(inArray(peopleTable.id, personIds))
-      : [],
-  ]);
-  const p = new Map(projects.map((r) => [r.id, r]));
-  const pe = new Map(people.map((r) => [r.id, r]));
-  const out = new Map<number, CalendarBrief>();
-  for (const e of events) {
-    const proj = e.projectId != null ? p.get(e.projectId) : undefined;
-    const person = e.personIds.length ? pe.get(e.personIds[0]) : undefined;
-    if (proj) out.set(e.id, { type: "project", slug: proj.slug, name: proj.name });
-    else if (person) out.set(e.id, { type: "person", slug: person.slug, name: person.name });
-  }
-  return out;
-}
-
 export async function getHome() {
   const now = new Date();
   const today = todayLondon(now);
@@ -148,7 +120,7 @@ export async function getHome() {
         .orderBy(asc(calendarEventsTable.startsAt)),
     ]);
 
-  const briefs = await briefsFor(todayEvents);
+  const [briefable, digestDate] = await Promise.all([briefableIds(todayEvents), todaysDigestDate(now)]);
   await ensureSelfPerson().catch(() => undefined);
   await ensureSeeds();
   const [candidates, waiting, promises, latestDone, access, knowledgeInbox] = await Promise.all([
@@ -185,9 +157,10 @@ export async function getHome() {
       endsAt: e.endsAt,
       personal: e.personal,
       location: e.location,
-      brief: briefs.get(e.id) ?? null,
+      hasBrief: briefable.has(e.id),
     })),
     access: { pending: access.pending, open: access.open },
     knowledgeInbox,
+    digestDate,
   };
 }

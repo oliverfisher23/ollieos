@@ -112,6 +112,7 @@ export const LogoutMobileSessionResponse = zod.object({
  * @summary Everything the Home screen needs in one call
  */
 export const GetHomeResponse = zod.object({
+  "digestDate": zod.string().nullable().describe('Today\'s date (YYYY-MM-DD) once today\'s digest exists, otherwise null'),
   "knowledgeInbox": zod.object({
   "suggested": zod.int(),
   "conflicts": zod.int(),
@@ -382,11 +383,7 @@ export const GetHomeResponse = zod.object({
   "endsAt": zod.coerce.date(),
   "personal": zod.boolean(),
   "location": zod.string().nullable(),
-  "brief": zod.union([zod.object({
-  "type": zod.enum(['project', 'person']),
-  "slug": zod.string(),
-  "name": zod.string()
-}),zod.null()]).describe('The project or person to read up on before this meeting (Brief me). Null when none is linked.')
+  "hasBrief": zod.boolean().describe('A work meeting with someone or something OllieOS knows about. "Brief me" opens /briefs/{id}.')
 })).describe('Today\'s calendar events, in start order. Empty until the sweep writes calendar data (milestone 5).'),
   "access": zod.object({
   "pending": zod.array(zod.object({
@@ -1861,6 +1858,470 @@ export const DraftCheckInResponse = zod.object({
   "title": zod.string(),
   "path": zod.string().describe('App path to open the thread')
 }))
+})
+
+
+/**
+ * @summary The brief for the next work meeting, today or tomorrow
+ */
+export const GetNextBriefResponse = zod.object({
+  "event": zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "location": zod.string().nullable(),
+  "platform": zod.string().nullable()
+}),
+  "generatedAt": zod.coerce.date(),
+  "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
+  "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),
+  "sourcesLine": zod.string().nullable().describe('e.g. "Built from 4 emails'),
+  "why": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "label": zod.string(),
+  "href": zod.string().nullable(),
+  "external": zod.boolean().describe('True for links outside OllieOS (an email')
+}))
+})).nullable(),
+  "questions": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "label": zod.string(),
+  "href": zod.string().nullable(),
+  "external": zod.boolean().describe('True for links outside OllieOS (an email')
+}))
+})).nullable(),
+  "questionsNote": zod.string().nullable(),
+  "attendees": zod.array(zod.object({
+  "name": zod.string(),
+  "email": zod.string().nullable(),
+  "response": zod.string().nullable().describe('accepted'),
+  "organiser": zod.boolean(),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "role": zod.string().nullable(),
+  "organisation": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "lastContactAt": zod.coerce.date().nullable()
+}),zod.null()]).describe('The matching person, or null for no previous contact')
+})),
+  "promises": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "source": zod.string().describe('Where the promise came from'),
+  "capturedAt": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
+  "personName": zod.string().nullable()
+})),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "confidential": zod.boolean()
+})),
+  "goals": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "url": zod.string(),
+  "location": zod.string()
+})),
+  "playbooks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "rule": zod.string()
+})),
+  "heldBack": zod.int().describe('Attendees'),
+  "notes": zod.string().nullable().describe('Ollie\'s notes for after the meeting'),
+  "granolaNotes": zod.string().nullable(),
+  "granolaRef": zod.string().nullable(),
+  "actions": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string()
+})).describe('Granola actions that went to the Inbox')
+})
+
+
+/**
+ * @summary A meeting brief, written on open when missing or more than 3 hours old
+ */
+export const GetBriefParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const GetBriefResponse = zod.object({
+  "event": zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "location": zod.string().nullable(),
+  "platform": zod.string().nullable()
+}),
+  "generatedAt": zod.coerce.date(),
+  "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
+  "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),
+  "sourcesLine": zod.string().nullable().describe('e.g. "Built from 4 emails'),
+  "why": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "label": zod.string(),
+  "href": zod.string().nullable(),
+  "external": zod.boolean().describe('True for links outside OllieOS (an email')
+}))
+})).nullable(),
+  "questions": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "label": zod.string(),
+  "href": zod.string().nullable(),
+  "external": zod.boolean().describe('True for links outside OllieOS (an email')
+}))
+})).nullable(),
+  "questionsNote": zod.string().nullable(),
+  "attendees": zod.array(zod.object({
+  "name": zod.string(),
+  "email": zod.string().nullable(),
+  "response": zod.string().nullable().describe('accepted'),
+  "organiser": zod.boolean(),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "role": zod.string().nullable(),
+  "organisation": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "lastContactAt": zod.coerce.date().nullable()
+}),zod.null()]).describe('The matching person, or null for no previous contact')
+})),
+  "promises": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "source": zod.string().describe('Where the promise came from'),
+  "capturedAt": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
+  "personName": zod.string().nullable()
+})),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "confidential": zod.boolean()
+})),
+  "goals": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "url": zod.string(),
+  "location": zod.string()
+})),
+  "playbooks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "rule": zod.string()
+})),
+  "heldBack": zod.int().describe('Attendees'),
+  "notes": zod.string().nullable().describe('Ollie\'s notes for after the meeting'),
+  "granolaNotes": zod.string().nullable(),
+  "granolaRef": zod.string().nullable(),
+  "actions": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string()
+})).describe('Granola actions that went to the Inbox')
+})
+
+
+/**
+ * @summary Ollie's notes for after the meeting
+ */
+export const UpdateBriefNotesParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const updateBriefNotesBodyNotesMax = 20000;
+
+
+
+export const UpdateBriefNotesBody = zod.object({
+  "notes": zod.string().max(updateBriefNotesBodyNotesMax).nullable()
+})
+
+export const updateBriefNotesResponseNotesMax = 20000;
+
+
+
+export const UpdateBriefNotesResponse = zod.object({
+  "notes": zod.string().max(updateBriefNotesResponseNotesMax).nullable()
+})
+
+
+/**
+ * @summary Write the brief again now
+ */
+export const RefreshBriefParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const RefreshBriefResponse = zod.object({
+  "event": zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "location": zod.string().nullable(),
+  "platform": zod.string().nullable()
+}),
+  "generatedAt": zod.coerce.date(),
+  "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
+  "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),
+  "sourcesLine": zod.string().nullable().describe('e.g. "Built from 4 emails'),
+  "why": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "label": zod.string(),
+  "href": zod.string().nullable(),
+  "external": zod.boolean().describe('True for links outside OllieOS (an email')
+}))
+})).nullable(),
+  "questions": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "label": zod.string(),
+  "href": zod.string().nullable(),
+  "external": zod.boolean().describe('True for links outside OllieOS (an email')
+}))
+})).nullable(),
+  "questionsNote": zod.string().nullable(),
+  "attendees": zod.array(zod.object({
+  "name": zod.string(),
+  "email": zod.string().nullable(),
+  "response": zod.string().nullable().describe('accepted'),
+  "organiser": zod.boolean(),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "role": zod.string().nullable(),
+  "organisation": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "lastContactAt": zod.coerce.date().nullable()
+}),zod.null()]).describe('The matching person, or null for no previous contact')
+})),
+  "promises": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "source": zod.string().describe('Where the promise came from'),
+  "capturedAt": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
+  "personName": zod.string().nullable()
+})),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "confidential": zod.boolean()
+})),
+  "goals": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "url": zod.string(),
+  "location": zod.string()
+})),
+  "playbooks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "rule": zod.string()
+})),
+  "heldBack": zod.int().describe('Attendees'),
+  "notes": zod.string().nullable().describe('Ollie\'s notes for after the meeting'),
+  "granolaNotes": zod.string().nullable(),
+  "granolaRef": zod.string().nullable(),
+  "actions": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string()
+})).describe('Granola actions that went to the Inbox')
+})
+
+
+/**
+ * @summary Open what was held back to Ask OllieOS for one hour and write the brief again
+ */
+export const AllowForBriefParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const AllowForBriefResponse = zod.object({
+  "event": zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "location": zod.string().nullable(),
+  "platform": zod.string().nullable()
+}),
+  "generatedAt": zod.coerce.date(),
+  "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
+  "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),
+  "sourcesLine": zod.string().nullable().describe('e.g. "Built from 4 emails'),
+  "why": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "label": zod.string(),
+  "href": zod.string().nullable(),
+  "external": zod.boolean().describe('True for links outside OllieOS (an email')
+}))
+})).nullable(),
+  "questions": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "label": zod.string(),
+  "href": zod.string().nullable(),
+  "external": zod.boolean().describe('True for links outside OllieOS (an email')
+}))
+})).nullable(),
+  "questionsNote": zod.string().nullable(),
+  "attendees": zod.array(zod.object({
+  "name": zod.string(),
+  "email": zod.string().nullable(),
+  "response": zod.string().nullable().describe('accepted'),
+  "organiser": zod.boolean(),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "role": zod.string().nullable(),
+  "organisation": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "lastContactAt": zod.coerce.date().nullable()
+}),zod.null()]).describe('The matching person, or null for no previous contact')
+})),
+  "promises": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "source": zod.string().describe('Where the promise came from'),
+  "capturedAt": zod.coerce.date(),
+  "dueDate": zod.coerce.date().nullable(),
+  "personName": zod.string().nullable()
+})),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "confidential": zod.boolean()
+})),
+  "goals": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "url": zod.string(),
+  "location": zod.string()
+})),
+  "playbooks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "rule": zod.string()
+})),
+  "heldBack": zod.int().describe('Attendees'),
+  "notes": zod.string().nullable().describe('Ollie\'s notes for after the meeting'),
+  "granolaNotes": zod.string().nullable(),
+  "granolaRef": zod.string().nullable(),
+  "actions": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string()
+})).describe('Granola actions that went to the Inbox')
+})
+
+
+/**
+ * @summary Digests from the last 30 days, newest first
+ */
+export const ListDigestsResponseItem = zod.object({
+  "date": zod.coerce.date(),
+  "summary": zod.string().nullable()
+})
+export const ListDigestsResponse = zod.array(ListDigestsResponseItem)
+
+
+/**
+ * @summary One day's digest
+ */
+export const GetDigestParams = zod.object({
+  "date": zod.coerce.string().describe('YYYY-MM-DD, or today')
+})
+
+export const GetDigestResponse = zod.object({
+  "date": zod.coerce.date(),
+  "windowStart": zod.coerce.date(),
+  "summary": zod.string().nullable().describe('One sentence. Null when the model could not write it.'),
+  "sections": zod.object({
+  "needs": zod.union([zod.object({
+  "items": zod.array(zod.object({
+  "text": zod.string(),
+  "href": zod.string().nullable(),
+  "refs": zod.array(zod.string()),
+  "confidential": zod.boolean().describe('Hidden from AI by default. Counted but never named in an email.')
+})),
+  "more": zod.int().describe('Items beyond the 5 shown'),
+  "moreHref": zod.string().nullable()
+}),zod.null()]),
+  "moved": zod.union([zod.object({
+  "items": zod.array(zod.object({
+  "text": zod.string(),
+  "href": zod.string().nullable(),
+  "refs": zod.array(zod.string()),
+  "confidential": zod.boolean().describe('Hidden from AI by default. Counted but never named in an email.')
+})),
+  "more": zod.int().describe('Items beyond the 5 shown'),
+  "moreHref": zod.string().nullable()
+}),zod.null()]),
+  "quiet": zod.union([zod.object({
+  "items": zod.array(zod.object({
+  "text": zod.string(),
+  "href": zod.string().nullable(),
+  "refs": zod.array(zod.string()),
+  "confidential": zod.boolean().describe('Hidden from AI by default. Counted but never named in an email.')
+})),
+  "more": zod.int().describe('Items beyond the 5 shown'),
+  "moreHref": zod.string().nullable()
+}),zod.null()]),
+  "today": zod.array(zod.object({
+  "eventId": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "hasBrief": zod.boolean()
+})),
+  "quietNight": zod.boolean()
+}),
+  "createdAt": zod.coerce.date()
 })
 
 

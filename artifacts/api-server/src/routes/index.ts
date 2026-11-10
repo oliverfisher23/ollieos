@@ -10,6 +10,7 @@ import askRouter from "./ask";
 import accessRouter from "./access";
 import goalsRouter from "./goals";
 import libraryRouter from "./library";
+import briefsRouter from "./briefs";
 import ingestRouter from "./ingest";
 import { oauthConsentRouter, oauthPublicRouter } from "../oauth/routes";
 import { requireOllie } from "../middlewares/requireOllie";
@@ -35,6 +36,7 @@ router.use(askRouter);
 router.use(accessRouter);
 router.use(goalsRouter);
 router.use(libraryRouter);
+router.use(briefsRouter);
 router.use(oauthConsentRouter);
 
 export default router;

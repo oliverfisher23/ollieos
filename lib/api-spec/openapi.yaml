@@ -26,6 +26,8 @@ tags:
     description: AI access requests, connected tools and the AI read log
   - name: direction
     description: Goals, relationship cadence, the document Library and playbooks
+  - name: preparation
+    description: Meeting briefs and the daily digest
 paths:
   /healthz:
     get:
@@ -761,6 +763,132 @@ paths:
         "404": { $ref: "#/components/responses/Error" }
         "409": { $ref: "#/components/responses/Error" }
         "502": { $ref: "#/components/responses/Error" }
+
+  /briefs/next:
+    get:
+      operationId: getNextBrief
+      tags: [preparation]
+      summary: The brief for the next work meeting, today or tomorrow
+      responses:
+        "200":
+          description: Brief
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BriefView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /briefs/{eventId}:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: getBrief
+      tags: [preparation]
+      summary: A meeting brief, written on open when missing or more than 3 hours old
+      responses:
+        "200":
+          description: Brief
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BriefView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      operationId: updateBriefNotes
+      tags: [preparation]
+      summary: Ollie's notes for after the meeting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BriefNotesInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BriefNotesInput" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /briefs/{eventId}/refresh:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: refreshBrief
+      tags: [preparation]
+      summary: Write the brief again now
+      responses:
+        "200":
+          description: Brief
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BriefView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /briefs/{eventId}/allow:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: allowForBrief
+      tags: [preparation]
+      summary: Open what was held back to Ask OllieOS for one hour and write the brief again
+      responses:
+        "200":
+          description: Brief
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BriefView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /digests:
+    get:
+      operationId: listDigests
+      tags: [preparation]
+      summary: Digests from the last 30 days, newest first
+      responses:
+        "200":
+          description: Dates and summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DigestListItem" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /digests/{date}:
+    parameters:
+      - name: date
+        in: path
+        required: true
+        description: YYYY-MM-DD, or today
+        schema: { type: string }
+    get:
+      operationId: getDigest
+      tags: [preparation]
+      summary: One day's digest
+      responses:
+        "200":
+          description: Digest
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Digest" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
 
   /goals:
     get:
@@ -2120,7 +2248,7 @@ components:
 
     CalendarEvent:
       type: object
-      required: [id, title, startsAt, endsAt, personal, location, brief]
+      required: [id, title, startsAt, endsAt, personal, location, hasBrief]
       properties:
         id:
           type: integer
@@ -2136,24 +2264,17 @@ components:
           type: boolean
         location:
           type: [string, "null"]
-        brief:
-          description: The project or person to read up on before this meeting (Brief me). Null when none is linked.
-          oneOf:
-            - $ref: "#/components/schemas/CalendarBrief"
-            - type: "null"
-
-    CalendarBrief:
-      type: object
-      required: [type, slug, name]
-      properties:
-        type: { type: string, enum: [project, person] }
-        slug: { type: string }
-        name: { type: string }
+        hasBrief:
+          type: boolean
+          description: A work meeting with someone or something OllieOS knows about. "Brief me" opens /briefs/{id}.
 
     HomeSummary:
       type: object
-      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access, knowledgeInbox]
+      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access, knowledgeInbox, digestDate]
       properties:
+        digestDate:
+          type: [string, "null"]
+          description: Today's date (YYYY-MM-DD) once today's digest exists, otherwise null
         knowledgeInbox:
           $ref: "#/components/schemas/KnowledgeInboxCounts"
         doNext:
@@ -2207,6 +2328,203 @@ components:
           properties:
             pending: { type: array, items: { $ref: "#/components/schemas/AccessRequest" } }
             open: { type: array, items: { $ref: "#/components/schemas/AccessRequest" } }
+
+    BriefSource:
+      type: object
+      required: [ref, label, href, external]
+      properties:
+        ref: { type: string }
+        label: { type: string }
+        href: { type: [string, "null"] }
+        external: { type: boolean, description: True for links outside OllieOS (an email, a document) }
+
+    BriefLine:
+      type: object
+      required: [text, sources]
+      properties:
+        text: { type: string }
+        sources: { type: array, items: { $ref: "#/components/schemas/BriefSource" } }
+
+    BriefAttendeePerson:
+      type: object
+      required: [id, slug, name, role, organisation, confidential, lastContactAt]
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        name: { type: string }
+        role: { type: [string, "null"] }
+        organisation: { type: [string, "null"] }
+        confidential: { type: boolean }
+        lastContactAt: { type: [string, "null"], format: date-time }
+
+    BriefAttendee:
+      type: object
+      required: [name, email, response, organiser, person]
+      properties:
+        name: { type: string }
+        email: { type: [string, "null"] }
+        response: { type: [string, "null"], description: accepted, declined, tentative or needs_action }
+        organiser: { type: boolean }
+        person:
+          description: The matching person, or null for no previous contact
+          oneOf:
+            - $ref: "#/components/schemas/BriefAttendeePerson"
+            - type: "null"
+
+    BriefPromise:
+      type: object
+      required: [id, title, source, capturedAt, dueDate, personName]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        source: { type: string, description: Where the promise came from, in words }
+        capturedAt: { type: string, format: date-time }
+        dueDate: { type: [string, "null"], format: date }
+        personName: { type: [string, "null"] }
+
+    BriefEvent:
+      type: object
+      required: [id, title, startsAt, endsAt, location, platform]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        location: { type: [string, "null"] }
+        platform: { type: [string, "null"] }
+
+    BriefView:
+      type: object
+      required: [event, generatedAt, failed, notMuch, sourcesLine, why, questions, questionsNote, attendees, promises, projects, goals, documents, playbooks, heldBack, notes, granolaNotes, granolaRef, actions]
+      properties:
+        event: { $ref: "#/components/schemas/BriefEvent" }
+        generatedAt: { type: string, format: date-time }
+        failed: { type: boolean, description: The model could not write the brief. Refresh to try again. }
+        notMuch: { type: boolean, description: Nothing citable on file. Show attendees and promises only. }
+        sourcesLine: { type: [string, "null"], description: e.g. "Built from 4 emails, 2 facts and 1 note" }
+        why:
+          type: [array, "null"]
+          items: { $ref: "#/components/schemas/BriefLine" }
+        questions:
+          type: [array, "null"]
+          items: { $ref: "#/components/schemas/BriefLine" }
+        questionsNote: { type: [string, "null"] }
+        attendees: { type: array, items: { $ref: "#/components/schemas/BriefAttendee" } }
+        promises: { type: array, items: { $ref: "#/components/schemas/BriefPromise" } }
+        projects:
+          type: array
+          items:
+            type: object
+            required: [id, slug, name, confidential]
+            properties:
+              id: { type: integer }
+              slug: { type: string }
+              name: { type: string }
+              confidential: { type: boolean }
+        goals:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: { type: integer }
+              name: { type: string }
+        documents:
+          type: array
+          items:
+            type: object
+            required: [id, title, url, location]
+            properties:
+              id: { type: integer }
+              title: { type: string }
+              url: { type: string }
+              location: { type: string }
+        playbooks:
+          type: array
+          items:
+            type: object
+            required: [id, title, rule]
+            properties:
+              id: { type: integer }
+              title: { type: string }
+              rule: { type: string }
+        heldBack: { type: integer, description: Attendees, projects or organisations hidden from Ask OllieOS and left out of the brief }
+        notes: { type: [string, "null"], description: Ollie's notes for after the meeting }
+        granolaNotes: { type: [string, "null"] }
+        granolaRef: { type: [string, "null"] }
+        actions:
+          type: array
+          description: Granola actions that went to the Inbox
+          items:
+            type: object
+            required: [id, title, status]
+            properties:
+              id: { type: integer }
+              title: { type: string }
+              status: { type: string }
+
+    BriefNotesInput:
+      type: object
+      required: [notes]
+      additionalProperties: false
+      properties:
+        notes: { type: [string, "null"], maxLength: 20000 }
+
+    DigestItem:
+      type: object
+      required: [text, href, refs, confidential]
+      properties:
+        text: { type: string }
+        href: { type: [string, "null"] }
+        refs: { type: array, items: { type: string } }
+        confidential: { type: boolean, description: Hidden from AI by default. Counted but never named in an email. }
+
+    DigestSection:
+      type: object
+      required: [items, more, moreHref]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/DigestItem" } }
+        more: { type: integer, description: Items beyond the 5 shown }
+        moreHref: { type: [string, "null"] }
+
+    DigestEvent:
+      type: object
+      required: [eventId, title, startsAt, hasBrief]
+      properties:
+        eventId: { type: integer }
+        title: { type: string }
+        startsAt: { type: string, format: date-time }
+        hasBrief: { type: boolean }
+
+    DigestSections:
+      type: object
+      required: [needs, moved, quiet, today, quietNight]
+      properties:
+        needs:
+          oneOf: [{ $ref: "#/components/schemas/DigestSection" }, { type: "null" }]
+        moved:
+          oneOf: [{ $ref: "#/components/schemas/DigestSection" }, { type: "null" }]
+        quiet:
+          oneOf: [{ $ref: "#/components/schemas/DigestSection" }, { type: "null" }]
+        today: { type: array, items: { $ref: "#/components/schemas/DigestEvent" } }
+        quietNight: { type: boolean }
+
+    Digest:
+      type: object
+      required: [date, windowStart, summary, sections, createdAt]
+      properties:
+        date: { type: string, format: date }
+        windowStart: { type: string, format: date-time }
+        summary: { type: [string, "null"], description: One sentence. Null when the model could not write it. }
+        sections: { $ref: "#/components/schemas/DigestSections" }
+        createdAt: { type: string, format: date-time }
+
+    DigestListItem:
+      type: object
+      required: [date, summary]
+      properties:
+        date: { type: string, format: date }
+        summary: { type: [string, "null"] }
 
     NoiseMatchType:
       type: string

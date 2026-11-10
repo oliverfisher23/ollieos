@@ -15,6 +15,11 @@ import type { Task } from './task';
 import type { WaitingItem } from './waitingItem';
 
 export interface HomeSummary {
+  /**
+     * Today's date (YYYY-MM-DD) once today's digest exists, otherwise null
+     * @nullable
+     */
+  digestDate: string | null;
   knowledgeInbox: KnowledgeInboxCounts;
   /** Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped. */
   doNext: DoNextItem[];
