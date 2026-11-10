@@ -1066,7 +1066,7 @@ Ollie chose these from a list of improvements. Agreed with Ollie on 10th Novembe
 | I | Repeating tasks, checklists in a task, Archive and the Backlog clear-out, plan my day | Medium to large |
 | J | Email in three tabs (To answer, Drafts from a brief, Waiting for a reply), drafts in your writing style, thread summaries, attachments into the Library | Large |
 | K | "Next time I see…" points, follow-up draft after a meeting, prep reminder | Medium |
-| L | Search all of Drive from the Library; playbooks learned from your edits, checking a draft, where each playbook was used, playbooks that make tasks | Medium to large |
+| L | Search all of Drive from the Library; rules learned from your edits, checking a draft, where each rule was used, Run this playbook (renamed by Part M, section 15) | Medium to large |
 
 ### Part I: Tasks
 
@@ -1109,3 +1109,41 @@ Ollie chose these from a list of improvements. Agreed with Ollie on 10th Novembe
 - **Where each playbook was used.** Each playbook shows how often it was used and when last, across drafts, briefs, Ask and Claude, with the last 10 uses linked. Playbooks not used in 90 days are marked so they can be paused or deleted.
 - **Playbooks that make tasks.** A playbook can hold a list of steps, each with an optional "days after starting" and Now or Backlog. "Run this playbook" on a person, organisation or project page (or on the playbook) makes the tasks, linked to that item, with their dates. Ollie chooses separate tasks or one task with a checklist (Part I).
 - **Checked by:** a Drive search finds a file not in the Library and adds it; the same edit made three times produces one proposed rule with its examples; a draft breaking a rule is flagged and fixed; using a playbook in a draft shows on its usage; running a playbook on a project makes its tasks with the right dates.
+
+## 15. Rules, playbooks and products (asked for 10th November 2026)
+
+Ollie asked where information about products and processes lives. Today neither has a home: product information sits only in Library documents, the Knowledge Inbox can only attach facts to a person, project or organisation, and processes turn up as decisions or notes with the steps lost. The current "playbooks" are one-line "always or never" instructions, so they are really rules. Agreed with Ollie on 10th November 2026: today's playbooks become **Rules**, **Playbooks** become processes, and **Products** get their own section. One part, its own sign-off, built next (before Part K), since Part L builds on rules and playbooks.
+
+| Part | Features | Size |
+|---|---|---|
+| M | Playbooks renamed Rules; Playbooks as processes with steps; Products section with facts, rules, documents and projects | Large |
+
+### Part M: Rules, playbooks and products
+
+- **Rules (today's playbooks, renamed).**
+  - Works exactly as now: a title, when it applies, the rule (400 characters at most), on or off, and links to the projects, people and organisations it is for (and now products). No links means it applies everywhere. Every draft, brief, Ask answer and connected AI follows the rules that apply.
+  - Renamed everywhere: the Library tab, project pages, "Rule watch-outs" on briefs, Knowledge Inbox cards, AI access settings. The six existing rules are kept as they are, with their links and on or off setting, in development and production.
+  - Claude: a new tool `get_rules`. `get_playbooks` keeps answering with the same rules for now, so connected AIs that still use it do not break. The Cowork instructions change, so the block needs pasting into Cowork again.
+  - The document and session reader, the sweep and Claude propose "Rule" cards as now.
+- **Playbooks (new meaning: how something is done).**
+  - Each playbook has a title, when to use it (for example "A new university partner signs"), what it is for in one line, an owner (a person), and steps in order. Each step has its text, an optional person who does it, and an optional "days after starting". It also has free notes, links to projects, organisations, products and documents, a state (Draft, In use, Retired) and when it was last checked.
+  - Where: Library gets three tabs: Documents, Rules, Playbooks. Each playbook has its own page (`/knowledge/playbooks/:id`) with steps added, edited, reordered and removed in place, and shows on the pages of what it links to.
+  - From AI: the document and session reader, the sweep and Claude (new write tool `propose_playbook`) can propose a new playbook, or a change to an existing one (a step added or changed, a new owner). Each proposal goes to the Knowledge Inbox as a "Playbook" card with where it came from, showing the change against the current steps. Nothing changes without approval.
+  - For AI: playbooks that are In use are in `search`, `fetch` and Ask, and a new read tool `get_playbook` returns one in full. Meeting briefs list In use playbooks linked to the meeting's projects and organisations. Usual AI access and confidential switches.
+- **Products (new section in Knowledge).**
+  - Knowledge, Products (`/knowledge/products`), next to Projects, People and Organisations. Ollie adds products himself; it starts empty, with no examples.
+  - Each product page has: name, a one-line description, state (Live, Pilot, In development, Retired), owner, and a summary edited in place. It also lists:
+    - Facts, with the same "still true?" checks as other facts.
+    - Rules linked to it, shown as "What to say and not say", with Add a rule from the page.
+    - Linked documents, projects, organisations (for example the customers using it), playbooks and decisions.
+    - Relationships, and "See on map".
+  - Knowledge Inbox: facts can be about a product, and AI can propose a product it finds that OllieOS does not know yet, as a "Product" card. The reader, the sweep and Claude only attach facts to products that already exist or are proposed in the same read.
+  - For AI: products are in `search`, `fetch`, `explore` and Ask, and are points on the knowledge map. A meeting brief includes products linked to the meeting's projects and organisations, with their rules. Each product has AI access and confidential switches; a hidden product hides its facts.
+- **Not included:** pricing tables or product versions; turning existing decisions or notes into playbooks automatically (only new reads propose them, or Ollie can use "Read again" on a document); making tasks from a playbook's steps (stays in Part L as "Run this playbook").
+- **Changes to Part L:** "Playbooks learned from your edits", "Check a draft against my playbooks" and "Where each playbook was used" become rules learned from edits, checking a draft against your rules, and where each rule was used. "Playbooks that make tasks" becomes "Run this playbook", using the playbook's steps and their "days after starting".
+- **Checked by:**
+  - The six existing rules show under Rules unchanged and still shape a draft; `get_playbooks` and `get_rules` both return them.
+  - A playbook with five steps is added, reordered and linked to a project, and shows on that project's page.
+  - A document describing a process produces a "Playbook" card; approving it creates the playbook with its source.
+  - A product with two facts and a linked rule shows them on its page, and a brief for a meeting with a linked organisation includes the product and its rule.
+  - A confidential product, and its facts, never reach Claude.
