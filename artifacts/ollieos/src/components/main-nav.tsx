@@ -46,16 +46,19 @@ export function MainNav({ children }: { children: ReactNode }) {
             <Logo size={32} radius={10} font={13} />
           </Link>
           {RAIL.map(({ href, label, Icon }) => (
-            <Link key={href} href={href} aria-label={label} title={label} aria-current={cur(href)} data-testid={'link-rail-' + label.toLowerCase()}>
+            <Link key={href} href={href} aria-label={label} aria-current={cur(href)} data-testid={'link-rail-' + label.toLowerCase()}>
               <Icon />
+              <RailTip label={label} />
             </Link>
           ))}
           <div aria-hidden="true" className="oo-rail-sep" />
-          <Link href="/settings" aria-label="Settings" title="Settings" aria-current={cur('/settings')} data-testid="link-rail-settings">
+          <Link href="/settings" aria-label="Settings" aria-current={cur('/settings')} data-testid="link-rail-settings">
             <IconSettings />
+            <RailTip label="Settings" />
           </Link>
-          <button type="button" aria-label="Log out" title="Log out" onClick={logout} data-testid="button-logout">
+          <button type="button" aria-label="Log out" onClick={logout} data-testid="button-logout">
             <IconLogout />
+            <RailTip label="Log out" />
           </button>
         </nav>
         <div className="flex-1 min-w-0">{children}</div>
@@ -74,6 +77,11 @@ export function MainNav({ children }: { children: ReactNode }) {
       {sheet && <AddSheet onClose={() => setSheet(false)} />}
     </>
   );
+}
+
+/** The page name beside a rail icon, shown on hover and keyboard focus. */
+function RailTip({ label }: { label: string }) {
+  return <span aria-hidden="true" className="oo-rail-tip">{label}</span>;
 }
 
 function AddSheet({ onClose }: { onClose: () => void }) {

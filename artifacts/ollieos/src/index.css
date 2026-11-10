@@ -334,6 +334,10 @@ body { font-family: var(--oo-font-sans); margin: 0; overflow-x: hidden; }
 .oo-rail a[data-testid="link-rail-logo"]:hover { background: none; }
 .oo-light .oo-rail { background: var(--oo-ink); border-color: transparent; }
 .oo-rail a[aria-current="page"] { background: var(--oo-panel); color: var(--oo-ink); }
+.oo-rail a, .oo-rail button { position: relative; }
+.oo-rail-tip { position: absolute; left: calc(100% + 12px); top: 50%; transform: translate(-4px, -50%); padding: 6px 10px; border-radius: var(--oo-r-pill); background: var(--oo-ink); color: var(--oo-text-on-dark); border: 1px solid var(--oo-white-20); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 120ms ease, transform 120ms ease; z-index: 20; }
+.oo-rail a:hover .oo-rail-tip, .oo-rail button:hover .oo-rail-tip, .oo-rail a:focus-visible .oo-rail-tip, .oo-rail button:focus-visible .oo-rail-tip { opacity: 1; transform: translate(0, -50%); }
+@media (prefers-reduced-motion: reduce) { .oo-rail-tip { transition: none; } }
 .oo-rail-sep { width: 24px; height: 1px; background: var(--oo-white-20); margin: 6px 0; }
 
 /* Bottom bar */
