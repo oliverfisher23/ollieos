@@ -20,12 +20,27 @@ const connectors = () => (client ??= new ReplitConnectors());
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Services that can also be reached with a key saved in Replit Secrets, for when the Replit
+ * connector cannot be set up. The key wins when it is present.
+ */
+const DIRECT_KEYS: Record<string, { env: string; base: string }> = {
+  granola: { env: "GRANOLA_API_KEY", base: "https://public-api.granola.ai" },
+};
+
+function send(connector: string, path: string): Promise<Response> {
+  const direct = DIRECT_KEYS[connector];
+  const key = direct ? process.env[direct.env]?.trim() : undefined;
+  if (direct && key) return fetch(direct.base + path, { headers: { Authorization: `Bearer ${key}`, Accept: "application/json" } });
+  return connectors().proxy(connector, path, { method: "GET" });
+}
+
 /** GET through the connector, retrying one 429 and turning access problems into ConnectorErrors. */
 async function call(connector: string, name: string, path: string): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     let res: Response;
     try {
-      res = await connectors().proxy(connector, path, { method: "GET" });
+      res = await send(connector, path);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (/no .*connection/i.test(msg)) throw new ConnectorError(`${name} is not connected to OllieOS.`, true);
@@ -36,7 +51,11 @@ async function call(connector: string, name: string, path: string): Promise<Resp
       await sleep(wait * 1000);
       continue;
     }
-    if (res.status === 401) throw new ConnectorError(`${name} refused access. Reconnect it in Replit.`, true);
+    if (res.status === 401) {
+      const direct = DIRECT_KEYS[connector];
+      if (direct && process.env[direct.env]?.trim()) throw new ConnectorError(`${name} refused the API key. Replace ${direct.env} in Replit Secrets.`, true);
+      throw new ConnectorError(`${name} refused access. Reconnect it in Replit.`, true);
+    }
     // The proxy answers 404 when the connection itself is missing, which is not about one item.
     if (res.status === 404 && /no \S+ connection found/i.test(await res.clone().text().catch(() => ""))) {
       throw new ConnectorError(`${name} is not connected to OllieOS. Connect it in Replit under Integrations.`, true);
