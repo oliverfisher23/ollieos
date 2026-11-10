@@ -1,10 +1,10 @@
 /**
  * First-run content for milestone 7 (build plan questions 36 and 45): the three goals named in
- * feature 04, with blank statements and targets, and the six seed playbooks with the Library
+ * feature 04, with blank statements and targets, and the six seed rules with the Library
  * screen's wording. Created once; a flag in app_settings stops deleted or renamed rows coming back.
  */
 import { eq, sql } from "drizzle-orm";
-import { appSettingsTable, db, goalsTable, playbooksTable } from "@workspace/db";
+import { appSettingsTable, db, goalsTable, rulesTable } from "@workspace/db";
 import { writeAudit } from "../lib/audit";
 
 const FLAG = "seeded_direction";
@@ -15,7 +15,7 @@ export const SEED_GOALS = [
   { name: "Product and market expansion", confidential: false },
 ] as const;
 
-export const SEED_PLAYBOOKS = [
+export const SEED_RULES = [
   {
     title: "Writing style",
     appliesWhen: "Any text written for me or as me",
@@ -50,7 +50,7 @@ export const SEED_PLAYBOOKS = [
 
 let seeded = false;
 
-/** Creates the seed goals and playbooks the first time it runs against a database. */
+/** Creates the seed goals and rules the first time it runs against a database. */
 export async function ensureSeeds(): Promise<void> {
   if (seeded) return;
   await db.transaction(async (tx) => {
@@ -65,10 +65,10 @@ export async function ensureSeeds(): Promise<void> {
       .insert(goalsTable)
       .values(SEED_GOALS.map((g, i) => ({ name: g.name, confidential: g.confidential, sortOrder: i + 1 })))
       .returning({ id: goalsTable.id, name: goalsTable.name });
-    const playbooks = await tx
-      .insert(playbooksTable)
-      .values(SEED_PLAYBOOKS.map((p) => ({ ...p, createdBy: "ollie" })))
-      .returning({ id: playbooksTable.id, title: playbooksTable.title });
+    const rules = await tx
+      .insert(rulesTable)
+      .values(SEED_RULES.map((p) => ({ ...p, createdBy: "ollie" })))
+      .returning({ id: rulesTable.id, title: rulesTable.title });
     // Last contact from the timeline logged before cadence existed: the latest email, meeting or
     // Slack touchpoint against each person, directly or through links.
     const backfill = await tx.execute(sql`
@@ -87,7 +87,7 @@ export async function ensureSeeds(): Promise<void> {
     await writeAudit(tx, {
       actor: "ollie",
       action: "seed",
-      payload: { goals: goals.map((g) => g.id), playbooks: playbooks.map((p) => p.id), lastContactBackfilled: backfill.rowCount ?? 0 },
+      payload: { goals: goals.map((g) => g.id), rules: rules.map((p) => p.id), lastContactBackfilled: backfill.rowCount ?? 0 },
     });
   });
   seeded = true;

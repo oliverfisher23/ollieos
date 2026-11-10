@@ -38,7 +38,7 @@ import {
 } from "./visibility";
 import { recordReads, sanitiseRefs, type AiScope } from "./scope";
 import { searchItems, type SearchType } from "./search";
-import { cadenceForAi, documentsForAi, goalForProject, playbookContextFor, playbooksFor, type DocumentOut, type PlaybookOut } from "./direction";
+import { cadenceForAi, documentsForAi, goalForProject, ruleContextFor, rulesFor, type DocumentOut, type RuleOut } from "./direction";
 
 export type PickType = "project" | "person" | "organisation";
 export const PICK_TYPES: readonly PickType[] = ["project", "person", "organisation"];
@@ -347,7 +347,7 @@ export interface ContextOut {
   /** Projects only: documents in the Library for it */
   documents?: DocumentOut[];
   /** Rules Ollie wants followed when drafting anything about this item */
-  playbooks: PlaybookOut[];
+  rules: RuleOut[];
 }
 
 /** Ids of `other` linked to an item, either way round. */
@@ -490,10 +490,10 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
     ).map((o) => [o.id, o.name]),
   );
 
-  const playbookContext = await playbookContextFor(type, id);
-  const [documents, playbooks] = await Promise.all([
+  const ruleContext = await ruleContextFor(type, id);
+  const [documents, rules] = await Promise.all([
     type === "project" ? documentsForAi(scope, { projectId: id, limit: 50, via }) : Promise.resolve(undefined),
-    playbooksFor(scope, playbookContext),
+    rulesFor(scope, ruleContext),
   ]);
 
   const tasks = await toTaskOuts(scope, taskRows);
@@ -531,7 +531,7 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
     })),
     sessions: sessionRows.map((s) => ({ ref: toRef("session", s.id), title: s.title, summary: s.summary, outcomes: s.outcomes, happened_at: s.happenedAt.toISOString() })),
     ...(documents ? { documents } : {}),
-    playbooks,
+    rules,
   };
 
   // Second check: drop anything that is not visible, in case a join above is ever wrong.
@@ -549,7 +549,7 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
   out.recent_activity = keep(out.recent_activity);
   out.sessions = keep(out.sessions);
   if (out.documents) out.documents = keep(out.documents);
-  out.playbooks = keep(out.playbooks);
+  out.rules = keep(out.rules);
   if (out.entity.organisation && !ok.has(out.entity.organisation.ref)) out.entity.organisation = null;
 
   await recordReads(scope, contextRefs(out), { via });
@@ -571,7 +571,7 @@ function contextRefs(c: ContextOut): string[] {
     ...c.recent_activity.map((x) => x.ref),
     ...c.sessions.map((x) => x.ref),
     ...(c.documents ?? []).map((x) => x.ref),
-    ...c.playbooks.map((x) => x.ref),
+    ...c.rules.map((x) => x.ref),
   ];
 }
 

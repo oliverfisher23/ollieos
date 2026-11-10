@@ -16,6 +16,8 @@ import {
   organisationsTable,
   peopleTable,
   playbooksTable,
+  productsTable,
+  rulesTable,
   projectsTable,
   tasksTable,
   type BriefLine,
@@ -25,7 +27,7 @@ import {
 } from "@workspace/db";
 import { CADENCE_LABELS, OPEN_STATUSES, SOURCE_LABELS, addDays, formatLong, formatTime, londonRange, parseRef, todayLondon, toRef } from "@workspace/shared";
 import { getContext, visibleCalendarRows, wholeWord, type ContextOut } from "../lib/ai-data/context";
-import { applicablePlaybookRefs, loadVisibleDocs } from "../lib/ai-data/retrieve";
+import { applicableRuleRefs, loadVisibleDocs } from "../lib/ai-data/retrieve";
 import { askClient, defaultScope, recordReads, visibleRefs, type AiScope } from "../lib/ai-data/scope";
 import { writeAudit } from "../lib/audit";
 import { logger } from "../lib/logger";
@@ -37,6 +39,7 @@ import { projectsForPeople, stateFor } from "./cadence";
 import { loadScopeContext, scopeOf, type MeetingScope, type ScopeContext } from "./meetingScope";
 import { researchViews, type ResearchView } from "./research";
 import { ConflictError, NotFoundError } from "./tasks";
+import { linkMap } from "./library";
 
 export const BRIEF_MAX_AGE_MS = 3 * 60 * 60 * 1000;
 /** Part of the inputs hash: bump when the brief gains a section, so existing briefs are written again. */
@@ -156,6 +159,10 @@ interface BriefInputs {
   goalIds: number[];
   promiseIds: number[];
   documentIds: number[];
+  ruleIds: number[];
+  /** Products linked to the meeting's projects and organisations, not retired (Part M) */
+  productIds: number[];
+  /** In use playbooks linked to the meeting's projects and organisations (Part M) */
   playbookIds: number[];
 }
 
@@ -173,7 +180,8 @@ async function gatherInputs(event: CalendarEvent, m?: Matchers): Promise<BriefIn
   }
   projectIds.splice(MAX_PROJECTS);
 
-  const [goals, promises, documents, playbooks] = await Promise.all([
+  const [products, playbooks] = await Promise.all([linkedProducts(projectIds, match.orgIds), linkedPlaybooks(projectIds, match.orgIds)]);
+  const [goals, promises, documents, rules] = await Promise.all([
     projectIds.length
       ? db.select({ goalId: projectsTable.goalId }).from(projectsTable).where(inArray(projectsTable.id, projectIds))
       : [],
@@ -192,7 +200,7 @@ async function gatherInputs(event: CalendarEvent, m?: Matchers): Promise<BriefIn
             or (l.to_type = 'document' and l.to_id = d.id and l.from_type = 'project' and l.from_id in (${sql.join(projectIds.map((x) => sql`${x}`), sql`, `)})))
           order by d.last_confirmed_at desc limit 6`)
       : null,
-    linkedPlaybooks(projectIds, match.orgIds),
+    linkedRules(projectIds, match.orgIds, products),
   ]);
   return {
     event,
@@ -201,19 +209,47 @@ async function gatherInputs(event: CalendarEvent, m?: Matchers): Promise<BriefIn
     goalIds: [...new Set(goals.map((g) => g.goalId).filter((x): x is number => x != null))],
     promiseIds: promises.map((p) => p.id),
     documentIds: documents ? (documents.rows as { id: number }[]).map((r) => Number(r.id)) : [],
+    ruleIds: rules,
+    productIds: products,
     playbookIds: playbooks,
   };
 }
 
-/** Enabled playbooks linked to any of the projects or organisations: the brief's watch-outs. */
+const idList = (xs: number[]) => (xs.length ? sql.join(xs.map((x) => sql`${x}`), sql`, `) : sql`null`);
+
+/** Ids of `type` items linked either way to any of the projects or organisations. */
+function linkedTo(type: string, alias: string, projectIds: number[], orgIds: number[]) {
+  const list = idList;
+  return sql`exists (select 1 from links l where
+      (l.from_type = ${type} and l.from_id = ${sql.raw(alias)}.id and ((l.to_type = 'project' and l.to_id in (${list(projectIds)})) or (l.to_type = 'organisation' and l.to_id in (${list(orgIds)}))))
+      or (l.to_type = ${type} and l.to_id = ${sql.raw(alias)}.id and ((l.from_type = 'project' and l.from_id in (${list(projectIds)})) or (l.from_type = 'organisation' and l.from_id in (${list(orgIds)})))))`;
+}
+
+/**
+ * Enabled rules linked to any of the projects or organisations, or to products linked to them:
+ * the brief's watch-outs.
+ */
+async function linkedRules(projectIds: number[], orgIds: number[], productIds: number[] = []): Promise<number[]> {
+  if (!projectIds.length && !orgIds.length) return [];
+  const res = await db.execute(sql`
+    select pb.id from rules pb where pb.enabled and (${linkedTo("rule", "pb", projectIds, orgIds)}
+      or exists (select 1 from links l where (l.from_type = 'rule' and l.from_id = pb.id and l.to_type = 'product' and l.to_id in (${idList(productIds)}))
+                                          or (l.to_type = 'rule' and l.to_id = pb.id and l.from_type = 'product' and l.from_id in (${idList(productIds)}))))
+    order by pb.id`);
+  return (res.rows as { id: number }[]).map((r) => Number(r.id));
+}
+
+async function linkedProducts(projectIds: number[], orgIds: number[]): Promise<number[]> {
+  if (!projectIds.length && !orgIds.length) return [];
+  const res = await db.execute(sql`
+    select pr.id from products pr where pr.state <> 'retired' and ${linkedTo("product", "pr", projectIds, orgIds)} order by pr.name`);
+  return (res.rows as { id: number }[]).map((r) => Number(r.id));
+}
+
 async function linkedPlaybooks(projectIds: number[], orgIds: number[]): Promise<number[]> {
   if (!projectIds.length && !orgIds.length) return [];
-  const list = (xs: number[]) => (xs.length ? sql.join(xs.map((x) => sql`${x}`), sql`, `) : sql`null`);
   const res = await db.execute(sql`
-    select pb.id from playbooks pb where pb.enabled and exists (select 1 from links l where
-      (l.from_type = 'playbook' and l.from_id = pb.id and ((l.to_type = 'project' and l.to_id in (${list(projectIds)})) or (l.to_type = 'organisation' and l.to_id in (${list(orgIds)}))))
-      or (l.to_type = 'playbook' and l.to_id = pb.id and ((l.from_type = 'project' and l.from_id in (${list(projectIds)})) or (l.from_type = 'organisation' and l.from_id in (${list(orgIds)})))))
-    order by pb.id`);
+    select pp.id from process_playbooks pp where pp.state = 'in_use' and ${linkedTo("playbook", "pp", projectIds, orgIds)} order by pp.title`);
   return (res.rows as { id: number }[]).map((r) => Number(r.id));
 }
 
@@ -255,11 +291,12 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
     ...match.personIds.slice(0, MAX_PEOPLE).map((id) => toRef("person", id)),
     ...inputs.projectIds.map((id) => toRef("project", id)),
     ...match.orgIds.map((id) => toRef("organisation", id)),
+    ...inputs.productIds.map((id) => toRef("product", id)),
   ];
   const visible = await visibleRefs(scope, entityRefs);
   const heldBack = entityRefs.filter((r) => !visible.has(r));
 
-  // Feature 03 rule 3: get_context for each attendee and linked project, plus promises and playbooks.
+  // Feature 03 rule 3: get_context for each attendee and linked project, plus promises and rules.
   const refs: string[] = [];
   for (const r of entityRefs.filter((x) => visible.has(x) && !x.startsWith("organisation:"))) {
     const ctx = await getContext(scope, { ref: r }, "meeting_brief");
@@ -267,9 +304,11 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
   }
   refs.push(...match.orgIds.map((id) => toRef("organisation", id)).filter((r) => visible.has(r)));
   refs.push(...inputs.promiseIds.map((id) => toRef("task", id)));
+  refs.push(...inputs.productIds.map((id) => toRef("product", id)).filter((r) => visible.has(r)));
+  refs.push(...inputs.playbookIds.map((id) => toRef("playbook", id)));
   const items = await loadVisibleDocs(scope, [...new Set(refs)]);
-  const playbooks = await loadVisibleDocs(scope, await applicablePlaybookRefs(scope, entityRefs.filter((r) => visible.has(r))));
-  await recordReads(scope, [...items, ...playbooks].map((d) => d.ref), { via: "meeting_brief", event: event.id });
+  const rules = await loadVisibleDocs(scope, await applicableRuleRefs(scope, entityRefs.filter((r) => visible.has(r))));
+  await recordReads(scope, [...items, ...rules].map((d) => d.ref), { via: "meeting_brief", event: event.id });
 
   const meeting = {
     title: event.title,
@@ -283,7 +322,7 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
   if (hiddenNames.some((re) => re.test(meeting.title))) meeting.title = "(a meeting about something hidden from AI)";
 
   const hash = createHash("sha256")
-    .update(JSON.stringify({ v: BRIEF_VERSION, meeting, docs: [...playbooks, ...items].map((d) => d.text) }))
+    .update(JSON.stringify({ v: BRIEF_VERSION, meeting, docs: [...rules, ...items].map((d) => d.text) }))
     .digest("hex");
   const now = new Date();
   if (existing && !existing.failed && existing.inputsHash === hash && !opts.force) {
@@ -292,7 +331,7 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
   }
 
   // Facts, emails and notes, not just the names of the people and projects.
-  const substance = items.filter((d) => !["person", "project", "organisation"].includes(d.type));
+  const substance = items.filter((d) => !["person", "project", "organisation", "product", "playbook"].includes(d.type));
   let why: BriefLine[] | null = null;
   let questions: BriefLine[] | null = null;
   let agenda: BriefLine[] | null = null;
@@ -301,7 +340,7 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
   let model: string | null = null;
   if (substance.length) {
     try {
-      const out = await writeBriefFromDocs(meeting, [...playbooks, ...items]);
+      const out = await writeBriefFromDocs(meeting, [...rules, ...items]);
       const allowed = new Set(items.map((d) => d.ref));
       const w = keepCited(out.why, allowed, true, 4);
       // Feature 03 rule 5: nothing citable means "Not much on file", never padding.
@@ -320,7 +359,7 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
   }
 
   const citedIds = [...new Set([...(why ?? []), ...(agenda ?? []), ...(questions ?? [])].flatMap((l) => l.cited))];
-  const inputRefs = [...items, ...playbooks].map((d) => d.ref);
+  const inputRefs = [...items, ...rules].map((d) => d.ref);
   const plain = await visibleRefs(defaultScope(), inputRefs);
   const values = {
     calendarEventId: event.id,
@@ -334,6 +373,8 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
     goalIds: inputs.goalIds,
     promiseIds: inputs.promiseIds,
     documentIds: inputs.documentIds,
+    ruleIds: inputs.ruleIds,
+    productIds: inputs.productIds,
     playbookIds: inputs.playbookIds,
     citedIds,
     inputRefs,
@@ -504,7 +545,11 @@ export interface BriefView {
   projects: { id: number; slug: string; name: string; confidential: boolean }[];
   goals: { id: number; name: string }[];
   documents: { id: number; title: string; url: string | null; location: string }[];
-  playbooks: { id: number; title: string; rule: string }[];
+  rules: { id: number; title: string; rule: string }[];
+  /** Products linked to the meeting's projects and organisations, with the rules linked to each (Part M) */
+  products: { id: number; slug: string; name: string; description: string | null; state: string; confidential: boolean; ruleIds: number[] }[];
+  /** In use playbooks linked to the meeting's projects and organisations (Part M) */
+  playbooks: { id: number; title: string; whenToUse: string; steps: number }[];
   heldBack: number;
   notes: string | null;
   granolaNotes: string | null;
@@ -569,8 +614,8 @@ async function sourcesFor(refs: string[]): Promise<Map<string, BriefSource>> {
       ? db.select({ id: documentsTable.id, title: documentsTable.title, url: documentsTable.url }).from(documentsTable).where(inArray(documentsTable.id, ids("document")))
       : none<{ id: number; title: string; url: string | null }>(),
     ids("goal").length ? db.select({ id: goalsTable.id, name: goalsTable.name }).from(goalsTable).where(inArray(goalsTable.id, ids("goal"))) : none<{ id: number; name: string }>(),
-    ids("playbook").length
-      ? db.select({ id: playbooksTable.id, title: playbooksTable.title }).from(playbooksTable).where(inArray(playbooksTable.id, ids("playbook")))
+    ids("rule").length
+      ? db.select({ id: rulesTable.id, title: rulesTable.title }).from(rulesTable).where(inArray(rulesTable.id, ids("rule")))
       : none<{ id: number; title: string }>(),
   ]);
 
@@ -592,7 +637,7 @@ async function sourcesFor(refs: string[]): Promise<Map<string, BriefSource>> {
     } else if (p.type === "goal") {
       const g = goals.find((x) => x.id === pid);
       if (g) out.set(r, { ref: r, label: g.name, href: "/goals", external: false });
-    } else if (p.type === "playbook") {
+    } else if (p.type === "rule") {
       const b = books.find((x) => x.id === pid);
       if (b) out.set(r, { ref: r, label: b.title, href: "/knowledge/library", external: false });
     } else if (l) {
@@ -615,6 +660,30 @@ const THREAD_DAYS = 60;
 
 async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefInputs): Promise<BriefView> {
   const people = inputs.match.personIds;
+  const [productRows, playbookRows, productRules] = await Promise.all([
+    inputs.productIds.length
+      ? db
+          .select({
+            id: productsTable.id,
+            slug: productsTable.slug,
+            name: productsTable.name,
+            description: productsTable.description,
+            state: productsTable.state,
+            confidential: productsTable.confidential,
+            aiAccess: productsTable.aiAccess,
+          })
+          .from(productsTable)
+          .where(inArray(productsTable.id, inputs.productIds))
+      : [],
+    inputs.playbookIds.length
+      ? db.select({ id: playbooksTable.id, title: playbooksTable.title, whenToUse: playbooksTable.whenToUse, steps: playbooksTable.steps }).from(playbooksTable).where(inArray(playbooksTable.id, inputs.playbookIds))
+      : [],
+    linkMap("rule", inputs.ruleIds, "product"),
+  ]);
+  const rulesByProduct = new Map<number, number[]>();
+  for (const [ruleId, productIds] of productRules) {
+    for (const p of productIds) rulesByProduct.set(p, [...(rulesByProduct.get(p) ?? []), ruleId]);
+  }
   const [personRows, promiseRows, projectRows, goalRows, docRows, bookRows, actionRows, extra] = await Promise.all([
     people.length
       ? db
@@ -648,8 +717,8 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
     inputs.documentIds.length
       ? db.select({ id: documentsTable.id, title: documentsTable.title, url: documentsTable.url, location: documentsTable.location }).from(documentsTable).where(inArray(documentsTable.id, inputs.documentIds))
       : [],
-    inputs.playbookIds.length
-      ? db.select({ id: playbooksTable.id, title: playbooksTable.title, rule: playbooksTable.rule }).from(playbooksTable).where(inArray(playbooksTable.id, inputs.playbookIds))
+    inputs.ruleIds.length
+      ? db.select({ id: rulesTable.id, title: rulesTable.title, rule: rulesTable.rule }).from(rulesTable).where(inArray(rulesTable.id, inputs.ruleIds))
       : [],
     brief.actionTaskIds.length
       ? db.select({ id: tasksTable.id, title: tasksTable.title, status: tasksTable.status }).from(tasksTable).where(inArray(tasksTable.id, brief.actionTaskIds)).orderBy(asc(tasksTable.id))
@@ -720,7 +789,11 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
     projects: projectRows.sort(order(inputs.projectIds)),
     goals: goalRows,
     documents: docRows,
-    playbooks: bookRows,
+    rules: bookRows,
+    products: productRows
+      .sort(order(inputs.productIds))
+      .map(({ aiAccess, ...p }) => ({ ...p, confidential: p.confidential || !aiAccess, ruleIds: (rulesByProduct.get(p.id) ?? []).sort((a, b) => a - b) })),
+    playbooks: playbookRows.sort(order(inputs.playbookIds)).map((p) => ({ id: p.id, title: p.title, whenToUse: p.whenToUse, steps: p.steps.length })),
     heldBack: brief.heldBack.length,
     notes: brief.notes,
     granolaNotes: brief.granolaNotes,
@@ -898,7 +971,11 @@ export interface BriefOut {
   projects: { ref: string; name: string }[];
   goals: { ref: string; name: string }[];
   documents: { ref: string; title: string; url: string | null }[];
-  playbooks: { ref: string; title: string; rule: string }[];
+  rules: { ref: string; title: string; rule: string }[];
+  /** Products linked to the meeting's projects and organisations, with refs of their rules */
+  products: { ref: string; name: string; description: string | null; rules: string[] }[];
+  /** Playbooks in use for the meeting's projects and organisations */
+  playbooks: { ref: string; title: string; when_to_use: string }[];
 }
 
 /**
@@ -915,6 +992,8 @@ export async function briefForAi(scope: AiScope, eventId: number): Promise<Brief
     ...inputs.projectIds.map((id) => toRef("project", id)),
     ...inputs.goalIds.map((id) => toRef("goal", id)),
     ...inputs.documentIds.map((id) => toRef("document", id)),
+    ...inputs.ruleIds.map((id) => toRef("rule", id)),
+    ...inputs.productIds.map((id) => toRef("product", id)),
     ...inputs.playbookIds.map((id) => toRef("playbook", id)),
     ...promiseRefs,
   ];
@@ -945,7 +1024,16 @@ export async function briefForAi(scope: AiScope, eventId: number): Promise<Brief
     projects: view.projects.filter((p) => ok.has(toRef("project", p.id))).map((p) => ({ ref: toRef("project", p.id), name: p.name })),
     goals: view.goals.filter((g) => ok.has(toRef("goal", g.id))).map((g) => ({ ref: toRef("goal", g.id), name: g.name })),
     documents: view.documents.filter((d) => ok.has(toRef("document", d.id))).map((d) => ({ ref: toRef("document", d.id), title: d.title, url: d.url })),
-    playbooks: view.playbooks.filter((b) => ok.has(toRef("playbook", b.id))).map((b) => ({ ref: toRef("playbook", b.id), title: b.title, rule: b.rule })),
+    rules: view.rules.filter((b) => ok.has(toRef("rule", b.id))).map((b) => ({ ref: toRef("rule", b.id), title: b.title, rule: b.rule })),
+    products: view.products
+      .filter((p) => ok.has(toRef("product", p.id)))
+      .map((p) => ({
+        ref: toRef("product", p.id),
+        name: p.name,
+        description: p.description,
+        rules: p.ruleIds.map((id) => toRef("rule", id)).filter((r) => ok.has(r)),
+      })),
+    playbooks: view.playbooks.filter((p) => ok.has(toRef("playbook", p.id))).map((p) => ({ ref: toRef("playbook", p.id), title: p.title, when_to_use: p.whenToUse })),
   };
   if (!out.why.length) {
     out.questions = [];
@@ -953,7 +1041,15 @@ export async function briefForAi(scope: AiScope, eventId: number): Promise<Brief
   }
   await recordReads(
     scope,
-    [...out.why.flatMap((l) => l.refs), ...out.promises.map((p) => p.ref), ...out.projects.map((p) => p.ref), ...out.documents.map((d) => d.ref), ...out.playbooks.map((p) => p.ref)],
+    [
+      ...out.why.flatMap((l) => l.refs),
+      ...out.promises.map((p) => p.ref),
+      ...out.projects.map((p) => p.ref),
+      ...out.documents.map((d) => d.ref),
+      ...out.rules.map((p) => p.ref),
+      ...out.products.map((p) => p.ref),
+      ...out.playbooks.map((p) => p.ref),
+    ],
     { via: "get_meeting_brief", event: event.id },
   );
   return out;

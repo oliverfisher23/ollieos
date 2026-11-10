@@ -2226,7 +2226,7 @@ export const GetReplyDraftResponse = zod.object({
 
 
 /**
- * @summary Writes (or rewrites) a reply with AI from the email thread, OllieOS and playbooks. Nothing is sent.
+ * @summary Writes (or rewrites) a reply with AI from the email thread, OllieOS and rules. Nothing is sent.
  */
 export const WriteReplyDraftParams = zod.object({
   "id": zod.coerce.number().int()
@@ -2818,7 +2818,7 @@ export const GetProjectResponse = zod.object({
   "error": zod.string().nullable()
 }),zod.null()])
 })),
-  "playbooks": zod.array(zod.object({
+  "rules": zod.array(zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "appliesWhen": zod.string(),
@@ -2837,8 +2837,68 @@ export const GetProjectResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
   "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read')
-})).describe('Global ones and those linked to the project or its organisations'),
+})).describe('Global ones and those linked to the project, its organisations or products, paused ones included'),
+  "playbooks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "whenToUse": zod.string(),
+  "purpose": zod.string().nullable(),
+  "ownerId": zod.int().nullable(),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "text": zod.string(),
+  "personId": zod.int().nullable(),
+  "afterDays": zod.int().nullable().describe('Days after starting'),
+  "personName": zod.string().nullable(),
+  "personSlug": zod.string().nullable()
+})),
+  "notes": zod.string().nullable(),
+  "state": zod.enum(['draft', 'in_use', 'retired']),
+  "confidential": zod.boolean().nullable().describe('null means it follows its linked projects and products'),
+  "lastCheckedAt": zod.coerce.date(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "owner": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "organisations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+})),
+  "hiddenFromAi": zod.boolean().describe('Not In use, marked confidential, or linked to something hidden'),
+  "source": zod.string().nullable().describe('Where it came from when approved from a suggestion')
+})),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "linked": zod.boolean().describe('Linked directly rather than through something else')
+})),
   "facts": zod.array(zod.object({
   "id": zod.int(),
   "entityType": zod.string(),
@@ -3661,11 +3721,26 @@ export const GetNextBriefResponse = zod.object({
   "url": zod.string(),
   "location": zod.string()
 })),
-  "playbooks": zod.array(zod.object({
+  "rules": zod.array(zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "rule": zod.string()
 })),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "state": zod.enum(['live', 'pilot', 'in_development', 'retired']),
+  "confidential": zod.boolean().describe('Hidden from AI'),
+  "ruleIds": zod.array(zod.int())
+})).optional().describe('Products linked to the meeting\'s projects and organisations, with the rules linked to each'),
+  "playbooks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "whenToUse": zod.string(),
+  "steps": zod.int().describe('How many steps')
+})).optional().describe('In use playbooks linked to the meeting\'s projects and organisations'),
   "heldBack": zod.int().describe('Attendees'),
   "notes": zod.string().nullable().describe('Ollie\'s notes for after the meeting'),
   "granolaNotes": zod.string().nullable(),
@@ -3850,11 +3925,26 @@ export const GetBriefResponse = zod.object({
   "url": zod.string(),
   "location": zod.string()
 })),
-  "playbooks": zod.array(zod.object({
+  "rules": zod.array(zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "rule": zod.string()
 })),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "state": zod.enum(['live', 'pilot', 'in_development', 'retired']),
+  "confidential": zod.boolean().describe('Hidden from AI'),
+  "ruleIds": zod.array(zod.int())
+})).optional().describe('Products linked to the meeting\'s projects and organisations, with the rules linked to each'),
+  "playbooks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "whenToUse": zod.string(),
+  "steps": zod.int().describe('How many steps')
+})).optional().describe('In use playbooks linked to the meeting\'s projects and organisations'),
   "heldBack": zod.int().describe('Attendees'),
   "notes": zod.string().nullable().describe('Ollie\'s notes for after the meeting'),
   "granolaNotes": zod.string().nullable(),
@@ -4063,11 +4153,26 @@ export const RefreshBriefResponse = zod.object({
   "url": zod.string(),
   "location": zod.string()
 })),
-  "playbooks": zod.array(zod.object({
+  "rules": zod.array(zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "rule": zod.string()
 })),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "state": zod.enum(['live', 'pilot', 'in_development', 'retired']),
+  "confidential": zod.boolean().describe('Hidden from AI'),
+  "ruleIds": zod.array(zod.int())
+})).optional().describe('Products linked to the meeting\'s projects and organisations, with the rules linked to each'),
+  "playbooks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "whenToUse": zod.string(),
+  "steps": zod.int().describe('How many steps')
+})).optional().describe('In use playbooks linked to the meeting\'s projects and organisations'),
   "heldBack": zod.int().describe('Attendees'),
   "notes": zod.string().nullable().describe('Ollie\'s notes for after the meeting'),
   "granolaNotes": zod.string().nullable(),
@@ -4252,11 +4357,26 @@ export const AllowForBriefResponse = zod.object({
   "url": zod.string(),
   "location": zod.string()
 })),
-  "playbooks": zod.array(zod.object({
+  "rules": zod.array(zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "rule": zod.string()
 })),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "slug": zod.string(),
+  "name": zod.string(),
+  "description": zod.string().nullable(),
+  "state": zod.enum(['live', 'pilot', 'in_development', 'retired']),
+  "confidential": zod.boolean().describe('Hidden from AI'),
+  "ruleIds": zod.array(zod.int())
+})).optional().describe('Products linked to the meeting\'s projects and organisations, with the rules linked to each'),
+  "playbooks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "whenToUse": zod.string(),
+  "steps": zod.int().describe('How many steps')
+})).optional().describe('In use playbooks linked to the meeting\'s projects and organisations'),
   "heldBack": zod.int().describe('Attendees'),
   "notes": zod.string().nullable().describe('Ollie\'s notes for after the meeting'),
   "granolaNotes": zod.string().nullable(),
@@ -5487,9 +5607,9 @@ export const UpdateDocumentResponse = zod.object({
 
 
 /**
- * @summary Every playbook, enabled or paused
+ * @summary Every rule, enabled or paused
  */
-export const ListPlaybooksResponseItem = zod.object({
+export const ListRulesResponseItem = zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "appliesWhen": zod.string(),
@@ -5508,7 +5628,168 @@ export const ListPlaybooksResponseItem = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
   "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read')
+})
+export const ListRulesResponse = zod.array(ListRulesResponseItem)
+
+
+/**
+ * @summary New rule
+ */
+export const createRuleBodyTitleMax = 200;
+
+export const createRuleBodyAppliesWhenMax = 300;
+
+export const createRuleBodyRuleMax = 400;
+
+
+
+export const CreateRuleBody = zod.object({
+  "title": zod.string().min(1).max(createRuleBodyTitleMax),
+  "appliesWhen": zod.string().min(1).max(createRuleBodyAppliesWhenMax),
+  "rule": zod.string().min(1).max(createRuleBodyRuleMax),
+  "enabled": zod.boolean().optional(),
+  "projectIds": zod.array(zod.int()).optional(),
+  "organisationIds": zod.array(zod.int()).optional(),
+  "productIds": zod.array(zod.int()).optional()
+})
+
+export const CreateRuleResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "appliesWhen": zod.string(),
+  "rule": zod.string(),
+  "enabled": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "organisations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read')
+})
+
+
+/**
+ * @summary Edit, pause or resume a rule
+ */
+export const UpdateRuleParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateRuleBodyTitleMax = 200;
+
+export const updateRuleBodyAppliesWhenMax = 300;
+
+export const updateRuleBodyRuleMax = 400;
+
+
+
+export const UpdateRuleBody = zod.object({
+  "title": zod.string().min(1).max(updateRuleBodyTitleMax).optional(),
+  "appliesWhen": zod.string().min(1).max(updateRuleBodyAppliesWhenMax).optional(),
+  "rule": zod.string().min(1).max(updateRuleBodyRuleMax).optional(),
+  "enabled": zod.boolean().optional(),
+  "projectIds": zod.array(zod.int()).optional(),
+  "organisationIds": zod.array(zod.int()).optional(),
+  "productIds": zod.array(zod.int()).optional()
+})
+
+export const UpdateRuleResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "appliesWhen": zod.string(),
+  "rule": zod.string(),
+  "enabled": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "organisations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read')
+})
+
+
+/**
+ * @summary Every playbook (how something is done, in steps)
+ */
+export const ListPlaybooksResponseItem = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "whenToUse": zod.string(),
+  "purpose": zod.string().nullable(),
+  "ownerId": zod.int().nullable(),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "text": zod.string(),
+  "personId": zod.int().nullable(),
+  "afterDays": zod.int().nullable().describe('Days after starting'),
+  "personName": zod.string().nullable(),
+  "personSlug": zod.string().nullable()
+})),
+  "notes": zod.string().nullable(),
+  "state": zod.enum(['draft', 'in_use', 'retired']),
+  "confidential": zod.boolean().nullable().describe('null means it follows its linked projects and products'),
+  "lastCheckedAt": zod.coerce.date(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "owner": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "organisations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+})),
+  "hiddenFromAi": zod.boolean().describe('Not In use, marked confidential, or linked to something hidden'),
+  "source": zod.string().nullable().describe('Where it came from when approved from a suggestion')
 })
 export const ListPlaybooksResponse = zod.array(ListPlaybooksResponseItem)
 
@@ -5518,30 +5799,69 @@ export const ListPlaybooksResponse = zod.array(ListPlaybooksResponseItem)
  */
 export const createPlaybookBodyTitleMax = 200;
 
-export const createPlaybookBodyAppliesWhenMax = 300;
+export const createPlaybookBodyWhenToUseMax = 500;
 
-export const createPlaybookBodyRuleMax = 400;
+export const createPlaybookBodyPurposeMax = 300;
+
+export const createPlaybookBodyStepsItemIdMax = 40;
+
+export const createPlaybookBodyStepsItemTextMax = 600;
+
+export const createPlaybookBodyStepsItemAfterDaysMin = 0;
+export const createPlaybookBodyStepsItemAfterDaysMax = 3650;
+
+export const createPlaybookBodyStepsMax = 30;
+
+export const createPlaybookBodyNotesMax = 20000;
 
 
 
 export const CreatePlaybookBody = zod.object({
   "title": zod.string().min(1).max(createPlaybookBodyTitleMax),
-  "appliesWhen": zod.string().min(1).max(createPlaybookBodyAppliesWhenMax),
-  "rule": zod.string().min(1).max(createPlaybookBodyRuleMax),
-  "enabled": zod.boolean().optional(),
+  "whenToUse": zod.string().min(1).max(createPlaybookBodyWhenToUseMax),
+  "purpose": zod.string().max(createPlaybookBodyPurposeMax).nullish(),
+  "ownerId": zod.int().nullish(),
+  "steps": zod.array(zod.object({
+  "id": zod.string().max(createPlaybookBodyStepsItemIdMax).nullish().describe('Keep the id of a step that stays'),
+  "text": zod.string().min(1).max(createPlaybookBodyStepsItemTextMax),
+  "personId": zod.int().nullish(),
+  "afterDays": zod.int().min(createPlaybookBodyStepsItemAfterDaysMin).max(createPlaybookBodyStepsItemAfterDaysMax).nullish()
+})).max(createPlaybookBodyStepsMax).optional(),
+  "notes": zod.string().max(createPlaybookBodyNotesMax).nullish(),
+  "state": zod.enum(['draft', 'in_use', 'retired']).optional(),
+  "confidential": zod.boolean().nullish(),
   "projectIds": zod.array(zod.int()).optional(),
-  "organisationIds": zod.array(zod.int()).optional()
+  "organisationIds": zod.array(zod.int()).optional(),
+  "productIds": zod.array(zod.int()).optional(),
+  "documentIds": zod.array(zod.int()).optional()
 })
 
 export const CreatePlaybookResponse = zod.object({
   "id": zod.int(),
   "title": zod.string(),
-  "appliesWhen": zod.string(),
-  "rule": zod.string(),
-  "enabled": zod.boolean(),
+  "whenToUse": zod.string(),
+  "purpose": zod.string().nullable(),
+  "ownerId": zod.int().nullable(),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "text": zod.string(),
+  "personId": zod.int().nullable(),
+  "afterDays": zod.int().nullable().describe('Days after starting'),
+  "personName": zod.string().nullable(),
+  "personSlug": zod.string().nullable()
+})),
+  "notes": zod.string().nullable(),
+  "state": zod.enum(['draft', 'in_use', 'retired']),
+  "confidential": zod.boolean().nullable().describe('null means it follows its linked projects and products'),
+  "lastCheckedAt": zod.coerce.date(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
+  "owner": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "name": zod.string(),
@@ -5552,12 +5872,79 @@ export const CreatePlaybookResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })),
-  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read')
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+})),
+  "hiddenFromAi": zod.boolean().describe('Not In use, marked confidential, or linked to something hidden'),
+  "source": zod.string().nullable().describe('Where it came from when approved from a suggestion')
 })
 
 
 /**
- * @summary Edit, pause or resume a playbook
+ * @summary One playbook
+ */
+export const GetPlaybookParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetPlaybookResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "whenToUse": zod.string(),
+  "purpose": zod.string().nullable(),
+  "ownerId": zod.int().nullable(),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "text": zod.string(),
+  "personId": zod.int().nullable(),
+  "afterDays": zod.int().nullable().describe('Days after starting'),
+  "personName": zod.string().nullable(),
+  "personSlug": zod.string().nullable()
+})),
+  "notes": zod.string().nullable(),
+  "state": zod.enum(['draft', 'in_use', 'retired']),
+  "confidential": zod.boolean().nullable().describe('null means it follows its linked projects and products'),
+  "lastCheckedAt": zod.coerce.date(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "owner": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "organisations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+})),
+  "hiddenFromAi": zod.boolean().describe('Not In use, marked confidential, or linked to something hidden'),
+  "source": zod.string().nullable().describe('Where it came from when approved from a suggestion')
+})
+
+
+/**
+ * @summary Edit a playbook, its steps or links, or mark it checked
  */
 export const UpdatePlaybookParams = zod.object({
   "id": zod.coerce.number().int()
@@ -5565,22 +5952,211 @@ export const UpdatePlaybookParams = zod.object({
 
 export const updatePlaybookBodyTitleMax = 200;
 
-export const updatePlaybookBodyAppliesWhenMax = 300;
+export const updatePlaybookBodyWhenToUseMax = 500;
 
-export const updatePlaybookBodyRuleMax = 400;
+export const updatePlaybookBodyPurposeMax = 300;
+
+export const updatePlaybookBodyStepsItemIdMax = 40;
+
+export const updatePlaybookBodyStepsItemTextMax = 600;
+
+export const updatePlaybookBodyStepsItemAfterDaysMin = 0;
+export const updatePlaybookBodyStepsItemAfterDaysMax = 3650;
+
+export const updatePlaybookBodyStepsMax = 30;
+
+export const updatePlaybookBodyNotesMax = 20000;
 
 
 
 export const UpdatePlaybookBody = zod.object({
   "title": zod.string().min(1).max(updatePlaybookBodyTitleMax).optional(),
-  "appliesWhen": zod.string().min(1).max(updatePlaybookBodyAppliesWhenMax).optional(),
-  "rule": zod.string().min(1).max(updatePlaybookBodyRuleMax).optional(),
-  "enabled": zod.boolean().optional(),
+  "whenToUse": zod.string().min(1).max(updatePlaybookBodyWhenToUseMax).optional(),
+  "purpose": zod.string().max(updatePlaybookBodyPurposeMax).nullish(),
+  "ownerId": zod.int().nullish(),
+  "steps": zod.array(zod.object({
+  "id": zod.string().max(updatePlaybookBodyStepsItemIdMax).nullish().describe('Keep the id of a step that stays'),
+  "text": zod.string().min(1).max(updatePlaybookBodyStepsItemTextMax),
+  "personId": zod.int().nullish(),
+  "afterDays": zod.int().min(updatePlaybookBodyStepsItemAfterDaysMin).max(updatePlaybookBodyStepsItemAfterDaysMax).nullish()
+})).max(updatePlaybookBodyStepsMax).optional(),
+  "notes": zod.string().max(updatePlaybookBodyNotesMax).nullish(),
+  "state": zod.enum(['draft', 'in_use', 'retired']).optional(),
+  "confidential": zod.boolean().nullish(),
   "projectIds": zod.array(zod.int()).optional(),
-  "organisationIds": zod.array(zod.int()).optional()
+  "organisationIds": zod.array(zod.int()).optional(),
+  "productIds": zod.array(zod.int()).optional(),
+  "documentIds": zod.array(zod.int()).optional(),
+  "checked": zod.boolean().optional().describe('Ollie checked it is still how things are done')
 })
 
 export const UpdatePlaybookResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "whenToUse": zod.string(),
+  "purpose": zod.string().nullable(),
+  "ownerId": zod.int().nullable(),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "text": zod.string(),
+  "personId": zod.int().nullable(),
+  "afterDays": zod.int().nullable().describe('Days after starting'),
+  "personName": zod.string().nullable(),
+  "personSlug": zod.string().nullable()
+})),
+  "notes": zod.string().nullable(),
+  "state": zod.enum(['draft', 'in_use', 'retired']),
+  "confidential": zod.boolean().nullable().describe('null means it follows its linked projects and products'),
+  "lastCheckedAt": zod.coerce.date(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "owner": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "organisations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+})),
+  "hiddenFromAi": zod.boolean().describe('Not In use, marked confidential, or linked to something hidden'),
+  "source": zod.string().nullable().describe('Where it came from when approved from a suggestion')
+})
+
+
+/**
+ * @summary Delete a playbook
+ */
+export const DeletePlaybookParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeletePlaybookResponse = zod.void()
+
+
+/**
+ * @summary Products
+ */
+export const ListProductsResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "description": zod.string().nullable(),
+  "state": zod.enum(['live', 'pilot', 'in_development', 'retired']),
+  "aiAccess": zod.boolean(),
+  "ownerName": zod.string().nullable(),
+  "factCount": zod.int(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListProductsResponse = zod.array(ListProductsResponseItem)
+
+
+/**
+ * @summary New product
+ */
+export const createProductBodyNameMax = 200;
+
+export const createProductBodyDescriptionMax = 300;
+
+export const createProductBodySummaryMax = 20000;
+
+
+
+export const CreateProductBody = zod.object({
+  "name": zod.string().min(1).max(createProductBodyNameMax),
+  "description": zod.string().max(createProductBodyDescriptionMax).nullish(),
+  "state": zod.enum(['live', 'pilot', 'in_development', 'retired']).optional(),
+  "ownerId": zod.int().nullish(),
+  "summary": zod.string().max(createProductBodySummaryMax).nullish(),
+  "confidential": zod.boolean().optional(),
+  "aiAccess": zod.boolean().optional()
+})
+
+export const CreateProductResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "state": zod.enum(['live', 'pilot', 'in_development', 'retired']),
+  "ownerId": zod.int().nullable(),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "owner": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Product page
+ */
+export const GetProductParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const GetProductResponse = zod.object({
+  "product": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "state": zod.enum(['live', 'pilot', 'in_development', 'retired']),
+  "ownerId": zod.int().nullable(),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "owner": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()])
+}),
+  "facts": zod.array(zod.object({
+  "id": zod.int(),
+  "entityType": zod.string(),
+  "entityId": zod.int(),
+  "text": zod.string(),
+  "source": zod.string().nullable(),
+  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal(null)]).nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "lastConfirmedAt": zod.coerce.date(),
+  "needsCheck": zod.boolean().describe('Stale or in conflict'),
+  "approvedAt": zod.coerce.date().nullable().describe('Set when approved from the Knowledge Inbox'),
+  "history": zod.array(zod.object({
+  "id": zod.int(),
+  "text": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "createdBy": zod.string()
+})).describe('Earlier versions this fact replaced, newest first')
+})),
+  "rules": zod.array(zod.object({
   "id": zod.int(),
   "title": zod.string(),
   "appliesWhen": zod.string(),
@@ -5599,7 +6175,180 @@ export const UpdatePlaybookResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
   "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read')
+})).describe('What to say and not say'),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "url": zod.string().nullable().describe('Null for text kept in OllieOS'),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other', 'ollieos']),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked projects'),
+  "lastConfirmedAt": zod.coerce.date().describe('Shown as Updated'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "hiddenFromAi": zod.boolean(),
+  "contentsReadAt": zod.coerce.date().nullable().describe('When OllieOS last read or was given the text'),
+  "textOrigin": zod.union([zod.literal('gdrive'),zod.literal('dropbox'),zod.literal('pasted'),zod.literal('upload'),zod.literal('claude'),zod.literal('email'),zod.literal(null)]).nullable().describe('Where the kept text came from'),
+  "knowledge": zod.union([zod.object({
+  "status": zod.enum(['idle', 'queued', 'reading', 'failed']),
+  "lastReadAt": zod.coerce.date().nullable(),
+  "lastResult": zod.string().nullable().describe('What the last read proposed, in words'),
+  "error": zod.string().nullable()
+}),zod.null()])
+})),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "linked": zod.boolean().describe('Linked directly rather than through something else')
+})),
+  "organisations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "linked": zod.boolean().describe('Linked directly rather than through something else')
+})),
+  "playbooks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "whenToUse": zod.string(),
+  "purpose": zod.string().nullable(),
+  "ownerId": zod.int().nullable(),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "text": zod.string(),
+  "personId": zod.int().nullable(),
+  "afterDays": zod.int().nullable().describe('Days after starting'),
+  "personName": zod.string().nullable(),
+  "personSlug": zod.string().nullable()
+})),
+  "notes": zod.string().nullable(),
+  "state": zod.enum(['draft', 'in_use', 'retired']),
+  "confidential": zod.boolean().nullable().describe('null means it follows its linked projects and products'),
+  "lastCheckedAt": zod.coerce.date(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "owner": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "organisations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+})),
+  "hiddenFromAi": zod.boolean().describe('Not In use, marked confidential, or linked to something hidden'),
+  "source": zod.string().nullable().describe('Where it came from when approved from a suggestion')
+})),
+  "decisions": zod.array(zod.object({
+  "id": zod.int(),
+  "text": zod.string(),
+  "decidedAt": zod.coerce.date(),
+  "decidedBy": zod.string().nullable(),
+  "source": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means it follows its project, or is not confidential when it has none'),
+  "hiddenFromAi": zod.boolean(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]).describe('The project it belongs to; null for a decision that stands on its own'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
+  "notes": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string().nullable(),
+  "body": zod.string(),
+  "confidential": zod.boolean().nullable().describe('null means it follows what it is attached to'),
+  "hiddenFromAi": zod.boolean(),
+  "entity": zod.object({
+  "type": zod.string(),
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string().nullable()
+}),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "hiddenFromAi": zod.boolean()
+})
+
+
+/**
+ * @summary Edit a product, including its AI access switches
+ */
+export const UpdateProductParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const updateProductBodyNameMax = 200;
+
+export const updateProductBodyDescriptionMax = 300;
+
+export const updateProductBodySummaryMax = 20000;
+
+
+
+export const UpdateProductBody = zod.object({
+  "name": zod.string().min(1).max(updateProductBodyNameMax).optional(),
+  "description": zod.string().max(updateProductBodyDescriptionMax).nullish(),
+  "state": zod.enum(['live', 'pilot', 'in_development', 'retired']).optional(),
+  "ownerId": zod.int().nullish(),
+  "summary": zod.string().max(updateProductBodySummaryMax).nullish(),
+  "confidential": zod.boolean().optional(),
+  "aiAccess": zod.boolean().optional()
+})
+
+export const UpdateProductResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullable(),
+  "state": zod.enum(['live', 'pilot', 'in_development', 'retired']),
+  "ownerId": zod.int().nullable(),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "owner": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()])
 })
 
 
@@ -5657,6 +6406,61 @@ export const GetOrganisationParams = zod.object({
 })
 
 export const GetOrganisationResponse = zod.object({
+  "playbooks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "whenToUse": zod.string(),
+  "purpose": zod.string().nullable(),
+  "ownerId": zod.int().nullable(),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "text": zod.string(),
+  "personId": zod.int().nullable(),
+  "afterDays": zod.int().nullable().describe('Days after starting'),
+  "personName": zod.string().nullable(),
+  "personSlug": zod.string().nullable()
+})),
+  "notes": zod.string().nullable(),
+  "state": zod.enum(['draft', 'in_use', 'retired']),
+  "confidential": zod.boolean().nullable().describe('null means it follows its linked projects and products'),
+  "lastCheckedAt": zod.coerce.date(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "owner": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "organisations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+})),
+  "hiddenFromAi": zod.boolean().describe('Not In use, marked confidential, or linked to something hidden'),
+  "source": zod.string().nullable().describe('Where it came from when approved from a suggestion')
+})),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "linked": zod.boolean().describe('Linked directly rather than through something else')
+})),
   "research": zod.array(zod.object({
   "domain": zod.string(),
   "status": zod.enum(['none', 'running', 'ready', 'failed']),
@@ -5962,7 +6766,7 @@ export const ListNotesResponse = zod.array(ListNotesResponseItem)
 
 
 export const CreateNoteBody = zod.object({
-  "entityType": zod.enum(['project', 'person', 'organisation', 'task', 'decision']),
+  "entityType": zod.enum(['project', 'person', 'organisation', 'product', 'task', 'decision']),
   "entityId": zod.int(),
   "title": zod.string().nullish(),
   "body": zod.string().min(1),
@@ -6054,7 +6858,7 @@ export const createFactBodyTextMax = 2000;
 
 
 export const CreateFactBody = zod.object({
-  "entityType": zod.enum(['project', 'person', 'organisation']),
+  "entityType": zod.enum(['project', 'person', 'organisation', 'product']),
   "entityId": zod.int(),
   "text": zod.string().min(1).max(createFactBodyTextMax),
   "source": zod.string().nullish(),
@@ -6143,7 +6947,7 @@ export const ListKnowledgeInboxResponse = zod.object({
   "key": zod.string(),
   "id": zod.int().describe('Suggestion id on the Suggested tab'),
   "group": zod.enum(['suggested', 'conflicts', 'stale']),
-  "kind": zod.enum(['new_fact', 'new_person', 'new_organisation', 'new_project', 'proposed_decision', 'changed_summary', 'changed_details', 'new_document', 'document_link', 'new_playbook', 'cadence_change', 'new_relationship', 'conflict', 'stale_fact']),
+  "kind": zod.enum(['new_fact', 'new_person', 'new_organisation', 'new_project', 'proposed_decision', 'changed_summary', 'changed_details', 'new_document', 'document_link', 'new_rule', 'new_playbook', 'playbook_change', 'new_product', 'cadence_change', 'new_relationship', 'conflict', 'stale_fact']),
   "target": zod.union([zod.object({
   "type": zod.string(),
   "id": zod.int().nullable().describe('Null for a person'),
@@ -6174,7 +6978,18 @@ export const ListKnowledgeInboxResponse = zod.object({
   "lookBack": zod.boolean().describe('Found by a Granola look back'),
   "fromDocument": zod.string().nullable().describe('The document or Dropbox file it came from, when found by reading documents'),
   "needsProject": zod.boolean().describe('A decision with no project; Ollie may file it under one when approving'),
-  "projectHint": zod.string().nullable().describe('What a decision with no project is about')
+  "projectHint": zod.string().nullable().describe('What a decision with no project is about'),
+  "playbook": zod.union([zod.object({
+  "playbookId": zod.int().nullable().describe('Set for a change to a playbook already in OllieOS'),
+  "steps": zod.array(zod.object({
+  "text": zod.string(),
+  "person": zod.string().nullable(),
+  "afterDays": zod.int().nullable(),
+  "change": zod.enum(['new', 'same', 'added', 'changed', 'removed']),
+  "before": zod.string().nullable().describe('The step as it was')
+})),
+  "reason": zod.string().nullable()
+}),zod.null()]).describe('Steps for a Playbook card, with the change shown')
 }))
 })
 
@@ -6364,9 +7179,9 @@ export const RunFactCheckResponse = zod.object({
  * @summary Link two items
  */
 export const CreateLinkBody = zod.object({
-  "fromType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note']),
+  "fromType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note', 'product', 'document', 'rule', 'playbook']),
   "fromId": zod.int(),
-  "toType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note']),
+  "toType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note', 'product', 'document', 'rule', 'playbook']),
   "toId": zod.int()
 })
 
@@ -6379,9 +7194,9 @@ export const CreateLinkResponse = zod.object({
  * @summary Remove a link between two items
  */
 export const RemoveLinkBody = zod.object({
-  "fromType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note']),
+  "fromType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note', 'product', 'document', 'rule', 'playbook']),
   "fromId": zod.int(),
-  "toType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note']),
+  "toType": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note', 'product', 'document', 'rule', 'playbook']),
   "toId": zod.int()
 })
 
@@ -6396,7 +7211,7 @@ export const RemoveLinkResponse = zod.object({
 export const GetGraphOverviewResponse = zod.object({
   "centre": zod.union([zod.object({
   "ref": zod.string(),
-  "type": zod.enum(['person', 'organisation', 'project', 'goal', 'decision', 'document', 'task', 'session', 'meeting']),
+  "type": zod.enum(['person', 'organisation', 'project', 'product', 'goal', 'decision', 'document', 'playbook', 'task', 'session', 'meeting']),
   "id": zod.int(),
   "name": zod.string(),
   "detail": zod.string().nullable(),
@@ -6405,7 +7220,7 @@ export const GetGraphOverviewResponse = zod.object({
 }),zod.null()]),
   "nodes": zod.array(zod.object({
   "ref": zod.string(),
-  "type": zod.enum(['person', 'organisation', 'project', 'goal', 'decision', 'document', 'task', 'session', 'meeting']),
+  "type": zod.enum(['person', 'organisation', 'project', 'product', 'goal', 'decision', 'document', 'playbook', 'task', 'session', 'meeting']),
   "id": zod.int(),
   "name": zod.string(),
   "detail": zod.string().nullable(),
@@ -6444,7 +7259,7 @@ export const ExploreGraphQueryParams = zod.object({
 export const ExploreGraphResponse = zod.object({
   "centre": zod.union([zod.object({
   "ref": zod.string(),
-  "type": zod.enum(['person', 'organisation', 'project', 'goal', 'decision', 'document', 'task', 'session', 'meeting']),
+  "type": zod.enum(['person', 'organisation', 'project', 'product', 'goal', 'decision', 'document', 'playbook', 'task', 'session', 'meeting']),
   "id": zod.int(),
   "name": zod.string(),
   "detail": zod.string().nullable(),
@@ -6453,7 +7268,7 @@ export const ExploreGraphResponse = zod.object({
 }),zod.null()]),
   "nodes": zod.array(zod.object({
   "ref": zod.string(),
-  "type": zod.enum(['person', 'organisation', 'project', 'goal', 'decision', 'document', 'task', 'session', 'meeting']),
+  "type": zod.enum(['person', 'organisation', 'project', 'product', 'goal', 'decision', 'document', 'playbook', 'task', 'session', 'meeting']),
   "id": zod.int(),
   "name": zod.string(),
   "detail": zod.string().nullable(),
@@ -6486,7 +7301,7 @@ export const FindGraphConnectionQueryParams = zod.object({
 export const FindGraphConnectionResponse = zod.object({
   "from": zod.object({
   "ref": zod.string(),
-  "type": zod.enum(['person', 'organisation', 'project', 'goal', 'decision', 'document', 'task', 'session', 'meeting']),
+  "type": zod.enum(['person', 'organisation', 'project', 'product', 'goal', 'decision', 'document', 'playbook', 'task', 'session', 'meeting']),
   "id": zod.int(),
   "name": zod.string(),
   "detail": zod.string().nullable(),
@@ -6495,7 +7310,7 @@ export const FindGraphConnectionResponse = zod.object({
 }),
   "to": zod.object({
   "ref": zod.string(),
-  "type": zod.enum(['person', 'organisation', 'project', 'goal', 'decision', 'document', 'task', 'session', 'meeting']),
+  "type": zod.enum(['person', 'organisation', 'project', 'product', 'goal', 'decision', 'document', 'playbook', 'task', 'session', 'meeting']),
   "id": zod.int(),
   "name": zod.string(),
   "detail": zod.string().nullable(),
@@ -6505,7 +7320,7 @@ export const FindGraphConnectionResponse = zod.object({
   "paths": zod.array(zod.object({
   "nodes": zod.array(zod.object({
   "ref": zod.string(),
-  "type": zod.enum(['person', 'organisation', 'project', 'goal', 'decision', 'document', 'task', 'session', 'meeting']),
+  "type": zod.enum(['person', 'organisation', 'project', 'product', 'goal', 'decision', 'document', 'playbook', 'task', 'session', 'meeting']),
   "id": zod.int(),
   "name": zod.string(),
   "detail": zod.string().nullable(),
@@ -6530,7 +7345,7 @@ export const FindGraphConnectionResponse = zod.object({
  * @summary Stated relationships on a project, person or organisation, read from its side
  */
 export const ListRelationshipsQueryParams = zod.object({
-  "type": zod.enum(['person', 'organisation', 'project']),
+  "type": zod.enum(['person', 'organisation', 'project', 'product']),
   "id": zod.coerce.number().int()
 })
 
@@ -6539,7 +7354,7 @@ export const ListRelationshipsResponseItem = zod.object({
   "phrase": zod.string(),
   "direction": zod.enum(['out', 'in']),
   "other": zod.object({
-  "type": zod.enum(['person', 'organisation', 'project']),
+  "type": zod.enum(['person', 'organisation', 'project', 'product']),
   "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string().nullable()
@@ -6560,9 +7375,9 @@ export const setRelationshipBodyNoteMax = 1000;
 
 
 export const SetRelationshipBody = zod.object({
-  "fromType": zod.enum(['person', 'organisation', 'project']),
+  "fromType": zod.enum(['person', 'organisation', 'project', 'product']),
   "fromId": zod.int(),
-  "toType": zod.enum(['person', 'organisation', 'project']),
+  "toType": zod.enum(['person', 'organisation', 'project', 'product']),
   "toId": zod.int(),
   "relationship": zod.enum(['reports_to', 'works_with', 'advises', 'introduced_by', 'investor_in', 'customer_of', 'supplier_to', 'partner_of', 'competitor_of', 'part_of', 'depends_on', 'blocked_by', 'related_to']),
   "note": zod.string().max(setRelationshipBodyNoteMax).nullish()
@@ -6573,7 +7388,7 @@ export const SetRelationshipResponse = zod.object({
   "phrase": zod.string(),
   "direction": zod.enum(['out', 'in']),
   "other": zod.object({
-  "type": zod.enum(['person', 'organisation', 'project']),
+  "type": zod.enum(['person', 'organisation', 'project', 'product']),
   "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string().nullable()
@@ -6589,9 +7404,9 @@ export const SetRelationshipResponse = zod.object({
  * @summary Take a relationship off; a project keeps its plain link to the person or organisation
  */
 export const RemoveRelationshipBody = zod.object({
-  "fromType": zod.enum(['person', 'organisation', 'project']),
+  "fromType": zod.enum(['person', 'organisation', 'project', 'product']),
   "fromId": zod.int(),
-  "toType": zod.enum(['person', 'organisation', 'project']),
+  "toType": zod.enum(['person', 'organisation', 'project', 'product']),
   "toId": zod.int()
 })
 
@@ -6605,13 +7420,13 @@ export const RemoveRelationshipResponse = zod.object({
  */
 export const SearchKnowledgeQueryParams = zod.object({
   "q": zod.coerce.string(),
-  "types": zod.coerce.string().optional().describe('Comma-separated list of task, project, person, organisation, decision, note, fact, document, session')
+  "types": zod.coerce.string().optional().describe('Comma-separated list of task, project, person, organisation, decision, note, fact, document, session, product, playbook')
 })
 
 export const SearchKnowledgeResponse = zod.object({
   "q": zod.string(),
   "hits": zod.array(zod.object({
-  "type": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note', 'fact', 'document', 'session', 'strategy', 'idea']),
+  "type": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note', 'fact', 'document', 'session', 'strategy', 'idea', 'product', 'playbook']),
   "id": zod.int(),
   "title": zod.string(),
   "snippet": zod.string().nullable(),

@@ -19,8 +19,10 @@ import { ACTOR, cleanText, uniqueSlug, type EntitySummary } from "./common";
 import { factsFor, linkedIds, listDecisions, notesFor, type DecisionView, type FactView, type NoteView } from "./items";
 import { timelineFor, type TimelineItem } from "./timeline";
 import { assertGoal } from "../goals";
-import { listDocuments, playbooksForProject, type DocumentView, type PlaybookView } from "../library";
+import { listDocuments, rulesForProject, type DocumentView, type RuleView } from "../library";
 import { cadenceFor } from "../cadence";
+import { playbooksFor, type PlaybookView } from "../playbooks";
+import { productsLinkedTo, type LinkedSummary } from "../products";
 
 const OPEN = [...OPEN_STATUSES] as TaskStatus[];
 const priorityRank = sql`case ${tasksTable.priority} when 'high' then 0 when 'medium' then 1 else 2 end`;
@@ -93,7 +95,11 @@ export interface ProjectDetail {
   /** The linked goal or sub-goal, with its parent's name for a sub-goal */
   goal: { id: number; name: string; parentName: string | null } | null;
   documents: DocumentView[];
+  rules: RuleView[];
+  /** Playbooks linked to the project (Part M) */
   playbooks: PlaybookView[];
+  /** Products linked to the project (Part M) */
+  products: LinkedSummary[];
   facts: FactView[];
   decisions: DecisionView[];
   openTasks: TaskView[];
@@ -140,7 +146,7 @@ async function loadProject(slug: string): Promise<ProjectRow> {
 export async function getProject(slug: string): Promise<ProjectDetail> {
   const project = await loadProject(slug);
   const id = project.id;
-  const [facts, decisions, openTasks, linkedPeople, linkedOrgs, notes, taskPeople, goal, documents, playbooks] = await Promise.all([
+  const [facts, decisions, openTasks, linkedPeople, linkedOrgs, notes, taskPeople, goal, documents, rules, playbooks, products] = await Promise.all([
     factsFor("project", id),
     listDecisions(id),
     openTasksWhere(eq(tasksTable.projectId, id)),
@@ -153,7 +159,9 @@ export async function getProject(slug: string): Promise<ProjectDetail> {
       .where(and(eq(tasksTable.projectId, id), isNotNull(tasksTable.personId), ne(tasksTable.status, "noise"))),
     projectGoal(project.goalId),
     listDocuments(id),
-    playbooksForProject(id),
+    rulesForProject(id),
+    playbooksFor("project", id),
+    productsLinkedTo("project", id),
   ]);
   const peopleIds = [...new Set([...linkedPeople, ...taskPeople.map((p) => p.id!)])];
   const [people, organisations, activity] = await Promise.all([
@@ -161,7 +169,7 @@ export async function getProject(slug: string): Promise<ProjectDetail> {
     summaries(organisationsTable, linkedOrgs, new Set(linkedOrgs)),
     timelineFor("project", id, notes),
   ]);
-  return { project: stripSearch(project), goal, documents, playbooks, facts, decisions, openTasks, people, organisations, notes, activity };
+  return { project: stripSearch(project), goal, documents, rules, playbooks, products, facts, decisions, openTasks, people, organisations, notes, activity };
 }
 
 async function projectGoal(goalId: number | null): Promise<ProjectDetail["goal"]> {
@@ -501,6 +509,9 @@ export interface OrganisationDetail {
   organisation: OrganisationView;
   people: PersonChip[];
   projects: LinkedEntity[];
+  /** Playbooks and products linked to the organisation (Part M) */
+  playbooks: PlaybookView[];
+  products: LinkedSummary[];
   facts: FactView[];
   notes: NoteView[];
   timeline: TimelineItem[];
@@ -517,12 +528,14 @@ async function loadOrg(slug: string): Promise<OrgRow> {
 export async function getOrganisation(slug: string): Promise<OrganisationDetail> {
   const org = await loadOrg(slug);
   const id = org.id;
-  const [members, linkedPeople, linkedProjects, facts, notes] = await Promise.all([
+  const [members, linkedPeople, linkedProjects, facts, notes, playbooks, products] = await Promise.all([
     db.select({ id: peopleTable.id }).from(peopleTable).where(eq(peopleTable.organisationId, id)),
     linkedIds("organisation", id, "person"),
     linkedIds("organisation", id, "project"),
     factsFor("organisation", id),
     notesFor("organisation", id),
+    playbooksFor("organisation", id),
+    productsLinkedTo("organisation", id),
   ]);
   const memberIds = members.map((m) => m.id);
   const [people, projects, timeline, research] = await Promise.all([
@@ -531,7 +544,7 @@ export async function getOrganisation(slug: string): Promise<OrganisationDetail>
     timelineFor("organisation", id, notes, memberIds),
     org.internal ? [] : domainsForOrganisation(id).then((d) => researchViews(d.slice(0, 3))),
   ]);
-  return { organisation: stripSearch(org), people, projects, facts, notes, timeline, research };
+  return { organisation: stripSearch(org), people, projects, playbooks, products, facts, notes, timeline, research };
 }
 
 export interface OrganisationInput {

@@ -13,6 +13,7 @@ export const NoteInputEntityType = {
   project: 'project',
   person: 'person',
   organisation: 'organisation',
+  product: 'product',
   task: 'task',
   decision: 'decision',
 } as const;

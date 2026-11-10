@@ -9,11 +9,13 @@ import type { Decision } from './decision';
 import type { Fact } from './fact';
 import type { LibraryDocument } from './libraryDocument';
 import type { LinkedEntity } from './linkedEntity';
+import type { LinkedProduct } from './linkedProduct';
 import type { Note } from './note';
 import type { PersonChip } from './personChip';
 import type { Playbook } from './playbook';
 import type { Project } from './project';
 import type { ProjectGoal } from './projectGoal';
+import type { Rule } from './rule';
 import type { Task } from './task';
 import type { TimelineItem } from './timelineItem';
 
@@ -21,8 +23,10 @@ export interface ProjectDetail {
   project: Project;
   goal: ProjectGoal | null;
   documents: LibraryDocument[];
-  /** Global ones and those linked to the project or its organisations */
+  /** Global ones and those linked to the project, its organisations or products, paused ones included */
+  rules: Rule[];
   playbooks: Playbook[];
+  products: LinkedProduct[];
   facts: Fact[];
   decisions: Decision[];
   openTasks: Task[];

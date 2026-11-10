@@ -4,7 +4,7 @@ import { useInvalidateTasks } from '@/lib/task-cache';
 import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
 
-const KNOWLEDGE_PREFIXES = ['/api/projects', '/api/people', '/api/organisations', '/api/decisions', '/api/notes', '/api/search', '/api/suggestions', '/api/goals', '/api/documents', '/api/playbooks', '/api/home', '/api/sessions', '/api/graph', '/api/relationships', '/api/strategy', '/api/ideas'];
+const KNOWLEDGE_PREFIXES = ['/api/projects', '/api/people', '/api/organisations', '/api/decisions', '/api/notes', '/api/search', '/api/suggestions', '/api/goals', '/api/documents', '/api/rules', '/api/playbooks', '/api/products', '/api/home', '/api/sessions', '/api/graph', '/api/relationships', '/api/strategy', '/api/ideas'];
 
 /** Invalidates every Knowledge query, plus the task caches that show project and person names. */
 export function useInvalidateKnowledge() {
@@ -45,12 +45,15 @@ export function isNotFound(err: unknown): boolean {
   return typeof err === 'object' && err !== null && (err as { status?: number }).status === 404;
 }
 
-export type EntityKind = 'project' | 'person' | 'organisation';
+export type EntityKind = 'project' | 'person' | 'organisation' | 'product';
 
 export function entityPath(type: string, slug: string | null | undefined, id: number): string | null {
   if (type === 'project' && slug) return `/knowledge/projects/${slug}`;
   if (type === 'person' && slug) return `/knowledge/people/${slug}`;
   if (type === 'organisation' && slug) return `/knowledge/organisations/${slug}`;
+  if (type === 'product' && slug) return `/knowledge/products/${slug}`;
+  if (type === 'playbook') return `/knowledge/playbooks/${id}`;
+  if (type === 'rule') return '/knowledge/library?tab=rules';
   if (type === 'decision') return `/knowledge/decisions/${id}`;
   if (type === 'note') return `/knowledge/notes/${id}`;
   if (type === 'task') return `/tasks?task=${id}`;
@@ -72,6 +75,8 @@ export function refPath(ref: string | null): string | null {
   if (type === 'session') return `/knowledge/sessions?session=${id}`;
   if (type === 'strategy') return `/strategy?section=${id}`;
   if (type === 'idea') return `/strategy?idea=${id}`;
+  if (type === 'playbook') return `/knowledge/playbooks/${id}`;
+  if (type === 'rule') return '/knowledge/library?tab=rules';
   return null;
 }
 
@@ -87,6 +92,9 @@ export const TYPE_LABELS: Record<string, string> = {
   session: 'Cowork session',
   strategy: 'Strategy',
   idea: 'Idea',
+  product: 'Product',
+  playbook: 'Playbook',
+  rule: 'Rule',
 };
 
 export function firstName(name: string): string {

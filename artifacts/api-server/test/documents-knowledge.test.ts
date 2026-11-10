@@ -11,7 +11,7 @@ import { person, project } from "./helpers";
 let extract: Extracted;
 let sent: string[] = [];
 
-const nothing = (): Extracted => ({ summary: "A document.", confidential: false, projects: [], facts: [], decisions: [], people: [], organisations: [], playbooks: [], relationships: [] });
+const nothing = (): Extracted => ({ summary: "A document.", confidential: false, projects: [], facts: [], decisions: [], people: [], organisations: [], rules: [], relationships: [] });
 
 vi.mock("../src/services/connectors/sorter", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/services/connectors/sorter")>()),
@@ -112,13 +112,13 @@ describe("pasted text", () => {
       ],
       decisions: [{ project: "Apollo", topic: "Launch", text: "Launch Apollo in March.", decided_on: "2026-11-01", decided_by: "Ollie" }],
       people: [{ name: "Sam Owner", email: "", role: "Project lead", organisation: "", relationship: "Runs Apollo." }],
-      playbooks: [{ title: "Apollo tone", applies_when: "Writing about Apollo", rule: "Keep it short.", project: "Apollo" }],
+      rules: [{ title: "Apollo tone", applies_when: "Writing about Apollo", rule: "Keep it short.", project: "Apollo" }],
     };
     expect(await readWaiting(5)).toBe(1);
     expect(sent[0]).toContain("Apollo launches in March.");
 
     const rows = await suggestions();
-    expect(rows.map((s) => s.kind).sort()).toEqual(["decision", "document", "fact", "person", "playbook"]);
+    expect(rows.map((s) => s.kind).sort()).toEqual(["decision", "document", "fact", "person", "rule"]);
     for (const s of rows) {
       expect(s.proposedBy).toBe("Document reader");
       expect(s.sourceRef).toBe(`document:${id}`);

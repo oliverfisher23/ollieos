@@ -16,4 +16,8 @@ export const Linkable = {
   organisation: 'organisation',
   decision: 'decision',
   note: 'note',
+  product: 'product',
+  document: 'document',
+  rule: 'rule',
+  playbook: 'playbook',
 } as const;

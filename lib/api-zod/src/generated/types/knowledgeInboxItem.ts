@@ -9,6 +9,7 @@ import type { KnowledgeInboxField } from './knowledgeInboxField';
 import type { KnowledgeInboxItemGroup } from './knowledgeInboxItemGroup';
 import type { KnowledgeInboxItemKind } from './knowledgeInboxItemKind';
 import type { KnowledgeInboxOption } from './knowledgeInboxOption';
+import type { KnowledgeInboxPlaybook } from './knowledgeInboxPlaybook';
 import type { KnowledgeInboxTarget } from './knowledgeInboxTarget';
 
 export interface KnowledgeInboxItem {
@@ -51,4 +52,6 @@ export interface KnowledgeInboxItem {
      * @nullable
      */
   projectHint: string | null;
+  /** Steps for a Playbook card, with the change shown */
+  playbook: KnowledgeInboxPlaybook | null;
 }

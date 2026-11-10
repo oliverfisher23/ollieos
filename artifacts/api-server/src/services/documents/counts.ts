@@ -9,14 +9,17 @@ export interface KnowledgeCounts {
   people: number;
   organisations: number;
   links: number;
-  playbooks: number;
+  rules: number;
   /** Stated relationships between known items (Part G) */
   relationships?: number;
+  /** New products and playbooks, and changes to playbooks (Part M) */
+  products?: number;
+  playbooks?: number;
   /** Already known, already waiting, or rejected recently */
   repeats: number;
 }
 
-export const emptyKnowledgeCounts = (): KnowledgeCounts => ({ facts: 0, decisions: 0, people: 0, organisations: 0, links: 0, playbooks: 0, relationships: 0, repeats: 0 });
+export const emptyKnowledgeCounts = (): KnowledgeCounts => ({ facts: 0, decisions: 0, people: 0, organisations: 0, links: 0, rules: 0, relationships: 0, products: 0, playbooks: 0, repeats: 0 });
 
 /** Plain words for what a read proposed, for the Library and Settings. */
 export function describeCounts(c: Partial<KnowledgeCounts> | null | undefined): string {
@@ -28,8 +31,10 @@ export function describeCounts(c: Partial<KnowledgeCounts> | null | undefined): 
       ["people", "person", "people"],
       ["organisations", "organisation", "organisations"],
       ["links", "project link", "project links"],
-      ["playbooks", "playbook", "playbooks"],
+      ["rules", "rule", "rules"],
       ["relationships", "relationship", "relationships"],
+      ["products", "product", "products"],
+      ["playbooks", "playbook", "playbooks"],
     ] as const
   )
     .filter(([key]) => (c[key] ?? 0) > 0)

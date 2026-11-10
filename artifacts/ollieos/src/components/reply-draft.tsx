@@ -167,7 +167,7 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
               </div>
             )}
             <span className="oo-soft" style={{ fontSize: 13, lineHeight: 1.5 }}>
-              Writes a {chase ? 'follow-up' : 'reply'} from the email thread, what OllieOS knows about the people and work involved, and your playbooks. You edit it and save it to Gmail. Nothing is sent.
+              Writes a {chase ? 'follow-up' : 'reply'} from the email thread, what OllieOS knows about the people and work involved, and your rules. You edit it and save it to Gmail. Nothing is sent.
             </span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label htmlFor={'rd-ask-' + taskId} className="oo-field-label">What should it say? Optional</label>

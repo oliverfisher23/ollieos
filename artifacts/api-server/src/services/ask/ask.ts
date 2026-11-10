@@ -26,7 +26,7 @@ import {
   type Priority,
   type TaskStatus,
 } from "@workspace/shared";
-import { applicablePlaybookRefs, loadVisibleDocs, retrieveForAsk, type AiDoc } from "../../lib/ai-data/retrieve";
+import { applicableRuleRefs, loadVisibleDocs, retrieveForAsk, type AiDoc } from "../../lib/ai-data/retrieve";
 import { askClient, buildScope, defaultScope, recordReads, visibleRefs, type AiScope } from "../../lib/ai-data/scope";
 import type { GrantType } from "../../lib/ai-data/visibility";
 import { describeRefs, grantDirect } from "../access";
@@ -420,7 +420,7 @@ async function computeAnswer(scope: AiScope, q: string, prior: PriorTurn[], carr
     throw new UpstreamError("Ask OllieOS could not reach the model just now. Try again in a moment.");
   }
   // Only refs that were actually handed to the model count; anything else is dropped, and an item left without a source goes too.
-  const allowed = new Set(docs.filter((d) => d.type !== "playbook").map((d) => d.ref));
+  const allowed = new Set(docs.filter((d) => d.type !== "rule").map((d) => d.ref));
   const items = raw.items
     .map((i) => ({ text: i.text, refs: [...new Set(i.refs.map((r) => r.trim()))].filter((r) => allowed.has(r)) }))
     .filter((i) => i.text && i.refs.length);
@@ -547,7 +547,7 @@ export async function draftReply(id: number): Promise<{ turns: AskTurnView[] }> 
   const scope = await askScope();
   const cited = await loadVisibleDocs(scope, refs);
   if (!cited.length) throw new ConflictError("The items behind this answer are no longer readable by AI");
-  const docs = [...(await loadVisibleDocs(scope, await applicablePlaybookRefs(scope, refs))), ...cited];
+  const docs = [...(await loadVisibleDocs(scope, await applicableRuleRefs(scope, refs))), ...cited];
   await recordReads(scope, docs.map((d) => d.ref), { via: "ask_draft", threadId: id, question: row.question });
   let text: string;
   try {

@@ -23,7 +23,9 @@ import {
 import { RelationshipsSection } from '@/components/knowledge/relationships';
 import { isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
 import { Skel } from '@/components/bits';
-import { DocumentDialog, PlaybookCard, PlaybookDialog } from '@/pages/knowledge/library';
+import { DocumentDialog, RuleCard, RuleDialog } from '@/pages/knowledge/library';
+import { PlaybooksSection } from '@/pages/knowledge/playbooks';
+import { ProductsSection } from '@/pages/knowledge/products';
 import { HiddenFromAi } from '@/components/knowledge/parts';
 
 /** /knowledge: the most recently updated project, or an empty state. */
@@ -62,7 +64,7 @@ export function ProjectPage() {
   const unlink = useUnlink();
   const goals = useListGoalOptions();
   const [addingDoc, setAddingDoc] = useState(false);
-  const [addingPlaybook, setAddingPlaybook] = useState(false);
+  const [addingRule, setAddingRule] = useState(false);
   const save = (patch: ProjectUpdate, done?: string) => write(() => updateProject(slug, patch), { done });
 
   if (q.isLoading) return <KnowledgeLayout testId="page-project"><PageSkeleton /></KnowledgeLayout>;
@@ -73,7 +75,7 @@ export function ProjectPage() {
       </KnowledgeLayout>
     );
   }
-  const { project, goal, documents, playbooks, facts, decisions, openTasks, people, organisations, activity } = q.data;
+  const { project, goal, documents, rules, playbooks, products, facts, decisions, openTasks, people, organisations, activity } = q.data;
   const topGoals = (goals.data ?? []).filter((g) => g.parentId == null);
 
   return (
@@ -208,21 +210,23 @@ export function ProjectPage() {
         )}
       </section>
 
-      <section aria-labelledby="pbs-h" style={{ display: 'flex', flexDirection: 'column', gap: 10 }} data-testid="section-project-playbooks">
+      <section aria-labelledby="pbs-h" style={{ display: 'flex', flexDirection: 'column', gap: 10 }} data-testid="section-project-rules">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-          <h2 id="pbs-h" className="oo-h2">Playbooks</h2>
+          <h2 id="pbs-h" className="oo-h2">Rules</h2>
           <span style={{ display: 'flex', gap: 12 }}>
-            <Link href="/knowledge/library?tab=playbooks" className="oo-link" style={{ fontSize: 13 }} data-testid="link-all-playbooks">All playbooks</Link>
-            <button type="button" className="oo-textbtn" onClick={() => setAddingPlaybook(true)} data-testid="button-project-new-playbook">New playbook</button>
+            <Link href="/knowledge/library?tab=rules" className="oo-link" style={{ fontSize: 13 }} data-testid="link-all-rules">All rules</Link>
+            <button type="button" className="oo-textbtn" onClick={() => setAddingRule(true)} data-testid="button-project-new-rule">New rule</button>
           </span>
         </div>
-        <p className="oo-muted" style={{ margin: 0, fontSize: 13 }}>What Claude follows when drafting for this project: global playbooks and any linked to it or its organisations.</p>
-        {playbooks.length === 0 ? (
-          <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>No playbooks apply.</p>
+        <p className="oo-muted" style={{ margin: 0, fontSize: 13 }}>What Claude follows when drafting for this project: global rules and any linked to it, its organisations or its products.</p>
+        {rules.length === 0 ? (
+          <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>No rules apply.</p>
         ) : (
-          <div className="oo-kgrid">{playbooks.map((p) => <PlaybookCard key={p.id} p={p} compact />)}</div>
+          <div className="oo-kgrid">{rules.map((p) => <RuleCard key={p.id} p={p} compact />)}</div>
         )}
       </section>
+
+      <PlaybooksSection playbooks={playbooks} preset={{ projectId: project.id }} empty="No playbooks linked to this project." />
 
       <div className="oo-kgrid">
         <section aria-labelledby="pp-h" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -247,6 +251,7 @@ export function ProjectPage() {
             ))}
           </div>
           <div><LinkPicker fromType="project" fromId={project.id} toType="organisation" exclude={organisations.map((o) => o.id)} /></div>
+          <ProductsSection fromType="project" fromId={project.id} products={products} />
         </section>
         <section aria-labelledby="act-h" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <h2 id="act-h" className="oo-h2">Recent activity</h2>
@@ -255,7 +260,7 @@ export function ProjectPage() {
       </div>
 
       {addingDoc && <DocumentDialog presetProjectId={project.id} onClose={() => setAddingDoc(false)} />}
-      {addingPlaybook && <PlaybookDialog presetProjectId={project.id} onClose={() => setAddingPlaybook(false)} />}
+      {addingRule && <RuleDialog presetProjectId={project.id} onClose={() => setAddingRule(false)} />}
 
       <AddNote entityType="project" entityId={project.id} placeholder={`Anything worth remembering about ${project.name}`} />
 

@@ -9,7 +9,7 @@ import { person, project } from "./helpers";
 /* What the fake model finds, and what it was sent. */
 let extract: Extracted;
 let sent: string[] = [];
-const nothing = (): Extracted => ({ summary: "A session.", confidential: false, projects: [], facts: [], decisions: [], people: [], organisations: [], playbooks: [], relationships: [] });
+const nothing = (): Extracted => ({ summary: "A session.", confidential: false, projects: [], facts: [], decisions: [], people: [], organisations: [], rules: [], relationships: [] });
 
 vi.mock("../src/services/connectors/sorter", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/services/connectors/sorter")>()),

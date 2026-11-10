@@ -10,6 +10,7 @@ import {
   type FactReviewResolve,
   type KnowledgeInboxItem,
   type KnowledgeInboxItemKind,
+  type KnowledgeInboxPlaybook,
 } from '@workspace/api-client-react';
 import { daysBetween, formatDayMonth, formatTime, londonDate, todayLondon } from '@workspace/shared';
 import { CharCount, Skel } from '@/components/bits';
@@ -37,7 +38,10 @@ const KIND: Record<KnowledgeInboxItemKind, { label: string; tone: string }> = {
   changed_details: { label: 'Changed details', tone: 'person' },
   new_document: { label: 'New document', tone: 'fact' },
   document_link: { label: 'Link document', tone: 'fact' },
-  new_playbook: { label: 'New playbook', tone: 'decision' },
+  new_rule: { label: 'New rule', tone: 'decision' },
+  new_playbook: { label: 'Playbook', tone: 'decision' },
+  playbook_change: { label: 'Playbook change', tone: 'decision' },
+  new_product: { label: 'Product', tone: 'fact' },
   cadence_change: { label: 'Suggested cadence', tone: 'person' },
   new_relationship: { label: 'Relationship', tone: 'person' },
   conflict: { label: 'Conflict', tone: 'conflict' },
@@ -47,7 +51,10 @@ const KIND: Record<KnowledgeInboxItemKind, { label: string; tone: string }> = {
 const APPROVED: Partial<Record<KnowledgeInboxItemKind, string>> = {
   new_document: 'Added to the Library',
   document_link: 'Linked to the project',
-  new_playbook: 'Added to playbooks and switched on',
+  new_rule: 'Added to rules and switched on',
+  new_playbook: 'Added to playbooks',
+  playbook_change: 'Playbook updated and marked as checked',
+  new_product: 'Added to products',
   cadence_change: 'Cadence set',
   new_relationship: 'Relationship added',
 };
@@ -246,6 +253,7 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
               <span className="oo-muted">Was:</span> {it.fields.filter((f) => f.before !== null).map((f) => `${f.label}: ${f.before}`).join('; ')}
             </p>
           )}
+          {it.playbook && <StepsDiff pb={it.playbook} change={it.kind === 'playbook_change'} testKey={testKey} />}
           {it.replaces && (
             <p style={{ margin: 0, fontSize: 13 }} className="oo-soft">
               <span className="oo-muted">Replaces:</span> {it.replaces}
@@ -318,8 +326,8 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
   );
 }
 
-const LONG = new Set(['text', 'summary', 'relationship_summary', 'rule']);
-const REQUIRED = new Set(['text', 'name', 'title', 'applies_when', 'rule']);
+const LONG = new Set(['text', 'summary', 'relationship_summary', 'rule', 'when_to_use']);
+const REQUIRED = new Set(['text', 'name', 'title', 'applies_when', 'rule', 'when_to_use']);
 const MAX: Record<string, number> = { rule: 400 };
 
 const NEW = '__new';
@@ -328,6 +336,42 @@ function approvedText(it: KnowledgeInboxItem, project: string, newName: string):
   if (!it.needsProject) return APPROVED[it.kind] ?? 'Added to knowledge';
   if (project === NEW) return `Added to knowledge, under the new project ${newName.trim()}`;
   return project ? 'Added to knowledge, under that project' : 'Added to knowledge, with no project';
+}
+
+const CHANGE_WORD: Record<string, string> = { added: 'New step', changed: 'Changed', removed: 'Removed' };
+
+/** A Playbook card's steps, with what a change adds, changes or removes marked. */
+function StepsDiff({ pb, change, testKey }: { pb: KnowledgeInboxPlaybook; change: boolean; testKey: string }) {
+  if (!pb.steps.length) return null;
+  const counts = pb.steps.reduce<Record<string, number>>((c, s) => ({ ...c, [s.change]: (c[s.change] ?? 0) + 1 }), {});
+  const summary = change
+    ? [counts.added && `${counts.added} added`, counts.changed && `${counts.changed} changed`, counts.removed && `${counts.removed} removed`].filter(Boolean).join(', ') || 'Steps unchanged'
+    : null;
+  let n = 0;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-testid={'steps-' + testKey}>
+      <span className="oo-muted" style={{ fontSize: 12 }}>Steps{summary ? ` · ${summary}` : ''}</span>
+      <ol className="oo-isteps">
+        {pb.steps.map((s, i) => {
+          if (s.change !== 'removed') n += 1;
+          const meta = [s.person, s.afterDays != null ? `day ${s.afterDays}` : null].filter(Boolean).join(', ');
+          return (
+            <li key={i} data-change={s.change} data-testid={`step-${testKey}-${i}`}>
+              <span className="oo-isteps-n oo-num" aria-hidden="true">{s.change === 'removed' ? '–' : n}</span>
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                <span>
+                  {CHANGE_WORD[s.change] && <span className="oo-isteps-mark">{CHANGE_WORD[s.change]}: </span>}
+                  <span className="oo-isteps-text">{s.text}</span>
+                  {meta && <span className="oo-muted"> · {meta}</span>}
+                </span>
+                {s.before && <span className="oo-muted" style={{ fontSize: 12 }}>Was: {s.before}</span>}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
 }
 
 /** For a decision that matched no project: file it under one, start a new one, or leave it on its own. */

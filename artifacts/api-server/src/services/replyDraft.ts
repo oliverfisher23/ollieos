@@ -1,13 +1,13 @@
 /**
  * "Draft reply" on email tasks (Assist, Part A). Reads the Gmail thread, plus what AI may see in
- * OllieOS about the people, organisation and work involved and Ollie's playbooks, through the same
+ * OllieOS about the people, organisation and work involved and Ollie's rules, through the same
  * filter as Ask OllieOS. Ollie edits the reply, then saves it as a draft in the Gmail thread.
  * OllieOS never sends email.
  */
 import { and, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { db, peopleTable, replyDraftsTable, tasksTable, type ReplyDraft as ReplyDraftRow, type Task as TaskRow } from "@workspace/db";
 import { OPEN_STATUSES, formatDayMonth, formatTime, toRef } from "@workspace/shared";
-import { applicablePlaybookRefs, loadVisibleDocs } from "../lib/ai-data/retrieve";
+import { applicableRuleRefs, loadVisibleDocs } from "../lib/ai-data/retrieve";
 import { recordReads, visibleRefs } from "../lib/ai-data/scope";
 import { writeAudit } from "../lib/audit";
 import { logger } from "../lib/logger";
@@ -226,8 +226,8 @@ export async function writeReplyDraft(
   const senderEmails = [...new Set([env.target?.from.email, task.fromAddress?.toLowerCase()].filter((e): e is string => !!e))];
   const refs = await contextRefs(task, senderEmails);
   const items = await loadVisibleDocs(scope, refs);
-  const playbooks = await loadVisibleDocs(scope, await applicablePlaybookRefs(scope, refs));
-  const docs = [...playbooks, ...items];
+  const rules = await loadVisibleDocs(scope, await applicableRuleRefs(scope, refs));
+  const docs = [...rules, ...items];
   await recordReads(scope, docs.map((d) => d.ref), { via: "reply_draft", task: task.id });
   const style = await writingStyleNote();
 

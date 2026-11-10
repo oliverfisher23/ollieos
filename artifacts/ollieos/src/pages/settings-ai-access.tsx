@@ -415,9 +415,10 @@ function Problem({ what, onRetry }: { what: string; onRetry: () => void }) {
 }
 
 /** Pasted into Cowork's instructions so each session starts with OllieOS context and ends saved. */
-export const COWORK_INSTRUCTIONS = `At the start of every session, call the OllieOS get_context tool for the project or person the session is about, and get_playbooks before drafting anything for me.
+export const COWORK_INSTRUCTIONS = `At the start of every session, call the OllieOS get_context tool for the project or person the session is about, and get_rules before drafting anything for me. When a task follows a process I have a playbook for, read it with get_playbook and follow its steps.
 At the end of every session, call the OllieOS save_session tool once with a short title, a summary, what was done (including any decisions I made), the projects and people it touched, any follow-ups as actions (promises when I said I would do something for someone), and any documents worth keeping as artifacts.
 When an idea worth coming back to comes up, add it with the OllieOS add_idea tool (with from_session true) rather than as a task. For questions about direction, read my strategy with get_strategy.
+When the session shows how something is done step by step, propose it with propose_playbook (or a change to an existing playbook). When it is about a product OllieOS does not know yet, propose it with propose_product. Both wait for my approval.
 Mark the session confidential if it was about the company sale, the board, pay or HR.`;
 
 function CoworkInstructions() {

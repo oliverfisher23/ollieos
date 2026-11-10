@@ -234,7 +234,7 @@ export function DocumentDialog({ doc, presetProjectId, onClose }: { doc?: Librar
                   <input type="checkbox" checked={build} onChange={(e) => setBuild(e.target.checked)} style={{ marginTop: 3 }} data-testid="checkbox-build-knowledge" />
                   <span>
                     Build knowledge from this
-                    <span className="oo-muted" style={{ display: 'block' }}>Facts, decisions, people and playbooks it finds go to your Knowledge Inbox to approve. Not for documents hidden from AI.</span>
+                    <span className="oo-muted" style={{ display: 'block' }}>Facts, decisions, people and rules it finds go to your Knowledge Inbox to approve. Not for documents hidden from AI.</span>
                   </span>
                 </label>
               )}

@@ -9,10 +9,12 @@ import { TYPE_LABELS, entityPath } from '@/lib/knowledge';
 
 const LIBRARY = [
   { href: '/knowledge/library', label: 'Documents' },
+  { href: '/knowledge/library?tab=rules', label: 'Rules' },
   { href: '/knowledge/library?tab=playbooks', label: 'Playbooks' },
   { href: '/knowledge/sessions', label: 'Sessions' },
   { href: '/knowledge/people', label: 'People' },
   { href: '/knowledge/organisations', label: 'Organisations' },
+  { href: '/knowledge/products', label: 'Products' },
   { href: '/knowledge/decisions', label: 'Decisions' },
   { href: '/knowledge/notes', label: 'Notes' },
 ];
@@ -35,10 +37,11 @@ function hitPath(h: SearchHit): string | null {
 function KnowledgeSidebar() {
   const [location] = useLocation();
   const params = new URLSearchParams(useSearch());
-  const libraryTab = params.get('tab') === 'playbooks' ? 'playbooks' : 'documents';
+  const libraryTab = params.get('tab') === 'rules' || params.get('tab') === 'playbooks' ? params.get('tab') : 'documents';
   const libraryCurrent = (href: string) => {
+    if (href === '/knowledge/library?tab=playbooks' && location.startsWith('/knowledge/playbooks/')) return true;
     if (!href.startsWith('/knowledge/library')) return location === href || location.startsWith(href + '/');
-    return location === '/knowledge/library' && (href.includes('playbooks') ? libraryTab === 'playbooks' : libraryTab === 'documents');
+    return location === '/knowledge/library' && (new URLSearchParams(href.split('?')[1] ?? '').get('tab') ?? 'documents') === libraryTab;
   };
   const [text, setText] = useState('');
   const [q, setQ] = useState('');

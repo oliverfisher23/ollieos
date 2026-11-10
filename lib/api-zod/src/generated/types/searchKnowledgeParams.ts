@@ -9,7 +9,7 @@
 export type SearchKnowledgeParams = {
 q: string;
 /**
- * Comma-separated list of task, project, person, organisation, decision, note, fact, document, session
+ * Comma-separated list of task, project, person, organisation, decision, note, fact, document, session, product, playbook
  */
 types?: string;
 };

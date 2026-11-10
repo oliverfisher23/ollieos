@@ -25,7 +25,7 @@ tags:
   - name: access
     description: AI access requests, connected tools and the AI read log
   - name: direction
-    description: Goals, relationship cadence, the document Library and playbooks
+    description: Goals, relationship cadence, the document Library and rules
   - name: preparation
     description: Meeting briefs and the daily digest
 paths:
@@ -713,7 +713,7 @@ paths:
     post:
       operationId: writeReplyDraft
       tags: [tasks]
-      summary: Writes (or rewrites) a reply with AI from the email thread, OllieOS and playbooks. Nothing is sent.
+      summary: Writes (or rewrites) a reply with AI from the email thread, OllieOS and rules. Nothing is sent.
       parameters:
         - $ref: "#/components/parameters/TaskId"
       requestBody:
@@ -2138,11 +2138,64 @@ paths:
         "404": { $ref: "#/components/responses/Error" }
         "409": { $ref: "#/components/responses/Error" }
 
+  /rules:
+    get:
+      operationId: listRules
+      tags: [direction]
+      summary: Every rule, enabled or paused
+      responses:
+        "200":
+          description: Rules
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Rule" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: createRule
+      tags: [direction]
+      summary: New rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RuleInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Rule" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /rules/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    patch:
+      operationId: updateRule
+      tags: [direction]
+      summary: Edit, pause or resume a rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RuleUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Rule" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /playbooks:
     get:
       operationId: listPlaybooks
       tags: [direction]
-      summary: Every playbook, enabled or paused
+      summary: Every playbook (how something is done, in steps)
       responses:
         "200":
           description: Playbooks
@@ -2172,10 +2225,22 @@ paths:
   /playbooks/{id}:
     parameters:
       - $ref: "#/components/parameters/ItemId"
+    get:
+      operationId: getPlaybook
+      tags: [direction]
+      summary: One playbook
+      responses:
+        "200":
+          description: Playbook
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Playbook" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
     patch:
       operationId: updatePlaybook
       tags: [direction]
-      summary: Edit, pause or resume a playbook
+      summary: Edit a playbook, its steps or links, or mark it checked
       requestBody:
         required: true
         content:
@@ -2187,6 +2252,78 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Playbook" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deletePlaybook
+      tags: [direction]
+      summary: Delete a playbook
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /products:
+    get:
+      operationId: listProducts
+      tags: [knowledge]
+      summary: Products
+      responses:
+        "200":
+          description: Products, live first
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/ProductListItem" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: createProduct
+      tags: [knowledge]
+      summary: New product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Product" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /products/{slug}:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    get:
+      operationId: getProduct
+      tags: [knowledge]
+      summary: Product page
+      responses:
+        "200":
+          description: Product detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProductDetail" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      operationId: updateProduct
+      tags: [knowledge]
+      summary: Edit a product, including its AI access switches
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProductUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Product" }
         "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
@@ -2672,7 +2809,7 @@ paths:
       tags: [knowledge]
       summary: Stated relationships on a project, person or organisation, read from its side
       parameters:
-        - { name: type, in: query, required: true, schema: { type: string, enum: [person, organisation, project] } }
+        - { name: type, in: query, required: true, schema: { type: string, enum: [person, organisation, project, product] } }
         - { name: id, in: query, required: true, schema: { type: integer } }
       responses:
         "200":
@@ -2731,7 +2868,7 @@ paths:
         - name: types
           in: query
           required: false
-          description: Comma-separated list of task, project, person, organisation, decision, note, fact, document, session
+          description: "Comma-separated list of task, project, person, organisation, decision, note, fact, document, session, product, playbook"
           schema: { type: string }
       responses:
         "200":
@@ -4244,7 +4381,7 @@ components:
 
     BriefView:
       type: object
-      required: [event, research, generatedAt, failed, notMuch, sourcesLine, why, questions, questionsNote, agenda, attendees, promises, tasks, waitingOn, earlier, threads, projects, goals, documents, playbooks, heldBack, notes, granolaNotes, granolaRef, actions]
+      required: [event, research, generatedAt, failed, notMuch, sourcesLine, why, questions, questionsNote, agenda, attendees, promises, tasks, waitingOn, earlier, threads, projects, goals, documents, rules, heldBack, notes, granolaNotes, granolaRef, actions]
       properties:
         event: { $ref: "#/components/schemas/BriefEvent" }
         research: { type: array, items: { $ref: "#/components/schemas/CompanyResearch" } }
@@ -4340,7 +4477,7 @@ components:
               title: { type: string }
               url: { type: string }
               location: { type: string }
-        playbooks:
+        rules:
           type: array
           items:
             type: object
@@ -4349,6 +4486,31 @@ components:
               id: { type: integer }
               title: { type: string }
               rule: { type: string }
+        products:
+          type: array
+          description: Products linked to the meeting's projects and organisations, with the rules linked to each
+          items:
+            type: object
+            required: [id, slug, name, description, state, confidential, ruleIds]
+            properties:
+              id: { type: integer }
+              slug: { type: string }
+              name: { type: string }
+              description: { type: [string, "null"] }
+              state: { $ref: "#/components/schemas/ProductState" }
+              confidential: { type: boolean, description: Hidden from AI }
+              ruleIds: { type: array, items: { type: integer } }
+        playbooks:
+          type: array
+          description: In use playbooks linked to the meeting's projects and organisations
+          items:
+            type: object
+            required: [id, title, whenToUse, steps]
+            properties:
+              id: { type: integer }
+              title: { type: string }
+              whenToUse: { type: string }
+              steps: { type: integer, description: How many steps }
         heldBack: { type: integer, description: Attendees, projects or organisations hidden from Ask OllieOS and left out of the brief }
         notes: { type: [string, "null"], description: Ollie's notes for after the meeting }
         granolaNotes: { type: [string, "null"] }
@@ -5072,14 +5234,14 @@ components:
 
     KnowledgeInboxItem:
       type: object
-      required: [key, id, group, kind, target, by, createdAt, text, fields, attribute, replaces, source, sourceUrl, options, lastConfirmedAt, lookBack, fromDocument, needsProject, projectHint]
+      required: [key, id, group, kind, target, by, createdAt, text, fields, attribute, replaces, source, sourceUrl, options, lastConfirmedAt, lookBack, fromDocument, needsProject, projectHint, playbook]
       properties:
         key: { type: string }
         id: { type: integer, description: Suggestion id on the Suggested tab, review id otherwise }
         group: { type: string, enum: [suggested, conflicts, stale] }
         kind:
           type: string
-          enum: [new_fact, new_person, new_organisation, new_project, proposed_decision, changed_summary, changed_details, new_document, document_link, new_playbook, cadence_change, new_relationship, conflict, stale_fact]
+          enum: [new_fact, new_person, new_organisation, new_project, proposed_decision, changed_summary, changed_details, new_document, document_link, new_rule, new_playbook, playbook_change, new_product, cadence_change, new_relationship, conflict, stale_fact]
         target:
           oneOf:
             - $ref: "#/components/schemas/KnowledgeInboxTarget"
@@ -5098,6 +5260,29 @@ components:
         fromDocument: { type: [string, "null"], description: "The document or Dropbox file it came from, when found by reading documents" }
         needsProject: { type: boolean, description: A decision with no project; Ollie may file it under one when approving }
         projectHint: { type: [string, "null"], description: What a decision with no project is about }
+        playbook:
+          description: Steps for a Playbook card, with the change shown
+          oneOf:
+            - $ref: "#/components/schemas/KnowledgeInboxPlaybook"
+            - type: "null"
+
+    KnowledgeInboxStep:
+      type: object
+      required: [text, person, afterDays, change, before]
+      properties:
+        text: { type: string }
+        person: { type: [string, "null"] }
+        afterDays: { type: [integer, "null"] }
+        change: { type: string, enum: [new, same, added, changed, removed] }
+        before: { type: [string, "null"], description: The step as it was, for a changed step }
+
+    KnowledgeInboxPlaybook:
+      type: object
+      required: [playbookId, steps, reason]
+      properties:
+        playbookId: { type: [integer, "null"], description: Set for a change to a playbook already in OllieOS }
+        steps: { type: array, items: { $ref: "#/components/schemas/KnowledgeInboxStep" } }
+        reason: { type: [string, "null"] }
 
     KnowledgeInbox:
       type: object
@@ -5179,7 +5364,7 @@ components:
       type: object
       required: [entityType, entityId, text]
       properties:
-        entityType: { type: string, enum: [project, person, organisation] }
+        entityType: { type: string, enum: [project, person, organisation, product] }
         entityId: { type: integer }
         text: { type: string, minLength: 1, maxLength: 2000 }
         source: { type: [string, "null"] }
@@ -5262,7 +5447,7 @@ components:
       type: object
       required: [entityType, entityId, body]
       properties:
-        entityType: { type: string, enum: [project, person, organisation, task, decision] }
+        entityType: { type: string, enum: [project, person, organisation, product, task, decision] }
         entityId: { type: integer }
         title: { type: [string, "null"] }
         body: { type: string, minLength: 1 }
@@ -5289,7 +5474,7 @@ components:
 
     ProjectDetail:
       type: object
-      required: [project, goal, documents, playbooks, facts, decisions, openTasks, people, organisations, notes, activity]
+      required: [project, goal, documents, rules, playbooks, products, facts, decisions, openTasks, people, organisations, notes, activity]
       properties:
         project: { $ref: "#/components/schemas/Project" }
         goal:
@@ -5297,7 +5482,9 @@ components:
             - $ref: "#/components/schemas/ProjectGoal"
             - type: "null"
         documents: { type: array, items: { $ref: "#/components/schemas/LibraryDocument" } }
-        playbooks: { type: array, items: { $ref: "#/components/schemas/Playbook" }, description: Global ones and those linked to the project or its organisations, paused ones included }
+        rules: { type: array, items: { $ref: "#/components/schemas/Rule" }, description: "Global ones and those linked to the project, its organisations or products, paused ones included" }
+        playbooks: { type: array, items: { $ref: "#/components/schemas/Playbook" } }
+        products: { type: array, items: { $ref: "#/components/schemas/LinkedProduct" } }
         facts: { type: array, items: { $ref: "#/components/schemas/Fact" } }
         decisions: { type: array, items: { $ref: "#/components/schemas/Decision" } }
         openTasks: { type: array, items: { $ref: "#/components/schemas/Task" } }
@@ -5444,8 +5631,10 @@ components:
 
     OrganisationDetail:
       type: object
-      required: [organisation, people, projects, facts, notes, timeline, research]
+      required: [organisation, people, projects, playbooks, products, facts, notes, timeline, research]
       properties:
+        playbooks: { type: array, items: { $ref: "#/components/schemas/Playbook" } }
+        products: { type: array, items: { $ref: "#/components/schemas/LinkedProduct" } }
         research: { type: array, items: { $ref: "#/components/schemas/CompanyResearch" } }
         organisation: { $ref: "#/components/schemas/Organisation" }
         people: { type: array, items: { $ref: "#/components/schemas/PersonChip" } }
@@ -5456,7 +5645,7 @@ components:
 
     Linkable:
       type: string
-      enum: [task, project, person, organisation, decision, note]
+      enum: [task, project, person, organisation, decision, note, product, document, rule, playbook]
 
     LinkInput:
       type: object
@@ -5478,7 +5667,7 @@ components:
       required: [ref, type, id, name, detail, slug, hidden]
       properties:
         ref: { type: string }
-        type: { type: string, enum: [person, organisation, project, goal, decision, document, task, session, meeting] }
+        type: { type: string, enum: [person, organisation, project, product, goal, decision, document, playbook, task, session, meeting] }
         id: { type: integer }
         name: { type: string }
         detail: { type: [string, "null"] }
@@ -5541,7 +5730,7 @@ components:
           type: object
           required: [type, id, name, slug]
           properties:
-            type: { type: string, enum: [person, organisation, project] }
+            type: { type: string, enum: [person, organisation, project, product] }
             id: { type: integer }
             name: { type: string }
             slug: { type: [string, "null"] }
@@ -5555,9 +5744,9 @@ components:
       additionalProperties: false
       required: [fromType, fromId, toType, toId]
       properties:
-        fromType: { type: string, enum: [person, organisation, project] }
+        fromType: { type: string, enum: [person, organisation, project, product] }
         fromId: { type: integer }
-        toType: { type: string, enum: [person, organisation, project] }
+        toType: { type: string, enum: [person, organisation, project, product] }
         toId: { type: integer }
 
     RelationshipInput:
@@ -5565,9 +5754,9 @@ components:
       additionalProperties: false
       required: [fromType, fromId, toType, toId, relationship]
       properties:
-        fromType: { type: string, enum: [person, organisation, project] }
+        fromType: { type: string, enum: [person, organisation, project, product] }
         fromId: { type: integer }
-        toType: { type: string, enum: [person, organisation, project] }
+        toType: { type: string, enum: [person, organisation, project, product] }
         toId: { type: integer }
         relationship: { $ref: "#/components/schemas/RelationshipKind" }
         note: { type: [string, "null"], maxLength: 1000 }
@@ -5582,7 +5771,7 @@ components:
       type: object
       required: [type, id, title, snippet, slug, status, hiddenFromAi, parent]
       properties:
-        type: { type: string, enum: [task, project, person, organisation, decision, note, fact, document, session, strategy, idea] }
+        type: { type: string, enum: [task, project, person, organisation, decision, note, fact, document, session, strategy, idea, product, playbook] }
         id: { type: integer }
         title: { type: string }
         snippet: { type: [string, "null"] }
@@ -6375,9 +6564,9 @@ components:
         projectIds: { type: array, items: { type: integer } }
         confirm: { type: boolean, description: Still current; moves Updated to now }
 
-    Playbook:
+    Rule:
       type: object
-      required: [id, title, appliesWhen, rule, enabled, createdBy, createdAt, updatedAt, projects, organisations, sentToAi]
+      required: [id, title, appliesWhen, rule, enabled, createdBy, createdAt, updatedAt, projects, organisations, products, sentToAi]
       properties:
         id: { type: integer }
         title: { type: string }
@@ -6389,9 +6578,10 @@ components:
         updatedAt: { type: string, format: date-time }
         projects: { type: array, items: { $ref: "#/components/schemas/NamedLink" } }
         organisations: { type: array, items: { $ref: "#/components/schemas/NamedLink" } }
+        products: { type: array, items: { $ref: "#/components/schemas/NamedLink" } }
         sentToAi: { type: boolean, description: Enabled and global or linked to something AI can read }
 
-    PlaybookInput:
+    RuleInput:
       type: object
       required: [title, appliesWhen, rule]
       properties:
@@ -6401,8 +6591,9 @@ components:
         enabled: { type: boolean }
         projectIds: { type: array, items: { type: integer } }
         organisationIds: { type: array, items: { type: integer } }
+        productIds: { type: array, items: { type: integer } }
 
-    PlaybookUpdate:
+    RuleUpdate:
       type: object
       properties:
         title: { type: string, minLength: 1, maxLength: 200 }
@@ -6411,6 +6602,193 @@ components:
         enabled: { type: boolean }
         projectIds: { type: array, items: { type: integer } }
         organisationIds: { type: array, items: { type: integer } }
+        productIds: { type: array, items: { type: integer } }
+
+    PlaybookState:
+      type: string
+      enum: [draft, in_use, retired]
+
+    PlaybookStep:
+      type: object
+      required: [id, text, personId, afterDays, personName, personSlug]
+      properties:
+        id: { type: string }
+        text: { type: string }
+        personId: { type: [integer, "null"] }
+        afterDays: { type: [integer, "null"], description: Days after starting }
+        personName: { type: [string, "null"] }
+        personSlug: { type: [string, "null"] }
+
+    PlaybookStepInput:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        id: { type: [string, "null"], maxLength: 40, description: Keep the id of a step that stays }
+        text: { type: string, minLength: 1, maxLength: 600 }
+        personId: { type: [integer, "null"] }
+        afterDays: { type: [integer, "null"], minimum: 0, maximum: 3650 }
+
+    Playbook:
+      type: object
+      required: [id, title, whenToUse, purpose, ownerId, steps, notes, state, confidential, lastCheckedAt, createdBy, createdAt, updatedAt, owner, projects, organisations, products, documents, hiddenFromAi, source]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        whenToUse: { type: string }
+        purpose: { type: [string, "null"] }
+        ownerId: { type: [integer, "null"] }
+        steps: { type: array, items: { $ref: "#/components/schemas/PlaybookStep" } }
+        notes: { type: [string, "null"] }
+        state: { $ref: "#/components/schemas/PlaybookState" }
+        confidential: { type: [boolean, "null"], description: null means it follows its linked projects and products }
+        lastCheckedAt: { type: string, format: date-time }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        owner:
+          oneOf:
+            - $ref: "#/components/schemas/NamedLink"
+            - type: "null"
+        projects: { type: array, items: { $ref: "#/components/schemas/NamedLink" } }
+        organisations: { type: array, items: { $ref: "#/components/schemas/NamedLink" } }
+        products: { type: array, items: { $ref: "#/components/schemas/NamedLink" } }
+        documents: { type: array, items: { $ref: "#/components/schemas/NamedItemTitle" } }
+        hiddenFromAi: { type: boolean, description: "Not In use, marked confidential, or linked to something hidden" }
+        source: { type: [string, "null"], description: Where it came from when approved from a suggestion }
+
+    NamedItemTitle:
+      type: object
+      required: [id, title]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+
+    PlaybookInput:
+      type: object
+      additionalProperties: false
+      required: [title, whenToUse]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        whenToUse: { type: string, minLength: 1, maxLength: 500 }
+        purpose: { type: [string, "null"], maxLength: 300 }
+        ownerId: { type: [integer, "null"] }
+        steps: { type: array, maxItems: 30, items: { $ref: "#/components/schemas/PlaybookStepInput" } }
+        notes: { type: [string, "null"], maxLength: 20000 }
+        state: { $ref: "#/components/schemas/PlaybookState" }
+        confidential: { type: [boolean, "null"] }
+        projectIds: { type: array, items: { type: integer } }
+        organisationIds: { type: array, items: { type: integer } }
+        productIds: { type: array, items: { type: integer } }
+        documentIds: { type: array, items: { type: integer } }
+
+    PlaybookUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        whenToUse: { type: string, minLength: 1, maxLength: 500 }
+        purpose: { type: [string, "null"], maxLength: 300 }
+        ownerId: { type: [integer, "null"] }
+        steps: { type: array, maxItems: 30, items: { $ref: "#/components/schemas/PlaybookStepInput" } }
+        notes: { type: [string, "null"], maxLength: 20000 }
+        state: { $ref: "#/components/schemas/PlaybookState" }
+        confidential: { type: [boolean, "null"] }
+        projectIds: { type: array, items: { type: integer } }
+        organisationIds: { type: array, items: { type: integer } }
+        productIds: { type: array, items: { type: integer } }
+        documentIds: { type: array, items: { type: integer } }
+        checked: { type: boolean, description: Ollie checked it is still how things are done }
+
+    ProductState:
+      type: string
+      enum: [live, pilot, in_development, retired]
+
+    Product:
+      type: object
+      required: [id, name, slug, description, state, ownerId, summary, confidential, aiAccess, createdBy, createdAt, updatedAt, owner]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: [string, "null"] }
+        state: { $ref: "#/components/schemas/ProductState" }
+        ownerId: { type: [integer, "null"] }
+        summary: { type: [string, "null"] }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        owner:
+          oneOf:
+            - $ref: "#/components/schemas/NamedLink"
+            - type: "null"
+
+    ProductListItem:
+      type: object
+      required: [id, name, slug, confidential, description, state, aiAccess, ownerName, factCount, updatedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        confidential: { type: boolean }
+        description: { type: [string, "null"] }
+        state: { $ref: "#/components/schemas/ProductState" }
+        aiAccess: { type: boolean }
+        ownerName: { type: [string, "null"] }
+        factCount: { type: integer }
+        updatedAt: { type: string, format: date-time }
+
+    LinkedProduct:
+      type: object
+      required: [id, name, slug, confidential, linked]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        confidential: { type: boolean }
+        linked: { type: boolean, description: Linked directly rather than through something else }
+
+    ProductInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 300 }
+        state: { $ref: "#/components/schemas/ProductState" }
+        ownerId: { type: [integer, "null"] }
+        summary: { type: [string, "null"], maxLength: 20000 }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+
+    ProductUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 300 }
+        state: { $ref: "#/components/schemas/ProductState" }
+        ownerId: { type: [integer, "null"] }
+        summary: { type: [string, "null"], maxLength: 20000 }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+
+    ProductDetail:
+      type: object
+      required: [product, facts, rules, documents, projects, organisations, playbooks, decisions, notes, hiddenFromAi]
+      properties:
+        product: { $ref: "#/components/schemas/Product" }
+        facts: { type: array, items: { $ref: "#/components/schemas/Fact" } }
+        rules: { type: array, items: { $ref: "#/components/schemas/Rule" }, description: "What to say and not say" }
+        documents: { type: array, items: { $ref: "#/components/schemas/LibraryDocument" } }
+        projects: { type: array, items: { $ref: "#/components/schemas/LinkedProduct" } }
+        organisations: { type: array, items: { $ref: "#/components/schemas/LinkedProduct" } }
+        playbooks: { type: array, items: { $ref: "#/components/schemas/Playbook" } }
+        decisions: { type: array, items: { $ref: "#/components/schemas/Decision" } }
+        notes: { type: array, items: { $ref: "#/components/schemas/Note" } }
+        hiddenFromAi: { type: boolean }
 
     NamedItem:
       type: object

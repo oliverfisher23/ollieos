@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, check, index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import { docLocationEnum, tsvector } from "./enums";
+import { docLocationEnum, playbookStateEnum, tsvector } from "./enums";
+import { peopleTable } from "./knowledge";
 import { coworkSessionsTable } from "./coworkSessions";
 
 /**
@@ -100,10 +101,81 @@ export const knowledgeSourcesTable = pgTable(
 export type KnowledgeSource = typeof knowledgeSourcesTable.$inferSelect;
 
 /**
- * Playbooks (feature 07): short standing rules every AI tool reads before drafting.
- * Global unless linked to projects or organisations through `links`. Paused ones are never sent to AI.
+ * Rules (feature 07; called playbooks before Part M): short standing rules every AI tool reads
+ * before drafting. Global unless linked to projects, organisations or products through `links`.
+ * Paused ones are never sent to AI.
+ */
+export const rulesTable = pgTable(
+  "rules",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    title: text("title").notNull(),
+    appliesWhen: text("applies_when").notNull(),
+    rule: text("rule").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    createdBy: text("created_by").notNull().default("ollie"),
+    suggestionId: integer("suggestion_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  // Rules stay short: 400 characters or fewer (feature 07 rule 5).
+  (t) => [check("rules_rule_length", sql`char_length(${t.rule}) <= 400`)],
+);
+
+/** One step in a playbook. */
+export interface PlaybookStep {
+  /** Stable id, so steps can be reordered and changes shown against them */
+  id: string;
+  text: string;
+  /** The person who does it, when it is not Ollie */
+  personId: number | null;
+  /** Days after starting the playbook */
+  afterDays: number | null;
+}
+
+/**
+ * Playbooks (Part M): how something is done, in steps, with an owner. Linked to projects,
+ * organisations, products and documents through `links` (type "playbook"). Only In use ones reach
+ * AI. confidential null means it follows its linked projects and products, like documents.
  */
 export const playbooksTable = pgTable(
+  "process_playbooks",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    title: text("title").notNull(),
+    /** When to use it, for example "A new university partner signs" */
+    whenToUse: text("when_to_use").notNull(),
+    /** What it is for, in one line */
+    purpose: text("purpose"),
+    ownerId: integer("owner_id").references(() => peopleTable.id, { onDelete: "set null" }),
+    steps: jsonb("steps").$type<PlaybookStep[]>().notNull().default(sql`'[]'::jsonb`),
+    notes: text("notes"),
+    state: playbookStateEnum("state").notNull().default("in_use"),
+    confidential: boolean("confidential"),
+    /** When Ollie last checked it is still how things are done */
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }).notNull().defaultNow(),
+    createdBy: text("created_by").notNull().default("ollie"),
+    suggestionId: integer("suggestion_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    search: tsvector("search").generatedAlwaysAs(
+      sql`to_tsvector('english', coalesce(title,'') || ' ' || coalesce(when_to_use,'') || ' ' || coalesce(purpose,'') || ' ' || coalesce(notes,'') || ' ' || coalesce(steps::text,''))`,
+    ),
+  },
+  (t) => [index("process_playbooks_search_idx").using("gin", t.search)],
+);
+
+/**
+ * Where rules were kept before Part M. On start-up its rows are copied into `rules` (same ids) and
+ * it is emptied. Kept defined so publishing never drops it before the copy has run.
+ */
+export const legacyPlaybooksTable = pgTable(
   "playbooks",
   {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -124,4 +196,5 @@ export const playbooksTable = pgTable(
 );
 
 export type Document = typeof documentsTable.$inferSelect;
+export type Rule = typeof rulesTable.$inferSelect;
 export type Playbook = typeof playbooksTable.$inferSelect;

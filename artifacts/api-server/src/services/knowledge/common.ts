@@ -2,10 +2,14 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
   decisionsTable,
+  documentsTable,
   notesTable,
   organisationsTable,
   peopleTable,
+  playbooksTable,
+  productsTable,
   projectsTable,
+  rulesTable,
   tasksTable,
 } from "@workspace/db";
 import { slugify } from "@workspace/shared";
@@ -15,7 +19,9 @@ import { NotFoundError, ValidationError } from "../tasks";
 
 export const ACTOR = "ollie";
 
-export type EntityKind = "project" | "person" | "organisation";
+export type EntityKind = "project" | "person" | "organisation" | "product";
+export const ENTITY_KINDS: readonly EntityKind[] = ["project", "person", "organisation", "product"];
+export const isEntityKind = (t: string): t is EntityKind => (ENTITY_KINDS as readonly string[]).includes(t);
 export type AttachKind = EntityKind | "task" | "decision";
 
 export interface EntitySummary {
@@ -36,7 +42,17 @@ const ENTITY_TABLES = {
   project: projectsTable,
   person: peopleTable,
   organisation: organisationsTable,
+  product: productsTable,
 } as const;
+
+/** Library items that can be linked to, named by their title (Part M). */
+const TITLED_TABLES = {
+  document: documentsTable,
+  rule: rulesTable,
+  playbook: playbooksTable,
+} as const;
+type TitledKind = keyof typeof TITLED_TABLES;
+const isTitled = (t: string): t is TitledKind => t in TITLED_TABLES;
 
 /** A slug that does not clash with any other row in the same table. */
 export async function uniqueSlug(conn: DbOrTx, kind: EntityKind, name: string, exceptId?: number): Promise<string> {
@@ -51,9 +67,9 @@ export async function uniqueSlug(conn: DbOrTx, kind: EntityKind, name: string, e
   for (let i = 2; ; i++) if (!taken.has(`${base}-${i}`)) return `${base}-${i}`;
 }
 
-/** Marks a project, person or organisation as just updated, so "Updated 9th November" reflects child edits. */
+/** Marks a project, person, organisation or product as just updated, so "Updated 9th November" reflects child edits. */
 export async function touch(conn: DbOrTx, kind: string, id: number): Promise<void> {
-  if (kind === "project" || kind === "person" || kind === "organisation") {
+  if (isEntityKind(kind)) {
     const table = ENTITY_TABLES[kind];
     await conn.update(table).set({ updatedAt: new Date() }).where(eq(table.id, id));
   }
@@ -61,11 +77,17 @@ export async function touch(conn: DbOrTx, kind: string, id: number): Promise<voi
 
 /** Name and slug for something a note or fact hangs off. Throws when it does not exist. */
 export async function resolveEntity(type: string, id: number, conn: DbOrTx = db): Promise<EntityRefView> {
-  if (type === "project" || type === "person" || type === "organisation") {
+  if (isEntityKind(type)) {
     const table = ENTITY_TABLES[type];
     const [row] = await conn.select({ id: table.id, name: table.name, slug: table.slug }).from(table).where(eq(table.id, id));
     if (!row) throw new NotFoundError(`That ${type} does not exist`);
     return { type, ...row };
+  }
+  if (isTitled(type)) {
+    const table = TITLED_TABLES[type];
+    const [row] = await conn.select({ id: table.id, name: table.title }).from(table).where(eq(table.id, id));
+    if (!row) throw new NotFoundError(`That ${type} does not exist`);
+    return { type, ...row, slug: null };
   }
   if (type === "task") {
     const [row] = await conn.select({ id: tasksTable.id, name: tasksTable.title }).from(tasksTable).where(eq(tasksTable.id, id));
@@ -85,12 +107,21 @@ export async function resolveEntities(refs: { type: string; id: number }[]): Pro
   const out = new Map<string, EntityRefView>();
   const ids = (t: string) => [...new Set(refs.filter((r) => r.type === t).map((r) => r.id))];
   await Promise.all(
-    (["project", "person", "organisation"] as const).map(async (t) => {
+    ENTITY_KINDS.map(async (t) => {
       const list = ids(t);
       if (!list.length) return;
       const table = ENTITY_TABLES[t];
       const rows = await db.select({ id: table.id, name: table.name, slug: table.slug }).from(table).where(inArray(table.id, list));
       for (const r of rows) out.set(`${t}:${r.id}`, { type: t, ...r });
+    }),
+  );
+  await Promise.all(
+    (Object.keys(TITLED_TABLES) as TitledKind[]).map(async (t) => {
+      const list = ids(t);
+      if (!list.length) return;
+      const table = TITLED_TABLES[t];
+      const rows = await db.select({ id: table.id, name: table.title }).from(table).where(inArray(table.id, list));
+      for (const r of rows) out.set(`${t}:${r.id}`, { type: t, ...r, slug: null });
     }),
   );
   if (ids("task").length) {

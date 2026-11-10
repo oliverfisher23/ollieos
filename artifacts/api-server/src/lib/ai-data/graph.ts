@@ -18,11 +18,15 @@ import {
   linksTable,
   organisationsTable,
   peopleTable,
+  playbooksTable,
+  productsTable,
   projectsTable,
   tasksTable,
 } from "@workspace/db";
 import {
   OPEN_STATUSES,
+  PLAYBOOK_STATE_LABELS,
+  PRODUCT_STATE_LABELS,
   RELATIONSHIPS,
   RELATIONSHIP_INVERSE,
   RELATIONSHIP_LABELS,
@@ -33,7 +37,7 @@ import { visibleCalendarRows } from "./context";
 import { loadVisibleDocs } from "./retrieve";
 import { defaultScope, recordReads, visibleRefs, type AiScope } from "./scope";
 
-export const GRAPH_TYPES = ["person", "organisation", "project", "goal", "decision", "document", "task", "session", "meeting"] as const;
+export const GRAPH_TYPES = ["person", "organisation", "project", "product", "goal", "decision", "document", "playbook", "task", "session", "meeting"] as const;
 export type GraphType = (typeof GRAPH_TYPES)[number];
 
 /** Links worked out from what OllieOS holds, with how they read from each end. */
@@ -162,7 +166,7 @@ export async function expand(points: Pt[], now = new Date()): Promise<GraphEdge[
     P.length > 0 && sql`${coworkSessionsTable.personIds} && ${intArray(P)}`,
     T.length > 0 && sql`${coworkSessionsTable.taskIds} && ${intArray(T)}`,
   ]);
-  const linkTypes = (["person", "organisation", "project", "decision", "document", "task"] as const).filter((t) => ids(t).length);
+  const linkTypes = (["person", "organisation", "project", "product", "decision", "document", "playbook", "task"] as const).filter((t) => ids(t).length);
   const linkWhere = any(
     linkTypes.flatMap((t) => [
       and(eq(linksTable.fromType, t), inArray(linksTable.fromId, ids(t))),
@@ -253,9 +257,10 @@ export async function expand(points: Pt[], now = new Date()): Promise<GraphEdge[
     const to = gref(l.toType as GraphType, l.toId);
     if (l.relationship) {
       edges.push({ from, to, kind: l.relationship, label: RELATIONSHIP_LABELS[l.relationship], inverse: RELATIONSHIP_INVERSE[l.relationship], stated: true, note: l.note, source: l.source });
-    } else if (l.fromType === "document" || l.toType === "document") {
-      // A document linked to a project is about it; keep the document at the "from" end.
-      const [doc, other] = l.fromType === "document" ? [from, to] : [to, from];
+    } else if (l.fromType === "document" || l.toType === "document" || l.fromType === "playbook" || l.toType === "playbook") {
+      // A document or playbook linked to a project is about it; keep the document or playbook at the "from" end.
+      const docFirst = l.fromType === "document" || (l.fromType === "playbook" && l.toType !== "document");
+      const [doc, other] = docFirst ? [from, to] : [to, from];
       edges.push(derived("about", doc, other));
     } else edges.push(derived("linked", from, to));
   }
@@ -312,6 +317,16 @@ export async function describePoints(refs: string[]): Promise<Map<string, GraphN
       (r) => put("document", r.id, r.title, "Document"),
     ),
     run(
+      "product",
+      (i) => db.select({ id: productsTable.id, name: productsTable.name, slug: productsTable.slug, state: productsTable.state }).from(productsTable).where(inArray(productsTable.id, i)),
+      (r) => put("product", r.id, r.name, `Product, ${PRODUCT_STATE_LABELS[r.state].toLowerCase()}`, r.slug),
+    ),
+    run(
+      "playbook",
+      (i) => db.select({ id: playbooksTable.id, title: playbooksTable.title, state: playbooksTable.state }).from(playbooksTable).where(inArray(playbooksTable.id, i)),
+      (r) => put("playbook", r.id, r.title, r.state === "in_use" ? "Playbook" : `Playbook, ${PLAYBOOK_STATE_LABELS[r.state].toLowerCase()}`),
+    ),
+    run(
       "task",
       (i) => db.select({ id: tasksTable.id, title: tasksTable.title, kind: tasksTable.kind, status: tasksTable.status, due: tasksTable.dueDate }).from(tasksTable).where(inArray(tasksTable.id, i)),
       (r) =>
@@ -354,7 +369,7 @@ export async function hiddenRefs(scope: AiScope, refs: string[]): Promise<Set<st
 /* ---------- Pictures ---------- */
 
 /** Which points to keep first when a picture is too big: the ones that join things up. */
-const TYPE_ORDER: Record<GraphType, number> = { person: 0, organisation: 1, project: 2, goal: 3, decision: 4, document: 5, session: 6, meeting: 7, task: 8 };
+const TYPE_ORDER: Record<GraphType, number> = { person: 0, organisation: 1, project: 2, product: 3, goal: 4, decision: 5, document: 6, playbook: 7, session: 8, meeting: 9, task: 10 };
 
 export interface ExploreOptions {
   depth?: 1 | 2;
@@ -489,22 +504,24 @@ export async function findConnection(fromRef: string, toRef: string, scope: AiSc
 }
 
 /**
- * The whole picture for Ollie's map: people, organisations, projects and goals, joined by where
+ * The whole picture for Ollie's map: people, organisations, projects, products and goals, joined by where
  * people work, what projects work towards and every link between them. Capped at the most
  * connected points.
  */
 export async function overview(scope: AiScope | null): Promise<GraphResult> {
-  const [people, orgs, projects, goals] = await Promise.all([
+  const [people, orgs, projects, goals, products] = await Promise.all([
     db.select({ id: peopleTable.id }).from(peopleTable),
     db.select({ id: organisationsTable.id }).from(organisationsTable),
     db.select({ id: projectsTable.id }).from(projectsTable).where(eq(projectsTable.archived, false)),
     db.select({ id: goalsTable.id }).from(goalsTable),
+    db.select({ id: productsTable.id }).from(productsTable).where(sql`${productsTable.state} <> 'retired'`),
   ]);
   const all = [
     ...people.map((r) => gref("person", r.id)),
     ...orgs.map((r) => gref("organisation", r.id)),
     ...projects.map((r) => gref("project", r.id)),
     ...goals.map((r) => gref("goal", r.id)),
+    ...products.map((r) => gref("product", r.id)),
   ];
   const s = scope ?? defaultScope();
   const hidden = await hiddenRefs(s, all);

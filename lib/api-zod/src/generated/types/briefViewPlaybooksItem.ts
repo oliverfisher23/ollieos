@@ -9,5 +9,7 @@
 export type BriefViewPlaybooksItem = {
   id: number;
   title: string;
-  rule: string;
+  whenToUse: string;
+  /** How many steps */
+  steps: number;
 };

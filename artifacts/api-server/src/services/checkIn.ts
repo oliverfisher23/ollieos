@@ -5,7 +5,7 @@
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { db, peopleTable, projectsTable, tasksTable } from "@workspace/db";
 import { OPEN_STATUSES, formatLong, parseRef, toRef } from "@workspace/shared";
-import { applicablePlaybookRefs, loadVisibleDocs } from "../lib/ai-data/retrieve";
+import { applicableRuleRefs, loadVisibleDocs } from "../lib/ai-data/retrieve";
 import { recordReads, visibleRefs } from "../lib/ai-data/scope";
 import { writeAudit } from "../lib/audit";
 import { logger } from "../lib/logger";
@@ -53,8 +53,8 @@ export async function checkInDraft(slug: string): Promise<CheckInDraft> {
   const refs = [personRef, ...tasks.map((t) => toRef("task", t.id)), ...active.map((p) => toRef("project", p.id))];
   if (person.organisationId) refs.push(toRef("organisation", person.organisationId));
   const items = await loadVisibleDocs(scope, refs);
-  const playbooks = await loadVisibleDocs(scope, await applicablePlaybookRefs(scope, refs));
-  const docs = [...playbooks, ...items];
+  const rules = await loadVisibleDocs(scope, await applicableRuleRefs(scope, refs));
+  const docs = [...rules, ...items];
   await recordReads(scope, docs.map((d) => d.ref), { via: "check_in_draft", person: person.id });
 
   let draft: { text: string; refs: string[] };

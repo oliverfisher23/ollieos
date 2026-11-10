@@ -10,7 +10,7 @@ import { writeAudit, type DbOrTx } from "../lib/audit";
 import { ACTOR, cleanText, resolveEntities, resolveEntity, touch, type EntityKind } from "./knowledge/common";
 import { ValidationError } from "./tasks";
 
-export const RELATABLE = ["person", "organisation", "project"] as const;
+export const RELATABLE = ["person", "organisation", "project", "product"] as const;
 export { RELATIONSHIPS };
 
 export interface End {

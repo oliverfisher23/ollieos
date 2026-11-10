@@ -5,19 +5,42 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { NamedItemTitle } from './namedItemTitle';
 import type { NamedLink } from './namedLink';
+import type { PlaybookState } from './playbookState';
+import type { PlaybookStep } from './playbookStep';
 
 export interface Playbook {
   id: number;
   title: string;
-  appliesWhen: string;
-  rule: string;
-  enabled: boolean;
+  whenToUse: string;
+  /** @nullable */
+  purpose: string | null;
+  /** @nullable */
+  ownerId: number | null;
+  steps: PlaybookStep[];
+  /** @nullable */
+  notes: string | null;
+  state: PlaybookState;
+  /**
+     * null means it follows its linked projects and products
+     * @nullable
+     */
+  confidential: boolean | null;
+  lastCheckedAt: Date;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
+  owner: NamedLink | null;
   projects: NamedLink[];
   organisations: NamedLink[];
-  /** Enabled and global or linked to something AI can read */
-  sentToAi: boolean;
+  products: NamedLink[];
+  documents: NamedItemTitle[];
+  /** Not In use, marked confidential, or linked to something hidden */
+  hiddenFromAi: boolean;
+  /**
+     * Where it came from when approved from a suggestion
+     * @nullable
+     */
+  source: string | null;
 }

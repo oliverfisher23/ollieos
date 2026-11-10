@@ -1,7 +1,7 @@
 /** Ollie's view of the Knowledge Inbox: suggestions, conflicts and facts that need a check. */
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, factReviewsTable, factsTable, peopleTable, suggestionsTable, usersTable, type Fact, type Suggestion } from "@workspace/db";
-import { CADENCE_LABELS, RELATIONSHIP_LABELS, formatDayMonth } from "@workspace/shared";
+import { CADENCE_LABELS, PRODUCT_STATE_LABELS, RELATIONSHIP_LABELS, formatDayMonth } from "@workspace/shared";
 import { writeAudit } from "../lib/audit";
 import { resolveEntities, uniqueSlug } from "./knowledge/common";
 import { reviewCounts, tidyReviews } from "./factReviews";
@@ -17,6 +17,10 @@ import {
   type OrganisationPayload,
   type PersonPayload,
   type PlaybookPayload,
+  type PlaybookStepPayload,
+  type ProductPayload,
+  type RulePayload,
+  normalise,
   type ProjectPayload,
   type SummaryChangePayload,
   LOOK_BACK_PROPOSER,
@@ -36,7 +40,10 @@ export type InboxKind =
   | "changed_details"
   | "new_document"
   | "document_link"
+  | "new_rule"
   | "new_playbook"
+  | "playbook_change"
+  | "new_product"
   | "cadence_change"
   | "new_relationship"
   | "conflict"
@@ -64,6 +71,23 @@ export interface InboxOption {
   text: string;
 }
 
+/** One step on a Playbook card, marked against the playbook as it was when proposed. */
+export interface InboxStep {
+  text: string;
+  person: string | null;
+  afterDays: number | null;
+  change: "new" | "same" | "added" | "changed" | "removed";
+  /** The step as it was, for a changed step */
+  before: string | null;
+}
+
+export interface InboxPlaybook {
+  /** Set for a change to a playbook already in OllieOS */
+  playbookId: number | null;
+  steps: InboxStep[];
+  reason: string | null;
+}
+
 export interface InboxItem {
   key: string;
   id: number;
@@ -88,6 +112,8 @@ export interface InboxItem {
   needsProject: boolean;
   /** The project the proposer had in mind, for a decision with none */
   projectHint: string | null;
+  /** Steps for a Playbook card, with the change shown */
+  playbook: InboxPlaybook | null;
 }
 
 /* ---------- Ollie's own person record ---------- */
@@ -192,8 +218,12 @@ function suggestionKind(s: Suggestion): InboxKind {
     }
     case "document":
       return (s.payload as DocumentPayload).document_id != null ? "document_link" : "new_document";
+    case "rule":
+      return "new_rule";
     case "playbook":
-      return "new_playbook";
+      return (s.payload as PlaybookPayload).playbook_id != null ? "playbook_change" : "new_playbook";
+    case "product":
+      return "new_product";
     case "cadence":
       return "cadence_change";
     case "relationship":
@@ -201,9 +231,60 @@ function suggestionKind(s: Suggestion): InboxKind {
   }
 }
 
+const stepLine = (s: PlaybookStepPayload) =>
+  [s.text, s.person_name ? `(${s.person_name})` : null, s.after_days != null ? `day ${s.after_days}` : null].filter(Boolean).join(" ");
+
+/** The proposed steps marked against the old ones: matched by id first, then by the same text. */
+export function stepDiff(proposed: PlaybookStepPayload[], before: PlaybookStepPayload[] | null): InboxStep[] {
+  const view = (s: PlaybookStepPayload, change: InboxStep["change"], was: string | null = null): InboxStep => ({
+    text: s.text,
+    person: s.person_name ?? null,
+    afterDays: s.after_days ?? null,
+    change,
+    before: was,
+  });
+  if (!before) return proposed.map((s) => view(s, "new"));
+  const used = new Set<number>();
+  const out = proposed.map((s) => {
+    let i = s.id ? before.findIndex((b, j) => !used.has(j) && b.id === s.id) : -1;
+    if (i < 0) i = before.findIndex((b, j) => !used.has(j) && normalise(b.text) === normalise(s.text));
+    if (i < 0) return view(s, "added");
+    used.add(i);
+    const old = before[i];
+    const same = normalise(old.text) === normalise(s.text) && (old.person_id ?? null) === (s.person_id ?? null) && (old.after_days ?? null) === (s.after_days ?? null);
+    return same ? view(s, "same") : view(s, "changed", stepLine(old));
+  });
+  before.forEach((b, j) => {
+    if (!used.has(j)) out.push(view(b, "removed"));
+  });
+  return out;
+}
+
+function playbookOf(s: Suggestion): InboxPlaybook | null {
+  if (s.kind !== "playbook") return null;
+  const p = s.payload as PlaybookPayload;
+  return { playbookId: p.playbook_id ?? null, steps: stepDiff(p.steps ?? [], p.playbook_id != null ? (p.before?.steps ?? []) : null), reason: p.reason ?? null };
+}
+
 function fieldsOf(s: Suggestion): InboxField[] {
   const editable = new Set(editableFields(s));
   const p = s.payload as Record<string, unknown>;
+  if (s.kind === "playbook") {
+    const pb = s.payload as PlaybookPayload;
+    const was = pb.playbook_id != null ? pb.before : null;
+    const field = (key: "title" | "when_to_use" | "purpose", before: string | null | undefined): InboxField => ({
+      key,
+      label: FIELD_LABELS[key],
+      value: pb[key] ?? null,
+      before: was && (before ?? null) !== (pb[key] ?? null) ? (before ?? null) : null,
+      editable: editable.has(key),
+    });
+    const fields = [field("title", was?.title), field("when_to_use", was?.when_to_use), field("purpose", was?.purpose)];
+    if (pb.owner_name || was?.owner_name) {
+      fields.push({ key: "owner", label: FIELD_LABELS.owner, value: pb.owner_name ?? null, before: was && was.owner_name !== (pb.owner_name ?? null) ? was.owner_name : null, editable: false });
+    }
+    return fields;
+  }
   if (s.kind === "summary_change") {
     const c = s.payload as SummaryChangePayload;
     return Object.entries(c.fields).map(([key, value]) => ({
@@ -256,13 +337,34 @@ function textOf(s: Suggestion): string {
       const preview = d.content ? d.content.replace(/\s+/g, " ").trim().slice(0, 400) + (d.content.length > 400 ? "…" : "") : null;
       return joinParts([d.title, d.summary, d.doc_kind ? `Saved by Claude as ${d.doc_kind}` : d.content ? "Saved by Claude" : null, d.project_names?.length ? `For ${d.project_names.join(", ")}` : null, d.url, preview]);
     }
-    case "playbook": {
-      const p = s.payload as PlaybookPayload;
+    case "rule": {
+      const p = s.payload as RulePayload;
       return joinParts([
         p.title,
         `Applies when: ${p.applies_when}`,
         `Rule: ${p.rule}`,
         p.link_names?.length ? `Only for ${p.link_names.join(", ")}` : "Applies everywhere",
+      ]);
+    }
+    case "playbook": {
+      const p = s.payload as PlaybookPayload;
+      if (p.playbook_id != null) return joinParts([`Change to ${p.before?.title ?? p.title}`, p.reason]);
+      return joinParts([
+        p.title,
+        `When to use it: ${p.when_to_use}`,
+        p.purpose,
+        `${p.steps.length} ${p.steps.length === 1 ? "step" : "steps"}`,
+        p.link_names?.length ? `For ${p.link_names.join(", ")}` : null,
+      ]);
+    }
+    case "product": {
+      const p = s.payload as ProductPayload;
+      return joinParts([
+        p.name,
+        p.description,
+        p.state ? PRODUCT_STATE_LABELS[p.state] : null,
+        p.summary,
+        p.facts?.length ? `Facts: ${p.facts.join("; ")}` : null,
       ]);
     }
     case "cadence": {
@@ -278,8 +380,12 @@ function textOf(s: Suggestion): string {
 }
 
 function newName(s: Suggestion): string | null {
-  if (s.kind === "person" || s.kind === "organisation" || s.kind === "project") return (s.payload as { name: string }).name;
-  if (s.kind === "document" || s.kind === "playbook") return (s.payload as { title: string }).title;
+  if (s.kind === "person" || s.kind === "organisation" || s.kind === "project" || s.kind === "product") return (s.payload as { name: string }).name;
+  if (s.kind === "document" || s.kind === "rule") return (s.payload as { title: string }).title;
+  if (s.kind === "playbook") {
+    const p = s.payload as PlaybookPayload;
+    return p.playbook_id != null ? (p.before?.title ?? p.title) : p.title;
+  }
   return null;
 }
 
@@ -337,7 +443,9 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
         id: s.id,
         group: "suggested",
         kind: suggestionKind(s),
-        target: target(t, s.entityType, s.entityId) ?? (name ? { type: s.kind, id: null, name, slug: null, isSelf: false } : null),
+        target:
+          target(t, s.entityType, s.entityId) ??
+          (name ? { type: s.kind, id: s.kind === "playbook" ? ((s.payload as PlaybookPayload).playbook_id ?? null) : null, name, slug: null, isSelf: false } : null),
         by: s.proposedBy,
         createdAt: s.createdAt,
         text: textOf(s),
@@ -352,6 +460,7 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
         fromDocument: s.proposedBy === DOCUMENT_PROPOSER ? s.sourceRef : null,
         needsProject: s.kind === "decision" && s.entityId == null,
         projectHint: s.kind === "decision" ? (cleanHint((s.payload as DecisionPayload).project_hint) ?? null) : null,
+        playbook: playbookOf(s),
       };
     });
   } else {
@@ -391,6 +500,7 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
           fromDocument: null,
           needsProject: false,
           projectHint: null,
+          playbook: null,
         });
       } else {
         const sug = sugs.find((s) => s.id === r.suggestionId && s.status === "pending");
@@ -418,6 +528,7 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
           fromDocument: null,
           needsProject: false,
           projectHint: null,
+          playbook: null,
         });
       }
     }

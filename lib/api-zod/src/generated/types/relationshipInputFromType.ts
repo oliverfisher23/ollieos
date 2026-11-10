@@ -13,4 +13,5 @@ export const RelationshipInputFromType = {
   person: 'person',
   organisation: 'organisation',
   project: 'project',
+  product: 'product',
 } as const;

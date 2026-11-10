@@ -26,6 +26,10 @@ export const entityTypeEnum = pgEnum("entity_type", [
   "session",
   "strategy",
   "idea",
+  /** Part M: a rule (what "playbook" meant before Part M) */
+  "rule",
+  /** Part M: a product */
+  "product",
 ]);
 export const activityKindEnum = pgEnum("activity_kind", ["email", "meeting", "slack", "note", "task"]);
 export const captureOutcomeEnum = pgEnum("capture_outcome", ["created", "duplicate", "noise", "error"]);
@@ -50,6 +54,9 @@ export const suggestionKindEnum = pgEnum("suggestion_kind", [
   "playbook",
   "cadence",
   "relationship",
+  /** Part M: a rule; "playbook" is now a process (a new playbook, or a change to one) */
+  "rule",
+  "product",
 ]);
 export const suggestionStatusEnum = pgEnum("suggestion_status", ["pending", "approved", "rejected"]);
 /** Stale and conflicting facts (feature 02). */
@@ -70,6 +77,12 @@ export const projectLifecycleEnum = pgEnum("project_lifecycle", PROJECT_LIFECYCL
 /** Where a document lives (feature 06). */
 export const DOC_LOCATIONS = ["dropbox", "gdrive", "claude_project", "other", "ollieos"] as const;
 export const docLocationEnum = pgEnum("doc_location", DOC_LOCATIONS);
+/** Part M: where a product is. Kept in step with PRODUCT_STATES in lib/shared. */
+export const PRODUCT_STATES = ["live", "pilot", "in_development", "retired"] as const;
+export const productStateEnum = pgEnum("product_state", PRODUCT_STATES);
+/** Part M: where a playbook is; only In use ones reach AI. Kept in step with PLAYBOOK_STATES in lib/shared. */
+export const PLAYBOOK_STATES = ["draft", "in_use", "retired"] as const;
+export const playbookStateEnum = pgEnum("playbook_state", PLAYBOOK_STATES);
 export const oauthTokenKindEnum = pgEnum("oauth_token_kind", ["access", "refresh"]);
 
 /** Postgres full-text search vector. Always a generated column. */

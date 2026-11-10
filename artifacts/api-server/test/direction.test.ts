@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { auditEventsTable, db, goalsTable, peopleTable, playbooksTable } from "@workspace/db";
+import { auditEventsTable, db, goalsTable, peopleTable, rulesTable } from "@workspace/db";
 import type { AiDoc } from "../src/lib/ai-data/retrieve";
 import { link, person, project, task } from "./helpers";
 import { api, call, connect, ingest, mcp, useServer } from "./harness";
@@ -28,7 +28,7 @@ async function claude() {
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000);
 
-/** Runs the first-run seed (goals and playbooks) the way opening the app does. */
+/** Runs the first-run seed (goals and rules) the way opening the app does. */
 async function seed() {
   expect((await api("goals")).status).toBe(200);
 }
@@ -213,28 +213,28 @@ describe("06 Document index", () => {
   });
 });
 
-/* ---------- 07 Playbooks ---------- */
+/* ---------- 07 Rules ---------- */
 
-describe("07 Playbooks", () => {
-  it("criterion 1: get_context for PwC Skills for Tomorrow includes the PwC terminology playbook", async () => {
+describe("07 Rules", () => {
+  it("criterion 1: get_context for PwC Skills for Tomorrow includes the PwC terminology rule", async () => {
     await seed();
     await project("PwC Skills for Tomorrow");
     const c = await claude();
     const r = await call(c, "get_context", { name: "PwC Skills for Tomorrow" });
     await c.close();
-    const titles = (r.json.playbooks as { title: string; rule: string }[]).map((p) => p.title);
+    const titles = (r.json.rules as { title: string; rule: string }[]).map((p) => p.title);
     expect(titles).toContain("PwC terminology");
     expect(r.text).toMatch(/experience credits/);
   });
 
-  it("criterion 2: pausing a playbook removes it from all AI responses immediately", async () => {
+  it("criterion 2: pausing a rule removes it from all AI responses immediately", async () => {
     await seed();
     const pwc = await project("PwC Skills for Tomorrow");
     const anna = await person("Anna Clarke");
     await db.update(peopleTable).set({ cadence: "monthly", lastContactAt: daysAgo(40) }).where(eq(peopleTable.id, anna.id));
     await link("person", anna.id, "project", pwc.id);
-    const [pb] = await db.select().from(playbooksTable).where(eq(playbooksTable.title, "PwC terminology"));
-    expect((await api(`playbooks/${pb.id}`, { method: "PATCH", body: { enabled: false } })).status).toBe(200);
+    const [pb] = await db.select().from(rulesTable).where(eq(rulesTable.title, "PwC terminology"));
+    expect((await api(`rules/${pb.id}`, { method: "PATCH", body: { enabled: false } })).status).toBe(200);
 
     const c = await claude();
     const outs = [
@@ -249,32 +249,32 @@ describe("07 Playbooks", () => {
 
     checkInDocs.length = 0;
     expect((await api(`people/${anna.slug}/check-in-draft`, { body: {} })).status).toBe(200);
-    expect(checkInDocs[0].map((d) => d.ref)).not.toContain(`playbook:${pb.id}`);
+    expect(checkInDocs[0].map((d) => d.ref)).not.toContain(`rule:${pb.id}`);
 
     // Switching it back on brings it straight back.
-    await api(`playbooks/${pb.id}`, { method: "PATCH", body: { enabled: true } });
+    await api(`rules/${pb.id}`, { method: "PATCH", body: { enabled: true } });
     const c2 = await claude();
     expect((await call(c2, "get_context", { name: "PwC Skills for Tomorrow" })).text).toMatch(/PwC terminology/);
     await c2.close();
   });
 
-  it("criterion 3: a playbook proposed by AI appears in the Knowledge Inbox and stays inactive until approved", async () => {
+  it("criterion 3: a rule proposed by AI appears in the Knowledge Inbox and stays inactive until approved", async () => {
     await seed();
     const r = await ingest("suggestions", {
-      body: { suggestions: [{ kind: "playbook", title: "Defence acronyms", applies_when: "Any defence material", rule: "Spell out every acronym on first use.", source: "Chat with Claude" }] },
+      body: { suggestions: [{ kind: "rule", title: "Defence acronyms", applies_when: "Any defence material", rule: "Spell out every acronym on first use.", source: "Chat with Claude" }] },
     });
     expect(r.status).toBe(200);
     expect(r.body.results[0].status).toBe("suggested");
 
     const inbox = (await api("suggestions?tab=suggested")).body;
-    const item = inbox.items.find((i: { kind: string }) => i.kind === "new_playbook");
+    const item = inbox.items.find((i: { kind: string }) => i.kind === "new_rule");
     expect(item).toBeTruthy();
-    expect(await db.select().from(playbooksTable).where(eq(playbooksTable.title, "Defence acronyms"))).toEqual([]);
+    expect(await db.select().from(rulesTable).where(eq(rulesTable.title, "Defence acronyms"))).toEqual([]);
     const c = await claude();
     expect((await call(c, "get_playbooks", {})).text).not.toMatch(/Defence acronyms/);
 
     expect((await api(`suggestions/${item.id}/approve`, { body: {} })).status).toBe(200);
-    const [row] = await db.select().from(playbooksTable).where(eq(playbooksTable.title, "Defence acronyms"));
+    const [row] = await db.select().from(rulesTable).where(eq(rulesTable.title, "Defence acronyms"));
     expect(row.enabled).toBe(true);
     expect((await call(c, "get_playbooks", {})).text).toMatch(/Defence acronyms/);
     await c.close();

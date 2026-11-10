@@ -122,8 +122,20 @@ export const DOC_LOCATION_LABELS: Record<DocLocation, string> = {
   ollieos: "Kept in OllieOS",
 };
 
-/** Longest a playbook rule may be (feature 07). */
-export const PLAYBOOK_RULE_MAX = 400;
+/** Part M: where a product is. Kept in step with the product_state enum in lib/db. */
+export const PRODUCT_STATES = ["live", "pilot", "in_development", "retired"] as const;
+export type ProductState = (typeof PRODUCT_STATES)[number];
+export const PRODUCT_STATE_LABELS: Record<ProductState, string> = { live: "Live", pilot: "Pilot", in_development: "In development", retired: "Retired" };
+
+/** Part M: where a playbook is; only In use ones reach AI. Kept in step with the playbook_state enum in lib/db. */
+export const PLAYBOOK_STATES = ["draft", "in_use", "retired"] as const;
+export type PlaybookState = (typeof PLAYBOOK_STATES)[number];
+export const PLAYBOOK_STATE_LABELS: Record<PlaybookState, string> = { draft: "Draft", in_use: "In use", retired: "Retired" };
+/** Most steps a playbook may have */
+export const PLAYBOOK_STEPS_MAX = 40;
+
+/** Longest a rule may be (feature 07). */
+export const RULE_MAX = 400;
 
 /**
  * Labelled relationships between people, organisations and projects (build plan 13, Part G).

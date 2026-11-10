@@ -856,10 +856,40 @@ export type BriefViewDocumentsItem = {
   location: string;
 };
 
-export type BriefViewPlaybooksItem = {
+export type BriefViewRulesItem = {
   id: number;
   title: string;
   rule: string;
+};
+
+export type ProductState = typeof ProductState[keyof typeof ProductState];
+
+
+export const ProductState = {
+  live: 'live',
+  pilot: 'pilot',
+  in_development: 'in_development',
+  retired: 'retired',
+} as const;
+
+export type BriefViewProductsItem = {
+  id: number;
+  slug: string;
+  name: string;
+  /** @nullable */
+  description: string | null;
+  state: ProductState;
+  /** Hidden from AI */
+  confidential: boolean;
+  ruleIds: number[];
+};
+
+export type BriefViewPlaybooksItem = {
+  id: number;
+  title: string;
+  whenToUse: string;
+  /** How many steps */
+  steps: number;
 };
 
 export type BriefViewActionsItem = {
@@ -905,7 +935,11 @@ export interface BriefView {
   projects: BriefViewProjectsItem[];
   goals: BriefViewGoalsItem[];
   documents: BriefViewDocumentsItem[];
-  playbooks: BriefViewPlaybooksItem[];
+  rules: BriefViewRulesItem[];
+  /** Products linked to the meeting's projects and organisations, with the rules linked to each */
+  products?: BriefViewProductsItem[];
+  /** In use playbooks linked to the meeting's projects and organisations */
+  playbooks?: BriefViewPlaybooksItem[];
   /** Attendees */
   heldBack: number;
   /**
@@ -1902,12 +1936,51 @@ export const KnowledgeInboxItemKind = {
   changed_details: 'changed_details',
   new_document: 'new_document',
   document_link: 'document_link',
+  new_rule: 'new_rule',
   new_playbook: 'new_playbook',
+  playbook_change: 'playbook_change',
+  new_product: 'new_product',
   cadence_change: 'cadence_change',
   new_relationship: 'new_relationship',
   conflict: 'conflict',
   stale_fact: 'stale_fact',
 } as const;
+
+export type KnowledgeInboxStepChange = typeof KnowledgeInboxStepChange[keyof typeof KnowledgeInboxStepChange];
+
+
+export const KnowledgeInboxStepChange = {
+  new: 'new',
+  same: 'same',
+  added: 'added',
+  changed: 'changed',
+  removed: 'removed',
+} as const;
+
+export interface KnowledgeInboxStep {
+  text: string;
+  /** @nullable */
+  person: string | null;
+  /** @nullable */
+  afterDays: number | null;
+  change: KnowledgeInboxStepChange;
+  /**
+     * The step as it was
+     * @nullable
+     */
+  before: string | null;
+}
+
+export interface KnowledgeInboxPlaybook {
+  /**
+     * Set for a change to a playbook already in OllieOS
+     * @nullable
+     */
+  playbookId: number | null;
+  steps: KnowledgeInboxStep[];
+  /** @nullable */
+  reason: string | null;
+}
 
 export interface KnowledgeInboxItem {
   key: string;
@@ -1949,6 +2022,8 @@ export interface KnowledgeInboxItem {
      * @nullable
      */
   projectHint: string | null;
+  /** Steps for a Playbook card, with the change shown */
+  playbook: KnowledgeInboxPlaybook | null;
 }
 
 export interface KnowledgeInbox {
@@ -2082,6 +2157,7 @@ export const FactInputEntityType = {
   project: 'project',
   person: 'person',
   organisation: 'organisation',
+  product: 'product',
 } as const;
 
 /**
@@ -2218,6 +2294,7 @@ export const NoteInputEntityType = {
   project: 'project',
   person: 'person',
   organisation: 'organisation',
+  product: 'product',
   task: 'task',
   decision: 'decision',
 } as const;
@@ -2358,7 +2435,7 @@ export interface LibraryDocument {
   knowledge: DocumentKnowledge | null;
 }
 
-export interface Playbook {
+export interface Rule {
   id: number;
   title: string;
   appliesWhen: string;
@@ -2369,16 +2446,93 @@ export interface Playbook {
   updatedAt: string;
   projects: NamedLink[];
   organisations: NamedLink[];
+  products: NamedLink[];
   /** Enabled and global or linked to something AI can read */
   sentToAi: boolean;
+}
+
+export interface PlaybookStep {
+  id: string;
+  text: string;
+  /** @nullable */
+  personId: number | null;
+  /**
+     * Days after starting
+     * @nullable
+     */
+  afterDays: number | null;
+  /** @nullable */
+  personName: string | null;
+  /** @nullable */
+  personSlug: string | null;
+}
+
+export type PlaybookState = typeof PlaybookState[keyof typeof PlaybookState];
+
+
+export const PlaybookState = {
+  draft: 'draft',
+  in_use: 'in_use',
+  retired: 'retired',
+} as const;
+
+export interface NamedItemTitle {
+  id: number;
+  title: string;
+}
+
+export interface Playbook {
+  id: number;
+  title: string;
+  whenToUse: string;
+  /** @nullable */
+  purpose: string | null;
+  /** @nullable */
+  ownerId: number | null;
+  steps: PlaybookStep[];
+  /** @nullable */
+  notes: string | null;
+  state: PlaybookState;
+  /**
+     * null means it follows its linked projects and products
+     * @nullable
+     */
+  confidential: boolean | null;
+  lastCheckedAt: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  owner: NamedLink | null;
+  projects: NamedLink[];
+  organisations: NamedLink[];
+  products: NamedLink[];
+  documents: NamedItemTitle[];
+  /** Not In use, marked confidential, or linked to something hidden */
+  hiddenFromAi: boolean;
+  /**
+     * Where it came from when approved from a suggestion
+     * @nullable
+     */
+  source: string | null;
+}
+
+export interface LinkedProduct {
+  id: number;
+  name: string;
+  slug: string;
+  confidential: boolean;
+  /** Linked directly rather than through something else */
+  linked: boolean;
 }
 
 export interface ProjectDetail {
   project: Project;
   goal: ProjectGoal | null;
   documents: LibraryDocument[];
-  /** Global ones and those linked to the project or its organisations */
+  /** Global ones and those linked to the project, its organisations or products, paused ones included */
+  rules: Rule[];
   playbooks: Playbook[];
+  products: LinkedProduct[];
   facts: Fact[];
   decisions: Decision[];
   openTasks: Task[];
@@ -2576,6 +2730,8 @@ export interface OrganisationUpdate {
 }
 
 export interface OrganisationDetail {
+  playbooks: Playbook[];
+  products: LinkedProduct[];
   research: CompanyResearch[];
   organisation: Organisation;
   people: PersonChip[];
@@ -2595,6 +2751,10 @@ export const Linkable = {
   organisation: 'organisation',
   decision: 'decision',
   note: 'note',
+  product: 'product',
+  document: 'document',
+  rule: 'rule',
+  playbook: 'playbook',
 } as const;
 
 export interface LinkInput {
@@ -2615,9 +2775,11 @@ export const GraphNodeType = {
   person: 'person',
   organisation: 'organisation',
   project: 'project',
+  product: 'product',
   goal: 'goal',
   decision: 'decision',
   document: 'document',
+  playbook: 'playbook',
   task: 'task',
   session: 'session',
   meeting: 'meeting',
@@ -2705,6 +2867,7 @@ export const RelationshipViewOtherType = {
   person: 'person',
   organisation: 'organisation',
   project: 'project',
+  product: 'product',
 } as const;
 
 export type RelationshipViewOther = {
@@ -2735,6 +2898,7 @@ export const RelationshipPairFromType = {
   person: 'person',
   organisation: 'organisation',
   project: 'project',
+  product: 'product',
 } as const;
 
 export type RelationshipPairToType = typeof RelationshipPairToType[keyof typeof RelationshipPairToType];
@@ -2744,6 +2908,7 @@ export const RelationshipPairToType = {
   person: 'person',
   organisation: 'organisation',
   project: 'project',
+  product: 'product',
 } as const;
 
 export interface RelationshipPair {
@@ -2760,6 +2925,7 @@ export const RelationshipInputFromType = {
   person: 'person',
   organisation: 'organisation',
   project: 'project',
+  product: 'product',
 } as const;
 
 export type RelationshipInputToType = typeof RelationshipInputToType[keyof typeof RelationshipInputToType];
@@ -2769,6 +2935,7 @@ export const RelationshipInputToType = {
   person: 'person',
   organisation: 'organisation',
   project: 'project',
+  product: 'product',
 } as const;
 
 export interface RelationshipInput {
@@ -2803,6 +2970,8 @@ export const SearchHitType = {
   session: 'session',
   strategy: 'strategy',
   idea: 'idea',
+  product: 'product',
+  playbook: 'playbook',
 } as const;
 
 export interface SearchHit {
@@ -3653,7 +3822,7 @@ export interface DocumentUpdate {
   confirm?: boolean;
 }
 
-export interface PlaybookInput {
+export interface RuleInput {
   /**
      * @minLength 1
      * @maxLength 200
@@ -3672,9 +3841,10 @@ export interface PlaybookInput {
   enabled?: boolean;
   projectIds?: number[];
   organisationIds?: number[];
+  productIds?: number[];
 }
 
-export interface PlaybookUpdate {
+export interface RuleUpdate {
   /**
      * @minLength 1
      * @maxLength 200
@@ -3693,6 +3863,193 @@ export interface PlaybookUpdate {
   enabled?: boolean;
   projectIds?: number[];
   organisationIds?: number[];
+  productIds?: number[];
+}
+
+export interface PlaybookStepInput {
+  /**
+     * Keep the id of a step that stays
+     * @maxLength 40
+     * @nullable
+     */
+  id?: string | null;
+  /**
+     * @minLength 1
+     * @maxLength 600
+     */
+  text: string;
+  /** @nullable */
+  personId?: number | null;
+  /**
+     * @minimum 0
+     * @maximum 3650
+     * @nullable
+     */
+  afterDays?: number | null;
+}
+
+export interface PlaybookInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  whenToUse: string;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  purpose?: string | null;
+  /** @nullable */
+  ownerId?: number | null;
+  /** @maxItems 30 */
+  steps?: PlaybookStepInput[];
+  /**
+     * @maxLength 20000
+     * @nullable
+     */
+  notes?: string | null;
+  state?: PlaybookState;
+  /** @nullable */
+  confidential?: boolean | null;
+  projectIds?: number[];
+  organisationIds?: number[];
+  productIds?: number[];
+  documentIds?: number[];
+}
+
+export interface PlaybookUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  title?: string;
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  whenToUse?: string;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  purpose?: string | null;
+  /** @nullable */
+  ownerId?: number | null;
+  /** @maxItems 30 */
+  steps?: PlaybookStepInput[];
+  /**
+     * @maxLength 20000
+     * @nullable
+     */
+  notes?: string | null;
+  state?: PlaybookState;
+  /** @nullable */
+  confidential?: boolean | null;
+  projectIds?: number[];
+  organisationIds?: number[];
+  productIds?: number[];
+  documentIds?: number[];
+  /** Ollie checked it is still how things are done */
+  checked?: boolean;
+}
+
+export interface Product {
+  id: number;
+  name: string;
+  slug: string;
+  /** @nullable */
+  description: string | null;
+  state: ProductState;
+  /** @nullable */
+  ownerId: number | null;
+  /** @nullable */
+  summary: string | null;
+  confidential: boolean;
+  aiAccess: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  owner: NamedLink | null;
+}
+
+export interface ProductListItem {
+  id: number;
+  name: string;
+  slug: string;
+  confidential: boolean;
+  /** @nullable */
+  description: string | null;
+  state: ProductState;
+  aiAccess: boolean;
+  /** @nullable */
+  ownerName: string | null;
+  factCount: number;
+  updatedAt: string;
+}
+
+export interface ProductInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  description?: string | null;
+  state?: ProductState;
+  /** @nullable */
+  ownerId?: number | null;
+  /**
+     * @maxLength 20000
+     * @nullable
+     */
+  summary?: string | null;
+  confidential?: boolean;
+  aiAccess?: boolean;
+}
+
+export interface ProductUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name?: string;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  description?: string | null;
+  state?: ProductState;
+  /** @nullable */
+  ownerId?: number | null;
+  /**
+     * @maxLength 20000
+     * @nullable
+     */
+  summary?: string | null;
+  confidential?: boolean;
+  aiAccess?: boolean;
+}
+
+export interface ProductDetail {
+  product: Product;
+  facts: Fact[];
+  /** What to say and not say */
+  rules: Rule[];
+  documents: LibraryDocument[];
+  projects: LinkedProduct[];
+  organisations: LinkedProduct[];
+  playbooks: Playbook[];
+  decisions: Decision[];
+  notes: Note[];
+  hiddenFromAi: boolean;
 }
 
 export interface StrategySection {
@@ -3988,12 +4345,13 @@ export const ListRelationshipsType = {
   person: 'person',
   organisation: 'organisation',
   project: 'project',
+  product: 'product',
 } as const;
 
 export type SearchKnowledgeParams = {
 q: string;
 /**
- * Comma-separated list of task, project, person, organisation, decision, note, fact, document, session
+ * Comma-separated list of task, project, person, organisation, decision, note, fact, document, session, product, playbook
  */
 types?: string;
 };

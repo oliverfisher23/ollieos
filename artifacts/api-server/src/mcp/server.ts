@@ -6,7 +6,7 @@
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult, ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { RELATIONSHIPS, isIsoDate, todayLondon } from "@workspace/shared";
+import { PLAYBOOK_STEPS_MAX, PRODUCT_STATES, RELATIONSHIPS, isIsoDate, todayLondon } from "@workspace/shared";
 import {
   getContext,
   listTasksForAi,
@@ -19,12 +19,13 @@ import {
   type PickType,
 } from "../lib/ai-data/context";
 import { GRAPH_TYPES, LINK_KINDS, connectionForAi, exploreForAi, fetchForAi, parseGraphRef, type LinkKind } from "../lib/ai-data/graph";
-import { findDocumentsForAi, getPlaybooksForAi, goalsForAi, overdueContactsForAi } from "../lib/ai-data/direction";
+import { findDocumentsForAi, getRulesForAi, goalsForAi, overdueContactsForAi } from "../lib/ai-data/direction";
 import { requestAccess } from "../lib/ai-data/requests";
 import type { AiScope } from "../lib/ai-data/scope";
 import { SEARCH_TYPES } from "../lib/ai-data/search";
 import { resolveGoalForAi, strategyForAi } from "../lib/ai-data/strategy";
 import { listMySuggestions } from "../lib/ai-data/suggestions";
+import { listPlaybooksForAi, playbookForAi, resolvePlaybookForAi, resolveProductForAi } from "../lib/ai-data/playbooks";
 import { proposalReply, proposePerson, proposeProject } from "../services/aiPropose";
 import { FACT_ATTRIBUTES, SUGGESTION_SOURCES, propose, type ProposeMeta } from "../services/suggestions";
 import {
@@ -46,8 +47,9 @@ export const SOURCE_OF_TRUTH =
 export const SERVER_INSTRUCTIONS = [
   SOURCE_OF_TRUTH,
   'A fact marked "needs_check": true may be out of date. If you rely on one, tell Ollie it may be out of date.',
-  "Facts, decisions, new people, organisations and projects, and changes to existing records, are suggestions until Ollie approves them in his Knowledge Inbox. Use list_my_suggestions to avoid proposing the same thing twice. Tasks, promises, notes and activity go in directly.",
-  "Before drafting anything on Ollie's behalf, call get_playbooks for the project or person concerned and follow every rule it returns.",
+  "Facts, decisions, new people, organisations, projects and products, playbooks, and changes to existing records, are suggestions until Ollie approves them in his Knowledge Inbox. Use list_my_suggestions to avoid proposing the same thing twice. Tasks, promises, notes and activity go in directly.",
+  "Before drafting anything on Ollie's behalf, call get_rules for the project, person, organisation or product concerned and follow every rule it returns.",
+  "Playbooks are how Ollie's team does things, step by step. Before planning or doing a process (onboarding a partner, running an event), check get_playbook. When you learn how something is done, or a step has changed, use propose_playbook.",
   "To see how things connect (who knows whom, which organisations sit behind a project), use explore and find_connection. Propose a missing relationship with propose_relationship.",
   "In a Cowork session, call get_context for the project or person it is about before you start, and call save_session once at the end with what was done.",
   "For questions of direction or priority, read Ollie's strategy and open ideas with get_strategy. When an idea worth coming back to comes up, add it with add_idea; it goes straight onto his list, marked as yours.",
@@ -153,7 +155,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     "get_context",
     {
       description: describe(
-        "Everything about one project, person or organisation: summary, current facts, decisions, open tasks, promises, what they owe Ollie, people, notes, the last 20 touchpoints and the playbooks that apply. For a project, also its goal and its documents. Recent Cowork sessions about it are included, so a new session can pick up where the last one left off.",
+        "Everything about one project, person or organisation: summary, current facts, decisions, open tasks, promises, what they owe Ollie, people, notes, the last 20 touchpoints and the rules that apply. For a project, also its goal and its documents. Recent Cowork sessions about it are included, so a new session can pick up where the last one left off.",
       ),
       inputSchema: Pick.shape,
     },
@@ -274,29 +276,55 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     },
   );
 
+  const RulesInput = {
+    context: z.union([z.literal("general"), Pick]).optional(),
+    product: z.string().min(1).max(200).optional().describe("Instead of context: a product, by name or ref such as product:2"),
+  };
+  const rulesTool = (via: string) => async (a: { context?: "general" | z.infer<typeof Pick>; product?: string }) => {
+    if (a.product) {
+      const product = await resolveProductForAi(scope, a.product);
+      if (!product) return NOT_FOUND("product");
+      return ok({ context: { ref: `product:${product.id}`, name: product.name }, rules: await getRulesForAi(scope, { type: "product", id: product.id }, via) });
+    }
+    if (a.context === undefined || a.context === "general") return ok({ rules: await getRulesForAi(scope, a.context ?? null, via) });
+    const hit = await resolvePick(scope, a.context);
+    if (!hit) return NOT_FOUND("project, person or organisation");
+    return ok({ context: { ref: `${hit.type}:${hit.id}`, name: hit.name }, rules: await getRulesForAi(scope, hit, via) });
+  };
+  const RULES_TEXT =
+    'Ollie\'s rules for drafting: terminology, tone and things to avoid. Give a context (a project, person or organisation) or a product to get the rules that apply there (a product\'s rules apply wherever it comes up), "general" for rules that apply everywhere, or nothing for all of them with what each applies to. Follow every rule returned.';
+
+  server.registerTool("get_rules", { description: describe(RULES_TEXT), inputSchema: RulesInput }, rulesTool("get_rules"));
+
+  // The old name, kept so connected AIs that still call it do not break. Same rules.
   server.registerTool(
     "get_playbooks",
+    { description: describe(`The old name for get_rules; use get_rules instead. ${RULES_TEXT}`), inputSchema: RulesInput },
+    rulesTool("get_playbooks"),
+  );
+
+  server.registerTool(
+    "get_playbook",
     {
       description: describe(
-        'Ollie\'s rules for drafting: terminology, tone and things to avoid. Give a context (a project, person or organisation) to get the rules that apply there, "general" for rules that apply everywhere, or nothing for all of them with what each applies to. Follow every rule returned.',
+        "Ollie's playbooks: how something is done, as ordered steps with who does each and when. Give a playbook (ref such as playbook:3, or its title) for it in full, with step ids; leave it out for a list of every playbook in use with when to use it. Only playbooks in use are shown.",
       ),
-      inputSchema: {
-        context: z.union([z.literal("general"), Pick]).optional(),
-      },
+      inputSchema: { playbook: z.string().min(1).max(200).optional() },
     },
-    async (a) => {
-      if (a.context === undefined || a.context === "general") return ok({ playbooks: await getPlaybooksForAi(scope, a.context ?? null) });
-      const hit = await resolvePick(scope, a.context);
-      if (!hit) return NOT_FOUND("project, person or organisation");
-      return ok({ context: { ref: `${hit.type}:${hit.id}`, name: hit.name }, playbooks: await getPlaybooksForAi(scope, hit) });
-    },
+    async (a) =>
+      guard(async () => {
+        if (!a.playbook) return ok({ playbooks: await listPlaybooksForAi(scope) });
+        const id = await resolvePlaybookForAi(scope, a.playbook);
+        const out = id != null ? await playbookForAi(scope, id) : null;
+        return out ? ok({ playbook: out }) : NOT_FOUND("playbook in use");
+      }),
   );
 
   server.registerTool(
     "get_meeting_brief",
     {
       description: describe(
-        'The brief for a work meeting: why it matters (each line with the refs it rests on), who is coming, open promises to them, linked projects, goals, documents and playbooks, and questions to ask. Give "next" for the next work meeting today or tomorrow, or a calendar_event ref from ollieos://today. Personal events and meetings with nobody known have no brief.',
+        'The brief for a work meeting: why it matters (each line with the refs it rests on), who is coming, open promises to them, linked projects, goals, documents and rules, and questions to ask. Give "next" for the next work meeting today or tomorrow, or a calendar_event ref from ollieos://today. Personal events and meetings with nobody known have no brief.',
       ),
       inputSchema: {
         event: z.string().min(1).max(60).describe('"next", or a ref such as calendar_event:12'),
@@ -527,10 +555,11 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     "add_fact",
     {
       description: describe(
-        "Proposes a current fact about a project, person or organisation. It goes to Ollie's Knowledge Inbox and becomes knowledge once he approves it. To correct a fact, pass the old one's ref as supersedes. Give an attribute when the fact is one of the listed kinds, so disagreements are spotted.",
+        "Proposes a current fact about a project, person, organisation or product. It goes to Ollie's Knowledge Inbox and becomes knowledge once he approves it. Give entity, or product for a product OllieOS already has (for one it does not have, use propose_product with the facts). To correct a fact, pass the old one's ref as supersedes. Give an attribute when the fact is one of the listed kinds, so disagreements are spotted.",
       ),
       inputSchema: {
-        entity: Pick,
+        entity: Pick.optional(),
+        product: z.string().min(1).max(200).optional().describe("Instead of entity: a product, by name or ref such as product:2"),
         text: z.string().min(1).max(2000),
         attribute: z.enum(FACT_ATTRIBUTES).optional().describe("job_title, organisation, status, next_step or decision_date"),
         supersedes: z.string().max(40).optional().describe("Ref of the fact this replaces, such as fact:7"),
@@ -539,7 +568,12 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     },
     async (a) =>
       guard(async () => {
-        const entity = await resolvePick(scope, a.entity);
+        if (!a.entity === !a.product) return err("invalid_input", "Give either entity or product.");
+        const product = a.product ? await resolveProductForAi(scope, a.product) : null;
+        if (a.product && !product) return NOT_FOUND("product");
+        const entity: { type: "project" | "person" | "organisation" | "product"; id: number } | null = product
+          ? { type: "product", id: product.id }
+          : await resolvePick(scope, a.entity);
         if (!entity) return NOT_FOUND("project, person or organisation");
         let supersedes: number | null = null;
         if (a.supersedes) {
@@ -750,6 +784,119 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
           (a.slug ? await resolvePick(scope, { slug: a.slug }, ["project"], exact) : null) ?? (await resolvePick(scope, { name: a.name }, ["project"], exact));
         const r = await proposeProject(metaOf(a), { matchId: match?.id ?? null, name: a.name.trim(), area: a.area, status: a.status, summary: a.summary });
         return ok({ ...proposalReply(r), ...(match ? { project: { ref: `project:${match.id}`, name: match.name } } : {}) });
+      }),
+  );
+
+  server.registerTool(
+    "propose_product",
+    {
+      description: describe(
+        "Proposes a product OllieOS does not know yet, with any facts you know about it. It goes to Ollie's Knowledge Inbox as a Product card; the facts become facts on the product when he approves it. Check search first: for a product that exists, use add_fact with product.",
+      ),
+      inputSchema: {
+        name: z.string().min(1).max(200),
+        description: z.string().max(300).optional().describe("What it is, in one line"),
+        state: z.enum(PRODUCT_STATES).optional().describe("Default live"),
+        summary: z.string().max(5000).optional(),
+        facts: z.array(z.string().min(1).max(2000)).max(20).optional().describe("Current facts about it, one each"),
+        ...SourceFields,
+      },
+    },
+    async (a) =>
+      guard(async () => {
+        const r = await propose(metaOf(a), {
+          kind: "product",
+          payload: { name: a.name.trim(), description: a.description?.trim() || null, state: a.state ?? null, summary: a.summary?.trim() || null, facts: a.facts ?? [] },
+        });
+        return ok(proposalReply(r));
+      }),
+  );
+
+  server.registerTool(
+    "propose_playbook",
+    {
+      description: describe(
+        "Proposes a playbook (how something is done, as ordered steps) or a change to one. It goes to Ollie's Knowledge Inbox as a Playbook card showing the change; nothing changes until he approves it. For a change, give playbook and the whole new list of steps, keeping the ids get_playbook gave for steps that stay; fields you leave out are kept. For a new one, give title, when_to_use and steps.",
+      ),
+      inputSchema: {
+        playbook: z.string().min(1).max(200).optional().describe("For a change: the playbook ref, such as playbook:3, or its title"),
+        title: z.string().min(1).max(200).optional(),
+        when_to_use: z.string().min(1).max(500).optional().describe('When to use it, e.g. "A new university partner signs"'),
+        purpose: z.string().max(300).optional().describe("What it is for, in one line"),
+        owner: z.string().max(200).optional().describe("Who owns it: name, email or ref"),
+        steps: z
+          .array(
+            z.object({
+              id: z.string().max(40).optional().describe("The step id from get_playbook, for a step that stays"),
+              text: z.string().min(1).max(600),
+              person: z.string().max(200).optional().describe("Who does it, when not Ollie: name, email or ref"),
+              after_days: z.number().int().min(0).max(3650).optional().describe("Days after starting"),
+            }),
+          )
+          .max(PLAYBOOK_STEPS_MAX)
+          .optional(),
+        notes: z.string().max(5000).optional(),
+        reason: z.string().max(500).optional().describe("For a change: what changed and why, in a line"),
+        projects: z.array(z.string().max(200)).max(20).optional().describe("For a new one: projects it is for"),
+        organisations: z.array(z.string().max(200)).max(20).optional().describe("For a new one: organisations it is for"),
+        products: z.array(z.string().max(200)).max(20).optional().describe("For a new one: products it is for"),
+        ...SourceFields,
+      },
+    },
+    async (a) =>
+      guard(async () => {
+        let playbookId: number | null = null;
+        if (a.playbook) {
+          playbookId = await resolvePlaybookForAi(scope, a.playbook);
+          if (playbookId == null) return NOT_FOUND("playbook in use");
+          if (!a.steps && !a.title && !a.when_to_use && a.purpose === undefined && !a.owner) return err("invalid_input", "Say what changes.");
+        } else if (!a.title || !a.when_to_use || !a.steps?.length) {
+          return err("invalid_input", "A new playbook needs title, when_to_use and steps.");
+        }
+        const unmatched: string[] = [];
+        const person = async (v: string | undefined) => {
+          if (!v) return null;
+          const hit = await resolvePick(scope, v, ["person"]);
+          if (!hit) unmatched.push(v);
+          return hit?.id ?? null;
+        };
+        const ownerId = await person(a.owner);
+        let steps = a.steps
+          ? await Promise.all(a.steps.map(async (s) => ({ id: s.id ?? null, text: s.text, person_id: await person(s.person), after_days: s.after_days ?? null })))
+          : null;
+        if (!steps && playbookId != null) {
+          // A change to the title, when to use it, purpose or owner only: the steps stay as they are.
+          const current = await playbookForAi(scope, playbookId);
+          steps = (current?.steps ?? []).map((s) => ({ id: s.id, text: s.text, person_id: s.person ? Number(s.person.ref.split(":")[1]) : null, after_days: s.after_days }));
+        }
+        const [projects, orgs] = await Promise.all([resolveNames(scope, a.projects, "project"), resolveNames(scope, a.organisations, "organisation")]);
+        const products: { id: number; name: string }[] = [];
+        for (const p of a.products ?? []) {
+          const hit = await resolveProductForAi(scope, p);
+          if (hit) products.push(hit);
+          else unmatched.push(p);
+        }
+        unmatched.push(...projects.unmatched, ...orgs.unmatched);
+        const projectNames = await Promise.all(projects.ids.map((id) => resolvePick(scope, `project:${id}`, ["project"])));
+        const orgNames = await Promise.all(orgs.ids.map((id) => resolvePick(scope, `organisation:${id}`, ["organisation"])));
+        const r = await propose(metaOf(a), {
+          kind: "playbook",
+          payload: {
+            playbook_id: playbookId,
+            title: a.title?.trim() ?? "",
+            when_to_use: a.when_to_use?.trim() ?? "",
+            ...(a.purpose !== undefined ? { purpose: a.purpose.trim() || null } : {}),
+            ...(ownerId != null ? { owner_id: ownerId } : {}),
+            steps: steps ?? [],
+            notes: a.notes?.trim() || null,
+            reason: a.reason?.trim() || null,
+            project_ids: playbookId == null ? projects.ids : [],
+            organisation_ids: playbookId == null ? orgs.ids : [],
+            product_ids: playbookId == null ? products.map((p) => p.id) : [],
+            link_names: playbookId == null ? [...projectNames, ...orgNames].filter((x) => !!x).map((x) => x!.name).concat(products.map((p) => p.name)) : [],
+          },
+        });
+        return ok({ ...proposalReply(r), ...(unmatched.length ? { unmatched: [...new Set(unmatched)] } : {}) });
       }),
   );
 

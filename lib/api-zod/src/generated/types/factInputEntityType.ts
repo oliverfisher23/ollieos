@@ -13,4 +13,5 @@ export const FactInputEntityType = {
   project: 'project',
   person: 'person',
   organisation: 'organisation',
+  product: 'product',
 } as const;

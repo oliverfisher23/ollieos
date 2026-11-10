@@ -21,4 +21,6 @@ export const SearchHitType = {
   session: 'session',
   strategy: 'strategy',
   idea: 'idea',
+  product: 'product',
+  playbook: 'playbook',
 } as const;

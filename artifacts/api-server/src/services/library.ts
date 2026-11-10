@@ -1,8 +1,9 @@
 /**
- * Library: the document index (feature 06) and playbooks (feature 07).
+ * Library: the document index (feature 06) and rules (feature 07; called playbooks before Part M).
  * Documents are links with a summary, or text kept in OllieOS (pasted, uploaded or saved by Claude).
- * Playbooks are short rules every AI tool reads before drafting; Ollie writes them, AI only proposes.
- * Both link to projects (and playbooks to organisations) through `links`, stored from the item.
+ * Rules are short rules every AI tool reads before drafting; Ollie writes them, AI only proposes.
+ * Both link to projects (and rules to organisations and products) through `links`, stored from the item.
+ * Playbooks (Part M) are in playbooks.ts and use the link helpers here.
  */
 import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import {
@@ -12,22 +13,23 @@ import {
   knowledgeSourcesTable,
   linksTable,
   organisationsTable,
-  playbooksTable,
+  productsTable,
+  rulesTable,
   projectsTable,
   type Document,
-  type Playbook,
+  type Rule,
 } from "@workspace/db";
-import { PLAYBOOK_RULE_MAX, type DocLocation } from "@workspace/shared";
+import { RULE_MAX, type DocLocation } from "@workspace/shared";
 import { writeAudit, type DbOrTx } from "../lib/audit";
-import { documentVisible, playbookVisible } from "../lib/ai-data/visibility";
+import { documentVisible, ruleVisible } from "../lib/ai-data/visibility";
 import { ACTOR, cleanText } from "./knowledge/common";
 import { ConflictError, NotFoundError, ValidationError } from "./tasks";
 import { ensureSeeds } from "./seeds";
 import { enqueueDocument } from "./documents/enqueue";
 import { describeCounts } from "./documents/counts";
 
-type ItemType = "document" | "playbook";
-type TargetType = "project" | "organisation";
+export type ItemType = "document" | "rule" | "playbook";
+export type TargetType = "project" | "organisation" | "product";
 
 export interface NamedLink {
   id: number;
@@ -38,7 +40,7 @@ export interface NamedLink {
 /* ---------- Links ---------- */
 
 /** Ids of `other` linked to each item, either way round. */
-async function linkMap(type: ItemType, ids: number[], other: TargetType): Promise<Map<number, number[]>> {
+export async function linkMap(type: ItemType, ids: number[], other: TargetType | "document"): Promise<Map<number, number[]>> {
   const out = new Map<number, number[]>();
   if (!ids.length) return out;
   const rows = await db
@@ -58,21 +60,31 @@ async function linkMap(type: ItemType, ids: number[], other: TargetType): Promis
   return out;
 }
 
-async function names(other: TargetType, ids: number[]): Promise<Map<number, NamedLink>> {
+const TARGET_TABLES = { project: projectsTable, organisation: organisationsTable, product: productsTable } as const;
+
+export async function names(other: TargetType, ids: number[]): Promise<Map<number, NamedLink>> {
   if (!ids.length) return new Map();
-  const table = other === "project" ? projectsTable : organisationsTable;
+  const table = TARGET_TABLES[other];
   const rows = await db.select({ id: table.id, name: table.name, slug: table.slug }).from(table).where(inArray(table.id, ids));
   return new Map(rows.map((r) => [r.id, r]));
 }
 
-async function assertTargets(other: TargetType, ids: number[]): Promise<void> {
+export async function assertTargets(other: TargetType, ids: number[]): Promise<void> {
   if (!ids.length) return;
   const found = await names(other, ids);
-  if (found.size !== new Set(ids).size) throw new NotFoundError(other === "project" ? "That project does not exist" : "That organisation does not exist");
+  if (found.size !== new Set(ids).size) throw new NotFoundError(`That ${other} does not exist`);
+}
+
+/** Sorted names for the ids an item links to. */
+export function pickNames(m: Map<number, NamedLink>, xs: number[] | undefined): NamedLink[] {
+  return (xs ?? [])
+    .map((x) => m.get(x))
+    .filter((x): x is NamedLink => !!x)
+    .sort((a, b) => a.name.localeCompare(b.name, "en-GB"));
 }
 
 /** Replaces the item's links to one kind of target. Returns what was added and removed, for the audit. */
-async function setLinks(tx: DbOrTx, type: ItemType, id: number, other: TargetType, ids: number[]) {
+export async function setLinks(tx: DbOrTx, type: ItemType, id: number, other: TargetType | "document", ids: number[]) {
   const wanted = [...new Set(ids)];
   const existing = await tx
     .select()
@@ -170,6 +182,8 @@ export interface KnowledgeView {
 
 export interface DocumentView extends Omit<Document, "search" | "suggestionId"> {
   projects: NamedLink[];
+  /** Products it is linked to (Part M) */
+  products: NamedLink[];
   /** AI tools cannot read it (own flag or inherited from a project) */
   hiddenFromAi: boolean;
   /** When OllieOS last read or was given the text */
@@ -182,8 +196,9 @@ export interface DocumentView extends Omit<Document, "search" | "suggestionId"> 
 
 async function toDocumentViews(rows: Omit<Document, "search">[]): Promise<DocumentView[]> {
   const ids = rows.map((r) => r.id);
-  const [links, hidden, contents, reads] = await Promise.all([
+  const [links, productLinks, hidden, contents, reads] = await Promise.all([
     linkMap("document", ids, "project"),
+    linkMap("document", ids, "product"),
     ids.length
       ? db.select({ id: documentsTable.id }).from(documentsTable).where(and(inArray(documentsTable.id, ids), sql.raw(`not ${documentVisible("documents")}`)))
       : [],
@@ -202,11 +217,15 @@ async function toDocumentViews(rows: Omit<Document, "search">[]): Promise<Docume
       { status: k.status, lastReadAt: k.lastReadAt, lastResult: k.lastCounts ? describeCounts(k.lastCounts) : null, error: k.status === "failed" ? k.lastError : null } satisfies KnowledgeView,
     ]),
   );
-  const projectNames = await names("project", [...new Set([...links.values()].flat())]);
+  const [projectNames, productNames] = await Promise.all([
+    names("project", [...new Set([...links.values()].flat())]),
+    names("product", [...new Set([...productLinks.values()].flat())]),
+  ]);
   const hiddenSet = new Set(hidden.map((h) => h.id));
   return rows.map(({ suggestionId: _s, ...r }) => ({
     ...r,
-    projects: (links.get(r.id) ?? []).map((p) => projectNames.get(p)).filter((p): p is NamedLink => !!p).sort((a, b) => a.name.localeCompare(b.name, "en-GB")),
+    projects: pickNames(projectNames, links.get(r.id)),
+    products: pickNames(productNames, productLinks.get(r.id)),
     hiddenFromAi: hiddenSet.has(r.id),
     contentsReadAt: readAt.get(r.id)?.readAt ?? null,
     textOrigin: readAt.get(r.id)?.origin ?? null,
@@ -238,6 +257,14 @@ export async function listDocuments(projectId?: number): Promise<DocumentView[]>
     where = inArray(documentsTable.id, ids);
   }
   const rows = await db.select(documentColumns).from(documentsTable).where(where).orderBy(desc(documentsTable.lastConfirmedAt), asc(documentsTable.title));
+  return toDocumentViews(rows);
+}
+
+/** Documents linked to a product (Part M). */
+export async function documentsForProduct(productId: number): Promise<DocumentView[]> {
+  const ids = await linkMapTo("product", productId, "document");
+  if (!ids.length) return [];
+  const rows = await db.select(documentColumns).from(documentsTable).where(inArray(documentsTable.id, ids)).orderBy(asc(documentsTable.title));
   return toDocumentViews(rows);
 }
 
@@ -412,134 +439,171 @@ export async function updateDocument(id: number, input: DocumentUpdate): Promise
   return documentView(id);
 }
 
-/* ---------- Playbooks ---------- */
+/* ---------- Rules ---------- */
 
-export interface PlaybookView extends Omit<Playbook, "suggestionId"> {
+export interface RuleView extends Omit<Rule, "suggestionId"> {
   projects: NamedLink[];
   organisations: NamedLink[];
+  products: NamedLink[];
   /** True when AI tools receive it: enabled, and global or linked to something visible */
   sentToAi: boolean;
 }
 
-async function toPlaybookViews(rows: Playbook[]): Promise<PlaybookView[]> {
+async function toRuleViews(rows: Rule[]): Promise<RuleView[]> {
   const ids = rows.map((r) => r.id);
-  const [projectLinks, orgLinks, visible] = await Promise.all([
-    linkMap("playbook", ids, "project"),
-    linkMap("playbook", ids, "organisation"),
-    ids.length ? db.select({ id: playbooksTable.id }).from(playbooksTable).where(and(inArray(playbooksTable.id, ids), sql.raw(playbookVisible("playbooks")))) : [],
+  const [projectLinks, orgLinks, productLinks, visible] = await Promise.all([
+    linkMap("rule", ids, "project"),
+    linkMap("rule", ids, "organisation"),
+    linkMap("rule", ids, "product"),
+    ids.length ? db.select({ id: rulesTable.id }).from(rulesTable).where(and(inArray(rulesTable.id, ids), sql.raw(ruleVisible("rules")))) : [],
   ]);
-  const [projectNames, orgNames] = await Promise.all([
-    names("project", [...new Set([...projectLinks.values()].flat())]),
-    names("organisation", [...new Set([...orgLinks.values()].flat())]),
+  const all = (m: Map<number, number[]>) => [...new Set([...m.values()].flat())];
+  const [projectNames, orgNames, productNames] = await Promise.all([
+    names("project", all(projectLinks)),
+    names("organisation", all(orgLinks)),
+    names("product", all(productLinks)),
   ]);
   const visibleSet = new Set(visible.map((v) => v.id));
-  const pick = (m: Map<number, NamedLink>, xs: number[] | undefined) =>
-    (xs ?? []).map((x) => m.get(x)).filter((x): x is NamedLink => !!x).sort((a, b) => a.name.localeCompare(b.name, "en-GB"));
   return rows.map(({ suggestionId: _s, ...r }) => ({
     ...r,
-    projects: pick(projectNames, projectLinks.get(r.id)),
-    organisations: pick(orgNames, orgLinks.get(r.id)),
+    projects: pickNames(projectNames, projectLinks.get(r.id)),
+    organisations: pickNames(orgNames, orgLinks.get(r.id)),
+    products: pickNames(productNames, productLinks.get(r.id)),
     sentToAi: visibleSet.has(r.id),
   }));
 }
 
-export async function listPlaybooks(): Promise<PlaybookView[]> {
+export async function listRules(): Promise<RuleView[]> {
   await ensureSeeds();
-  const rows = await db.select().from(playbooksTable).orderBy(asc(playbooksTable.id));
-  return toPlaybookViews(rows);
+  const rows = await db.select().from(rulesTable).orderBy(asc(rulesTable.id));
+  return toRuleViews(rows);
 }
 
 /**
- * Playbooks shown on a project page: global ones and those linked to the project or to an
- * organisation linked to it. Paused ones are included and marked.
+ * Rules shown on a project page: global ones and those linked to the project or to an
+ * organisation or product linked to it. Paused ones are included and marked.
  */
-export async function playbooksForProject(projectId: number): Promise<PlaybookView[]> {
+export async function rulesForProject(projectId: number): Promise<RuleView[]> {
   const res = await db.execute(sql`
-    select pb.id from playbooks pb
-    where not exists (select 1 from links l where (l.from_type = 'playbook' and l.from_id = pb.id and l.to_type in ('project', 'organisation'))
-                                              or (l.to_type = 'playbook' and l.to_id = pb.id and l.from_type in ('project', 'organisation')))
-      or exists (select 1 from links l where (l.from_type = 'playbook' and l.from_id = pb.id and l.to_type = 'project' and l.to_id = ${projectId})
-                                          or (l.to_type = 'playbook' and l.to_id = pb.id and l.from_type = 'project' and l.from_id = ${projectId}))
+    select pb.id from rules pb
+    where not exists (select 1 from links l where (l.from_type = 'rule' and l.from_id = pb.id and l.to_type in ('project', 'organisation', 'product'))
+                                              or (l.to_type = 'rule' and l.to_id = pb.id and l.from_type in ('project', 'organisation', 'product')))
+      or exists (select 1 from links l where (l.from_type = 'rule' and l.from_id = pb.id and l.to_type = 'project' and l.to_id = ${projectId})
+                                          or (l.to_type = 'rule' and l.to_id = pb.id and l.from_type = 'project' and l.from_id = ${projectId}))
       or exists (select 1 from links l, links po where
-                   ((l.from_type = 'playbook' and l.from_id = pb.id and l.to_type = 'organisation') or (l.to_type = 'playbook' and l.to_id = pb.id and l.from_type = 'organisation'))
-                   and ((po.from_type = 'project' and po.from_id = ${projectId} and po.to_type = 'organisation' and po.to_id = case when l.to_type = 'organisation' then l.to_id else l.from_id end)
-                     or (po.to_type = 'project' and po.to_id = ${projectId} and po.from_type = 'organisation' and po.from_id = case when l.to_type = 'organisation' then l.to_id else l.from_id end)))`);
+                   ((l.from_type = 'rule' and l.from_id = pb.id and l.to_type in ('organisation', 'product')) or (l.to_type = 'rule' and l.to_id = pb.id and l.from_type in ('organisation', 'product')))
+                   and ((po.from_type = 'project' and po.from_id = ${projectId}
+                         and po.to_type = case when l.from_type = 'rule' then l.to_type else l.from_type end
+                         and po.to_id = case when l.from_type = 'rule' then l.to_id else l.from_id end)
+                     or (po.to_type = 'project' and po.to_id = ${projectId}
+                         and po.from_type = case when l.from_type = 'rule' then l.to_type else l.from_type end
+                         and po.from_id = case when l.from_type = 'rule' then l.to_id else l.from_id end)))`);
   const ids = (res.rows as { id: number }[]).map((r) => Number(r.id));
   if (!ids.length) return [];
-  const rows = await db.select().from(playbooksTable).where(inArray(playbooksTable.id, ids)).orderBy(asc(playbooksTable.id));
-  return toPlaybookViews(rows);
+  const rows = await db.select().from(rulesTable).where(inArray(rulesTable.id, ids)).orderBy(asc(rulesTable.id));
+  return toRuleViews(rows);
 }
 
-async function loadPlaybook(id: number): Promise<Playbook> {
-  const [row] = await db.select().from(playbooksTable).where(eq(playbooksTable.id, id));
-  if (!row) throw new NotFoundError("That playbook does not exist");
+/** Rules linked to a product: "What to say and not say" on its page. Paused ones are included and marked. */
+export async function rulesForProduct(productId: number): Promise<RuleView[]> {
+  const ids = await linkMapTo("product", productId, "rule");
+  if (!ids.length) return [];
+  const rows = await db.select().from(rulesTable).where(inArray(rulesTable.id, ids)).orderBy(asc(rulesTable.id));
+  return toRuleViews(rows);
+}
+
+/** Ids of one kind linked to a single target, either way round. */
+export async function linkMapTo(target: TargetType | "document", targetId: number, type: ItemType): Promise<number[]> {
+  const rows = await db
+    .select()
+    .from(linksTable)
+    .where(
+      or(
+        and(eq(linksTable.fromType, type), eq(linksTable.toType, target), eq(linksTable.toId, targetId)),
+        and(eq(linksTable.toType, type), eq(linksTable.fromType, target), eq(linksTable.fromId, targetId)),
+      ),
+    );
+  return [...new Set(rows.map((r) => (r.fromType === type ? r.fromId : r.toId)))];
+}
+
+async function loadRule(id: number): Promise<Rule> {
+  const [row] = await db.select().from(rulesTable).where(eq(rulesTable.id, id));
+  if (!row) throw new NotFoundError("That rule does not exist");
   return row;
 }
 
-export interface PlaybookInput {
+export interface RuleInput {
   title: string;
   appliesWhen: string;
   rule: string;
   enabled?: boolean;
   projectIds?: number[];
   organisationIds?: number[];
+  productIds?: number[];
 }
 
 function checkRule(rule: string): string {
   const r = cleanText(rule);
-  if (!r) throw new ValidationError("A playbook needs a rule");
-  if (r.length > PLAYBOOK_RULE_MAX) throw new ValidationError(`Keep the rule to ${PLAYBOOK_RULE_MAX} characters or fewer`);
+  if (!r) throw new ValidationError("Write the rule itself");
+  if (r.length > RULE_MAX) throw new ValidationError(`Keep the rule to ${RULE_MAX} characters or fewer`);
   return r;
 }
 
-/** Inserts a playbook inside the caller's transaction. Used directly when approving a suggestion. */
-export async function insertPlaybook(tx: DbOrTx, input: PlaybookInput, suggestionId: number | null = null): Promise<number> {
+/** Inserts a rule inside the caller's transaction. Used directly when approving a suggestion. */
+export async function insertRule(tx: DbOrTx, input: RuleInput, suggestionId: number | null = null): Promise<number> {
   const title = cleanText(input.title);
-  if (!title) throw new ValidationError("A playbook needs a title");
+  if (!title) throw new ValidationError("A rule needs a title");
   const appliesWhen = cleanText(input.appliesWhen);
-  if (!appliesWhen) throw new ValidationError("Say when the playbook applies");
+  if (!appliesWhen) throw new ValidationError("Say when the rule applies");
   const rule = checkRule(input.rule);
   const projectIds = input.projectIds ?? [];
   const organisationIds = input.organisationIds ?? [];
-  await Promise.all([assertTargets("project", projectIds), assertTargets("organisation", organisationIds)]);
+  const productIds = input.productIds ?? [];
+  await Promise.all([assertTargets("project", projectIds), assertTargets("organisation", organisationIds), assertTargets("product", productIds)]);
   const [row] = await tx
-    .insert(playbooksTable)
+    .insert(rulesTable)
     .values({ title, appliesWhen, rule, enabled: input.enabled ?? true, createdBy: ACTOR, suggestionId })
-    .returning({ id: playbooksTable.id });
-  await setLinks(tx, "playbook", row.id, "project", projectIds);
-  await setLinks(tx, "playbook", row.id, "organisation", organisationIds);
-  await writeAudit(tx, { actor: ACTOR, action: "create", entityType: "playbook", entityId: row.id, payload: { title, suggestionId } });
+    .returning({ id: rulesTable.id });
+  await setLinks(tx, "rule", row.id, "project", projectIds);
+  await setLinks(tx, "rule", row.id, "organisation", organisationIds);
+  await setLinks(tx, "rule", row.id, "product", productIds);
+  await writeAudit(tx, { actor: ACTOR, action: "create", entityType: "rule", entityId: row.id, payload: { title, suggestionId } });
   return row.id;
 }
 
-export async function createPlaybook(input: PlaybookInput): Promise<PlaybookView> {
-  const id = await db.transaction((tx) => insertPlaybook(tx, input));
-  return (await toPlaybookViews([await loadPlaybook(id)]))[0];
+export async function createRule(input: RuleInput): Promise<RuleView> {
+  const id = await db.transaction((tx) => insertRule(tx, input));
+  return (await toRuleViews([await loadRule(id)]))[0];
 }
 
-export async function updatePlaybook(id: number, input: Partial<PlaybookInput>): Promise<PlaybookView> {
-  const current = await loadPlaybook(id);
-  const set: Partial<Playbook> = {};
+export async function updateRule(id: number, input: Partial<RuleInput>): Promise<RuleView> {
+  const current = await loadRule(id);
+  const set: Partial<Rule> = {};
   if (input.title !== undefined) {
     const title = cleanText(input.title);
-    if (!title) throw new ValidationError("A playbook needs a title");
+    if (!title) throw new ValidationError("A rule needs a title");
     set.title = title;
   }
   if (input.appliesWhen !== undefined) {
     const appliesWhen = cleanText(input.appliesWhen);
-    if (!appliesWhen) throw new ValidationError("Say when the playbook applies");
+    if (!appliesWhen) throw new ValidationError("Say when the rule applies");
     set.appliesWhen = appliesWhen;
   }
   if (input.rule !== undefined) set.rule = checkRule(input.rule);
   if (input.enabled !== undefined) set.enabled = input.enabled;
-  await Promise.all([assertTargets("project", input.projectIds ?? []), assertTargets("organisation", input.organisationIds ?? [])]);
+  await Promise.all([
+    assertTargets("project", input.projectIds ?? []),
+    assertTargets("organisation", input.organisationIds ?? []),
+    assertTargets("product", input.productIds ?? []),
+  ]);
   await db.transaction(async (tx) => {
-    if (Object.keys(set).length) await tx.update(playbooksTable).set(set).where(eq(playbooksTable.id, id));
+    if (Object.keys(set).length) await tx.update(rulesTable).set(set).where(eq(rulesTable.id, id));
     const payload: Record<string, unknown> = { fields: Object.keys(set) };
-    if (input.projectIds) payload.projects = await setLinks(tx, "playbook", id, "project", input.projectIds);
-    if (input.organisationIds) payload.organisations = await setLinks(tx, "playbook", id, "organisation", input.organisationIds);
+    if (input.projectIds) payload.projects = await setLinks(tx, "rule", id, "project", input.projectIds);
+    if (input.organisationIds) payload.organisations = await setLinks(tx, "rule", id, "organisation", input.organisationIds);
+    if (input.productIds) payload.products = await setLinks(tx, "rule", id, "product", input.productIds);
     if (set.enabled !== undefined && set.enabled !== current.enabled) payload.enabled = { from: current.enabled, to: set.enabled };
-    await writeAudit(tx, { actor: ACTOR, action: "update", entityType: "playbook", entityId: id, payload });
+    await writeAudit(tx, { actor: ACTOR, action: "update", entityType: "rule", entityId: id, payload });
   });
-  return (await toPlaybookViews([await loadPlaybook(id)]))[0];
+  return (await toRuleViews([await loadRule(id)]))[0];
 }

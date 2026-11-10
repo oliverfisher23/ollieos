@@ -11,7 +11,7 @@ import {
   uniqueIndex,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { activityKindEnum, cadenceEnum, entityTypeEnum, factAttributeEnum, projectLifecycleEnum, relationshipEnum, tsvector } from "./enums";
+import { activityKindEnum, cadenceEnum, entityTypeEnum, factAttributeEnum, productStateEnum, projectLifecycleEnum, relationshipEnum, tsvector } from "./enums";
 import { goalsTable } from "./goals";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -98,6 +98,35 @@ export const peopleTable = pgTable(
     index("people_organisation_idx").on(t.organisationId),
     index("people_search_idx").using("gin", t.search),
   ],
+);
+
+/**
+ * Products (Part M): what Springpod sells or runs, with facts, rules, documents, projects,
+ * organisations, playbooks and decisions linked to it. Ollie adds them; AI only proposes.
+ * Hidden from AI when confidential or AI access is off, which hides its facts too.
+ */
+export const productsTable = pgTable(
+  "products",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    /** One line on what it is */
+    description: text("description"),
+    state: productStateEnum("state").notNull().default("live"),
+    ownerId: integer("owner_id").references(() => peopleTable.id, { onDelete: "set null" }),
+    summary: text("summary"),
+    confidential: boolean("confidential").notNull().default(false),
+    aiAccess: boolean("ai_access").notNull().default(true),
+    createdBy: text("created_by").notNull().default("ollie"),
+    suggestionId: integer("suggestion_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    search: tsvector("search").generatedAlwaysAs(
+      sql`to_tsvector('english', coalesce(name,'') || ' ' || coalesce(description,'') || ' ' || coalesce(summary,''))`,
+    ),
+  },
+  (t) => [index("products_search_idx").using("gin", t.search)],
 );
 
 /**
@@ -226,6 +255,7 @@ export const linksTable = pgTable(
 export type Project = typeof projectsTable.$inferSelect;
 export type Person = typeof peopleTable.$inferSelect;
 export type Organisation = typeof organisationsTable.$inferSelect;
+export type Product = typeof productsTable.$inferSelect;
 export type Fact = typeof factsTable.$inferSelect;
 export type Decision = typeof decisionsTable.$inferSelect;
 export type Note = typeof notesTable.$inferSelect;

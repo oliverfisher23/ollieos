@@ -8,6 +8,8 @@ import {
   noteVisible,
   organisationVisible,
   personVisible,
+  playbookVisible,
+  productVisible,
   projectVisible,
   sessionVisible,
   strategyVisible,
@@ -16,7 +18,7 @@ import {
 } from "./visibility";
 import type { AiScope } from "./scope";
 
-export const SEARCH_TYPES = ["task", "project", "person", "organisation", "decision", "note", "fact", "document", "session", "strategy", "idea"] as const;
+export const SEARCH_TYPES = ["task", "project", "person", "organisation", "decision", "note", "fact", "document", "session", "strategy", "idea", "product", "playbook"] as const;
 export type SearchType = (typeof SEARCH_TYPES)[number];
 
 export interface SearchHit {
@@ -24,7 +26,7 @@ export interface SearchHit {
   id: number;
   title: string;
   snippet: string | null;
-  /** Project, person and organisation slug; the parent entity slug for facts */
+  /** Project, person, organisation and product slug; the parent entity slug for facts */
   slug: string | null;
   /** For facts and notes: the entity they hang off */
   entityType: string | null;
@@ -190,6 +192,24 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
         from ideas i
         where i.deleted_at is null and (${textMatch(sql.raw("i.search"), tsq, sql.raw("concat_ws(' ', i.title, i.notes)"), q, mode)})${v.where}
         order by rank desc, i.updated_at desc limit ${limit}`;
+    }
+    case "product": {
+      const v = vis(productVisible("pd"), visibleOnly);
+      return sql`select 'product' as type, pd.id, pd.name as title, coalesce(pd.description, left(pd.summary, 300)) as snippet, pd.slug,
+          null as entity_type, null::int as entity_id, ${rankExpr(sql.raw("pd.search"), tsq)} as rank,
+          ${v.hidden} as hidden_from_ai, pd.confidential, pd.state::text as status, null::boolean as needs_check
+        from products pd
+        where (${textMatch(sql.raw("pd.search"), tsq, sql.raw("pd.name"), q, mode)})${v.where}
+        order by rank desc, pd.updated_at desc limit ${limit}`;
+    }
+    case "playbook": {
+      const v = vis(playbookVisible("pp", g), visibleOnly);
+      return sql`select 'playbook' as type, pp.id, pp.title, coalesce(pp.purpose, pp.when_to_use) as snippet, null as slug,
+          null as entity_type, null::int as entity_id, ${rankExpr(sql.raw("pp.search"), tsq)} as rank,
+          ${v.hidden} as hidden_from_ai, pp.confidential, pp.state::text as status, null::boolean as needs_check
+        from process_playbooks pp
+        where (${textMatch(sql.raw("pp.search"), tsq, sql.raw("pp.title"), q, mode)})${v.where}
+        order by rank desc, pp.updated_at desc limit ${limit}`;
     }
   }
 }

@@ -36,3 +36,5 @@ Plan my day fits tasks from the current London time, so an evening UI check make
 Start the test API with `OLLIEOS_CONNECTOR_TIMER=off` so it never runs real connector checks into the test database. `/tmp/tdb` does not survive a sandbox restart: rebuild it from `DATABASE_URL` with the path swapped to `/ollieos_test`.
 
 Screens that read Gmail (thread, summary, attachments) cannot show seeded fake emails, since the test API still calls the real Gmail connector. Answer those routes in the Playwright route handler with JSON (`route.fulfill({ json })`) and pass the rest through to the test API.
+
+A brief only calls the writer when it has substance (a fact, email or note, not just names of people, projects, organisations, products or playbooks), and organisations get no full context, so tests and seeds for brief content need a fact on an attendee. In the Knowledge Inbox, `getByRole('button', { name: 'Approve' })` also matches "Edit, then approve"; use `exact: true`.

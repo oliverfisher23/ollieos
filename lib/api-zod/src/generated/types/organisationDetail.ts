@@ -8,12 +8,16 @@
 import type { CompanyResearch } from './companyResearch';
 import type { Fact } from './fact';
 import type { LinkedEntity } from './linkedEntity';
+import type { LinkedProduct } from './linkedProduct';
 import type { Note } from './note';
 import type { Organisation } from './organisation';
 import type { PersonChip } from './personChip';
+import type { Playbook } from './playbook';
 import type { TimelineItem } from './timelineItem';
 
 export interface OrganisationDetail {
+  playbooks: Playbook[];
+  products: LinkedProduct[];
   research: CompanyResearch[];
   organisation: Organisation;
   people: PersonChip[];

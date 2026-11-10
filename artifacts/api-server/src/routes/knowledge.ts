@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
-import { CADENCES, PROJECT_LIFECYCLES, isIsoDate } from "@workspace/shared";
+import { CADENCES, PRODUCT_STATES, PROJECT_LIFECYCLES, isIsoDate } from "@workspace/shared";
+import { createProduct, getProduct, listProducts, updateProduct } from "../services/products";
 import { CADENCE_TABS, listCadence } from "../services/cadence";
 import { checkInDraft } from "../services/checkIn";
 import { handle } from "../lib/handle";
@@ -84,6 +85,19 @@ const OrganisationCreate = z
   .strict();
 const OrganisationUpdate = OrganisationCreate.partial().strict();
 
+const ProductCreate = z
+  .object({
+    name: z.string().min(1).max(200),
+    description: z.string().max(300).nullable().optional(),
+    state: z.enum(PRODUCT_STATES).optional(),
+    ownerId: id.nullable().optional(),
+    summary: shortText(20000),
+    confidential: z.boolean().optional(),
+    aiAccess: z.boolean().optional(),
+  })
+  .strict();
+const ProductUpdate = ProductCreate.partial().strict();
+
 const DecisionCreate = z
   .object({
     projectId: id.nullable().optional(),
@@ -98,7 +112,7 @@ const DecisionUpdate = DecisionCreate.partial().strict();
 
 const NoteCreate = z
   .object({
-    entityType: z.enum(["project", "person", "organisation", "task", "decision"]),
+    entityType: z.enum(["project", "person", "organisation", "product", "task", "decision"]),
     entityId: id,
     title: shortText(),
     body: z.string().min(1).max(50000),
@@ -111,7 +125,7 @@ const NoteUpdate = z
 
 const FactCreate = z
   .object({
-    entityType: z.enum(["project", "person", "organisation"]),
+    entityType: z.enum(["project", "person", "organisation", "product"]),
     entityId: id,
     text: z.string().min(1).max(2000),
     source: shortText(500),
@@ -169,6 +183,12 @@ router.patch(
   "/organisations/:slug",
   handle(async (req, res) => void res.json(await updateOrganisation(SlugParams.parse(req.params).slug, OrganisationUpdate.parse(req.body)))),
 );
+
+/* Products (Part M) */
+router.get("/products", handle(async (_req, res) => void res.json(await listProducts())));
+router.post("/products", handle(async (req, res) => void res.status(201).json(await createProduct(ProductCreate.parse(req.body)))));
+router.get("/products/:slug", handle(async (req, res) => void res.json(await getProduct(SlugParams.parse(req.params).slug))));
+router.patch("/products/:slug", handle(async (req, res) => void res.json(await updateProduct(SlugParams.parse(req.params).slug, ProductUpdate.parse(req.body)))));
 
 /* Decisions */
 router.get("/decisions", handle(async (_req, res) => void res.json(await listDecisions())));

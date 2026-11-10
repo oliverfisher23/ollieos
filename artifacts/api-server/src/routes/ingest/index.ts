@@ -5,7 +5,7 @@
  */
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
-import { CADENCES, PLAYBOOK_RULE_MAX, RELATIONSHIPS, isIsoDate, todayLondon } from "@workspace/shared";
+import { CADENCES, RULE_MAX, RELATIONSHIPS, isIsoDate, todayLondon } from "@workspace/shared";
 import { handle } from "../../lib/handle";
 import {
   doneSinceForIngest,
@@ -18,6 +18,7 @@ import {
   type PickType,
 } from "../../lib/ai-data/context";
 import { buildScope, type AiScope } from "../../lib/ai-data/scope";
+import { playbookForAi, resolvePlaybookForAi, resolveProductForAi } from "../../lib/ai-data/playbooks";
 import { captureTask, enabledRules, finishSweep, logActivity, startSweep, type Writer } from "../../services/aiWrites";
 import { attachMeetingNotes, findEventBySourceRef } from "../../services/briefs";
 import { scheduledWork } from "../../services/scheduledWork";
@@ -439,8 +440,8 @@ router.post(
 /* ---------- Suggestions (feature 01) ---------- */
 
 const SuggestionItem = z.object({
-  kind: z.enum(["fact", "decision", "person", "organisation", "project", "document", "playbook", "cadence", "relationship"]),
-  /** fact: the project, person or organisation; decision: the project. Name, slug or ref. */
+  kind: z.enum(["fact", "decision", "person", "organisation", "project", "document", "rule", "cadence", "relationship", "product", "playbook"]),
+  /** fact: the project, person, organisation or product; decision: the project. Name, slug or ref. */
   entity: optText(200),
   text: optText(2000),
   attribute: z.enum(FACT_ATTRIBUTES).nullish(),
@@ -461,12 +462,22 @@ const SuggestionItem = z.object({
   /** document */
   url: optText(2000),
   title: optText(300),
-  /** document and playbook: the projects it belongs to; playbook: organisations too */
+  /** document and rule: the projects it belongs to; rule: organisations too */
   projects: z.array(z.string().trim().min(1).max(200)).max(10).nullish(),
   organisations: z.array(z.string().trim().min(1).max(200)).max(10).nullish(),
-  /** playbook */
+  /** rule */
   applies_when: optText(300),
-  rule: optText(PLAYBOOK_RULE_MAX),
+  rule: optText(RULE_MAX),
+  /** product: name and summary (one line), plus facts; playbook: title, applies_when (when to use it), summary (purpose) */
+  facts: z.array(z.string().trim().min(1).max(2000)).max(5).nullish(),
+  /** playbook: for a change, the playbook's title or ref, with the whole new list of steps */
+  playbook: optText(200),
+  owner: optText(200),
+  steps: z
+    .array(z.object({ text: z.string().trim().min(1).max(600), person: optText(200), after_days: z.number().int().min(0).max(3650).nullish() }))
+    .max(30)
+    .nullish(),
+  products: z.array(z.string().trim().min(1).max(200)).max(10).nullish(),
   /** cadence: entity is the person */
   cadence: z.enum(CADENCES).nullish(),
   reason: optText(500),
@@ -493,8 +504,10 @@ async function suggestOne(scope: AiScope, writer: Writer, s: SuggestionItem): Pr
   switch (s.kind) {
     case "fact": {
       if (!s.entity || !s.text) return { error: "A fact needs entity and text" };
-      const entity = await resolvePick(scope, s.entity);
-      if (!entity) return { error: `No visible project, person or organisation matches "${s.entity}"` };
+      const product = await resolveProductForAi(scope, s.entity);
+      const entity: { type: "project" | "person" | "organisation" | "product"; id: number } | null =
+        (await resolvePick(scope, s.entity)) ?? (product ? { type: "product", id: product.id } : null);
+      if (!entity) return { error: `No visible project, person, organisation or product matches "${s.entity}"` };
       let supersedes: number | null = null;
       if (s.supersedes) {
         const old = await visibleFact(scope, s.supersedes);
@@ -562,14 +575,14 @@ async function suggestOne(scope: AiScope, writer: Writer, s: SuggestionItem): Pr
         },
       });
     }
-    case "playbook": {
-      if (!s.title || !s.applies_when || !s.rule) return { error: "A playbook needs title, applies_when and rule" };
+    case "rule": {
+      if (!s.title || !s.applies_when || !s.rule) return { error: "A rule needs title, applies_when and rule" };
       const projects = await picks(scope, s.projects, "project");
       if ("error" in projects) return projects;
       const orgs = await picks(scope, s.organisations, "organisation");
       if ("error" in orgs) return orgs;
       return propose(meta, {
-        kind: "playbook",
+        kind: "rule",
         payload: {
           title: s.title,
           applies_when: s.applies_when,
@@ -577,6 +590,58 @@ async function suggestOne(scope: AiScope, writer: Writer, s: SuggestionItem): Pr
           project_ids: projects.map((p) => p.id),
           organisation_ids: orgs.map((o) => o.id),
           link_names: [...projects, ...orgs].map((x) => x.name),
+        },
+      });
+    }
+    case "product": {
+      if (!s.name) return { error: "A product needs a name" };
+      if (await resolveProductForAi(scope, s.name)) return { error: `OllieOS already has "${s.name}"; add facts to it with kind fact` };
+      return propose(meta, { kind: "product", payload: { name: s.name, description: s.summary ?? null, facts: s.facts ?? [] } });
+    }
+    case "playbook": {
+      let playbookId: number | null = null;
+      if (s.playbook) {
+        playbookId = await resolvePlaybookForAi(scope, s.playbook);
+        if (playbookId == null) return { error: `No playbook in use matches "${s.playbook}"` };
+        if (!s.steps?.length) return { error: "A playbook change needs the whole new list of steps" };
+      } else if (!s.title || !s.applies_when || !s.steps?.length) {
+        return { error: "A new playbook needs title, applies_when (when to use it) and steps" };
+      }
+      const person = async (v: string | null | undefined) => (v ? ((await resolvePick(scope, v, ["person"]))?.id ?? null) : null);
+      const steps = await Promise.all(s.steps!.map(async (x) => ({ text: x.text, person_id: await person(x.person), after_days: x.after_days ?? null })));
+      if (playbookId != null) {
+        // Keep the ids of steps whose text is unchanged, so the card shows what really changed.
+        const current = await playbookForAi(scope, playbookId);
+        const byText = new Map((current?.steps ?? []).map((x) => [x.text.trim().toLowerCase(), x.id]));
+        const withIds = steps.map((x) => ({ ...x, id: byText.get(x.text.trim().toLowerCase()) ?? null }));
+        const ownerId = await person(s.owner);
+        return propose(meta, {
+          kind: "playbook",
+          payload: { playbook_id: playbookId, title: "", when_to_use: "", steps: withIds, ...(ownerId != null ? { owner_id: ownerId } : {}), reason: s.reason ?? null },
+        });
+      }
+      const projects = await picks(scope, s.projects, "project");
+      if ("error" in projects) return projects;
+      const orgs = await picks(scope, s.organisations, "organisation");
+      if ("error" in orgs) return orgs;
+      const products: { id: number; name: string }[] = [];
+      for (const n of s.products ?? []) {
+        const hit = await resolveProductForAi(scope, n);
+        if (!hit) return { error: `No visible product matches "${n}"` };
+        products.push(hit);
+      }
+      return propose(meta, {
+        kind: "playbook",
+        payload: {
+          title: s.title!,
+          when_to_use: s.applies_when!,
+          purpose: s.summary ?? null,
+          owner_id: await person(s.owner),
+          steps,
+          project_ids: projects.map((p) => p.id),
+          organisation_ids: orgs.map((o) => o.id),
+          product_ids: products.map((p) => p.id),
+          link_names: [...projects, ...orgs, ...products].map((x) => x.name),
         },
       });
     }
@@ -614,7 +679,7 @@ async function picks(scope: AiScope, names: string[] | null | undefined, type: "
 
 /**
  * POST /api/ingest/suggestions: facts, decisions, people, organisations, projects, documents,
- * playbooks and cadences for Ollie to approve. Same rules as the MCP tools; each item reports suggested, conflict, duplicate,
+ * rules and cadences for Ollie to approve. Same rules as the MCP tools; each item reports suggested, conflict, duplicate,
  * previously_rejected, unchanged or error.
  */
 router.post(

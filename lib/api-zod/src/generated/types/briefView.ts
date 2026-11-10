@@ -14,7 +14,9 @@ import type { BriefViewDocumentsItem } from './briefViewDocumentsItem';
 import type { BriefViewEarlierItem } from './briefViewEarlierItem';
 import type { BriefViewGoalsItem } from './briefViewGoalsItem';
 import type { BriefViewPlaybooksItem } from './briefViewPlaybooksItem';
+import type { BriefViewProductsItem } from './briefViewProductsItem';
 import type { BriefViewProjectsItem } from './briefViewProjectsItem';
+import type { BriefViewRulesItem } from './briefViewRulesItem';
 import type { BriefViewTasksItem } from './briefViewTasksItem';
 import type { BriefViewThreadsItem } from './briefViewThreadsItem';
 import type { BriefViewWaitingOnItem } from './briefViewWaitingOnItem';
@@ -57,7 +59,11 @@ export interface BriefView {
   projects: BriefViewProjectsItem[];
   goals: BriefViewGoalsItem[];
   documents: BriefViewDocumentsItem[];
-  playbooks: BriefViewPlaybooksItem[];
+  rules: BriefViewRulesItem[];
+  /** Products linked to the meeting's projects and organisations, with the rules linked to each */
+  products?: BriefViewProductsItem[];
+  /** In use playbooks linked to the meeting's projects and organisations */
+  playbooks?: BriefViewPlaybooksItem[];
   /** Attendees */
   heldBack: number;
   /**

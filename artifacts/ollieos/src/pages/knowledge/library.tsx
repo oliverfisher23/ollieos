@@ -3,17 +3,18 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Link, useLocation, useSearch } from 'wouter';
 import {
   buildDocumentKnowledge,
-  createPlaybook,
-  updatePlaybook,
+  createRule,
+  updateRule,
   useListDocuments,
   useListOrganisations,
-  useListPlaybooks,
+  useListProducts,
+  useListRules,
   useListProjects,
   type LibraryDocument,
-  type Playbook,
-  type PlaybookUpdate,
+  type Rule,
+  type RuleUpdate,
 } from '@workspace/api-client-react';
-import { DOC_LOCATION_LABELS, PLAYBOOK_RULE_MAX, formatDayMonthShort } from '@workspace/shared';
+import { DOC_LOCATION_LABELS, RULE_MAX, formatDayMonthShort } from '@workspace/shared';
 import { CharCount, Skel } from '@/components/bits';
 import { IconArrowOut } from '@/components/icons';
 import { InlineText } from '@/components/inline-text';
@@ -21,16 +22,45 @@ import { KnowledgeLayout } from '@/components/knowledge/layout';
 import { HiddenFromAi, PageProblem, TriStateAccess } from '@/components/knowledge/parts';
 import { useKnowledgeWrite } from '@/lib/knowledge';
 import { DocumentDialog, MultiPick } from '@/components/knowledge/document-dialog';
+import { PlaybookDialog, PlaybooksTab } from '@/pages/knowledge/playbooks';
 
 export { DocumentDialog };
 
-type Tab = 'documents' | 'playbooks';
+type Tab = 'documents' | 'rules' | 'playbooks';
+const TABS: { tab: Tab; label: string; line: string; add: string; addTestId: string }[] = [
+  {
+    tab: 'documents',
+    label: 'Documents',
+    line: 'Where the important files live, with a line on each, so you and Claude can find them. Build knowledge from a document and what it finds waits in your Knowledge Inbox.',
+    add: 'Add a document',
+    addTestId: 'button-add-document',
+  },
+  {
+    tab: 'rules',
+    label: 'Rules',
+    line: 'Short rules every AI tool reads from OllieOS before drafting anything for you. Pause one and no AI sees it.',
+    add: 'New rule',
+    addTestId: 'button-new-rule',
+  },
+  {
+    tab: 'playbooks',
+    label: 'Playbooks',
+    line: 'How things are done, step by step. Playbooks In use are there for you and for Claude when the moment comes.',
+    add: 'New playbook',
+    addTestId: 'button-new-playbook',
+  },
+];
+
+export function libraryTab(raw: string | null): Tab {
+  return raw === 'rules' || raw === 'playbooks' ? raw : 'documents';
+}
 
 export default function LibraryPage() {
   const search = useSearch();
   const [, navigate] = useLocation();
   const params = new URLSearchParams(search);
-  const tab: Tab = params.get('tab') === 'playbooks' ? 'playbooks' : 'documents';
+  const tab = libraryTab(params.get('tab'));
+  const current = TABS.find((t) => t.tab === tab)!;
   const openDoc = Number(params.get('document')) || null;
   const [adding, setAdding] = useState(false);
 
@@ -39,41 +69,38 @@ export default function LibraryPage() {
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
           <p className="oo-eyebrow">Library</p>
-          <h1 className="oo-h1">{tab === 'documents' ? 'Documents' : 'Playbooks'}</h1>
-          <p className="oo-muted" style={{ margin: 0, fontSize: 14, maxWidth: '64ch' }}>
-            {tab === 'documents'
-              ? 'Where the important files live, with a line on each, so you and Claude can find them. Build knowledge from a document and what it finds waits in your Knowledge Inbox.'
-              : 'Short rules every AI tool reads from OllieOS before drafting anything for you. Pause one and no AI sees it.'}
-          </p>
+          <h1 className="oo-h1">{current.label}</h1>
+          <p className="oo-muted" style={{ margin: 0, fontSize: 14, maxWidth: '64ch' }}>{current.line}</p>
         </div>
-        <button type="button" className="oo-btn oo-btn-ink" onClick={() => setAdding(true)} data-testid={tab === 'documents' ? 'button-add-document' : 'button-new-playbook'}>
-          {tab === 'documents' ? 'Add a document' : 'New playbook'}
+        <button type="button" className="oo-btn oo-btn-ink" onClick={() => setAdding(true)} data-testid={current.addTestId}>
+          {current.add}
         </button>
       </div>
 
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0" style={{ marginTop: -6 }}>
         <div role="tablist" aria-label="Library" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--oo-line)', minWidth: 'max-content' }}>
-          {(['documents', 'playbooks'] as const).map((t) => (
+          {TABS.map((t) => (
             <button
-              key={t}
+              key={t.tab}
               type="button"
               role="tab"
               className="oo-tab"
-              aria-selected={t === tab}
-              onClick={() => navigate(t === 'documents' ? '/knowledge/library' : '/knowledge/library?tab=playbooks', { replace: true })}
-              data-testid={'tab-library-' + t}
+              aria-selected={t.tab === tab}
+              onClick={() => navigate(t.tab === 'documents' ? '/knowledge/library' : '/knowledge/library?tab=' + t.tab, { replace: true })}
+              data-testid={'tab-library-' + t.tab}
             >
-              {t === 'documents' ? 'Documents' : 'Playbooks'}
+              {t.label}
             </button>
           ))}
         </div>
       </div>
 
-      <div role="tabpanel" aria-label={tab === 'documents' ? 'Documents' : 'Playbooks'} style={{ marginTop: -10 }}>
-        {tab === 'documents' ? <DocumentsTab openId={openDoc} onCloseDoc={() => navigate('/knowledge/library', { replace: true })} /> : <PlaybooksTab />}
+      <div role="tabpanel" aria-label={current.label} style={{ marginTop: -10 }}>
+        {tab === 'documents' ? <DocumentsTab openId={openDoc} onCloseDoc={() => navigate('/knowledge/library', { replace: true })} /> : tab === 'rules' ? <RulesTab /> : <PlaybooksTab />}
       </div>
 
       {adding && tab === 'documents' && <DocumentDialog onClose={() => setAdding(false)} />}
+      {adding && tab === 'rules' && <RuleDialog onClose={() => setAdding(false)} />}
       {adding && tab === 'playbooks' && <PlaybookDialog onClose={() => setAdding(false)} />}
     </KnowledgeLayout>
   );
@@ -245,32 +272,32 @@ function DocProjects({ d }: { d: LibraryDocument }) {
   );
 }
 
-/* ---------- Playbooks ---------- */
+/* ---------- Rules ---------- */
 
-function PlaybooksTab() {
-  const q = useListPlaybooks();
+function RulesTab() {
+  const q = useListRules();
   if (q.isLoading) return <div aria-busy="true" className="oo-kgrid" style={{ paddingTop: 12 }}>{[0, 1, 2, 3].map((i) => <Skel key={i} h={200} />)}</div>;
   if (!q.data) return <PageProblem notFound={false} what="list" onRetry={() => q.refetch()} back={{ href: '/knowledge', label: 'Back to Knowledge' }} />;
   if (!q.data.length) {
-    return <p className="oo-muted" style={{ margin: 0, fontSize: 14, padding: '16px 0' }} data-testid="state-playbooks-empty">No playbooks yet. Add the rules you find yourself repeating to Claude.</p>;
+    return <p className="oo-muted" style={{ margin: 0, fontSize: 14, padding: '16px 0' }} data-testid="state-rules-empty">No rules yet. Add the rules you find yourself repeating to Claude.</p>;
   }
   return (
-    <div className="oo-kgrid" style={{ paddingTop: 16 }} data-testid="list-playbooks">
-      {q.data.map((p) => <PlaybookCard key={p.id} p={p} />)}
+    <div className="oo-kgrid" style={{ paddingTop: 16 }} data-testid="list-rules">
+      {q.data.map((p) => <RuleCard key={p.id} p={p} />)}
     </div>
   );
 }
 
-export function PlaybookCard({ p, compact }: { p: Playbook; compact?: boolean }) {
+export function RuleCard({ p, compact }: { p: Rule; compact?: boolean }) {
   const write = useKnowledgeWrite();
-  const save = async (patch: PlaybookUpdate, done?: string) => (await write(() => updatePlaybook(p.id, patch), { done })) ?? false;
-  const scope = [...p.projects, ...p.organisations];
+  const save = async (patch: RuleUpdate, done?: string) => (await write(() => updateRule(p.id, patch), { done })) ?? false;
+  const scope = [...p.projects, ...p.organisations, ...(p.products ?? [])];
 
   return (
-    <article className="oo-kcard oo-playbook" data-enabled={p.enabled} aria-labelledby={`pb-${p.id}-title`} data-testid={'card-playbook-' + p.id}>
+    <article className="oo-kcard oo-rule" data-enabled={p.enabled} aria-labelledby={`pb-${p.id}-title`} data-testid={'card-rule-' + p.id}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
         <h3 id={`pb-${p.id}-title`} style={{ margin: 0, fontSize: 16, fontWeight: 600, minWidth: 0 }}>
-          {compact ? p.title : <InlineText value={p.title} label="Playbook title" required maxLength={200} testId={`playbook-${p.id}-title`} onSave={(v) => save({ title: v ?? p.title })} />}
+          {compact ? p.title : <InlineText value={p.title} label="Rule title" required maxLength={200} testId={`rule-${p.id}-title`} onSave={(v) => save({ title: v ?? p.title })} />}
         </h3>
         <button
           type="button"
@@ -280,30 +307,32 @@ export function PlaybookCard({ p, compact }: { p: Playbook; compact?: boolean })
           aria-label={`Claude follows ${p.title}`}
           title={`Claude follows ${p.title}`}
           onClick={() => save({ enabled: !p.enabled }, p.enabled ? `Paused. No AI sees ${p.title} now.` : `${p.title} is on again`)}
-          data-testid={`switch-playbook-${p.id}`}
+          data-testid={`switch-rule-${p.id}`}
         />
       </div>
       <p style={{ margin: 0, fontSize: 13 }} className="oo-soft">
         <span className="oo-muted">Applies when: </span>
-        {compact ? p.appliesWhen : <InlineText inline value={p.appliesWhen} label="Applies when" required maxLength={300} testId={`playbook-${p.id}-applies`} onSave={(v) => save({ appliesWhen: v ?? p.appliesWhen })} />}
+        {compact ? p.appliesWhen : <InlineText inline value={p.appliesWhen} label="Applies when" required maxLength={300} testId={`rule-${p.id}-applies`} onSave={(v) => save({ appliesWhen: v ?? p.appliesWhen })} />}
       </p>
-      <div className="oo-playbook-rule">
-        {compact ? p.rule : <InlineText value={p.rule} label="Rule" multiline required maxLength={PLAYBOOK_RULE_MAX} testId={`playbook-${p.id}-rule`} onSave={(v) => save({ rule: v ?? p.rule })} />}
+      <div className="oo-rule-rule">
+        {compact ? p.rule : <InlineText value={p.rule} label="Rule" multiline required maxLength={RULE_MAX} testId={`rule-${p.id}-rule`} onSave={(v) => save({ rule: v ?? p.rule })} />}
       </div>
       {scope.length > 0 && (
         <span className="oo-muted" style={{ fontSize: 12 }}>Only for {scope.map((s) => s.name).join(', ')}</span>
       )}
-      <span className="oo-playbook-state" data-enabled={p.sentToAi} role="status" data-testid={`text-playbook-${p.id}-state`}>
+      <span className="oo-rule-state" data-enabled={p.sentToAi} role="status" data-testid={`text-rule-${p.id}-state`}>
         {!p.enabled ? 'Paused: Claude ignores this' : p.sentToAi ? 'Claude reads this before drafting' : 'Linked only to items hidden from AI, so no AI sees it'}
       </span>
     </article>
   );
 }
 
-export function PlaybookDialog({ presetProjectId, onClose }: { presetProjectId?: number; onClose: () => void }) {
+export function RuleDialog({ presetProjectId, presetProductId, onClose }: { presetProjectId?: number; presetProductId?: number; onClose: () => void }) {
   const write = useKnowledgeWrite();
   const projects = useListProjects();
   const orgs = useListOrganisations();
+  const products = useListProducts();
+  const [productIds, setProductIds] = useState<number[]>(presetProductId ? [presetProductId] : []);
   const [title, setTitle] = useState('');
   const [appliesWhen, setAppliesWhen] = useState('');
   const [rule, setRule] = useState('');
@@ -311,15 +340,15 @@ export function PlaybookDialog({ presetProjectId, onClose }: { presetProjectId?:
   const [organisationIds, setOrganisationIds] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
   const ruleLen = rule.trim().length;
-  const valid = !!title.trim() && !!appliesWhen.trim() && ruleLen > 0 && ruleLen <= PLAYBOOK_RULE_MAX;
+  const valid = !!title.trim() && !!appliesWhen.trim() && ruleLen > 0 && ruleLen <= RULE_MAX;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!valid || busy) return;
     setBusy(true);
     const ok = await write(
-      () => createPlaybook({ title: title.trim(), appliesWhen: appliesWhen.trim(), rule: rule.trim(), projectIds, organisationIds }),
-      { done: 'Playbook added and switched on', fail: 'Could not add that playbook' },
+      () => createRule({ title: title.trim(), appliesWhen: appliesWhen.trim(), rule: rule.trim(), projectIds, organisationIds, productIds }),
+      { done: 'Rule added and switched on', fail: 'Could not add that rule' },
     );
     setBusy(false);
     if (ok) onClose();
@@ -329,32 +358,33 @@ export function PlaybookDialog({ presetProjectId, onClose }: { presetProjectId?:
     <Dialog.Root open onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="oo-modal-scrim">
-          <Dialog.Content className="oo-modal" style={{ maxWidth: 560 }} aria-describedby="pb-desc" data-testid="dialog-new-playbook">
-            <Dialog.Title style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>New playbook</Dialog.Title>
+          <Dialog.Content className="oo-modal" style={{ maxWidth: 560 }} aria-describedby="pb-desc" data-testid="dialog-new-rule">
+            <Dialog.Title style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>New rule</Dialog.Title>
             <p id="pb-desc" className="oo-muted" style={{ margin: 0, fontSize: 13 }}>
-              A short rule every AI tool reads before drafting. With no projects or organisations it applies everywhere.
+              A short rule every AI tool reads before drafting. With no projects, organisations or products it applies everywhere.
             </p>
             <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <label>
                 <span>Title</span>
-                <input className="oo-input" required autoFocus value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} placeholder="House style for a client" data-testid="input-playbook-title" />
+                <input className="oo-input" required autoFocus value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} placeholder="House style for a client" data-testid="input-rule-title" />
               </label>
               <label>
                 <span>Applies when</span>
-                <input className="oo-input" required value={appliesWhen} maxLength={300} onChange={(e) => setAppliesWhen(e.target.value)} placeholder="Writing anything for or about that client" data-testid="input-playbook-applies" />
+                <input className="oo-input" required value={appliesWhen} maxLength={300} onChange={(e) => setAppliesWhen(e.target.value)} placeholder="Writing anything for or about that client" data-testid="input-rule-applies" />
               </label>
               <label>
                 <span>Rule</span>
-                <textarea className="oo-textarea" required rows={4} value={rule} onChange={(e) => setRule(e.target.value)} aria-describedby="pb-rule-count" data-testid="input-playbook-rule" />
-                <CharCount id="pb-rule-count" n={ruleLen} max={PLAYBOOK_RULE_MAX} />
+                <textarea className="oo-textarea" required rows={4} value={rule} onChange={(e) => setRule(e.target.value)} aria-describedby="pb-rule-count" data-testid="input-rule-rule" />
+                <CharCount id="pb-rule-count" n={ruleLen} max={RULE_MAX} />
               </label>
-              <MultiPick label="Projects" items={projects.data ?? []} value={projectIds} onChange={setProjectIds} testId="pick-playbook-projects" />
-              <MultiPick label="Organisations" items={orgs.data ?? []} value={organisationIds} onChange={setOrganisationIds} testId="pick-playbook-organisations" />
+              <MultiPick label="Projects" items={projects.data ?? []} value={projectIds} onChange={setProjectIds} testId="pick-rule-projects" />
+              <MultiPick label="Organisations" items={orgs.data ?? []} value={organisationIds} onChange={setOrganisationIds} testId="pick-rule-organisations" />
+              {(products.data?.length ?? 0) > 0 && <MultiPick label="Products" items={products.data ?? []} value={productIds} onChange={setProductIds} testId="pick-rule-products" />}
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <Dialog.Close asChild>
-                  <button type="button" className="oo-btn oo-btn-outline" data-testid="button-cancel-playbook">Cancel</button>
+                  <button type="button" className="oo-btn oo-btn-outline" data-testid="button-cancel-rule">Cancel</button>
                 </Dialog.Close>
-                <button type="submit" className="oo-btn oo-btn-ink" disabled={!valid || busy} data-testid="button-save-playbook">{busy ? 'Saving…' : 'Add playbook'}</button>
+                <button type="submit" className="oo-btn oo-btn-ink" disabled={!valid || busy} data-testid="button-save-rule">{busy ? 'Saving…' : 'Add rule'}</button>
               </div>
             </form>
           </Dialog.Content>

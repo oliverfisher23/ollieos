@@ -1,6 +1,7 @@
 /**
  * Knowledge Inbox (feature 01). AI tools propose; Ollie approves, edits then approves, or rejects.
- * Nothing an AI proposes becomes a fact, decision, person, organisation or project until approved.
+ * Nothing an AI proposes becomes a fact, decision, person, organisation, project, product, rule or
+ * playbook until approved.
  * Tasks, promises, activity, notes and the calendar still write directly (build plan 24 and 26).
  */
 import { and, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
@@ -12,18 +13,21 @@ import {
   factsTable,
   organisationsTable,
   peopleTable,
+  productsTable,
   projectsTable,
   suggestionsTable,
   FACT_ATTRIBUTES,
   type Suggestion,
 } from "@workspace/db";
-import { PLAYBOOK_RULE_MAX, RELATIONSHIPS, type Cadence, type Relationship } from "@workspace/shared";
+import { RULE_MAX, RELATIONSHIPS, type Cadence, type ProductState, type Relationship } from "@workspace/shared";
 import { writeAudit, type DbOrTx } from "../lib/audit";
 import { ACTOR, cleanText, resolveEntity, touch, uniqueSlug, type EntityKind } from "./knowledge/common";
 import { ConflictError, NotFoundError, ValidationError } from "./tasks";
-import { addDocumentProjects, insertDocument, insertPlaybook, keepDocumentText } from "./library";
+import { addDocumentProjects, insertDocument, insertRule, keepDocumentText } from "./library";
 import { enqueueDocument } from "./documents/enqueue";
 import { existingRelationship, sameRelationship, setRelationship } from "./relationships";
+import { applyPlaybookUpdate, cleanSteps, insertPlaybook, loadPlaybook } from "./playbooks";
+import { insertProduct } from "./products";
 
 export { FACT_ATTRIBUTES };
 export type FactAttribute = (typeof FACT_ATTRIBUTES)[number];
@@ -83,7 +87,7 @@ export interface DocumentPayload {
   /** Set when the proposer thinks the file is sensitive; the document is then always hidden from AI */
   confidential?: boolean | null;
 }
-export interface PlaybookPayload {
+export interface RulePayload {
   title: string;
   applies_when: string;
   rule: string;
@@ -91,6 +95,53 @@ export interface PlaybookPayload {
   organisation_ids?: number[];
   /** Names when proposed, for the card */
   link_names?: string[];
+}
+/** A step in a proposed playbook. An id that matches a current step means that step, changed or not. */
+export interface PlaybookStepPayload {
+  id?: string | null;
+  text: string;
+  person_id?: number | null;
+  /** Name when proposed, for the card */
+  person_name?: string | null;
+  after_days?: number | null;
+}
+/**
+ * Two shapes: a new playbook, or (playbook_id set) the whole proposed new version of one already in
+ * OllieOS. `before` keeps what it said when proposed, so the card can show the change.
+ */
+export interface PlaybookPayload {
+  playbook_id?: number | null;
+  title: string;
+  when_to_use: string;
+  purpose?: string | null;
+  owner_id?: number | null;
+  owner_name?: string | null;
+  steps: PlaybookStepPayload[];
+  notes?: string | null;
+  /** What changed and why, in a line, for a change */
+  reason?: string | null;
+  project_ids?: number[];
+  organisation_ids?: number[];
+  product_ids?: number[];
+  document_ids?: number[];
+  /** Names when proposed, for the card */
+  link_names?: string[];
+  before?: {
+    title: string;
+    when_to_use: string;
+    purpose: string | null;
+    owner_name: string | null;
+    steps: PlaybookStepPayload[];
+  } | null;
+}
+/** A product OllieOS does not know yet, with any facts found about it in the same read. */
+export interface ProductPayload {
+  name: string;
+  description?: string | null;
+  state?: ProductState | null;
+  summary?: string | null;
+  /** Facts found about it in the same read; they become facts on the product when approved */
+  facts?: string[];
 }
 export interface CadencePayload {
   cadence: Cadence;
@@ -138,7 +189,9 @@ export type Proposal =
   | { kind: "project"; payload: ProjectPayload }
   | { kind: "summary_change"; entityType: EntityKind; entityId: number; payload: SummaryChangePayload }
   | { kind: "document"; payload: DocumentPayload }
+  | { kind: "rule"; payload: RulePayload }
   | { kind: "playbook"; payload: PlaybookPayload }
+  | { kind: "product"; payload: ProductPayload }
   | { kind: "cadence"; entityType: "person"; entityId: number; payload: CadencePayload }
   | { kind: "relationship"; entityType: EntityKind; entityId: number; payload: RelationshipPayload };
 
@@ -176,6 +229,11 @@ export const FIELD_LABELS: Record<string, string> = {
   applies_when: "Applies when",
   rule: "Rule",
   note: "Note",
+  when_to_use: "When to use it",
+  purpose: "What it is for",
+  notes: "Notes",
+  description: "Description",
+  owner: "Owner",
 };
 const EDITABLE: Record<Exclude<SuggestionKind, "summary_change">, string[]> = {
   fact: ["text"],
@@ -184,16 +242,19 @@ const EDITABLE: Record<Exclude<SuggestionKind, "summary_change">, string[]> = {
   organisation: ["name", "type", "summary"],
   project: ["name", "area", "status", "summary"],
   document: ["title", "summary"],
-  playbook: ["title", "applies_when", "rule"],
+  rule: ["title", "applies_when", "rule"],
+  playbook: ["title", "when_to_use", "purpose"],
+  product: ["name", "description", "summary"],
   cadence: [],
   relationship: ["note"],
 };
-const REQUIRED = new Set(["text", "name", "title", "applies_when", "rule"]);
+const REQUIRED = new Set(["text", "name", "title", "applies_when", "rule", "when_to_use"]);
 /** Columns a summary change may set on each kind of record. */
 const CHANGEABLE: Record<EntityKind, string[]> = {
   person: ["role", "email", "relationship_summary", "organisation"],
   project: ["area", "status", "summary"],
   organisation: ["type", "summary"],
+  product: ["description", "summary"],
 };
 
 export function changeableFields(type: EntityKind): string[] {
@@ -235,8 +296,14 @@ function mainText(p: Proposal): string {
     case "document":
       if (p.payload.document_id != null) return `link ${p.payload.document_id} to ${[...(p.payload.project_ids ?? [])].sort((a, b) => a - b).join(",")}`;
       return p.payload.url ?? `saved: ${p.payload.title}`;
-    case "playbook":
+    case "rule":
       return `${p.payload.title}: ${p.payload.rule}`;
+    case "playbook":
+      return p.payload.playbook_id != null
+        ? `change ${p.payload.playbook_id}: ${p.payload.steps.map((s) => s.text).join(" / ")}`
+        : `${p.payload.title}: ${p.payload.when_to_use}`;
+    case "product":
+      return p.payload.name;
     case "cadence":
       return p.payload.cadence;
     case "relationship":
@@ -264,7 +331,7 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
   const text = cleanText(mainText(p));
   if (!text) throw new ValidationError(p.kind === "fact" || p.kind === "decision" ? "A suggestion needs some text" : "A suggestion needs a name");
   if (p.kind === "summary_change" && !Object.keys(p.payload.fields).length) throw new ValidationError("Nothing to change");
-  if (p.kind === "playbook" && p.payload.rule.length > PLAYBOOK_RULE_MAX) throw new ValidationError(`Keep the rule to ${PLAYBOOK_RULE_MAX} characters or fewer`);
+  if (p.kind === "rule" && p.payload.rule.length > RULE_MAX) throw new ValidationError(`Keep the rule to ${RULE_MAX} characters or fewer`);
   const norm = normalise(text);
   const { entityType, entityId } = entityOf(p);
   const sameTarget = and(
@@ -299,6 +366,12 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
     p.payload.to_name = to.name;
     const row = await existingRelationship({ type: p.entityType, id: p.entityId }, { type: to_type, id: to_id });
     if (row && sameRelationship(row, { type: p.entityType, id: p.entityId }, relationship)) return { status: "duplicate" };
+  }
+  if (p.kind === "playbook") await preparePlaybook(p.payload);
+  if (p.kind === "product") {
+    const [same] = await db.select({ id: productsTable.id }).from(productsTable).where(sql`lower(${productsTable.name}) = ${norm}`);
+    if (same) return { status: "duplicate" };
+    p.payload.facts = (p.payload.facts ?? []).map((f) => cleanText(f)).filter((f): f is string => !!f).slice(0, 20);
   }
   if (p.kind === "document" && p.payload.document_id == null && p.payload.url) {
     const [doc] = await db.select({ id: documentsTable.id }).from(documentsTable).where(eq(documentsTable.url, p.payload.url));
@@ -361,6 +434,54 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
   });
 }
 
+/**
+ * Checks a proposed playbook, fills in names for the card, and for a change keeps what the
+ * playbook says now. Throws when the change would leave it as it is.
+ */
+async function preparePlaybook(p: PlaybookPayload): Promise<void> {
+  if (!cleanText(p.when_to_use) && p.playbook_id == null) throw new ValidationError("Say when to use the playbook");
+  const steps = cleanSteps((p.steps ?? []).map((s) => ({ id: s.id, text: s.text, personId: s.person_id ?? null, afterDays: s.after_days ?? null })));
+  const personIds = [p.owner_id, ...steps.map((s) => s.personId)].filter((x): x is number => x != null);
+  const people = personIds.length
+    ? new Map((await db.select({ id: peopleTable.id, name: peopleTable.name }).from(peopleTable).where(inArray(peopleTable.id, personIds))).map((r) => [r.id, r.name]))
+    : new Map<number, string>();
+  if (p.owner_id != null && !people.has(p.owner_id)) p.owner_id = null;
+  p.owner_name = p.owner_id != null ? people.get(p.owner_id)! : null;
+  p.steps = steps.map((s) => {
+    const personId = s.personId != null && people.has(s.personId) ? s.personId : null;
+    return { id: s.id, text: s.text, person_id: personId, person_name: personId ? people.get(personId)! : null, after_days: s.afterDays };
+  });
+  if (p.playbook_id == null) return;
+  const current = await loadPlaybook(p.playbook_id);
+  const ownerName = current.ownerId
+    ? ((await db.select({ name: peopleTable.name }).from(peopleTable).where(eq(peopleTable.id, current.ownerId)))[0]?.name ?? null)
+    : null;
+  const stepPeople = current.steps.map((s) => s.personId).filter((x): x is number => x != null);
+  const currentPeople = stepPeople.length
+    ? new Map((await db.select({ id: peopleTable.id, name: peopleTable.name }).from(peopleTable).where(inArray(peopleTable.id, stepPeople))).map((r) => [r.id, r.name]))
+    : new Map<number, string>();
+  p.title = cleanText(p.title) ?? current.title;
+  p.when_to_use = cleanText(p.when_to_use) ?? current.whenToUse;
+  if (p.purpose === undefined) p.purpose = current.purpose;
+  if (p.owner_id === undefined) {
+    p.owner_id = current.ownerId;
+    p.owner_name = ownerName;
+  }
+  p.before = {
+    title: current.title,
+    when_to_use: current.whenToUse,
+    purpose: current.purpose,
+    owner_name: ownerName,
+    steps: current.steps.map((s) => ({ id: s.id, text: s.text, person_id: s.personId, person_name: s.personId ? (currentPeople.get(s.personId) ?? null) : null, after_days: s.afterDays })),
+  };
+  const sameSteps =
+    p.steps.length === current.steps.length &&
+    p.steps.every((s, i) => normalise(s.text) === normalise(current.steps[i].text) && (s.person_id ?? null) === current.steps[i].personId && (s.after_days ?? null) === current.steps[i].afterDays);
+  if (sameSteps && p.title === current.title && p.when_to_use === current.whenToUse && (p.purpose ?? null) === current.purpose && (p.owner_id ?? null) === current.ownerId) {
+    throw new ValidationError("That is what the playbook already says");
+  }
+}
+
 /* ---------- Approve and reject (Ollie) ---------- */
 
 async function loadPending(conn: DbOrTx, id: number): Promise<Suggestion> {
@@ -409,8 +530,8 @@ export async function applySuggestion(
   payload: Record<string, unknown>,
   now: Date,
   extraSuperseded: number[] = [],
-): Promise<{ type: "fact" | "decision" | "person" | "organisation" | "project" | "document" | "playbook"; id: number }> {
-  const audit = (action: string, entityType: "fact" | "decision" | "person" | "organisation" | "project", entityId: number, extra: Record<string, unknown> = {}) =>
+): Promise<{ type: "fact" | "decision" | "person" | "organisation" | "project" | "product" | "document" | "rule" | "playbook"; id: number }> {
+  const audit = (action: string, entityType: "fact" | "decision" | "person" | "organisation" | "project" | "product" | "playbook", entityId: number, extra: Record<string, unknown> = {}) =>
     writeAudit(tx, { actor: ACTOR, action, entityType, entityId, payload: { suggestionId: s.id, proposedBy: s.proposedBy, ...extra } });
 
   switch (s.kind) {
@@ -524,6 +645,11 @@ export async function applySuggestion(
         }
         if (f.organisation !== undefined && p.organisation_id != null) set.organisationId = p.organisation_id;
         if (Object.keys(set).length) await tx.update(peopleTable).set(set).where(eq(peopleTable.id, id));
+      } else if (type === "product") {
+        const set: Partial<typeof productsTable.$inferInsert> = {};
+        if (f.description !== undefined) set.description = f.description;
+        if (f.summary !== undefined) set.summary = f.summary;
+        if (Object.keys(set).length) await tx.update(productsTable).set(set).where(eq(productsTable.id, id));
       } else if (type === "project") {
         const set: Partial<typeof projectsTable.$inferInsert> = {};
         if (f.area !== undefined) set.area = f.area;
@@ -564,15 +690,63 @@ export async function applySuggestion(
         throw err;
       }
     }
-    case "playbook": {
+    case "rule": {
       // Created enabled: approving is what makes it active (feature 07 rule 4).
-      const p = payload as unknown as PlaybookPayload;
-      const id = await insertPlaybook(
+      const p = payload as unknown as RulePayload;
+      const id = await insertRule(
         tx,
         { title: p.title, appliesWhen: p.applies_when, rule: p.rule, enabled: true, projectIds: p.project_ids ?? [], organisationIds: p.organisation_ids ?? [] },
         s.id,
       );
+      return { type: "rule", id };
+    }
+    case "playbook": {
+      const p = payload as unknown as PlaybookPayload;
+      const steps = (p.steps ?? []).map((st) => ({ id: st.id, text: st.text, personId: st.person_id ?? null, afterDays: st.after_days ?? null }));
+      if (p.playbook_id != null) {
+        // Approving a change is also a check that the playbook is how things are done now.
+        const change = await applyPlaybookUpdate(
+          tx,
+          p.playbook_id,
+          { title: p.title, whenToUse: p.when_to_use, purpose: str(p.purpose), ownerId: p.owner_id ?? null, steps, checked: true },
+          now,
+        );
+        await audit("update", "playbook", p.playbook_id, change);
+        return { type: "playbook", id: p.playbook_id };
+      }
+      // Created In use: approving is what makes it active, as with rules.
+      const id = await insertPlaybook(
+        tx,
+        {
+          title: p.title,
+          whenToUse: p.when_to_use,
+          purpose: str(p.purpose),
+          ownerId: p.owner_id ?? null,
+          steps,
+          notes: str(p.notes),
+          state: "in_use",
+          projectIds: p.project_ids ?? [],
+          organisationIds: p.organisation_ids ?? [],
+          productIds: p.product_ids ?? [],
+          documentIds: p.document_ids ?? [],
+        },
+        s.proposedBy,
+        s.id,
+      );
       return { type: "playbook", id };
+    }
+    case "product": {
+      const p = payload as unknown as ProductPayload;
+      const id = await insertProduct(tx, { name: p.name, description: str(p.description), state: p.state ?? "live", summary: str(p.summary) }, s.proposedBy, s.id);
+      const source = s.sourceLabel ?? s.sourceType ?? null;
+      for (const text of p.facts ?? []) {
+        const [f] = await tx
+          .insert(factsTable)
+          .values({ entityType: "product", entityId: id, text, source, createdBy: s.proposedBy, lastConfirmedAt: now, approvedAt: now, suggestionId: s.id })
+          .returning({ id: factsTable.id });
+        await audit("create", "fact", f.id, { on: `product:${id}` });
+      }
+      return { type: "product", id };
     }
     case "cadence": {
       const p = payload as unknown as CadencePayload;

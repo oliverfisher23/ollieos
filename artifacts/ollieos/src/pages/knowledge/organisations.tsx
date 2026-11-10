@@ -32,6 +32,8 @@ import {
 } from '@/components/knowledge/parts';
 import { RelationshipsSection } from '@/components/knowledge/relationships';
 import { isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
+import { PlaybooksSection } from '@/pages/knowledge/playbooks';
+import { ProductsSection } from '@/pages/knowledge/products';
 
 export function OrganisationsListPage() {
   const orgs = useListOrganisations();
@@ -135,7 +137,7 @@ export function OrganisationPage() {
       </KnowledgeLayout>
     );
   }
-  const { organisation: o, people, projects, facts, timeline, research } = q.data;
+  const { organisation: o, people, projects, playbooks, products, facts, timeline, research } = q.data;
 
   return (
     <KnowledgeLayout testId="page-organisation">
@@ -190,9 +192,11 @@ export function OrganisationPage() {
             ))}
           </div>
           <div><LinkPicker fromType="organisation" fromId={o.id} toType="project" exclude={projects.filter((p) => p.linked).map((p) => p.id)} /></div>
+          <ProductsSection fromType="organisation" fromId={o.id} products={products} />
         </section>
         <FactsSection entityType="organisation" entityId={o.id} facts={facts} />
       </div>
+      <PlaybooksSection playbooks={playbooks} preset={{ organisationId: o.id }} empty={`No playbooks linked to ${o.name}.`} />
       <RelationshipsSection type="organisation" id={o.id} name={o.name} />
 
       {!o.internal && (

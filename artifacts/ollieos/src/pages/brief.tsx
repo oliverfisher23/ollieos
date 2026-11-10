@@ -325,10 +325,41 @@ function Brief({ brief }: { brief: BriefView }) {
             </Side>
           )}
 
-          {showContext && brief.playbooks.length > 0 && (
+          {showContext && (brief.products?.length ?? 0) > 0 && (
+            <Side id="b-products" title="Products">
+              {brief.products!.map((p) => {
+                const rules = brief.rules.filter((r) => p.ruleIds.includes(r.id));
+                return (
+                  <span key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 2 }} data-testid={'brief-product-' + p.id}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Link href={'/knowledge/products/' + p.slug} style={{ fontSize: 14, color: 'var(--oo-ink)', textDecoration: 'underline', textUnderlineOffset: 2 }} data-testid={'link-product-' + p.id}>{p.name}</Link>
+                      {p.confidential && <LockMark />}
+                    </span>
+                    {p.description && <span style={{ fontSize: 12, color: 'var(--oo-ink-muted)' }}>{p.description}</span>}
+                    {rules.length > 0 && <span style={{ fontSize: 12, color: 'var(--oo-ink-muted)' }}>Rules: {rules.map((r) => r.title).join(', ')}</span>}
+                  </span>
+                );
+              })}
+            </Side>
+          )}
+
+          {showContext && (brief.playbooks?.length ?? 0) > 0 && (
+            <Side id="b-playbooks" title="Playbooks that may apply">
+              {brief.playbooks!.map((p) => (
+                <Link key={p.id} href={'/knowledge/playbooks/' + p.id} style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--oo-ink)', textDecoration: 'none' }} data-testid={'link-playbook-' + p.id}>
+                  <span style={{ textDecoration: 'underline', textUnderlineOffset: 2 }}>{p.title}</span>
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--oo-ink-muted)' }}>
+                    When {/^[A-Z][a-z]/.test(p.whenToUse) ? p.whenToUse[0].toLowerCase() + p.whenToUse.slice(1) : p.whenToUse} · {p.steps === 1 ? '1 step' : `${p.steps} steps`}
+                  </span>
+                </Link>
+              ))}
+            </Side>
+          )}
+
+          {showContext && brief.rules.length > 0 && (
             <section aria-labelledby="b-play" style={{ background: 'var(--oo-dark-base)', color: 'var(--oo-text-on-dark)', borderRadius: 'var(--oo-r-panel)', padding: 22, display: 'flex', flexDirection: 'column', gap: 8 }} data-testid="section-watch-outs">
-              <h2 id="b-play" style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Watch-outs from your playbooks</h2>
-              {brief.playbooks.map((b) => (
+              <h2 id="b-play" style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Watch-outs from your rules</h2>
+              {brief.rules.map((b) => (
                 <p key={b.id} style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: 'var(--oo-text-on-dark-2)' }}>{b.rule}</p>
               ))}
             </section>

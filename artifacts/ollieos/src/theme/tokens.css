@@ -139,6 +139,10 @@
   --oo-graph-organisation-fg: #233455;
   --oo-graph-project-bg: #f9e3a0;
   --oo-graph-project-fg: #5c4a1a;
+  --oo-graph-product-bg: #d4efec;
+  --oo-graph-product-fg: #155e57;
+  --oo-graph-playbook-bg: #fde4ef;
+  --oo-graph-playbook-fg: #8c2357;
   --oo-graph-goal-bg: #dfeed7;
   --oo-graph-goal-fg: #2f5320;
   --oo-graph-decision-bg: #f3dccf;

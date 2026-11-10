@@ -5,6 +5,7 @@ import {
   setRelationship,
   useListOrganisations,
   useListPeople,
+  useListProducts,
   useListProjects,
   useListRelationships,
   type RelationshipKind,
@@ -14,17 +15,19 @@ import { Skel } from '@/components/bits';
 import { Dropdown, type DropdownOption } from '@/components/dropdown';
 import { entityPath, useKnowledgeWrite, type EntityKind } from '@/lib/knowledge';
 
-/** People, organisations and projects as one grouped list, valued "person:3". */
+/** People, organisations, projects and products as one grouped list, valued "person:3". */
 export function useItemOptions(enabled = true, exclude?: string): { options: DropdownOption[]; loading: boolean } {
   const people = useListPeople({ query: { enabled } as never });
   const projects = useListProjects(undefined, { query: { enabled } as never });
   const orgs = useListOrganisations({ query: { enabled } as never });
+  const products = useListProducts({ query: { enabled } as never });
   const options: DropdownOption[] = [
     ...(people.data ?? []).map((p) => ({ value: 'person:' + p.id, label: p.name, group: 'People' })),
     ...(orgs.data ?? []).map((o) => ({ value: 'organisation:' + o.id, label: o.name, group: 'Organisations' })),
     ...(projects.data ?? []).map((p) => ({ value: 'project:' + p.id, label: p.name, group: 'Projects' })),
+    ...(products.data ?? []).map((p) => ({ value: 'product:' + p.id, label: p.name, group: 'Products' })),
   ].filter((o) => o.value !== exclude);
-  return { options, loading: people.isLoading || projects.isLoading || orgs.isLoading };
+  return { options, loading: people.isLoading || projects.isLoading || orgs.isLoading || products.isLoading };
 }
 
 const SOURCE_LABEL = (source: string | null, createdBy: string) => {

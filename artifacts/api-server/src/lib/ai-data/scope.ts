@@ -15,6 +15,8 @@ import {
   organisationsTable,
   peopleTable,
   playbooksTable,
+  productsTable,
+  rulesTable,
   projectsTable,
   strategySectionsTable,
   tasksTable,
@@ -31,6 +33,8 @@ import {
   organisationVisible,
   personVisible,
   playbookVisible,
+  productVisible,
+  ruleVisible,
   sessionVisible,
   projectVisible,
   strategyVisible,
@@ -128,7 +132,11 @@ export async function visibleRefs(scope: AiScope, refList: readonly string[]): P
     // A goal is always visible by name; its target text is withheld where it is sent, not here.
     q("goal", (i) => db.select({ id: goalsTable.id }).from(goalsTable).where(inArray(goalsTable.id, i))),
     q("document", (i) => db.select({ id: documentsTable.id }).from(documentsTable).where(and(inArray(documentsTable.id, i), sql.raw(documentVisible("documents", g))))),
-    q("playbook", (i) => db.select({ id: playbooksTable.id }).from(playbooksTable).where(and(inArray(playbooksTable.id, i), sql.raw(playbookVisible("playbooks", g))))),
+    q("rule", (i) => db.select({ id: rulesTable.id }).from(rulesTable).where(and(inArray(rulesTable.id, i), sql.raw(ruleVisible("rules", g))))),
+    q("product", (i) => db.select({ id: productsTable.id }).from(productsTable).where(and(inArray(productsTable.id, i), sql.raw(productVisible("products"))))),
+    q("playbook", (i) =>
+      db.select({ id: playbooksTable.id }).from(playbooksTable).where(and(inArray(playbooksTable.id, i), sql.raw(playbookVisible("process_playbooks", g)))),
+    ),
     q("session", (i) =>
       db.select({ id: coworkSessionsTable.id }).from(coworkSessionsTable).where(and(inArray(coworkSessionsTable.id, i), sql.raw(sessionVisible("cowork_sessions", g)))),
     ),

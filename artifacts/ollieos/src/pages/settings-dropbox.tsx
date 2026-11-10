@@ -83,7 +83,7 @@ export function DropboxCard({ s, setup }: { s: ConnectorService; setup: DropboxS
         {s.account && <span className="oo-muted" style={{ fontSize: 13 }} data-testid="text-connector-account-dropbox">{s.account}</span>}
       </div>
       <p className="oo-soft" style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>
-        Claude’s folder in your Dropbox. New and changed Markdown, text, Word and PDF files are read for knowledge: facts, decisions, people, organisations and playbooks go to your Knowledge Inbox for you to approve. For a changed file only what changed is read. Files stay in Dropbox and are not added to your Library.
+        Claude’s folder in your Dropbox. New and changed Markdown, text, Word and PDF files are read for knowledge: facts, decisions, people, organisations and rules go to your Knowledge Inbox for you to approve. For a changed file only what changed is read. Files stay in Dropbox and are not added to your Library.
       </p>
       <p className="oo-muted" style={{ margin: 0, fontSize: 12, lineHeight: 1.5 }} data-testid="text-connector-ai-dropbox">
         Read-only: OllieOS never adds, moves or changes anything in Dropbox. Files are read by Claude Sonnet through Replit, billed to your Replit credits, roughly {PENCE_PER_FILE}p a file. Files about a company sale, the board, pay or HR only bring decisions, and those are marked confidential.

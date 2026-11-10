@@ -329,6 +329,27 @@ body { font-family: var(--oo-font-sans); margin: 0; overflow-x: hidden; }
 .oo-icon-btn { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: var(--oo-r-full); background: transparent; color: var(--oo-ink-muted); cursor: pointer; padding: 0; }
 .oo-icon-btn:hover:not(:disabled) { background: var(--oo-field); color: var(--oo-ink); }
 .oo-icon-btn:disabled { opacity: .35; cursor: default; }
+.oo-isteps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.oo-isteps li { display: flex; gap: 8px; align-items: flex-start; padding: 4px 8px; border-radius: var(--oo-r-input); border-left: 3px solid transparent; }
+.oo-isteps-n { flex: none; min-width: 16px; color: var(--oo-ink-muted); font-size: 12px; padding-top: 2px; }
+.oo-isteps-mark { font-size: 12px; font-weight: 600; }
+.oo-isteps li[data-change="added"] { border-left-color: var(--oo-ok); background: var(--oo-pill-done-bg); }
+.oo-isteps li[data-change="added"] .oo-isteps-mark { color: var(--oo-ok); }
+.oo-isteps li[data-change="changed"] { border-left-color: var(--oo-banner-border); background: var(--oo-banner-bg); }
+.oo-isteps li[data-change="removed"] { border-left-color: var(--oo-danger); }
+.oo-isteps li[data-change="removed"] .oo-isteps-text { text-decoration: line-through; color: var(--oo-ink-muted); }
+.oo-isteps li[data-change="removed"] .oo-isteps-mark { color: var(--oo-danger); }
+.oo-psteps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-width: 760px; }
+.oo-pstep { display: flex; align-items: flex-start; gap: 10px; padding: 6px 4px; border-radius: var(--oo-r-input); border-bottom: 1px solid var(--oo-line-soft); }
+.oo-pstep:hover, .oo-pstep:focus-within { background: var(--oo-row-hover); }
+.oo-pstep:hover .oo-step-tools, .oo-pstep:focus-within .oo-step-tools { opacity: 1; }
+.oo-pstep-n { flex: none; width: 24px; height: 24px; margin-top: 5px; border-radius: var(--oo-r-full); background: var(--oo-field); color: var(--oo-ink-soft); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+.oo-pstep-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.oo-pstep-text { resize: none; field-sizing: content; line-height: 1.45; width: 100%; }
+.oo-pstep-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-left: 6px; font-size: 13px; }
+.oo-pstep-days { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.oo-pstep-days input { width: 72px; min-height: 30px; padding: 3px 8px; font-size: 13px; }
+.oo-pstep .oo-step-tools { margin-top: 2px; }
 /* Today's plan on Home */
 .oo-plan-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .oo-plan-pick { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--oo-r-input-lg); background: var(--oo-field); }
@@ -739,12 +760,12 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-loc[data-loc="gdrive"] { background: var(--oo-src-meeting-bg); color: var(--oo-src-meeting-fg); }
 .oo-loc[data-loc="claude_project"] { background: var(--oo-kind-decision-bg); color: var(--oo-kind-decision-fg); }
 .oo-doc[data-highlight="true"] { background: var(--oo-field); }
-.oo-playbook { gap: 12px; }
-.oo-playbook[data-enabled="false"] { background: var(--oo-field); }
-.oo-playbook[data-enabled="false"] .oo-playbook-rule { color: var(--oo-ink-muted); }
-.oo-playbook-rule { margin: 0; font-size: 15px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
-.oo-playbook-state { font-size: 12px; font-weight: 500; color: var(--oo-ok); }
-.oo-playbook-state[data-enabled="false"] { color: var(--oo-ink-muted); }
+.oo-rule { gap: 12px; }
+.oo-rule[data-enabled="false"] { background: var(--oo-field); }
+.oo-rule[data-enabled="false"] .oo-rule-rule { color: var(--oo-ink-muted); }
+.oo-rule-rule { margin: 0; font-size: 15px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
+.oo-rule-state { font-size: 12px; font-weight: 500; color: var(--oo-ok); }
+.oo-rule-state[data-enabled="false"] { color: var(--oo-ink-muted); }
 .oo-draft-box { margin: 0; padding: 14px 16px; border-radius: var(--oo-r-input-lg); background: var(--oo-field); font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--oo-font-sans); max-height: 50vh; overflow-y: auto; }
 
 /* ---------- Dropdown (components/dropdown.tsx) ---------- */
@@ -878,6 +899,8 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-gnode[data-type="person"] circle, .oo-gdot[data-type="person"] { fill: var(--oo-graph-person-bg); background: var(--oo-graph-person-bg); stroke: var(--oo-graph-person-fg); border-color: var(--oo-graph-person-fg); }
 .oo-gnode[data-type="organisation"] circle, .oo-gdot[data-type="organisation"] { fill: var(--oo-graph-organisation-bg); background: var(--oo-graph-organisation-bg); stroke: var(--oo-graph-organisation-fg); border-color: var(--oo-graph-organisation-fg); }
 .oo-gnode[data-type="project"] circle, .oo-gdot[data-type="project"] { fill: var(--oo-graph-project-bg); background: var(--oo-graph-project-bg); stroke: var(--oo-graph-project-fg); border-color: var(--oo-graph-project-fg); }
+.oo-gnode[data-type="product"] circle, .oo-gdot[data-type="product"] { fill: var(--oo-graph-product-bg); background: var(--oo-graph-product-bg); stroke: var(--oo-graph-product-fg); border-color: var(--oo-graph-product-fg); }
+.oo-gnode[data-type="playbook"] circle, .oo-gdot[data-type="playbook"] { fill: var(--oo-graph-playbook-bg); background: var(--oo-graph-playbook-bg); stroke: var(--oo-graph-playbook-fg); border-color: var(--oo-graph-playbook-fg); }
 .oo-gnode[data-type="goal"] circle, .oo-gdot[data-type="goal"] { fill: var(--oo-graph-goal-bg); background: var(--oo-graph-goal-bg); stroke: var(--oo-graph-goal-fg); border-color: var(--oo-graph-goal-fg); }
 .oo-gnode[data-type="decision"] circle, .oo-gdot[data-type="decision"] { fill: var(--oo-graph-decision-bg); background: var(--oo-graph-decision-bg); stroke: var(--oo-graph-decision-fg); border-color: var(--oo-graph-decision-fg); }
 .oo-gnode[data-type="document"] circle, .oo-gdot[data-type="document"] { fill: var(--oo-graph-document-bg); background: var(--oo-graph-document-bg); stroke: var(--oo-graph-document-fg); border-color: var(--oo-graph-document-fg); }

@@ -3,7 +3,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { db, noiseRulesTable, peopleTable, playbooksTable, replyDraftsTable, tasksTable } from "@workspace/db";
+import { db, noiseRulesTable, peopleTable, rulesTable, replyDraftsTable, tasksTable } from "@workspace/db";
 import type { GmailThread, OutgoingDraft } from "../src/services/connectors/gmail";
 import type { NoiseCandidate, NoiseVerdict } from "../src/services/noiseJudge";
 import type { AiDoc } from "../src/lib/ai-data/retrieve";
@@ -157,7 +157,7 @@ describe("Draft reply", () => {
   it("drafts from the thread and OllieOS, saves into the right Gmail thread, and never sends", async () => {
     const p = await person("Sam Lee");
     await db.update(peopleTable).set({ email: sam.email }).where(eq(peopleTable.id, p.id));
-    await db.insert(playbooksTable).values({ title: "Sign-off", appliesWhen: "Any email", rule: "Sign off with Best, Ollie" });
+    await db.insert(rulesTable).values({ title: "Sign-off", appliesWhen: "Any email", rule: "Sign off with Best, Ollie" });
     const t = await inboxEmail("Confirm workshop date with Sam", {
       fromName: sam.name,
       fromAddress: sam.email,

@@ -19,6 +19,7 @@ import {
   resolveEntities,
   resolveEntity,
   touch,
+  type EntityKind,
   type EntityRefView,
   type EntitySummary,
 } from "./common";
@@ -43,7 +44,7 @@ export interface FactView {
 }
 
 /** Current facts for an entity, each with the chain of versions it superseded. */
-export async function factsFor(entityType: "project" | "person" | "organisation", entityId: number): Promise<FactView[]> {
+export async function factsFor(entityType: EntityKind, entityId: number): Promise<FactView[]> {
   const rows = await db
     .select()
     .from(factsTable)
@@ -88,7 +89,7 @@ function toFactView(r: FactRow, history: FactView["history"]): FactView {
 }
 
 export interface FactInput {
-  entityType: "project" | "person" | "organisation";
+  entityType: EntityKind;
   entityId: number;
   text: string;
   source?: string | null;
@@ -369,7 +370,7 @@ export async function getNote(id: number): Promise<NoteView> {
 }
 
 export interface NoteInput {
-  entityType: "project" | "person" | "organisation" | "task" | "decision";
+  entityType: "project" | "person" | "organisation" | "product" | "task" | "decision";
   entityId: number;
   title?: string | null;
   body: string;
@@ -422,7 +423,7 @@ export async function updateNote(id: number, input: { title?: string | null; bod
 
 /* ---------- Links ---------- */
 
-export const LINKABLE = ["task", "project", "person", "organisation", "decision", "note"] as const;
+export const LINKABLE = ["task", "project", "person", "organisation", "decision", "note", "product", "document", "rule", "playbook"] as const;
 export type Linkable = (typeof LINKABLE)[number];
 
 export interface LinkInput {

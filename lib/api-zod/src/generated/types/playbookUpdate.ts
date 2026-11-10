@@ -5,6 +5,8 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { PlaybookState } from './playbookState';
+import type { PlaybookStepInput } from './playbookStepInput';
 
 export interface PlaybookUpdate {
   /**
@@ -14,15 +16,30 @@ export interface PlaybookUpdate {
   title?: string;
   /**
      * @minLength 1
-     * @maxLength 300
+     * @maxLength 500
      */
-  appliesWhen?: string;
+  whenToUse?: string;
   /**
-     * @minLength 1
-     * @maxLength 400
+     * @maxLength 300
+     * @nullable
      */
-  rule?: string;
-  enabled?: boolean;
+  purpose?: string | null;
+  /** @nullable */
+  ownerId?: number | null;
+  /** @maxItems 30 */
+  steps?: PlaybookStepInput[];
+  /**
+     * @maxLength 20000
+     * @nullable
+     */
+  notes?: string | null;
+  state?: PlaybookState;
+  /** @nullable */
+  confidential?: boolean | null;
   projectIds?: number[];
   organisationIds?: number[];
+  productIds?: number[];
+  documentIds?: number[];
+  /** Ollie checked it is still how things are done */
+  checked?: boolean;
 }

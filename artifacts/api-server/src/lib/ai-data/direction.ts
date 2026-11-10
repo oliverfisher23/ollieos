@@ -1,15 +1,16 @@
 /**
- * AI reads for milestone 7: goals, overdue contacts, documents and playbooks (features 04 to 07).
+ * AI reads for milestone 7: goals, overdue contacts, documents and rules (features 04 to 07).
  * Same rules as context.ts: the visibility filter in every WHERE clause, a second check with
  * sanitiseRefs, and every item handed out logged with recordReads.
  * A confidential goal's target text is never sent; its name and statement are.
  */
 import { and, asc, desc, inArray, sql } from "drizzle-orm";
-import { db, documentsTable, goalsTable, linksTable, organisationsTable, peopleTable, playbooksTable, projectsTable } from "@workspace/db";
+import { db, documentsTable, goalsTable, linksTable, organisationsTable, peopleTable, productsTable, rulesTable, projectsTable } from "@workspace/db";
 import { CADENCE_LABELS, OPEN_STATUSES, addDays, todayLondon, toRef, weekStartOf, type Cadence, type DocLocation } from "@workspace/shared";
-import { documentVisible, organisationVisible, personVisible, playbookVisible, projectVisible, taskVisible } from "./visibility";
+import { documentVisible, organisationVisible, personVisible, productVisible, ruleVisible, projectVisible, taskVisible } from "./visibility";
+import { productsLinkedToRefs } from "./playbooks";
 import { recordReads, sanitiseRefs, type AiScope } from "./scope";
-import { applicablePlaybookRefs } from "./retrieve";
+import { applicableRuleRefs } from "./retrieve";
 import { buildTsQuery } from "./search";
 import type { NamedRef } from "./context";
 import { projectsForPeople, stateFor } from "../../services/cadence";
@@ -180,27 +181,34 @@ export interface DocumentOut {
   projects: NamedRef[];
 }
 
-async function linkedProjectNames(scope: AiScope, type: "document" | "playbook", ids: number[]): Promise<Map<number, NamedRef[]>> {
+async function linkedProjectNames(scope: AiScope, type: "document" | "rule", ids: number[]): Promise<Map<number, NamedRef[]>> {
+  // Projects, organisations and (Part M) products the item is linked to, where the client may see them.
   const out = new Map<number, NamedRef[]>();
   if (!ids.length) return out;
   const rows = await db
     .select({ fromType: linksTable.fromType, fromId: linksTable.fromId, toType: linksTable.toType, toId: linksTable.toId })
     .from(linksTable)
     .where(
-      sql`(${linksTable.fromType} = ${type} and ${inArray(linksTable.fromId, ids)} and ${linksTable.toType} in ('project', 'organisation'))
-        or (${linksTable.toType} = ${type} and ${inArray(linksTable.toId, ids)} and ${linksTable.fromType} in ('project', 'organisation'))`,
+      sql`(${linksTable.fromType} = ${type} and ${inArray(linksTable.fromId, ids)} and ${linksTable.toType} in ('project', 'organisation', 'product'))
+        or (${linksTable.toType} = ${type} and ${inArray(linksTable.toId, ids)} and ${linksTable.fromType} in ('project', 'organisation', 'product'))`,
     );
   const pairs = rows.map((r) => (r.fromType === type ? { item: r.fromId, type: r.toType, id: r.toId } : { item: r.toId, type: r.fromType, id: r.fromId }));
   const pIds = [...new Set(pairs.filter((x) => x.type === "project").map((x) => x.id))];
   const oIds = [...new Set(pairs.filter((x) => x.type === "organisation").map((x) => x.id))];
+  const prIds = [...new Set(pairs.filter((x) => x.type === "product").map((x) => x.id))];
   const g = scope.grants;
-  const [ps, os] = await Promise.all([
+  const [ps, os, prs] = await Promise.all([
     pIds.length ? db.select({ id: projectsTable.id, name: projectsTable.name }).from(projectsTable).where(and(inArray(projectsTable.id, pIds), sql.raw(projectVisible("projects", g)))) : [],
     oIds.length
       ? db.select({ id: organisationsTable.id, name: organisationsTable.name }).from(organisationsTable).where(and(inArray(organisationsTable.id, oIds), sql.raw(organisationVisible("organisations", g))))
       : [],
+    prIds.length ? db.select({ id: productsTable.id, name: productsTable.name }).from(productsTable).where(and(inArray(productsTable.id, prIds), sql.raw(productVisible("products")))) : [],
   ]);
-  const names = new Map<string, string>([...ps.map((p) => [`project:${p.id}`, p.name] as [string, string]), ...os.map((o) => [`organisation:${o.id}`, o.name] as [string, string])]);
+  const names = new Map<string, string>([
+    ...ps.map((p) => [`project:${p.id}`, p.name] as [string, string]),
+    ...os.map((o) => [`organisation:${o.id}`, o.name] as [string, string]),
+    ...prs.map((p) => [`product:${p.id}`, p.name] as [string, string]),
+  ]);
   for (const x of pairs) {
     const ref = `${x.type}:${x.id}`;
     const name = names.get(ref);
@@ -259,46 +267,55 @@ export async function findDocumentsForAi(scope: AiScope, query: string | undefin
   return { documents };
 }
 
-/* ---------- Playbooks ---------- */
+/* ---------- Rules ---------- */
 
-export interface PlaybookOut {
+export interface RuleOut {
   ref: string;
   title: string;
   applies_when: string;
   rule: string;
-  /** Empty when the playbook applies everywhere */
+  /** Empty when the rule applies everywhere */
   applies_to: NamedRef[];
 }
 
-async function playbookOuts(scope: AiScope, refs: string[]): Promise<PlaybookOut[]> {
+async function ruleOuts(scope: AiScope, refs: string[]): Promise<RuleOut[]> {
   const ids = refs.map((r) => Number(r.split(":")[1]));
   if (!ids.length) return [];
   const rows = await db
     .select()
-    .from(playbooksTable)
-    .where(and(inArray(playbooksTable.id, ids), sql.raw(playbookVisible("playbooks", scope.grants))))
-    .orderBy(asc(playbooksTable.id));
-  const ok = new Set(await sanitiseRefs(scope, rows.map((r) => toRef("playbook", r.id))));
-  const kept = rows.filter((r) => ok.has(toRef("playbook", r.id)));
-  const links = await linkedProjectNames(scope, "playbook", kept.map((r) => r.id));
-  return kept.map((r) => ({ ref: toRef("playbook", r.id), title: r.title, applies_when: r.appliesWhen, rule: r.rule, applies_to: links.get(r.id) ?? [] }));
+    .from(rulesTable)
+    .where(and(inArray(rulesTable.id, ids), sql.raw(ruleVisible("rules", scope.grants))))
+    .orderBy(asc(rulesTable.id));
+  const ok = new Set(await sanitiseRefs(scope, rows.map((r) => toRef("rule", r.id))));
+  const kept = rows.filter((r) => ok.has(toRef("rule", r.id)));
+  const links = await linkedProjectNames(scope, "rule", kept.map((r) => r.id));
+  return kept.map((r) => ({ ref: toRef("rule", r.id), title: r.title, applies_when: r.appliesWhen, rule: r.rule, applies_to: links.get(r.id) ?? [] }));
 }
 
 /**
- * Playbooks that apply in a context: global ones plus those linked to the given projects and
- * organisations. Without a context, every enabled visible playbook.
+ * Rules that apply in a context: global ones plus those linked to the given projects and
+ * organisations. Without a context, every enabled visible rule.
  */
-export async function playbooksFor(scope: AiScope, contextRefs: string[] | null): Promise<PlaybookOut[]> {
-  if (contextRefs) return playbookOuts(scope, await applicablePlaybookRefs(scope, contextRefs));
-  const all = await db.select({ id: playbooksTable.id }).from(playbooksTable).where(sql.raw(playbookVisible("playbooks", scope.grants)));
-  return playbookOuts(scope, all.map((r) => toRef("playbook", r.id)));
+export async function rulesFor(scope: AiScope, contextRefs: string[] | null): Promise<RuleOut[]> {
+  if (contextRefs) return ruleOuts(scope, await applicableRuleRefs(scope, contextRefs));
+  const all = await db.select({ id: rulesTable.id }).from(rulesTable).where(sql.raw(ruleVisible("rules", scope.grants)));
+  return ruleOuts(scope, all.map((r) => toRef("rule", r.id)));
 }
 
 /**
- * The projects and organisations whose playbooks apply to an item: a project and its linked
- * organisations; a person's organisation and their projects; an organisation itself.
+ * The projects, organisations and products whose rules apply to an item: a project and its linked
+ * organisations; a person's organisation and their projects; an organisation itself; a product
+ * itself. Products linked to those projects and organisations are added (Part M), so a product's
+ * rules apply wherever it comes up.
  */
-export async function playbookContextFor(type: "project" | "person" | "organisation", id: number): Promise<string[]> {
+export async function ruleContextFor(type: "project" | "person" | "organisation" | "product", id: number): Promise<string[]> {
+  if (type === "product") return [toRef("product", id)];
+  const base = await baseRuleContext(type, id);
+  const products = await productsLinkedToRefs(base);
+  return [...base, ...products.map((p) => toRef("product", p.id))];
+}
+
+async function baseRuleContext(type: "project" | "person" | "organisation", id: number): Promise<string[]> {
   if (type === "organisation") return [toRef("organisation", id)];
   if (type === "project") {
     const res = await db.execute(sql`
@@ -312,9 +329,13 @@ export async function playbookContextFor(type: "project" | "person" | "organisat
 }
 
 /** get_playbooks: everything, global only ("general", given as []), or what applies to one item. Logged. */
-export async function getPlaybooksForAi(scope: AiScope, context: { type: "project" | "person" | "organisation"; id: number } | "general" | null): Promise<PlaybookOut[]> {
-  const refs = context === null ? null : context === "general" ? [] : await playbookContextFor(context.type, context.id);
-  const out = await playbooksFor(scope, refs);
-  await recordReads(scope, out.map((x) => x.ref), { via: "get_playbooks" });
+export async function getRulesForAi(
+  scope: AiScope,
+  context: { type: "project" | "person" | "organisation" | "product"; id: number } | "general" | null,
+  via = "get_rules",
+): Promise<RuleOut[]> {
+  const refs = context === null ? null : context === "general" ? [] : await ruleContextFor(context.type, context.id);
+  const out = await rulesFor(scope, refs);
+  await recordReads(scope, out.map((x) => x.ref), { via });
   return out;
 }

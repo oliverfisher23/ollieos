@@ -13,4 +13,5 @@ export const ListRelationshipsType = {
   person: 'person',
   organisation: 'organisation',
   project: 'project',
+  product: 'product',
 } as const;

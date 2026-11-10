@@ -30,7 +30,12 @@ export const meetingBriefsTable = pgTable("meeting_briefs", {
   goalIds: integer("goal_ids").array().notNull().default(sql`'{}'::integer[]`),
   promiseIds: integer("promise_ids").array().notNull().default(sql`'{}'::integer[]`),
   documentIds: integer("document_ids").array().notNull().default(sql`'{}'::integer[]`),
-  playbookIds: integer("playbook_ids").array().notNull().default(sql`'{}'::integer[]`),
+  /** Rules (called playbooks before Part M, hence the column name) */
+  ruleIds: integer("playbook_ids").array().notNull().default(sql`'{}'::integer[]`),
+  /** Part M: In use playbooks linked to the meeting's projects and organisations */
+  playbookIds: integer("process_playbook_ids").array().notNull().default(sql`'{}'::integer[]`),
+  /** Part M: products linked to the meeting's projects and organisations */
+  productIds: integer("product_ids").array().notNull().default(sql`'{}'::integer[]`),
   citedIds: text("cited_ids").array().notNull().default(sql`'{}'::text[]`),
   /** Every ref handed to the model */
   inputRefs: text("input_refs").array().notNull().default(sql`'{}'::text[]`),

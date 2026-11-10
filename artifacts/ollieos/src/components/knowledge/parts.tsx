@@ -11,6 +11,7 @@ import {
   useListAccessRequests,
   useListOrganisations,
   useListPeople,
+  useListProducts,
   useListProjects,
   type Decision,
   type Fact,
@@ -43,7 +44,7 @@ export function LockMark() {
   return <IconLock size={13} className="oo-lock" aria-hidden={false} role="img" aria-label="Confidential" />;
 }
 
-const NOUN: Record<string, string> = { project: 'project', person: 'person', organisation: 'organisation' };
+const NOUN: Record<string, string> = { project: 'project', person: 'person', organisation: 'organisation', product: 'product' };
 
 /** "Open to Claude until 14:05" for approvals that are still live on this item. */
 export function OpenGrantsNote({ itemRef }: { itemRef: string }) {
@@ -142,7 +143,7 @@ export function AccessPanel({
 }: {
   bare?: boolean;
   itemId?: number;
-  kind: 'project' | 'person' | 'organisation';
+  kind: 'project' | 'person' | 'organisation' | 'product';
   confidential: boolean;
   aiAccess: boolean;
   onChange: (patch: { confidential?: boolean; aiAccess?: boolean }) => void;
@@ -150,7 +151,9 @@ export function AccessPanel({
 }) {
   const readable = aiAccess && !confidential;
   const note = confidential
-    ? 'Confidential: hidden from AI unless you approve a request.'
+    ? kind === 'product'
+      ? 'Confidential: hidden from AI, with its facts.'
+      : 'Confidential: hidden from AI unless you approve a request.'
     : readable
       ? `Claude can read and update this ${NOUN[kind]}.`
       : 'Hidden from AI.';
@@ -184,7 +187,7 @@ export function AccessPanel({
         />
       </div>
       <span style={{ fontSize: 12 }} className="oo-muted" role="status" data-testid={'text-' + testPrefix + '-access-note'}>{note}</span>
-      {itemId != null && <OpenGrantsNote itemRef={`${kind}:${itemId}`} />}
+      {itemId != null && kind !== 'product' && <OpenGrantsNote itemRef={`${kind}:${itemId}`} />}
     </section>
   );
 }
@@ -465,7 +468,7 @@ export function Timeline({ items, empty, compact }: { items: TimelineItem[]; emp
 
 /* ---------- Notes ---------- */
 
-export function AddNote({ entityType, entityId, placeholder }: { entityType: 'project' | 'person' | 'organisation'; entityId: number; placeholder: string }) {
+export function AddNote({ entityType, entityId, placeholder }: { entityType: 'project' | 'person' | 'organisation' | 'product'; entityId: number; placeholder: string }) {
   const write = useKnowledgeWrite();
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -576,9 +579,9 @@ export function EntityChipLink({
   );
 }
 
-type LinkTarget = 'person' | 'project' | 'organisation';
-const TARGET_LABEL: Record<LinkTarget, string> = { person: 'a person', project: 'a project', organisation: 'an organisation' };
-const SEARCH_LABEL: Record<LinkTarget, string> = { person: 'Search people', project: 'Search projects', organisation: 'Search organisations' };
+type LinkTarget = 'person' | 'project' | 'organisation' | 'product';
+const TARGET_LABEL: Record<LinkTarget, string> = { person: 'a person', project: 'a project', organisation: 'an organisation', product: 'a product' };
+const SEARCH_LABEL: Record<LinkTarget, string> = { person: 'Search people', project: 'Search projects', organisation: 'Search organisations', product: 'Search products' };
 
 /** "Link a person" and friends: pick from a list, then POST /links. */
 export function LinkPicker({ fromType, fromId, toType, exclude }: { fromType: Linkable; fromId: number; toType: LinkTarget; exclude: number[] }) {
@@ -588,8 +591,9 @@ export function LinkPicker({ fromType, fromId, toType, exclude }: { fromType: Li
   const people = useListPeople({ query: { enabled: open && toType === 'person' } as never });
   const projects = useListProjects(undefined, { query: { enabled: open && toType === 'project' } as never });
   const orgs = useListOrganisations({ query: { enabled: open && toType === 'organisation' } as never });
+  const products = useListProducts({ query: { enabled: open && toType === 'product' } as never });
   const list: { id: number; name: string }[] =
-    (toType === 'person' ? people.data : toType === 'project' ? projects.data : orgs.data)?.filter((x) => !exclude.includes(x.id)) ?? [];
+    (toType === 'person' ? people.data : toType === 'project' ? projects.data : toType === 'product' ? products.data : orgs.data)?.filter((x) => !exclude.includes(x.id)) ?? [];
 
   if (!open) {
     return (

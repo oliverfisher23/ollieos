@@ -60,6 +60,19 @@ export function personVisible(alias: string, g: Grants = NO_GRANTS): string {
 export function organisationVisible(alias: string, g: Grants = NO_GRANTS): string {
   return `not ${ownHidden(alias, "organisation", g)}`;
 }
+/** A product (Part M) follows its own switches. Products carry no grants of their own. */
+export function productVisible(alias: string): string {
+  return `not (${alias}.confidential or not ${alias}.ai_access)`;
+}
+
+/** Any hidden product linked to the item through the links table, in either direction. */
+function linkedProductHidden(type: string, idExpr: string): string {
+  return `exists (select 1 from products x where not ${productVisible("x")} and exists (
+    select 1 from links l where
+      (l.from_type = '${type}' and l.from_id = ${idExpr} and l.to_type = 'product' and l.to_id = x.id)
+      or (l.to_type = '${type}' and l.to_id = ${idExpr} and l.from_type = 'product' and l.from_id = x.id)
+  ))`;
+}
 
 /**
  * A task with its own flag set follows it. Otherwise it is hidden when any linked project is
@@ -102,6 +115,7 @@ function entityVisible(typeExpr: string, idExpr: string, g: Grants): string {
     when 'project' then exists (select 1 from projects ep where ep.id = ${idExpr} and ${projectVisible("ep", g)})
     when 'person' then exists (select 1 from people ep where ep.id = ${idExpr} and ${personVisible("ep", g)})
     when 'organisation' then exists (select 1 from organisations ep where ep.id = ${idExpr} and ${organisationVisible("ep", g)})
+    when 'product' then exists (select 1 from products ep where ep.id = ${idExpr} and ${productVisible("ep")})
     when 'task' then exists (select 1 from tasks et where et.id = ${idExpr} and ${taskVisible("et", g)})
     when 'decision' then exists (select 1 from decisions ed where ed.id = ${idExpr} and ${decisionVisible("ed", g)})
     else true
@@ -136,16 +150,29 @@ export function suggestionVisible(alias: string, g: Grants = NO_GRANTS): string 
 }
 
 /**
- * A document follows its own flag, or is hidden when any linked project is hidden (question 44).
- * Documents carry no grants of their own; a grant on the project unlocks an inherited one.
+ * A document follows its own flag, or is hidden when any linked project or product is hidden
+ * (question 44). Documents carry no grants of their own; a grant on the project unlocks an inherited one.
  */
 export function documentVisible(alias: string, g: Grants = NO_GRANTS): string {
   const d = alias;
   return `(case
     when ${d}.confidential is true then false
     when ${d}.confidential is false then true
-    else not ${linkedProjectHidden("document", `${d}.id`, g)}
+    else not (${linkedProjectHidden("document", `${d}.id`, g)} or ${linkedProductHidden("document", `${d}.id`)})
   end)`;
+}
+
+/**
+ * A playbook (Part M) reaches AI only when In use. Then it follows its own flag, or is hidden when
+ * any linked project or product is hidden, like a document.
+ */
+export function playbookVisible(alias: string, g: Grants = NO_GRANTS): string {
+  const p = alias;
+  return `(${p}.state = 'in_use' and (case
+    when ${p}.confidential is true then false
+    when ${p}.confidential is false then true
+    else not (${linkedProjectHidden("playbook", `${p}.id`, g)} or ${linkedProductHidden("playbook", `${p}.id`)})
+  end))`;
 }
 
 /**
@@ -194,23 +221,24 @@ export function sessionArchived(alias: string, now = new Date()): string {
     select 1 from tasks t where t.id = any(${alias}.task_ids) and t.status in ('inbox', 'now', 'backlog', 'waiting')))`;
 }
 
-/** Links between a playbook and a project or organisation, either way round. */
-function playbookLinks(p: string, other: "project" | "organisation", otherId: string): string {
-  return `((l.from_type = 'playbook' and l.from_id = ${p}.id and l.to_type = '${other}' and l.to_id = ${otherId})
-    or (l.to_type = 'playbook' and l.to_id = ${p}.id and l.from_type = '${other}' and l.from_id = ${otherId}))`;
+/** Links between a rule and a project, organisation or product, either way round. */
+function ruleLinks(p: string, other: "project" | "organisation" | "product", otherId: string): string {
+  return `((l.from_type = 'rule' and l.from_id = ${p}.id and l.to_type = '${other}' and l.to_id = ${otherId})
+    or (l.to_type = 'rule' and l.to_id = ${p}.id and l.from_type = '${other}' and l.from_id = ${otherId}))`;
 }
 
 /**
- * Paused playbooks are never sent. An enabled playbook is visible when it is global (no project or
- * organisation links) or when at least one linked item is visible (build plan 10.7).
+ * Paused rules are never sent. An enabled rule is visible when it is global (no project,
+ * organisation or product links) or when at least one linked item is visible (build plan 10.7).
  */
-export function playbookVisible(alias: string, g: Grants = NO_GRANTS): string {
+export function ruleVisible(alias: string, g: Grants = NO_GRANTS): string {
   const p = alias;
   return `(${p}.enabled and (
     not exists (select 1 from links l where
-      (l.from_type = 'playbook' and l.from_id = ${p}.id and l.to_type in ('project', 'organisation'))
-      or (l.to_type = 'playbook' and l.to_id = ${p}.id and l.from_type in ('project', 'organisation')))
-    or exists (select 1 from projects xp, links l where ${projectVisible("xp", g)} and ${playbookLinks(p, "project", "xp.id")})
-    or exists (select 1 from organisations xo, links l where ${organisationVisible("xo", g)} and ${playbookLinks(p, "organisation", "xo.id")})
+      (l.from_type = 'rule' and l.from_id = ${p}.id and l.to_type in ('project', 'organisation', 'product'))
+      or (l.to_type = 'rule' and l.to_id = ${p}.id and l.from_type in ('project', 'organisation', 'product')))
+    or exists (select 1 from projects xp, links l where ${projectVisible("xp", g)} and ${ruleLinks(p, "project", "xp.id")})
+    or exists (select 1 from organisations xo, links l where ${organisationVisible("xo", g)} and ${ruleLinks(p, "organisation", "xo.id")})
+    or exists (select 1 from products xd, links l where ${productVisible("xd")} and ${ruleLinks(p, "product", "xd.id")})
   ))`;
 }
