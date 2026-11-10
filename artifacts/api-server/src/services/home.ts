@@ -14,6 +14,7 @@ import {
 import { toTaskViews, type TaskView } from "./taskView";
 import { listAccessRequests } from "./access";
 import { ensureSelfPerson, inboxCounts } from "./knowledgeInbox";
+import { ensureSeeds } from "./seeds";
 
 const OPEN = [...OPEN_STATUSES] as TaskStatus[];
 
@@ -41,7 +42,7 @@ function reasonFor(t: TaskView, today: string): string {
 /**
  * Do next ranking: open Now tasks and open promises that are not snoozed.
  * Overdue first (oldest first), then High by due date, then Medium by due date,
- * undated last within each band. Low only appears when overdue.
+ * undated last within each band. Low only appears when overdue. Ties go to the goal-linked task.
  */
 function rankDoNext(tasks: TaskView[], today: string) {
   const band = (t: TaskView): number => {
@@ -59,6 +60,8 @@ function rankDoNext(tasks: TaskView[], today: string) {
       if (a.dueDate && b.dueDate && a.dueDate !== b.dueDate) return a.dueDate < b.dueDate ? -1 : 1;
       if (a.dueDate && !b.dueDate) return -1;
       if (!a.dueDate && b.dueDate) return 1;
+      // Same band and due date: goal-linked work first (feature 04 rule 5).
+      if (!!a.goal !== !!b.goal) return a.goal ? -1 : 1;
       return a.createdAt.getTime() - b.createdAt.getTime();
     })
     .map((task) => ({ task, reason: reasonFor(task, today) }));
@@ -147,6 +150,7 @@ export async function getHome() {
 
   const briefs = await briefsFor(todayEvents);
   await ensureSelfPerson().catch(() => undefined);
+  await ensureSeeds();
   const [candidates, waiting, promises, latestDone, access, knowledgeInbox] = await Promise.all([
     toTaskViews(candidateRows),
     toTaskViews(waitingRows),

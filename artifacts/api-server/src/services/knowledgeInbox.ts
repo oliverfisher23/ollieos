@@ -1,17 +1,20 @@
 /** Ollie's view of the Knowledge Inbox: suggestions, conflicts and facts that need a check. */
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, factReviewsTable, factsTable, peopleTable, suggestionsTable, usersTable, type Fact, type Suggestion } from "@workspace/db";
-import { formatDayMonth } from "@workspace/shared";
+import { CADENCE_LABELS, formatDayMonth } from "@workspace/shared";
 import { writeAudit } from "../lib/audit";
 import { resolveEntities, uniqueSlug } from "./knowledge/common";
 import { reviewCounts, tidyReviews } from "./factReviews";
 import {
   FIELD_LABELS,
   editableFields,
+  type CadencePayload,
   type DecisionPayload,
+  type DocumentPayload,
   type FactPayload,
   type OrganisationPayload,
   type PersonPayload,
+  type PlaybookPayload,
   type ProjectPayload,
   type SummaryChangePayload,
 } from "./suggestions";
@@ -26,6 +29,9 @@ export type InboxKind =
   | "proposed_decision"
   | "changed_summary"
   | "changed_details"
+  | "new_document"
+  | "new_playbook"
+  | "cadence_change"
   | "conflict"
   | "stale_fact";
 
@@ -169,6 +175,12 @@ function suggestionKind(s: Suggestion): InboxKind {
       const f = (s.payload as SummaryChangePayload).fields;
       return "summary" in f || "relationship_summary" in f ? "changed_summary" : "changed_details";
     }
+    case "document":
+      return "new_document";
+    case "playbook":
+      return "new_playbook";
+    case "cadence":
+      return "cadence_change";
   }
 }
 
@@ -221,11 +233,30 @@ function textOf(s: Suggestion): string {
         .map(([k, v]) => `${FIELD_LABELS[k] ?? k}: ${v}`)
         .join("\n");
     }
+    case "document": {
+      const d = s.payload as DocumentPayload;
+      return joinParts([d.title, d.summary, d.project_names?.length ? `For ${d.project_names.join(", ")}` : null, d.url]);
+    }
+    case "playbook": {
+      const p = s.payload as PlaybookPayload;
+      return joinParts([
+        p.title,
+        `Applies when: ${p.applies_when}`,
+        `Rule: ${p.rule}`,
+        p.link_names?.length ? `Only for ${p.link_names.join(", ")}` : "Applies everywhere",
+      ]);
+    }
+    case "cadence": {
+      const c = s.payload as CadencePayload;
+      const change = c.before && c.before !== "none" ? `Cadence: ${CADENCE_LABELS[c.before]} to ${CADENCE_LABELS[c.cadence]}` : `Cadence: ${CADENCE_LABELS[c.cadence]}`;
+      return joinParts([change, c.reason]);
+    }
   }
 }
 
 function newName(s: Suggestion): string | null {
   if (s.kind === "person" || s.kind === "organisation" || s.kind === "project") return (s.payload as { name: string }).name;
+  if (s.kind === "document" || s.kind === "playbook") return (s.payload as { title: string }).title;
   return null;
 }
 

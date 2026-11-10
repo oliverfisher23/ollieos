@@ -13,6 +13,7 @@ import {
 } from "@workspace/db";
 import { slugify } from "@workspace/shared";
 import { buildScope, resetAskClientCache, type AiScope } from "../src/lib/ai-data/scope";
+import { resetSeedCheck } from "../src/services/seeds";
 
 if (!process.env.DATABASE_URL?.includes("/ollieos_test")) throw new Error("Tests must run against ollieos_test");
 
@@ -22,6 +23,7 @@ export async function resetDb() {
   const names = (res.rows as { tablename: string }[]).map((r) => `"${r.tablename}"`);
   if (names.length) await db.execute(sql.raw(`truncate ${names.join(", ")} restart identity cascade`));
   resetAskClientCache();
+  resetSeedCheck();
 }
 
 export async function project(name: string, opts: { confidential?: boolean; aiAccess?: boolean; summary?: string } = {}) {

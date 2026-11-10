@@ -4,6 +4,7 @@ import {
   getGetHomeQueryKey,
   getGetTaskQueryKey,
   getGetTaskSummaryQueryKey,
+  getListGoalsQueryKey,
   getListNoiseRulesQueryKey,
   getListTasksQueryKey,
 } from '@workspace/api-client-react';
@@ -18,6 +19,7 @@ export function useInvalidateTasks() {
       qc.invalidateQueries({ queryKey: getGetTaskSummaryQueryKey().slice(0, 1) });
       qc.invalidateQueries({ queryKey: getGetHomeQueryKey() });
       qc.invalidateQueries({ queryKey: getListNoiseRulesQueryKey() });
+      qc.invalidateQueries({ queryKey: getListGoalsQueryKey() });
     },
     [qc],
   );

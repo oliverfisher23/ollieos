@@ -14,6 +14,7 @@ export const IconHome = (p: P) => <Base {...p}><path d="M3 10.5 12 3l9 7.5V20a1 
 export const IconTasks = (p: P) => <Base {...p}><path d="M9 6h11M9 12h11M9 18h11" /><path d="m3.5 6 1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11M3.5 18l1.5 1.5L7.5 17" /></Base>;
 export const IconBook = (p: P) => <Base {...p}><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" /><path d="M4 19V5M8 7h7M8 11h5" /></Base>;
 export const IconPeople = (p: P) => <Base {...p}><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6" /></Base>;
+export const IconGoal = (p: P) => <Base {...p}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.2" /></Base>;
 export const IconSettings = (p: P) => <Base {...p}><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" /></Base>;
 export const IconUp = (p: P) => <Base strokeWidth={2} {...p}><path d="M12 19V5M5 12l7-7 7 7" /></Base>;
 export const IconPlus = (p: P) => <Base strokeWidth={2.2} {...p}><path d="M12 5v14M5 12h14" /></Base>;

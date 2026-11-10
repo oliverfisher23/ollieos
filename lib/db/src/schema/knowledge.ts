@@ -11,7 +11,8 @@ import {
   uniqueIndex,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { activityKindEnum, entityTypeEnum, factAttributeEnum, tsvector } from "./enums";
+import { activityKindEnum, cadenceEnum, entityTypeEnum, factAttributeEnum, projectLifecycleEnum, tsvector } from "./enums";
+import { goalsTable } from "./goals";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 const updatedAt = () =>
@@ -51,6 +52,10 @@ export const projectsTable = pgTable(
     confidential: boolean("confidential").notNull().default(false),
     aiAccess: boolean("ai_access").notNull().default(true),
     archived: boolean("archived").notNull().default(false),
+    /** A goal or sub-goal (feature 04); tasks inherit it unless they set their own */
+    goalId: integer("goal_id").references(() => goalsTable.id, { onDelete: "set null" }),
+    /** Active, paused or complete; paused and complete pause the cadence of people linked only to them */
+    lifecycle: projectLifecycleEnum("lifecycle").notNull().default("active"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     search: tsvector("search").generatedAlwaysAs(
@@ -75,6 +80,10 @@ export const peopleTable = pgTable(
     lastContactAt: timestamp("last_contact_at", { withTimezone: true }),
     /** Ollie's own record ("Your profile"). At most one row. */
     isSelf: boolean("is_self").notNull().default(false),
+    /** How often Ollie wants to be in touch (feature 05); none keeps them off the People page */
+    cadence: cadenceEnum("cadence").notNull().default("none"),
+    /** Paused by Ollie; a cadence also pauses when every linked project is paused or complete */
+    cadencePaused: boolean("cadence_paused").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     search: tsvector("search").generatedAlwaysAs(

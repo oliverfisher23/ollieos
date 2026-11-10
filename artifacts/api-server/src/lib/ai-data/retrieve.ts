@@ -2,21 +2,26 @@ import { and, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   db,
   decisionsTable,
+  documentsTable,
   factsTable,
+  goalsTable,
   linksTable,
   notesTable,
   organisationsTable,
   peopleTable,
+  playbooksTable,
   projectsTable,
   tasksTable,
 } from "@workspace/db";
-import { PRIORITY_LABELS, SOURCE_LABELS, STATUS_LABELS, formatLong, parseRef, toRef, type RefType } from "@workspace/shared";
+import { DOC_LOCATION_LABELS, PRIORITY_LABELS, SOURCE_LABELS, STATUS_LABELS, formatLong, parseRef, toRef, type RefType } from "@workspace/shared";
 import {
   decisionVisible,
+  documentVisible,
   factVisible,
   noteVisible,
   organisationVisible,
   personVisible,
+  playbookVisible,
   projectVisible,
   taskVisible,
   type Grants,
@@ -45,6 +50,8 @@ function filters(g: Grants) {
     decision: sql.raw(decisionVisible("decisions", g)),
     note: sql.raw(noteVisible("notes", g)),
     fact: sql.raw(factVisible("facts", g)),
+    document: sql.raw(documentVisible("documents", g)),
+    playbook: sql.raw(playbookVisible("playbooks", g)),
   };
 }
 
@@ -93,7 +100,7 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
   const refs = refList.map(parseRef).filter((r): r is NonNullable<typeof r> => !!r);
   const ids = (t: RefType) => [...new Set(refs.filter((r) => r.type === t).map((r) => r.id))];
 
-  const [tasks, projects, people, orgs, decisions, notes, facts] = await Promise.all([
+  const [tasks, projects, people, orgs, decisions, notes, facts, goals, documents, playbooks] = await Promise.all([
     ids("task").length ? db.select().from(tasksTable).where(and(inArray(tasksTable.id, ids("task")), v.task)) : [],
     ids("project").length ? db.select().from(projectsTable).where(and(inArray(projectsTable.id, ids("project")), v.project)) : [],
     ids("person").length ? db.select().from(peopleTable).where(and(inArray(peopleTable.id, ids("person")), v.person)) : [],
@@ -105,6 +112,21 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
     ids("fact").length
       ? db.select().from(factsTable).where(and(inArray(factsTable.id, ids("fact")), isNull(factsTable.supersededBy), v.fact))
       : [],
+    ids("goal").length ? db.select().from(goalsTable).where(inArray(goalsTable.id, ids("goal"))) : [],
+    ids("document").length
+      ? db
+          .select({
+            id: documentsTable.id,
+            title: documentsTable.title,
+            url: documentsTable.url,
+            location: documentsTable.location,
+            summary: documentsTable.summary,
+            lastConfirmedAt: documentsTable.lastConfirmedAt,
+          })
+          .from(documentsTable)
+          .where(and(inArray(documentsTable.id, ids("document")), v.document))
+      : [],
+    ids("playbook").length ? db.select().from(playbooksTable).where(and(inArray(playbooksTable.id, ids("playbook")), v.playbook)) : [],
   ]);
 
   const nameRefs: { type: RefType; id: number }[] = [];
@@ -222,6 +244,48 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
     });
   }
 
+  const parentNames = new Map(goals.map((g) => [g.id, g.name]));
+  const missingParents = goals.map((g) => g.parentId).filter((p): p is number => p != null && !parentNames.has(p));
+  if (missingParents.length) {
+    for (const p of await db.select({ id: goalsTable.id, name: goalsTable.name }).from(goalsTable).where(inArray(goalsTable.id, missingParents))) parentNames.set(p.id, p.name);
+  }
+  for (const g of goals) {
+    const ref = toRef("goal", g.id);
+    docs.push({
+      ref,
+      type: "goal",
+      id: g.id,
+      // A confidential goal's target text is never sent (feature 04 rule 2).
+      text: [
+        `[${ref}] ${g.parentId ? `Sub-goal of ${parentNames.get(g.parentId) ?? "a goal"}` : "Goal"}: ${g.name}`,
+        g.statement && `Statement: ${clip(g.statement, 600)}`,
+        !g.confidential && g.targetText && `Target: ${clip(g.targetText, 600)}`,
+        (g.periodStart || g.periodEnd) && line([g.periodStart && `From ${day(g.periodStart)}`, g.periodEnd && `to ${day(g.periodEnd)}`]),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+  }
+  for (const d of documents) {
+    const ref = toRef("document", d.id);
+    docs.push({
+      ref,
+      type: "document",
+      id: d.id,
+      text: [
+        `[${ref}] Document: ${d.title}`,
+        line([`Location: ${DOC_LOCATION_LABELS[d.location]}`, `Link: ${d.url}`, `Updated ${day(d.lastConfirmedAt)}`]),
+        d.summary && `Summary: ${clip(d.summary, 800)}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+  }
+  for (const p of playbooks) {
+    const ref = toRef("playbook", p.id);
+    docs.push({ ref, type: "playbook", id: p.id, text: `[${ref}] Playbook (Ollie's standing rule): ${p.title}. Applies when: ${p.appliesWhen}. Rule: ${p.rule}` });
+  }
+
   const order = new Map(refList.map((r, i) => [r, i]));
   return docs.sort((a, b) => (order.get(a.ref) ?? 0) - (order.get(b.ref) ?? 0));
 }
@@ -297,6 +361,8 @@ export interface Retrieval {
 
 /** The ref a grant would name to unlock a hidden search hit. Facts have no flag of their own, so their entity is granted. */
 function grantRefFor(h: SearchHit): string | null {
+  // Documents have no grants of their own; they unlock through their project.
+  if (h.type === "document") return null;
   if (h.type === "fact") {
     return h.entityType && h.entityId != null && ["project", "person", "organisation", "task", "decision"].includes(h.entityType)
       ? `${h.entityType}:${h.entityId}`
@@ -320,7 +386,34 @@ export async function retrieveForAsk(scope: AiScope, question: string, carryRefs
   for (const h of visible) refs.push(toRef(h.type, h.id));
   for (const e of entities) refs.push(...(await expandEntity(e.type, e.id)));
 
-  const unique = [...new Set(refs)].slice(0, MAX_DOCS * 2);
+  const unique = [...new Set(refs)].filter((r) => !r.startsWith("playbook:")).slice(0, MAX_DOCS * 2);
   const docs = (await loadVisibleDocs(scope, unique)).slice(0, MAX_DOCS);
-  return { docs, hiddenMatches, hiddenRefs };
+  // Playbooks that apply are always included, outside the item cap (feature 07 rule 2). With no items
+  // there is nothing to answer from, so none are added.
+  if (!docs.length) return { docs, hiddenMatches, hiddenRefs };
+  const playbooks = await loadVisibleDocs(scope, await applicablePlaybookRefs(scope, docs.map((d) => d.ref)));
+  return { docs: [...playbooks, ...docs], hiddenMatches, hiddenRefs };
+}
+
+/**
+ * Enabled, visible playbooks that apply given the items in play: global ones, plus those linked to
+ * any project or organisation among the refs.
+ */
+export async function applicablePlaybookRefs(scope: AiScope, refList: readonly string[]): Promise<string[]> {
+  const refs = refList.map(parseRef).filter((r): r is NonNullable<typeof r> => !!r);
+  const projects = [...new Set(refs.filter((r) => r.type === "project").map((r) => r.id))];
+  const orgs = [...new Set(refs.filter((r) => r.type === "organisation").map((r) => r.id))];
+  const idList = (xs: number[]) => (xs.length ? sql.join(xs.map((x) => sql`${x}`), sql`, `) : sql`null`);
+  const res = await db.execute(sql`
+    select pb.id from playbooks pb
+    where ${sql.raw(playbookVisible("pb", scope.grants))} and (
+      not exists (select 1 from links l where (l.from_type = 'playbook' and l.from_id = pb.id and l.to_type in ('project', 'organisation'))
+                                        or (l.to_type = 'playbook' and l.to_id = pb.id and l.from_type in ('project', 'organisation')))
+      or exists (select 1 from links l where (l.from_type = 'playbook' and l.from_id = pb.id and l.to_type = 'project' and l.to_id in (${idList(projects)}))
+                                        or (l.to_type = 'playbook' and l.to_id = pb.id and l.from_type = 'project' and l.from_id in (${idList(projects)})))
+      or exists (select 1 from links l where (l.from_type = 'playbook' and l.from_id = pb.id and l.to_type = 'organisation' and l.to_id in (${idList(orgs)}))
+                                        or (l.to_type = 'playbook' and l.to_id = pb.id and l.from_type = 'organisation' and l.from_id in (${idList(orgs)})))
+    )
+    order by pb.id`);
+  return (res.rows as { id: number }[]).map((r) => toRef("playbook", Number(r.id)));
 }

@@ -2,20 +2,24 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Logo } from '@/components/bits';
 import { AddBox } from '@/components/add-box';
-import { IconBook, IconHome, IconLogout, IconPeople, IconPlus, IconSettings, IconTasks } from '@/components/icons';
+import { IconBook, IconGoal, IconHome, IconLogout, IconPeople, IconPlus, IconSettings, IconTasks } from '@/components/icons';
 import { useSession } from '@/lib/auth-context';
 
 const RAIL = [
   { href: '/', label: 'Home', Icon: IconHome },
   { href: '/tasks', label: 'Tasks', Icon: IconTasks },
+  { href: '/people', label: 'People', Icon: IconPeople },
+  { href: '/goals', label: 'Goals', Icon: IconGoal },
   { href: '/knowledge', label: 'Knowledge', Icon: IconBook },
-  { href: '/knowledge/people', label: 'People', Icon: IconPeople },
 ];
 
-/** People lives under /knowledge, so Knowledge is active for everything there except People. */
+/**
+ * People is the cadence page at /people, but person pages and the full list live under /knowledge/people,
+ * so People is active for those too and Knowledge for everything else under /knowledge.
+ */
 export function navActive(href: string, location: string): boolean {
-  const inPeople = location === '/knowledge/people' || location.startsWith('/knowledge/people/');
-  if (href === '/knowledge/people') return inPeople;
+  const inPeople = location === '/people' || location === '/knowledge/people' || location.startsWith('/knowledge/people/');
+  if (href === '/people') return inPeople;
   if (href === '/knowledge') return !inPeople && (location === '/knowledge' || location.startsWith('/knowledge/'));
   if (href === '/') return location === '/' || location === '/triage' || location === '/ask' || location.startsWith('/ask/');
   return location === href || location.startsWith(href + '/');
@@ -60,8 +64,8 @@ export function MainNav({ children }: { children: ReactNode }) {
         <button type="button" aria-label="Add a task" onClick={() => setSheet(true)} data-testid="button-tab-add">
           <span className="oo-add"><IconPlus size={22} /></span>
         </button>
+        <Link href="/people" aria-current={cur('/people')} data-testid="link-tab-people"><IconPeople size={22} />People</Link>
         <Link href="/knowledge" aria-current={cur('/knowledge')} data-testid="link-tab-knowledge"><IconBook size={22} />Knowledge</Link>
-        <Link href="/knowledge/people" aria-current={cur('/knowledge/people')} data-testid="link-tab-people"><IconPeople size={22} />People</Link>
       </nav>
 
       {sheet && <AddSheet onClose={() => setSheet(false)} />}

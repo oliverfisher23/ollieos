@@ -14,7 +14,6 @@ import {
   linksTable,
   noiseRulesTable,
   notesTable,
-  peopleTable,
   sweepRunsTable,
   tasksTable,
   type NoiseRule,
@@ -23,6 +22,7 @@ import { addDays, londonRange, todayLondon, type Priority, type TaskSource, type
 import { writeAudit } from "../lib/audit";
 import { cleanText, touch } from "./knowledge/common";
 import { ValidationError } from "./tasks";
+import { recordContact } from "./cadence";
 
 /** Who is writing: the actor name for audit_events and the ai_clients row. */
 export interface Writer {
@@ -201,6 +201,8 @@ export async function addNote(w: Writer, input: { entityType: "project" | "perso
   });
 }
 
+const CONTACT_KINDS = new Set(["email", "meeting", "slack"]);
+
 export interface ActivityInput {
   kind: "email" | "meeting" | "slack" | "note" | "task";
   summary: string;
@@ -257,12 +259,8 @@ export async function logActivity(w: Writer, input: ActivityInput, via: string):
         .values(extra.map((e) => ({ fromType: "activity" as const, fromId: created.id, toType: e.type, toId: e.id, createdBy: w.actor })))
         .onConflictDoNothing();
     }
-    for (const id of input.personIds) {
-      await tx
-        .update(peopleTable)
-        .set({ lastContactAt: sql`greatest(coalesce(${peopleTable.lastContactAt}, ${input.occurredAt.toISOString()}::timestamptz), ${input.occurredAt.toISOString()}::timestamptz)` })
-        .where(eq(peopleTable.id, id));
-    }
+    // Only real contact counts towards cadence: email, meetings and Slack, never notes (feature 05 rule 2).
+    if (CONTACT_KINDS.has(input.kind)) await recordContact(tx, input.personIds, input.occurredAt);
     await writeAudit(tx, {
       actor: w.actor,
       clientId: w.clientId,

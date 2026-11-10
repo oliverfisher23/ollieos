@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gte, lt, ne, sql } from "drizzle-orm";
 import {
   auditEventsTable,
+  goalsTable,
   db,
   noiseRulesTable,
   peopleTable,
@@ -254,7 +255,10 @@ export async function buildChaseLine(id: number): Promise<string> {
   return `${greeting} just checking in on ${subject}. Is there any update from your side? Thanks, Ollie`;
 }
 
-/** This week's Done items grouped by project, as plain text for a weekly update. */
+/**
+ * This week's Done items as plain text for a weekly update: grouped by goal, with projects as
+ * sub-headings, and "Not linked to a goal" last (build plan question 34).
+ */
 export async function buildWeeklyUpdate(weekStartParam?: string) {
   const ws = weekStartOf(weekStartParam ?? todayLondon());
   const { start, end } = londonRange(ws, 7);
@@ -264,23 +268,42 @@ export async function buildWeeklyUpdate(weekStartParam?: string) {
     .where(and(eq(tasksTable.status, "done"), gte(tasksTable.completedAt, start), lt(tasksTable.completedAt, end)))
     .orderBy(asc(tasksTable.completedAt));
   const tasks = await toTaskViews(rows);
+  const goals = await db.select({ id: goalsTable.id, name: goalsTable.name, parentId: goalsTable.parentId, sortOrder: goalsTable.sortOrder }).from(goalsTable);
+  const goalById = new Map(goals.map((g) => [g.id, g]));
+  const topOf = (id: number) => {
+    const g = goalById.get(id);
+    return g?.parentId ? (goalById.get(g.parentId) ?? g) : g;
+  };
 
-  const groups = new Map<string, string[]>();
+  // goal id (0 = none) -> project name ("" = none) -> titles
+  const groups = new Map<number, Map<string, string[]>>();
   for (const t of tasks) {
+    const goalKey = t.goal ? (topOf(t.goal.id)?.id ?? 0) : 0;
+    if (!groups.has(goalKey)) groups.set(goalKey, new Map());
+    const byProject = groups.get(goalKey)!;
     const key = t.project?.name ?? "";
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(t.title);
+    if (!byProject.has(key)) byProject.set(key, []);
+    byProject.get(key)!.push(t.title);
   }
-  const named = [...groups.keys()].filter((k) => k).sort((a, b) => a.localeCompare(b, "en-GB"));
-  const ordered = groups.has("") ? [...named, ""] : named;
+  const goalOrder = [...groups.keys()]
+    .filter((k) => k !== 0)
+    .sort((a, b) => (goalById.get(a)!.sortOrder - goalById.get(b)!.sortOrder) || a - b);
+  if (groups.has(0)) goalOrder.push(0);
 
   const lines = [`Done in the week of ${formatLong(ws)}`];
   if (tasks.length === 0) {
     lines.push("", "Nothing marked done yet.");
   } else {
-    for (const key of ordered) {
-      lines.push("", key || (named.length ? "Other" : "Tasks"));
-      for (const title of groups.get(key)!) lines.push(`- ${title}`);
+    for (const goalKey of goalOrder) {
+      const heading = goalKey ? goalById.get(goalKey)!.name : goalOrder.length > 1 ? "Not linked to a goal" : null;
+      if (heading) lines.push("", heading.toUpperCase());
+      const byProject = groups.get(goalKey)!;
+      const named = [...byProject.keys()].filter((k) => k).sort((a, b) => a.localeCompare(b, "en-GB"));
+      const ordered = byProject.has("") ? [...named, ""] : named;
+      for (const key of ordered) {
+        lines.push("", key || (named.length ? "Other" : "Tasks"));
+        for (const title of byProject.get(key)!) lines.push(`- ${title}`);
+      }
     }
   }
   return { text: lines.join("\n"), count: tasks.length, weekStart: ws };

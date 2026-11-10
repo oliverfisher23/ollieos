@@ -7,6 +7,7 @@ import { and, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 import {
   db,
   decisionsTable,
+  documentsTable,
   factReviewsTable,
   factsTable,
   organisationsTable,
@@ -16,9 +17,11 @@ import {
   FACT_ATTRIBUTES,
   type Suggestion,
 } from "@workspace/db";
+import { PLAYBOOK_RULE_MAX, type Cadence } from "@workspace/shared";
 import { writeAudit, type DbOrTx } from "../lib/audit";
 import { ACTOR, cleanText, resolveEntity, touch, uniqueSlug, type EntityKind } from "./knowledge/common";
-import { NotFoundError, ValidationError } from "./tasks";
+import { ConflictError, NotFoundError, ValidationError } from "./tasks";
+import { insertDocument, insertPlaybook } from "./library";
 
 export { FACT_ATTRIBUTES };
 export type FactAttribute = (typeof FACT_ATTRIBUTES)[number];
@@ -53,6 +56,29 @@ export interface PersonPayload {
   organisation_name?: string | null;
   relationship_summary?: string | null;
 }
+export interface DocumentPayload {
+  url: string;
+  title: string;
+  summary?: string | null;
+  project_ids?: number[];
+  /** Project names when proposed, for the card */
+  project_names?: string[];
+}
+export interface PlaybookPayload {
+  title: string;
+  applies_when: string;
+  rule: string;
+  project_ids?: number[];
+  organisation_ids?: number[];
+  /** Names when proposed, for the card */
+  link_names?: string[];
+}
+export interface CadencePayload {
+  cadence: Cadence;
+  /** What it was when proposed, for the card */
+  before?: Cadence | null;
+  reason?: string | null;
+}
 export interface OrganisationPayload {
   name: string;
   type?: string | null;
@@ -79,7 +105,10 @@ export type Proposal =
   | { kind: "person"; payload: PersonPayload }
   | { kind: "organisation"; payload: OrganisationPayload }
   | { kind: "project"; payload: ProjectPayload }
-  | { kind: "summary_change"; entityType: EntityKind; entityId: number; payload: SummaryChangePayload };
+  | { kind: "summary_change"; entityType: EntityKind; entityId: number; payload: SummaryChangePayload }
+  | { kind: "document"; payload: DocumentPayload }
+  | { kind: "playbook"; payload: PlaybookPayload }
+  | { kind: "cadence"; entityType: "person"; entityId: number; payload: CadencePayload };
 
 export interface ProposeMeta {
   /** Client name: "Capture sweep", "Claude" */
@@ -110,6 +139,10 @@ export const FIELD_LABELS: Record<string, string> = {
   status: "Status",
   summary: "Summary",
   decided_by: "Decided by",
+  title: "Title",
+  url: "Link",
+  applies_when: "Applies when",
+  rule: "Rule",
 };
 const EDITABLE: Record<Exclude<SuggestionKind, "summary_change">, string[]> = {
   fact: ["text"],
@@ -117,8 +150,11 @@ const EDITABLE: Record<Exclude<SuggestionKind, "summary_change">, string[]> = {
   person: ["name", "role", "email", "relationship_summary"],
   organisation: ["name", "type", "summary"],
   project: ["name", "area", "status", "summary"],
+  document: ["title", "summary"],
+  playbook: ["title", "applies_when", "rule"],
+  cadence: [],
 };
-const REQUIRED = new Set(["text", "name"]);
+const REQUIRED = new Set(["text", "name", "title", "applies_when", "rule"]);
 /** Columns a summary change may set on each kind of record. */
 const CHANGEABLE: Record<EntityKind, string[]> = {
   person: ["role", "email", "relationship_summary", "organisation"],
@@ -161,6 +197,12 @@ function mainText(p: Proposal): string {
         .sort()
         .map((k) => `${k}=${p.payload.fields[k]}`)
         .join("; ");
+    case "document":
+      return p.payload.url;
+    case "playbook":
+      return `${p.payload.title}: ${p.payload.rule}`;
+    case "cadence":
+      return p.payload.cadence;
   }
 }
 
@@ -184,6 +226,7 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
   const text = cleanText(mainText(p));
   if (!text) throw new ValidationError(p.kind === "fact" || p.kind === "decision" ? "A suggestion needs some text" : "A suggestion needs a name");
   if (p.kind === "summary_change" && !Object.keys(p.payload.fields).length) throw new ValidationError("Nothing to change");
+  if (p.kind === "playbook" && p.payload.rule.length > PLAYBOOK_RULE_MAX) throw new ValidationError(`Keep the rule to ${PLAYBOOK_RULE_MAX} characters or fewer`);
   const norm = normalise(text);
   const { entityType, entityId } = entityOf(p);
   const sameTarget = and(
@@ -200,6 +243,19 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
     .from(suggestionsTable)
     .where(and(sameTarget, eq(suggestionsTable.status, "rejected"), gte(suggestionsTable.decidedAt, since)));
   if (rejected) return { status: "previously_rejected", suggestionId: rejected.id };
+
+  if (p.kind === "cadence") {
+    const [person] = await db.select({ cadence: peopleTable.cadence, isSelf: peopleTable.isSelf }).from(peopleTable).where(eq(peopleTable.id, p.entityId));
+    if (!person) throw new ValidationError("That person does not exist");
+    if (person.isSelf) throw new ValidationError("Ollie's own record has no cadence");
+    // AI only suggests a cadence where there is none; it never changes one Ollie set (question 49).
+    if (person.cadence !== "none") throw new ValidationError("This person already has a cadence. Only Ollie changes it.");
+    p.payload.before = person.cadence;
+  }
+  if (p.kind === "document") {
+    const [doc] = await db.select({ id: documentsTable.id }).from(documentsTable).where(eq(documentsTable.url, p.payload.url));
+    if (doc) return { status: "duplicate" };
+  }
 
   let conflictWith: number[] = [];
   if (p.kind === "fact") {
@@ -305,7 +361,7 @@ export async function applySuggestion(
   payload: Record<string, unknown>,
   now: Date,
   extraSuperseded: number[] = [],
-): Promise<{ type: "fact" | "decision" | "person" | "organisation" | "project"; id: number }> {
+): Promise<{ type: "fact" | "decision" | "person" | "organisation" | "project" | "document" | "playbook"; id: number }> {
   const audit = (action: string, entityType: "fact" | "decision" | "person" | "organisation" | "project", entityId: number, extra: Record<string, unknown> = {}) =>
     writeAudit(tx, { actor: ACTOR, action, entityType, entityId, payload: { suggestionId: s.id, proposedBy: s.proposedBy, ...extra } });
 
@@ -432,6 +488,35 @@ export async function applySuggestion(
       }
       await audit("update", type, id, { fields: Object.keys(f) });
       return { type, id };
+    }
+    case "document": {
+      const p = payload as unknown as DocumentPayload;
+      try {
+        const id = await insertDocument(tx, { url: p.url, title: p.title, summary: str(p.summary), projectIds: p.project_ids ?? [] }, s.proposedBy, s.id);
+        return { type: "document", id };
+      } catch (err) {
+        if (err instanceof ConflictError) throw new ValidationError(err.message);
+        throw err;
+      }
+    }
+    case "playbook": {
+      // Created enabled: approving is what makes it active (feature 07 rule 4).
+      const p = payload as unknown as PlaybookPayload;
+      const id = await insertPlaybook(
+        tx,
+        { title: p.title, appliesWhen: p.applies_when, rule: p.rule, enabled: true, projectIds: p.project_ids ?? [], organisationIds: p.organisation_ids ?? [] },
+        s.id,
+      );
+      return { type: "playbook", id };
+    }
+    case "cadence": {
+      const p = payload as unknown as CadencePayload;
+      const [person] = await tx.select({ id: peopleTable.id, isSelf: peopleTable.isSelf, cadence: peopleTable.cadence }).from(peopleTable).where(eq(peopleTable.id, s.entityId!));
+      if (!person) throw new NotFoundError("That person no longer exists");
+      if (person.isSelf) throw new ValidationError("Your own record has no cadence");
+      await tx.update(peopleTable).set({ cadence: p.cadence }).where(eq(peopleTable.id, person.id));
+      await audit("update", "person", person.id, { fields: ["cadence"], cadence: { from: person.cadence, to: p.cadence } });
+      return { type: "person", id: person.id };
     }
   }
 }

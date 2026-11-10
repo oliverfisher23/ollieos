@@ -10,6 +10,7 @@ import {
   tsvector,
 } from "./enums";
 import { peopleTable, projectsTable } from "./knowledge";
+import { goalsTable } from "./goals";
 
 export const noiseRulesTable = pgTable("noise_rules", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -51,6 +52,10 @@ export const tasksTable = pgTable(
     personId: integer("person_id").references(() => peopleTable.id),
     projectId: integer("project_id").references(() => projectsTable.id),
     noiseRuleId: integer("noise_rule_id").references(() => noiseRulesTable.id),
+    /** Overrides the goal inherited from the project (feature 04) */
+    goalId: integer("goal_id").references(() => goalsTable.id, { onDelete: "set null" }),
+    /** Ollie said this is not goal work, so the Goals page stops asking */
+    notGoalWork: boolean("not_goal_work").notNull().default(false),
     /** null means inherit from linked items */
     confidential: boolean("confidential"),
     capturedAt: timestamp("captured_at", { withTimezone: true }),

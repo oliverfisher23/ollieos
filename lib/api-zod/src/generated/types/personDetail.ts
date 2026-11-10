@@ -9,11 +9,13 @@ import type { Fact } from './fact';
 import type { LinkedEntity } from './linkedEntity';
 import type { Note } from './note';
 import type { Person } from './person';
+import type { PersonCadence } from './personCadence';
 import type { Task } from './task';
 import type { TimelineItem } from './timelineItem';
 
 export interface PersonDetail {
   person: Person;
+  cadence: PersonCadence;
   iOwe: Task[];
   theyOwe: Task[];
   projects: LinkedEntity[];

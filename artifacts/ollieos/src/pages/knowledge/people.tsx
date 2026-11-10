@@ -27,6 +27,7 @@ import {
   useUnlink,
 } from '@/components/knowledge/parts';
 import { copyText, firstName, isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
+import { CadencePill, CadenceSelect, CheckInDialog } from '@/pages/people-cadence';
 import { notify } from '@/lib/notify';
 import { initials, toneFor } from '@/lib/task-cache';
 
@@ -98,7 +99,8 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
   const write = useKnowledgeWrite();
   const unlink = useUnlink();
   const orgs = useListOrganisations();
-  const { person, iOwe, theyOwe, projects, facts, timeline } = data;
+  const { person, cadence, iOwe, theyOwe, projects, facts, timeline } = data;
+  const [drafting, setDrafting] = useState(false);
   const first = firstName(person.name);
   const save = (patch: PersonUpdate, done?: string) => write(() => updatePerson(slug, patch), { done });
 
@@ -193,6 +195,31 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
             <dd><InlineText value={person.email} label="Email" placeholder="Add an email" testId="person-email" onSave={(v) => save({ email: v })} /></dd>
             <dt>Last contact</dt>
             <dd data-testid="text-last-contact">{person.lastContactAt ? formatDayMonth(person.lastContactAt) : 'None recorded'}</dd>
+            {!person.isSelf && (
+              <>
+                <dt>Cadence</dt>
+                <dd style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }} data-testid="section-person-cadence">
+                  <CadenceSelect personSlug={slug} name={person.name} value={person.cadence} label="Cadence" testId="select-person-cadence" />
+                  {person.cadence !== 'none' && (
+                    <>
+                      <CadencePill c={cadence} testId="pill-person-cadence" />
+                      {cadence.pausedByProjects && <span className="oo-muted" style={{ fontSize: 12 }}>Paused because every shared project is paused or complete.</span>}
+                      <button
+                        type="button"
+                        className="oo-textbtn"
+                        onClick={() => save({ cadencePaused: !person.cadencePaused }, person.cadencePaused ? 'Check-ins resumed' : 'Check-ins paused')}
+                        data-testid="button-pause-cadence"
+                      >
+                        {person.cadencePaused ? 'Resume check-ins' : 'Pause check-ins'}
+                      </button>
+                      {(cadence.status === 'overdue' || cadence.status === 'due_soon') && (
+                        <button type="button" className="oo-btn oo-btn-ink oo-btn-sm" onClick={() => setDrafting(true)} data-testid="button-person-draft-checkin">Draft a check-in</button>
+                      )}
+                    </>
+                  )}
+                </dd>
+              </>
+            )}
             <dt>Projects</dt>
             <dd style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
               {projects.length === 0 && <span className="oo-muted">None yet</span>}
@@ -220,6 +247,7 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
 
         <AskClaudePanel data={data} />
       </aside>
+      {drafting && <CheckInDialog person={person} onClose={() => setDrafting(false)} />}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, inArray, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import {
   db,
+  goalsTable,
   peopleTable,
   projectsTable,
   tasksTable,
@@ -178,6 +179,10 @@ export interface TaskUpdateInput {
   personId?: number | null;
   waitingOnPersonId?: number | null;
   confidential?: boolean | null;
+  /** A direct goal link; overrides the project's goal */
+  goalId?: number | null;
+  /** "Not goal work": the Goals page stops asking about it */
+  notGoalWork?: boolean;
 }
 
 export async function personName(id: number | null): Promise<string | null> {
@@ -185,6 +190,13 @@ export async function personName(id: number | null): Promise<string | null> {
   const [p] = await db.select({ name: peopleTable.name }).from(peopleTable).where(eq(peopleTable.id, id));
   if (!p) throw new ValidationError("That person does not exist");
   return p.name;
+}
+
+async function goalName(id: number | null): Promise<string | null> {
+  if (!id) return null;
+  const [g] = await db.select({ name: goalsTable.name }).from(goalsTable).where(eq(goalsTable.id, id));
+  if (!g) throw new ValidationError("That goal does not exist");
+  return g.name;
 }
 
 async function projectName(id: number | null): Promise<string | null> {
@@ -250,6 +262,18 @@ export async function updateTask(id: number, input: TaskUpdateInput, actor: stri
       from: current.confidential === null ? null : current.confidential ? "Yes" : "No",
       to: input.confidential === null ? null : input.confidential ? "Yes" : "No",
     });
+  }
+
+  // Linking a goal answers the Goals page's question, so "Not goal work" and a goal never both stand.
+  if (input.goalId !== undefined && input.goalId !== current.goalId) {
+    set.goalId = input.goalId;
+    if (input.goalId != null && current.notGoalWork) set.notGoalWork = false;
+    changes.push({ field: "goal", from: await goalName(current.goalId), to: await goalName(input.goalId) });
+  }
+  if (input.notGoalWork !== undefined && input.notGoalWork !== current.notGoalWork) {
+    set.notGoalWork = input.notGoalWork;
+    if (input.notGoalWork && (set.goalId ?? current.goalId) != null) set.goalId = null;
+    changes.push({ field: "notGoalWork", from: current.notGoalWork ? "Yes" : "No", to: input.notGoalWork ? "Yes" : "No" });
   }
 
   let statusChanged = false;

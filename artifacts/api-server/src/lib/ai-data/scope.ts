@@ -6,10 +6,13 @@ import {
   auditEventsTable,
   db,
   decisionsTable,
+  documentsTable,
   factsTable,
+  goalsTable,
   notesTable,
   organisationsTable,
   peopleTable,
+  playbooksTable,
   projectsTable,
   tasksTable,
 } from "@workspace/db";
@@ -19,10 +22,12 @@ import {
   NO_GRANTS,
   activityVisible,
   decisionVisible,
+  documentVisible,
   factVisible,
   noteVisible,
   organisationVisible,
   personVisible,
+  playbookVisible,
   projectVisible,
   taskVisible,
   type GrantType,
@@ -114,6 +119,10 @@ export async function visibleRefs(scope: AiScope, refList: readonly string[]): P
     q("note", (i) => db.select({ id: notesTable.id }).from(notesTable).where(and(inArray(notesTable.id, i), sql.raw(noteVisible("notes", g))))),
     q("fact", (i) => db.select({ id: factsTable.id }).from(factsTable).where(and(inArray(factsTable.id, i), sql.raw(factVisible("facts", g))))),
     q("activity", (i) => db.select({ id: activityTable.id }).from(activityTable).where(and(inArray(activityTable.id, i), sql.raw(activityVisible("activity", g))))),
+    // A goal is always visible by name; its target text is withheld where it is sent, not here.
+    q("goal", (i) => db.select({ id: goalsTable.id }).from(goalsTable).where(inArray(goalsTable.id, i))),
+    q("document", (i) => db.select({ id: documentsTable.id }).from(documentsTable).where(and(inArray(documentsTable.id, i), sql.raw(documentVisible("documents", g))))),
+    q("playbook", (i) => db.select({ id: playbooksTable.id }).from(playbooksTable).where(and(inArray(playbooksTable.id, i), sql.raw(playbookVisible("playbooks", g))))),
   ]);
   return new Set(parts.flat());
 }

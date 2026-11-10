@@ -6,3 +6,5 @@ export * from "./access";
 export * from "./calendar";
 export * from "./audit";
 export * from "./review";
+export * from "./goals";
+export * from "./library";

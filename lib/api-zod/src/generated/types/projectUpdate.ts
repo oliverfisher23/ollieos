@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { ProjectLifecycle } from './projectLifecycle';
 
 export interface ProjectUpdate {
   /**
@@ -21,4 +22,7 @@ export interface ProjectUpdate {
   confidential?: boolean;
   aiAccess?: boolean;
   archived?: boolean;
+  /** @nullable */
+  goalId?: number | null;
+  lifecycle?: ProjectLifecycle;
 }

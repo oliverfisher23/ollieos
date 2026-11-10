@@ -170,7 +170,14 @@ export const GetHomeResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 }),
   "reason": zod.string().describe('One-line reason, e.g. "Overdue by 2 days" or "High priority, due Friday 13th November"')
 })).describe('Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped.'),
@@ -233,7 +240,14 @@ export const GetHomeResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 }),
   "daysWaiting": zod.int().describe('Whole days since waitingSince (or updatedAt if unknown). Amber at 5 or more.')
 })),
@@ -288,7 +302,14 @@ export const GetHomeResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 })).describe('Open tasks with kind promise'),
   "doneThisWeek": zod.object({
   "count": zod.int(),
@@ -343,7 +364,14 @@ export const GetHomeResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 })).describe('Up to 5, most recently completed first')
 }),
   "lastSweepAt": zod.coerce.date().nullable().describe('When the last successful sweep finished. Null until the sweep runs (milestone 5).'),
@@ -471,7 +499,14 @@ export const ListTasksResponseItem = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 })
 export const ListTasksResponse = zod.array(ListTasksResponseItem)
 
@@ -564,7 +599,14 @@ export const QuickAddTaskResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 }),
   "warnings": zod.array(zod.string()).describe('e.g. "No project called @foo, added without a project"')
 })
@@ -629,7 +671,14 @@ export const GetTaskResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 }),
   "history": zod.array(zod.object({
   "id": zod.int(),
@@ -661,7 +710,9 @@ export const UpdateTaskBody = zod.object({
   "projectId": zod.int().nullish(),
   "personId": zod.int().nullish(),
   "waitingOnPersonId": zod.int().nullish(),
-  "confidential": zod.boolean().nullish()
+  "confidential": zod.boolean().nullish(),
+  "goalId": zod.int().nullish(),
+  "notGoalWork": zod.boolean().optional()
 })
 
 export const UpdateTaskResponse = zod.object({
@@ -715,7 +766,14 @@ export const UpdateTaskResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 })
 
 
@@ -777,7 +835,14 @@ export const SnoozeTaskResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 })
 
 
@@ -878,7 +943,14 @@ export const TriageTaskResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 }),
   "noiseRule": zod.union([zod.object({
   "id": zod.int(),
@@ -953,7 +1025,14 @@ export const UndoTaskResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 })
 
 
@@ -1015,7 +1094,14 @@ export const RestoreTaskResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 })
 
 
@@ -1136,6 +1222,8 @@ export const CreateProjectResponse = zod.object({
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean().describe('Readable by AI. Has no effect while confidential is on.'),
   "archived": zod.boolean(),
+  "goalId": zod.int().nullable(),
+  "lifecycle": zod.enum(['active', 'paused', 'complete']),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -1159,9 +1247,54 @@ export const GetProjectResponse = zod.object({
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean().describe('Readable by AI. Has no effect while confidential is on.'),
   "archived": zod.boolean(),
+  "goalId": zod.int().nullable(),
+  "lifecycle": zod.enum(['active', 'paused', 'complete']),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "parentName": zod.string().nullable().describe('Set when the project is linked to a sub-goal')
+}),zod.null()]),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "url": zod.string(),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other']),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked projects'),
+  "lastConfirmedAt": zod.coerce.date().describe('Shown as Updated'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "hiddenFromAi": zod.boolean()
+})),
+  "playbooks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "appliesWhen": zod.string(),
+  "rule": zod.string(),
+  "enabled": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "organisations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read')
+})).describe('Global ones and those linked to the project or its organisations'),
   "facts": zod.array(zod.object({
   "id": zod.int(),
   "entityType": zod.string(),
@@ -1249,7 +1382,14 @@ export const GetProjectResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 })),
   "people": zod.array(zod.object({
   "id": zod.int(),
@@ -1313,7 +1453,9 @@ export const UpdateProjectBody = zod.object({
   "summary": zod.string().nullish(),
   "confidential": zod.boolean().optional(),
   "aiAccess": zod.boolean().optional(),
-  "archived": zod.boolean().optional()
+  "archived": zod.boolean().optional(),
+  "goalId": zod.int().nullish(),
+  "lifecycle": zod.enum(['active', 'paused', 'complete']).optional()
 })
 
 export const UpdateProjectResponse = zod.object({
@@ -1326,6 +1468,8 @@ export const UpdateProjectResponse = zod.object({
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean().describe('Readable by AI. Has no effect while confidential is on.'),
   "archived": zod.boolean(),
+  "goalId": zod.int().nullable(),
+  "lifecycle": zod.enum(['active', 'paused', 'complete']),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -1387,6 +1531,9 @@ export const CreatePersonResponse = zod.object({
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
+  "cadencePaused": zod.boolean(),
+  "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -1416,8 +1563,21 @@ export const GetPersonResponse = zod.object({
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
+  "cadencePaused": zod.boolean(),
+  "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+}),
+  "cadence": zod.object({
+  "status": zod.enum(['overdue', 'due_soon', 'on_track', 'paused', 'none']),
+  "daysSince": zod.int().nullable().describe('Whole days since the last contact; null when there is none on file'),
+  "daysOverdue": zod.int().nullable(),
+  "daysLeft": zod.int().nullable(),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
+  "cadenceLabel": zod.string(),
+  "cadencePaused": zod.boolean(),
+  "pausedByProjects": zod.boolean().describe('True when every linked project is paused or complete')
 }),
   "iOwe": zod.array(zod.object({
   "id": zod.int(),
@@ -1470,7 +1630,14 @@ export const GetPersonResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 })),
   "theyOwe": zod.array(zod.object({
   "id": zod.int(),
@@ -1523,7 +1690,14 @@ export const GetPersonResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 })),
   "projects": zod.array(zod.object({
   "id": zod.int(),
@@ -1597,7 +1771,9 @@ export const UpdatePersonBody = zod.object({
   "email": zod.string().nullish(),
   "relationshipSummary": zod.string().nullish(),
   "confidential": zod.boolean().optional(),
-  "aiAccess": zod.boolean().optional()
+  "aiAccess": zod.boolean().optional(),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']).optional(),
+  "cadencePaused": zod.boolean().optional()
 })
 
 export const UpdatePersonResponse = zod.object({
@@ -1616,8 +1792,445 @@ export const UpdatePersonResponse = zod.object({
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
+  "cadencePaused": zod.boolean(),
+  "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Everyone with a check-in cadence, with their status and the count for each tab
+ */
+export const ListCadenceQueryParams = zod.object({
+  "tab": zod.enum(['all', 'overdue', 'due_soon', 'on_track']).optional()
+})
+
+export const ListCadenceResponse = zod.object({
+  "tab": zod.enum(['all', 'overdue', 'due_soon', 'on_track']),
+  "counts": zod.object({
+  "all": zod.int(),
+  "overdue": zod.int(),
+  "due_soon": zod.int(),
+  "on_track": zod.int()
+}),
+  "people": zod.array(zod.object({
+  "status": zod.enum(['overdue', 'due_soon', 'on_track', 'paused', 'none']),
+  "daysSince": zod.int().nullable().describe('Whole days since the last contact; null when there is none on file'),
+  "daysOverdue": zod.int().nullable(),
+  "daysLeft": zod.int().nullable(),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
+  "cadenceLabel": zod.string(),
+  "cadencePaused": zod.boolean(),
+  "pausedByProjects": zod.boolean().describe('True when every linked project is paused or complete')
+}).and(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "role": zod.string().nullable(),
+  "organisation": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "lifecycle": zod.enum(['active', 'paused', 'complete'])
+}),zod.null()]),
+  "lastContactAt": zod.coerce.date().nullable()
+})))
+})
+
+
+/**
+ * @summary Drafts a short check-in for Ollie to copy. Nothing is sent.
+ */
+export const DraftCheckInParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const DraftCheckInResponse = zod.object({
+  "text": zod.string(),
+  "threads": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.enum(['task', 'project']),
+  "title": zod.string(),
+  "path": zod.string().describe('App path to open the thread')
+}))
+})
+
+
+/**
+ * @summary The Goals page
+ */
+export const ListGoalsResponse = zod.object({
+  "goals": zod.array(zod.object({
+  "id": zod.int(),
+  "parentId": zod.int().nullable(),
+  "name": zod.string(),
+  "statement": zod.string().nullable(),
+  "targetText": zod.string().nullable().describe('Never sent to AI tools when the goal is confidential'),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "confidential": zod.boolean(),
+  "sortOrder": zod.int()
+}).and(zod.object({
+  "number": zod.int().describe('Position on the page'),
+  "subGoals": zod.array(zod.object({
+  "id": zod.int(),
+  "parentId": zod.int().nullable(),
+  "name": zod.string(),
+  "statement": zod.string().nullable(),
+  "targetText": zod.string().nullable().describe('Never sent to AI tools when the goal is confidential'),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "confidential": zod.boolean(),
+  "sortOrder": zod.int()
+}).and(zod.object({
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}))
+}))),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})).describe('Projects linked to the goal itself'),
+  "openTasks": zod.int().describe('Including its sub-goals'),
+  "dueThisWeek": zod.int()
+}))),
+  "supporting": zod.int().describe('This week\'s tasks that count towards a goal'),
+  "thisWeekTotal": zod.int().describe('Tasks due this week or in Now'),
+  "unlinked": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string(),
+  "dueDate": zod.coerce.date().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()])
+})),
+  "weekStart": zod.coerce.date()
+})
+
+
+/**
+ * @summary New goal or sub-goal
+ */
+export const createGoalBodyNameMax = 200;
+
+export const createGoalBodyStatementMax = 2000;
+
+export const createGoalBodyTargetTextMax = 2000;
+
+
+
+export const CreateGoalBody = zod.object({
+  "name": zod.string().min(1).max(createGoalBodyNameMax),
+  "parentId": zod.int().nullish(),
+  "statement": zod.string().max(createGoalBodyStatementMax).nullish(),
+  "targetText": zod.string().max(createGoalBodyTargetTextMax).nullish(),
+  "periodStart": zod.coerce.date().nullish(),
+  "periodEnd": zod.coerce.date().nullish(),
+  "confidential": zod.boolean().optional(),
+  "sortOrder": zod.int().optional()
+})
+
+export const CreateGoalResponse = zod.object({
+  "id": zod.int(),
+  "parentId": zod.int().nullable(),
+  "name": zod.string(),
+  "statement": zod.string().nullable(),
+  "targetText": zod.string().nullable().describe('Never sent to AI tools when the goal is confidential'),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "confidential": zod.boolean(),
+  "sortOrder": zod.int()
+})
+
+
+/**
+ * @summary Goals and sub-goals for pickers
+ */
+export const ListGoalOptionsResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "parentId": zod.int().nullable()
+})
+export const ListGoalOptionsResponse = zod.array(ListGoalOptionsResponseItem)
+
+
+/**
+ * @summary Edit a goal
+ */
+export const UpdateGoalParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateGoalBodyNameMax = 200;
+
+export const updateGoalBodyStatementMax = 2000;
+
+export const updateGoalBodyTargetTextMax = 2000;
+
+
+
+export const UpdateGoalBody = zod.object({
+  "name": zod.string().min(1).max(updateGoalBodyNameMax).optional(),
+  "parentId": zod.int().nullish(),
+  "statement": zod.string().max(updateGoalBodyStatementMax).nullish(),
+  "targetText": zod.string().max(updateGoalBodyTargetTextMax).nullish(),
+  "periodStart": zod.coerce.date().nullish(),
+  "periodEnd": zod.coerce.date().nullish(),
+  "confidential": zod.boolean().optional(),
+  "sortOrder": zod.int().optional()
+})
+
+export const UpdateGoalResponse = zod.object({
+  "id": zod.int(),
+  "parentId": zod.int().nullable(),
+  "name": zod.string(),
+  "statement": zod.string().nullable(),
+  "targetText": zod.string().nullable().describe('Never sent to AI tools when the goal is confidential'),
+  "periodStart": zod.coerce.date().nullable(),
+  "periodEnd": zod.coerce.date().nullable(),
+  "confidential": zod.boolean(),
+  "sortOrder": zod.int()
+})
+
+
+/**
+ * @summary The document index, optionally for one project
+ */
+export const ListDocumentsQueryParams = zod.object({
+  "projectId": zod.coerce.number().int().optional()
+})
+
+export const ListDocumentsResponseItem = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "url": zod.string(),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other']),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked projects'),
+  "lastConfirmedAt": zod.coerce.date().describe('Shown as Updated'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "hiddenFromAi": zod.boolean()
+})
+export const ListDocumentsResponse = zod.array(ListDocumentsResponseItem)
+
+
+/**
+ * @summary Add a document from a pasted link
+ */
+export const createDocumentBodyUrlMax = 2000;
+
+export const createDocumentBodyTitleMax = 300;
+
+export const createDocumentBodySummaryMax = 2000;
+
+
+
+export const CreateDocumentBody = zod.object({
+  "url": zod.string().min(1).max(createDocumentBodyUrlMax),
+  "title": zod.string().max(createDocumentBodyTitleMax).nullish(),
+  "summary": zod.string().max(createDocumentBodySummaryMax).nullish(),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other']).optional(),
+  "confidential": zod.boolean().nullish(),
+  "projectIds": zod.array(zod.int()).optional()
+})
+
+export const CreateDocumentResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "url": zod.string(),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other']),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked projects'),
+  "lastConfirmedAt": zod.coerce.date().describe('Shown as Updated'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "hiddenFromAi": zod.boolean()
+})
+
+
+/**
+ * @summary Edit a document, or confirm it is still current
+ */
+export const UpdateDocumentParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateDocumentBodyUrlMax = 2000;
+
+export const updateDocumentBodyTitleMax = 300;
+
+export const updateDocumentBodySummaryMax = 2000;
+
+
+
+export const UpdateDocumentBody = zod.object({
+  "url": zod.string().min(1).max(updateDocumentBodyUrlMax).optional(),
+  "title": zod.string().min(1).max(updateDocumentBodyTitleMax).optional(),
+  "summary": zod.string().max(updateDocumentBodySummaryMax).nullish(),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other']).optional(),
+  "confidential": zod.boolean().nullish(),
+  "projectIds": zod.array(zod.int()).optional(),
+  "confirm": zod.boolean().optional().describe('Still current; moves Updated to now')
+})
+
+export const UpdateDocumentResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "url": zod.string(),
+  "location": zod.enum(['dropbox', 'gdrive', 'claude_project', 'other']),
+  "summary": zod.string().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked projects'),
+  "lastConfirmedAt": zod.coerce.date().describe('Shown as Updated'),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "hiddenFromAi": zod.boolean()
+})
+
+
+/**
+ * @summary Every playbook, enabled or paused
+ */
+export const ListPlaybooksResponseItem = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "appliesWhen": zod.string(),
+  "rule": zod.string(),
+  "enabled": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "organisations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read')
+})
+export const ListPlaybooksResponse = zod.array(ListPlaybooksResponseItem)
+
+
+/**
+ * @summary New playbook
+ */
+export const createPlaybookBodyTitleMax = 200;
+
+export const createPlaybookBodyAppliesWhenMax = 300;
+
+export const createPlaybookBodyRuleMax = 400;
+
+
+
+export const CreatePlaybookBody = zod.object({
+  "title": zod.string().min(1).max(createPlaybookBodyTitleMax),
+  "appliesWhen": zod.string().min(1).max(createPlaybookBodyAppliesWhenMax),
+  "rule": zod.string().min(1).max(createPlaybookBodyRuleMax),
+  "enabled": zod.boolean().optional(),
+  "projectIds": zod.array(zod.int()).optional(),
+  "organisationIds": zod.array(zod.int()).optional()
+})
+
+export const CreatePlaybookResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "appliesWhen": zod.string(),
+  "rule": zod.string(),
+  "enabled": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "organisations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read')
+})
+
+
+/**
+ * @summary Edit, pause or resume a playbook
+ */
+export const UpdatePlaybookParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updatePlaybookBodyTitleMax = 200;
+
+export const updatePlaybookBodyAppliesWhenMax = 300;
+
+export const updatePlaybookBodyRuleMax = 400;
+
+
+
+export const UpdatePlaybookBody = zod.object({
+  "title": zod.string().min(1).max(updatePlaybookBodyTitleMax).optional(),
+  "appliesWhen": zod.string().min(1).max(updatePlaybookBodyAppliesWhenMax).optional(),
+  "rule": zod.string().min(1).max(updatePlaybookBodyRuleMax).optional(),
+  "enabled": zod.boolean().optional(),
+  "projectIds": zod.array(zod.int()).optional(),
+  "organisationIds": zod.array(zod.int()).optional()
+})
+
+export const UpdatePlaybookResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "appliesWhen": zod.string(),
+  "rule": zod.string(),
+  "enabled": zod.boolean(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "organisations": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read')
 })
 
 
@@ -2107,7 +2720,7 @@ export const ListKnowledgeInboxResponse = zod.object({
   "key": zod.string(),
   "id": zod.int().describe('Suggestion id on the Suggested tab'),
   "group": zod.enum(['suggested', 'conflicts', 'stale']),
-  "kind": zod.enum(['new_fact', 'new_person', 'new_organisation', 'new_project', 'proposed_decision', 'changed_summary', 'changed_details', 'conflict', 'stale_fact']),
+  "kind": zod.enum(['new_fact', 'new_person', 'new_organisation', 'new_project', 'proposed_decision', 'changed_summary', 'changed_details', 'new_document', 'new_playbook', 'cadence_change', 'conflict', 'stale_fact']),
   "target": zod.union([zod.object({
   "type": zod.string(),
   "id": zod.int().nullable().describe('Null for a person'),
@@ -2341,7 +2954,7 @@ export const SearchKnowledgeQueryParams = zod.object({
 export const SearchKnowledgeResponse = zod.object({
   "q": zod.string(),
   "hits": zod.array(zod.object({
-  "type": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note', 'fact']),
+  "type": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note', 'fact', 'document']),
   "id": zod.int(),
   "title": zod.string(),
   "snippet": zod.string().nullable(),
@@ -2482,7 +3095,14 @@ export const AskOllieOSResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -2599,7 +3219,14 @@ export const GetAskThreadResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -2716,7 +3343,14 @@ export const DraftAskReplyResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -2833,7 +3467,14 @@ export const AllowAskTurnResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -2959,7 +3600,14 @@ export const BundleAskTasksResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -3076,7 +3724,14 @@ export const UndoAskBundleResponse = zod.object({
   "matchValue": zod.string(),
   "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
 }),zod.null()]).describe('The rule that caught this item, if any'),
-  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)')
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),

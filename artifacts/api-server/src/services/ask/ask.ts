@@ -3,7 +3,9 @@ import {
   askThreadsTable,
   db,
   decisionsTable,
+  documentsTable,
   factsTable,
+  goalsTable,
   notesTable,
   peopleTable,
   tasksTable,
@@ -21,7 +23,7 @@ import {
   type Priority,
   type TaskStatus,
 } from "@workspace/shared";
-import { loadVisibleDocs, retrieveForAsk, type AiDoc } from "../../lib/ai-data/retrieve";
+import { applicablePlaybookRefs, loadVisibleDocs, retrieveForAsk, type AiDoc } from "../../lib/ai-data/retrieve";
 import { askClient, buildScope, defaultScope, recordReads, visibleRefs, type AiScope } from "../../lib/ai-data/scope";
 import type { GrantType } from "../../lib/ai-data/visibility";
 import { describeRefs, grantDirect } from "../access";
@@ -109,6 +111,8 @@ function entityPath(type: string, slug: string | null, id: number): string | nul
   if (type === "decision") return `/knowledge/decisions/${id}`;
   if (type === "note") return `/knowledge/notes/${id}`;
   if (type === "task") return `/tasks?task=${id}`;
+  if (type === "goal") return `/goals`;
+  if (type === "document") return `/knowledge/library?document=${id}`;
   return null;
 }
 
@@ -118,11 +122,15 @@ const clip = (s: string, n = 48) => (s.length > n ? s.slice(0, n - 1).trimEnd() 
 async function resolveChips(refs: string[]) {
   const parsed = refs.map(parseRef).filter((r): r is NonNullable<typeof r> => !!r);
   const ids = (t: string) => [...new Set(parsed.filter((r) => r.type === t).map((r) => r.id))];
-  const [tasks, decisions, notes, facts] = await Promise.all([
+  const [tasks, decisions, notes, facts, goals, documents] = await Promise.all([
     ids("task").length ? db.select().from(tasksTable).where(inArray(tasksTable.id, ids("task"))) : [],
     ids("decision").length ? db.select().from(decisionsTable).where(inArray(decisionsTable.id, ids("decision"))) : [],
     ids("note").length ? db.select().from(notesTable).where(inArray(notesTable.id, ids("note"))) : [],
     ids("fact").length ? db.select().from(factsTable).where(inArray(factsTable.id, ids("fact"))) : [],
+    ids("goal").length ? db.select({ id: goalsTable.id, name: goalsTable.name, confidential: goalsTable.confidential }).from(goalsTable).where(inArray(goalsTable.id, ids("goal"))) : [],
+    ids("document").length
+      ? db.select({ id: documentsTable.id, title: documentsTable.title, confidential: documentsTable.confidential }).from(documentsTable).where(inArray(documentsTable.id, ids("document")))
+      : [],
   ]);
   const parents = [
     ...parsed.filter((r) => r.type === "project" || r.type === "person" || r.type === "organisation"),
@@ -182,6 +190,18 @@ async function resolveChips(refs: string[]) {
     const e = entities.get(`${r.type}:${r.id}`);
     if (!e) continue;
     chips.set(`${r.type}:${r.id}`, { ref: `${r.type}:${r.id}`, type: r.type, label: e.name, path: entityPath(r.type, e.slug, r.id), confidential: confidentialSet.has(`${r.type}:${r.id}`) });
+  }
+  for (const g of goals) {
+    chips.set(toRef("goal", g.id), { ref: toRef("goal", g.id), type: "goal", label: `Goal · ${clip(g.name, 36)}`, path: entityPath("goal", null, g.id), confidential: g.confidential });
+  }
+  for (const d of documents) {
+    chips.set(toRef("document", d.id), {
+      ref: toRef("document", d.id),
+      type: "document",
+      label: `Document · ${clip(d.title, 36)}`,
+      path: entityPath("document", null, d.id),
+      confidential: d.confidential === true,
+    });
   }
   return { chips, taskById };
 }
@@ -367,7 +387,7 @@ async function computeAnswer(scope: AiScope, q: string, prior: PriorTurn[], carr
     throw new UpstreamError("Ask OllieOS could not reach the model just now. Try again in a moment.");
   }
   // Only refs that were actually handed to the model count; anything else is dropped, and an item left without a source goes too.
-  const allowed = new Set(docs.map((d) => d.ref));
+  const allowed = new Set(docs.filter((d) => d.type !== "playbook").map((d) => d.ref));
   const items = raw.items
     .map((i) => ({ text: i.text, refs: [...new Set(i.refs.map((r) => r.trim()))].filter((r) => allowed.has(r)) }))
     .filter((i) => i.text && i.refs.length);
@@ -413,7 +433,7 @@ async function priorFor(parentId: number | null | undefined): Promise<{ prior: P
   };
 }
 
-async function askScope(): Promise<AiScope> {
+export async function askScope(): Promise<AiScope> {
   return buildScope(await askClient());
 }
 
@@ -492,8 +512,9 @@ export async function draftReply(id: number): Promise<{ turns: AskTurnView[] }> 
   // Re-read through the filter: anything hidden since the answer was made is left out of the draft.
   const refs = [...row.citedIds, ...(answer.draftTo ? [answer.draftTo.ref] : [])];
   const scope = await askScope();
-  const docs = await loadVisibleDocs(scope, refs);
-  if (!docs.length) throw new ConflictError("The items behind this answer are no longer readable by AI");
+  const cited = await loadVisibleDocs(scope, refs);
+  if (!cited.length) throw new ConflictError("The items behind this answer are no longer readable by AI");
+  const docs = [...(await loadVisibleDocs(scope, await applicablePlaybookRefs(scope, refs))), ...cited];
   await recordReads(scope, docs.map((d) => d.ref), { via: "ask_draft", threadId: id, question: row.question });
   let text: string;
   try {

@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { Cadence } from './cadence';
 
 export interface PersonUpdate {
   /**
@@ -22,4 +23,6 @@ export interface PersonUpdate {
   relationshipSummary?: string | null;
   confidential?: boolean;
   aiAccess?: boolean;
+  cadence?: Cadence;
+  cadencePaused?: boolean;
 }

@@ -1,5 +1,5 @@
 /** Entity refs look like "task:42". They are how Ask answers cite items and how links name both ends. */
-export const REF_TYPES = ["task", "project", "person", "organisation", "decision", "note", "fact", "activity"] as const;
+export const REF_TYPES = ["task", "project", "person", "organisation", "decision", "note", "fact", "activity", "goal", "document", "playbook"] as const;
 export type RefType = (typeof REF_TYPES)[number];
 
 export interface Ref {

@@ -57,6 +57,8 @@ const UpdateBody = z
     personId: z.number().int().positive().nullable().optional(),
     waitingOnPersonId: z.number().int().positive().nullable().optional(),
     confidential: z.boolean().nullable().optional(),
+    goalId: z.number().int().positive().nullable().optional(),
+    notGoalWork: z.boolean().optional(),
   })
   .strict();
 

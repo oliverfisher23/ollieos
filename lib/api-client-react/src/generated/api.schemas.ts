@@ -129,6 +129,13 @@ export interface NoiseRuleSummary {
   label: string;
 }
 
+export interface TaskGoal {
+  id: number;
+  name: string;
+  /** True when it comes from the task's project */
+  inherited: boolean;
+}
+
 export interface Task {
   id: number;
   title: string;
@@ -183,6 +190,15 @@ export interface Task {
   noiseRule: NoiseRuleSummary | null;
   /** AI tools cannot read this task without an approval (own flag or inherited) */
   hiddenFromAi: boolean;
+  /** The goal it counts towards, its own link or else its project's (inherited) */
+  goal: TaskGoal | null;
+  /**
+     * A direct goal link; overrides the project's goal
+     * @nullable
+     */
+  goalId: number | null;
+  /** Ollie marked it as not goal work */
+  notGoalWork: boolean;
 }
 
 export interface TaskUpdate {
@@ -203,6 +219,9 @@ export interface TaskUpdate {
   waitingOnPersonId?: number | null;
   /** @nullable */
   confidential?: boolean | null;
+  /** @nullable */
+  goalId?: number | null;
+  notGoalWork?: boolean;
 }
 
 export interface HistoryEvent {
@@ -476,6 +495,15 @@ export interface ProjectListItem {
   updatedAt: string;
 }
 
+export type ProjectLifecycle = typeof ProjectLifecycle[keyof typeof ProjectLifecycle];
+
+
+export const ProjectLifecycle = {
+  active: 'active',
+  paused: 'paused',
+  complete: 'complete',
+} as const;
+
 export interface Project {
   id: number;
   name: string;
@@ -490,6 +518,9 @@ export interface Project {
   /** Readable by AI. Has no effect while confidential is on. */
   aiAccess: boolean;
   archived: boolean;
+  /** @nullable */
+  goalId: number | null;
+  lifecycle: ProjectLifecycle;
   createdAt: string;
   updatedAt: string;
 }
@@ -525,6 +556,9 @@ export interface ProjectUpdate {
   confidential?: boolean;
   aiAccess?: boolean;
   archived?: boolean;
+  /** @nullable */
+  goalId?: number | null;
+  lifecycle?: ProjectLifecycle;
 }
 
 export interface LinkedEntity {
@@ -679,6 +713,9 @@ export const KnowledgeInboxItemKind = {
   proposed_decision: 'proposed_decision',
   changed_summary: 'changed_summary',
   changed_details: 'changed_details',
+  new_document: 'new_document',
+  new_playbook: 'new_playbook',
+  cadence_change: 'cadence_change',
   conflict: 'conflict',
   stale_fact: 'stale_fact',
 } as const;
@@ -1000,8 +1037,73 @@ export interface TimelineItem {
   sourceUrl: string | null;
 }
 
+export interface ProjectGoal {
+  id: number;
+  name: string;
+  /**
+     * Set when the project is linked to a sub-goal
+     * @nullable
+     */
+  parentName: string | null;
+}
+
+export type DocLocation = typeof DocLocation[keyof typeof DocLocation];
+
+
+export const DocLocation = {
+  dropbox: 'dropbox',
+  gdrive: 'gdrive',
+  claude_project: 'claude_project',
+  other: 'other',
+} as const;
+
+export interface NamedLink {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export interface LibraryDocument {
+  id: number;
+  title: string;
+  url: string;
+  location: DocLocation;
+  /** @nullable */
+  summary: string | null;
+  /**
+     * null means inherit from linked projects
+     * @nullable
+     */
+  confidential: boolean | null;
+  /** Shown as Updated */
+  lastConfirmedAt: string;
+  createdBy: string;
+  createdAt: string;
+  projects: NamedLink[];
+  hiddenFromAi: boolean;
+}
+
+export interface Playbook {
+  id: number;
+  title: string;
+  appliesWhen: string;
+  rule: string;
+  enabled: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  projects: NamedLink[];
+  organisations: NamedLink[];
+  /** Enabled and global or linked to something AI can read */
+  sentToAi: boolean;
+}
+
 export interface ProjectDetail {
   project: Project;
+  goal: ProjectGoal | null;
+  documents: LibraryDocument[];
+  /** Global ones and those linked to the project or its organisations */
+  playbooks: Playbook[];
   facts: Fact[];
   decisions: Decision[];
   openTasks: Task[];
@@ -1026,6 +1128,18 @@ export interface PersonListItem {
   theyOweCount: number;
 }
 
+export type Cadence = typeof Cadence[keyof typeof Cadence];
+
+
+export const Cadence = {
+  none: 'none',
+  weekly: 'weekly',
+  fortnightly: 'fortnightly',
+  monthly: 'monthly',
+  two_monthly: 'two_monthly',
+  quarterly: 'quarterly',
+} as const;
+
 export interface Person {
   id: number;
   name: string;
@@ -1041,6 +1155,10 @@ export interface Person {
   /** @nullable */
   lastContactAt: string | null;
   organisation: EntitySummary | null;
+  cadence: Cadence;
+  cadencePaused: boolean;
+  /** Ollie's own record */
+  isSelf: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -1079,10 +1197,42 @@ export interface PersonUpdate {
   relationshipSummary?: string | null;
   confidential?: boolean;
   aiAccess?: boolean;
+  cadence?: Cadence;
+  cadencePaused?: boolean;
+}
+
+export type CadenceStatus = typeof CadenceStatus[keyof typeof CadenceStatus];
+
+
+export const CadenceStatus = {
+  overdue: 'overdue',
+  due_soon: 'due_soon',
+  on_track: 'on_track',
+  paused: 'paused',
+  none: 'none',
+} as const;
+
+export interface PersonCadence {
+  status: CadenceStatus;
+  /**
+     * Whole days since the last contact; null when there is none on file
+     * @nullable
+     */
+  daysSince: number | null;
+  /** @nullable */
+  daysOverdue: number | null;
+  /** @nullable */
+  daysLeft: number | null;
+  cadence: Cadence;
+  cadenceLabel: string;
+  cadencePaused: boolean;
+  /** True when every linked project is paused or complete */
+  pausedByProjects: boolean;
 }
 
 export interface PersonDetail {
   person: Person;
+  cadence: PersonCadence;
   iOwe: Task[];
   theyOwe: Task[];
   projects: LinkedEntity[];
@@ -1187,6 +1337,7 @@ export const SearchHitType = {
   decision: 'decision',
   note: 'note',
   fact: 'fact',
+  document: 'document',
 } as const;
 
 export interface SearchHit {
@@ -1462,6 +1613,277 @@ export interface AiActivity {
   context: string | null;
 }
 
+export type CadenceTab = typeof CadenceTab[keyof typeof CadenceTab];
+
+
+export const CadenceTab = {
+  all: 'all',
+  overdue: 'overdue',
+  due_soon: 'due_soon',
+  on_track: 'on_track',
+} as const;
+
+export interface CadenceProject {
+  id: number;
+  name: string;
+  slug: string;
+  lifecycle: ProjectLifecycle;
+}
+
+export type CadenceRow = PersonCadence & ({
+  id: number;
+  name: string;
+  slug: string;
+  confidential: boolean;
+  /** @nullable */
+  role: string | null;
+  organisation: NamedLink | null;
+  project: CadenceProject | null;
+  /** @nullable */
+  lastContactAt: string | null;
+});
+
+export interface CadenceCounts {
+  all: number;
+  overdue: number;
+  due_soon: number;
+  on_track: number;
+}
+
+export interface CadencePage {
+  tab: CadenceTab;
+  counts: CadenceCounts;
+  people: CadenceRow[];
+}
+
+export type CheckInThreadType = typeof CheckInThreadType[keyof typeof CheckInThreadType];
+
+
+export const CheckInThreadType = {
+  task: 'task',
+  project: 'project',
+} as const;
+
+export interface CheckInThread {
+  ref: string;
+  type: CheckInThreadType;
+  title: string;
+  /** App path to open the thread */
+  path: string;
+}
+
+export interface CheckInDraft {
+  text: string;
+  threads: CheckInThread[];
+}
+
+export interface Goal {
+  id: number;
+  /** @nullable */
+  parentId: number | null;
+  name: string;
+  /** @nullable */
+  statement: string | null;
+  /**
+     * Never sent to AI tools when the goal is confidential
+     * @nullable
+     */
+  targetText: string | null;
+  /** @nullable */
+  periodStart: string | null;
+  /** @nullable */
+  periodEnd: string | null;
+  confidential: boolean;
+  sortOrder: number;
+}
+
+export interface GoalProject {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export type SubGoal = Goal & {
+  projects: GoalProject[];
+};
+
+export type GoalView = Goal & {
+  /** Position on the page */
+  number: number;
+  subGoals: SubGoal[];
+  /** Projects linked to the goal itself */
+  projects: GoalProject[];
+  /** Including its sub-goals */
+  openTasks: number;
+  dueThisWeek: number;
+};
+
+export interface UnlinkedTask {
+  id: number;
+  title: string;
+  status: string;
+  /** @nullable */
+  dueDate: string | null;
+  project: GoalProject | null;
+}
+
+export interface GoalsPage {
+  goals: GoalView[];
+  /** This week's tasks that count towards a goal */
+  supporting: number;
+  /** Tasks due this week or in Now */
+  thisWeekTotal: number;
+  unlinked: UnlinkedTask[];
+  weekStart: string;
+}
+
+export interface GoalOption {
+  id: number;
+  name: string;
+  /** @nullable */
+  parentId: number | null;
+}
+
+export interface GoalInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /** @nullable */
+  parentId?: number | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  statement?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  targetText?: string | null;
+  /** @nullable */
+  periodStart?: string | null;
+  /** @nullable */
+  periodEnd?: string | null;
+  confidential?: boolean;
+  sortOrder?: number;
+}
+
+export interface GoalUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name?: string;
+  /** @nullable */
+  parentId?: number | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  statement?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  targetText?: string | null;
+  /** @nullable */
+  periodStart?: string | null;
+  /** @nullable */
+  periodEnd?: string | null;
+  confidential?: boolean;
+  sortOrder?: number;
+}
+
+export interface DocumentInput {
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  url: string;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  title?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  summary?: string | null;
+  location?: DocLocation;
+  /** @nullable */
+  confidential?: boolean | null;
+  projectIds?: number[];
+}
+
+export interface DocumentUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  url?: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  title?: string;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  summary?: string | null;
+  location?: DocLocation;
+  /** @nullable */
+  confidential?: boolean | null;
+  projectIds?: number[];
+  /** Still current; moves Updated to now */
+  confirm?: boolean;
+}
+
+export interface PlaybookInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  title: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  appliesWhen: string;
+  /**
+     * @minLength 1
+     * @maxLength 400
+     */
+  rule: string;
+  enabled?: boolean;
+  projectIds?: number[];
+  organisationIds?: number[];
+}
+
+export interface PlaybookUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  title?: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  appliesWhen?: string;
+  /**
+     * @minLength 1
+     * @maxLength 400
+     */
+  rule?: string;
+  enabled?: boolean;
+  projectIds?: number[];
+  organisationIds?: number[];
+}
+
 /**
  * Invalid input, not found, conflict or upstream failure
  */
@@ -1530,6 +1952,14 @@ export const ListProjectsIncludeArchived = {
   true: 'true',
   false: 'false',
 } as const;
+
+export type ListCadenceParams = {
+tab?: CadenceTab;
+};
+
+export type ListDocumentsParams = {
+projectId?: number;
+};
 
 export type ListKnowledgeInboxParams = {
 tab?: ListKnowledgeInboxTab;

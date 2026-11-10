@@ -17,6 +17,9 @@ import { OrganisationPage, OrganisationsListPage } from '@/pages/knowledge/organ
 import { DecisionPage, DecisionsListPage, NotePage, NotesListPage } from '@/pages/knowledge/records';
 import KnowledgeInboxPage from '@/pages/knowledge/inbox';
 import SettingsPage from '@/pages/settings';
+import GoalsPage from '@/pages/goals';
+import PeopleCadencePage from '@/pages/people-cadence';
+import LibraryPage from '@/pages/knowledge/library';
 import OAuthConsentPage from '@/pages/oauth-consent';
 import { TriageDialog } from '@/components/triage';
 import { NotAuthorised, SignIn, Splash } from '@/pages/auth-screens';
@@ -64,7 +67,9 @@ function Router() {
         <Route path="/knowledge/decisions/:id" component={DecisionPage} />
         <Route path="/knowledge/notes" component={NotesListPage} />
         <Route path="/knowledge/notes/:id" component={NotePage} />
-        <Route path="/people">{() => <Redirect to="/knowledge/people" replace />}</Route>
+        <Route path="/knowledge/library" component={LibraryPage} />
+        <Route path="/goals" component={GoalsPage} />
+        <Route path="/people" component={PeopleCadencePage} />
         <Route path="/people/:slug">{(p) => <Redirect to={'/knowledge/people/' + p.slug} replace />}</Route>
         <Route path="/settings">{() => <Redirect to="/settings/noise-rules" replace />}</Route>
         <Route path="/settings/:section" component={SettingsPage} />

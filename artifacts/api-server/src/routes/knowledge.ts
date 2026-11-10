@@ -1,6 +1,8 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
-import { isIsoDate } from "@workspace/shared";
+import { CADENCES, PROJECT_LIFECYCLES, isIsoDate } from "@workspace/shared";
+import { CADENCE_TABS, listCadence } from "../services/cadence";
+import { checkInDraft } from "../services/checkIn";
 import { handle } from "../lib/handle";
 import {
   createOrganisation,
@@ -52,7 +54,9 @@ const ProjectCreate = z
     aiAccess: z.boolean().optional(),
   })
   .strict();
-const ProjectUpdate = ProjectCreate.partial().extend({ archived: z.boolean().optional() }).strict();
+const ProjectUpdate = ProjectCreate.partial()
+  .extend({ archived: z.boolean().optional(), goalId: id.nullable().optional(), lifecycle: z.enum(PROJECT_LIFECYCLES).optional() })
+  .strict();
 
 const PersonCreate = z
   .object({
@@ -65,7 +69,8 @@ const PersonCreate = z
     aiAccess: z.boolean().optional(),
   })
   .strict();
-const PersonUpdate = PersonCreate.partial().strict();
+const PersonUpdate = PersonCreate.partial().extend({ cadence: z.enum(CADENCES).optional(), cadencePaused: z.boolean().optional() }).strict();
+const CadenceQuery = z.object({ tab: z.enum(CADENCE_TABS).optional() });
 
 const OrganisationCreate = z
   .object({
@@ -146,6 +151,9 @@ router.patch(
 /* People */
 router.get("/people", handle(async (_req, res) => void res.json(await listPeople())));
 router.post("/people", handle(async (req, res) => void res.status(201).json(await createPerson(PersonCreate.parse(req.body)))));
+// Before /people/:slug so "cadence" is not read as a slug.
+router.get("/people/cadence", handle(async (req, res) => void res.json(await listCadence(CadenceQuery.parse(req.query).tab))));
+router.post("/people/:slug/check-in-draft", handle(async (req, res) => void res.json(await checkInDraft(SlugParams.parse(req.params).slug))));
 router.get("/people/:slug", handle(async (req, res) => void res.json(await getPerson(SlugParams.parse(req.params).slug))));
 router.patch(
   "/people/:slug",

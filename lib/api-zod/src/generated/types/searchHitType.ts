@@ -17,4 +17,5 @@ export const SearchHitType = {
   decision: 'decision',
   note: 'note',
   fact: 'fact',
+  document: 'document',
 } as const;

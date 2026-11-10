@@ -134,3 +134,37 @@ export function suggestionVisible(alias: string, g: Grants = NO_GRANTS): string 
   return `(coalesce((${alias}.payload->>'confidential')::boolean, false) = false
     and (${alias}.entity_type is null or ${entityVisible(`${alias}.entity_type`, `${alias}.entity_id`, g)}))`;
 }
+
+/**
+ * A document follows its own flag, or is hidden when any linked project is hidden (question 44).
+ * Documents carry no grants of their own; a grant on the project unlocks an inherited one.
+ */
+export function documentVisible(alias: string, g: Grants = NO_GRANTS): string {
+  const d = alias;
+  return `(case
+    when ${d}.confidential is true then false
+    when ${d}.confidential is false then true
+    else not ${linkedProjectHidden("document", `${d}.id`, g)}
+  end)`;
+}
+
+/** Links between a playbook and a project or organisation, either way round. */
+function playbookLinks(p: string, other: "project" | "organisation", otherId: string): string {
+  return `((l.from_type = 'playbook' and l.from_id = ${p}.id and l.to_type = '${other}' and l.to_id = ${otherId})
+    or (l.to_type = 'playbook' and l.to_id = ${p}.id and l.from_type = '${other}' and l.from_id = ${otherId}))`;
+}
+
+/**
+ * Paused playbooks are never sent. An enabled playbook is visible when it is global (no project or
+ * organisation links) or when at least one linked item is visible (build plan 10.7).
+ */
+export function playbookVisible(alias: string, g: Grants = NO_GRANTS): string {
+  const p = alias;
+  return `(${p}.enabled and (
+    not exists (select 1 from links l where
+      (l.from_type = 'playbook' and l.from_id = ${p}.id and l.to_type in ('project', 'organisation'))
+      or (l.to_type = 'playbook' and l.to_id = ${p}.id and l.from_type in ('project', 'organisation')))
+    or exists (select 1 from projects xp, links l where ${projectVisible("xp", g)} and ${playbookLinks(p, "project", "xp.id")})
+    or exists (select 1 from organisations xo, links l where ${organisationVisible("xo", g)} and ${playbookLinks(p, "organisation", "xo.id")})
+  ))`;
+}

@@ -27,4 +27,7 @@ export interface TaskUpdate {
   waitingOnPersonId?: number | null;
   /** @nullable */
   confidential?: boolean | null;
+  /** @nullable */
+  goalId?: number | null;
+  notGoalWork?: boolean;
 }

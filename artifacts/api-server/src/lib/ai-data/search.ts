@@ -2,6 +2,7 @@ import { sql, type SQL } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   decisionVisible,
+  documentVisible,
   factVisible,
   noteVisible,
   organisationVisible,
@@ -12,7 +13,7 @@ import {
 } from "./visibility";
 import type { AiScope } from "./scope";
 
-export const SEARCH_TYPES = ["task", "project", "person", "organisation", "decision", "note", "fact"] as const;
+export const SEARCH_TYPES = ["task", "project", "person", "organisation", "decision", "note", "fact", "document"] as const;
 export type SearchType = (typeof SEARCH_TYPES)[number];
 
 export interface SearchHit {
@@ -147,6 +148,15 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
         from facts f
         where f.superseded_by is null and (${textMatch(sql.raw("f.search"), tsq, sql.raw("f.text"), q, mode)})${v.where}
         order by rank desc, f.created_at desc limit ${limit}`;
+    }
+    case "document": {
+      const v = vis(documentVisible("dc", g), visibleOnly);
+      return sql`select 'document' as type, dc.id, dc.title, coalesce(dc.summary, dc.url) as snippet, null as slug,
+          null as entity_type, null::int as entity_id, ${rankExpr(sql.raw("dc.search"), tsq)} as rank,
+          ${v.hidden} as hidden_from_ai, dc.confidential, dc.location::text as status, null::boolean as needs_check
+        from documents dc
+        where (${textMatch(sql.raw("dc.search"), tsq, sql.raw("concat_ws(' ', dc.title, dc.summary)"), q, mode)})${v.where}
+        order by rank desc, dc.last_confirmed_at desc limit ${limit}`;
     }
   }
 }

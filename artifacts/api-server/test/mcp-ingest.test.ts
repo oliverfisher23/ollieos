@@ -47,7 +47,7 @@ describe("OAuth for Claude", () => {
   it("read-only tokens cannot list or dispatch mutations, including after refresh", async () => {
     const t = await connect("Read-only connector", "read");
     const c = await mcp(t.access_token);
-    expect((await c.listTools()).tools.map((tool) => tool.name).sort()).toEqual(["get_context", "list_tasks", "search"]);
+    expect((await c.listTools()).tools.map((tool) => tool.name).sort()).toEqual(["find_documents", "get_context", "get_playbooks", "list_goals", "list_overdue_contacts", "list_tasks", "search"]);
     expect((await c.readResource({ uri: "ollieos://today" })).contents).toHaveLength(1);
     for (const [name, args] of [
       ["create_task", { title: "Forbidden task" }],
@@ -131,8 +131,12 @@ describe("no delete tool (criterion 7)", () => {
         "add_fact",
         "add_note",
         "create_task",
+        "find_documents",
         "get_context",
+        "get_playbooks",
+        "list_goals",
         "list_my_suggestions",
+        "list_overdue_contacts",
         "list_tasks",
         "log_activity",
         "log_decision",

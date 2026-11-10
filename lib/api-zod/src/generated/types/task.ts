@@ -8,6 +8,7 @@
 import type { EntitySummary } from './entitySummary';
 import type { NoiseRuleSummary } from './noiseRuleSummary';
 import type { Priority } from './priority';
+import type { TaskGoal } from './taskGoal';
 import type { TaskKind } from './taskKind';
 import type { TaskSource } from './taskSource';
 import type { TaskStatus } from './taskStatus';
@@ -66,4 +67,13 @@ export interface Task {
   noiseRule: NoiseRuleSummary | null;
   /** AI tools cannot read this task without an approval (own flag or inherited) */
   hiddenFromAi: boolean;
+  /** The goal it counts towards, its own link or else its project's (inherited) */
+  goal: TaskGoal | null;
+  /**
+     * A direct goal link; overrides the project's goal
+     * @nullable
+     */
+  goalId: number | null;
+  /** Ollie marked it as not goal work */
+  notGoalWork: boolean;
 }

@@ -24,6 +24,8 @@ tags:
     description: Noise rules
   - name: access
     description: AI access requests, connected tools and the AI read log
+  - name: direction
+    description: Goals, relationship cadence, the document Library and playbooks
 paths:
   /healthz:
     get:
@@ -722,6 +724,221 @@ paths:
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
         "409": { $ref: "#/components/responses/Error" }
+
+  /people/cadence:
+    get:
+      operationId: listCadence
+      tags: [direction]
+      summary: Everyone with a check-in cadence, with their status and the count for each tab
+      parameters:
+        - name: tab
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/CadenceTab" }
+      responses:
+        "200":
+          description: Cadence list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CadencePage" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /people/{slug}/check-in-draft:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    post:
+      operationId: draftCheckIn
+      tags: [direction]
+      summary: Drafts a short check-in for Ollie to copy. Nothing is sent.
+      responses:
+        "200":
+          description: Draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CheckInDraft" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /goals:
+    get:
+      operationId: listGoals
+      tags: [direction]
+      summary: The Goals page
+      responses:
+        "200":
+          description: Goals with projects, counts and this week's unlinked tasks
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GoalsPage" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: createGoal
+      tags: [direction]
+      summary: New goal or sub-goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GoalInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Goal" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /goals/options:
+    get:
+      operationId: listGoalOptions
+      tags: [direction]
+      summary: Goals and sub-goals for pickers
+      responses:
+        "200":
+          description: Options
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/GoalOption" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /goals/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    patch:
+      operationId: updateGoal
+      tags: [direction]
+      summary: Edit a goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GoalUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Goal" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /documents:
+    get:
+      operationId: listDocuments
+      tags: [direction]
+      summary: The document index, optionally for one project
+      parameters:
+        - name: projectId
+          in: query
+          required: false
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Documents
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/LibraryDocument" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: createDocument
+      tags: [direction]
+      summary: Add a document from a pasted link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LibraryDocument" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /documents/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    patch:
+      operationId: updateDocument
+      tags: [direction]
+      summary: Edit a document, or confirm it is still current
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LibraryDocument" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /playbooks:
+    get:
+      operationId: listPlaybooks
+      tags: [direction]
+      summary: Every playbook, enabled or paused
+      responses:
+        "200":
+          description: Playbooks
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Playbook" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: createPlaybook
+      tags: [direction]
+      summary: New playbook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlaybookInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Playbook" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /playbooks/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    patch:
+      operationId: updatePlaybook
+      tags: [direction]
+      summary: Edit, pause or resume a playbook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlaybookUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Playbook" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
 
   /organisations:
     get:
@@ -1654,6 +1871,9 @@ components:
         - stale
         - noiseRule
         - hiddenFromAi
+        - goal
+        - goalId
+        - notGoalWork
       properties:
         id:
           type: integer
@@ -1737,6 +1957,25 @@ components:
         hiddenFromAi:
           type: boolean
           description: AI tools cannot read this task without an approval (own flag or inherited)
+        goal:
+          description: The goal it counts towards, its own link or else its project's (inherited)
+          oneOf:
+            - $ref: "#/components/schemas/TaskGoal"
+            - type: "null"
+        goalId:
+          type: [integer, "null"]
+          description: A direct goal link; overrides the project's goal
+        notGoalWork:
+          type: boolean
+          description: Ollie marked it as not goal work
+
+    TaskGoal:
+      type: object
+      required: [id, name, inherited]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        inherited: { type: boolean, description: True when it comes from the task's project }
 
     TaskUpdate:
       type: object
@@ -1763,6 +2002,10 @@ components:
           type: [integer, "null"]
         confidential:
           type: [boolean, "null"]
+        goalId:
+          type: [integer, "null"]
+        notGoalWork:
+          type: boolean
 
     HistoryEvent:
       type: object
@@ -2090,7 +2333,7 @@ components:
 
     Project:
       type: object
-      required: [id, name, slug, area, status, summary, confidential, aiAccess, archived, createdAt, updatedAt]
+      required: [id, name, slug, area, status, summary, confidential, aiAccess, archived, goalId, lifecycle, createdAt, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -2101,6 +2344,8 @@ components:
         confidential: { type: boolean }
         aiAccess: { type: boolean, description: Readable by AI. Has no effect while confidential is on. }
         archived: { type: boolean }
+        goalId: { type: [integer, "null"] }
+        lifecycle: { $ref: "#/components/schemas/ProjectLifecycle" }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
@@ -2125,6 +2370,12 @@ components:
         confidential: { type: boolean }
         aiAccess: { type: boolean }
         archived: { type: boolean }
+        goalId: { type: [integer, "null"] }
+        lifecycle: { $ref: "#/components/schemas/ProjectLifecycle" }
+
+    ProjectLifecycle:
+      type: string
+      enum: [active, paused, complete]
 
     LinkedEntity:
       type: object
@@ -2233,7 +2484,7 @@ components:
         group: { type: string, enum: [suggested, conflicts, stale] }
         kind:
           type: string
-          enum: [new_fact, new_person, new_organisation, new_project, proposed_decision, changed_summary, changed_details, conflict, stale_fact]
+          enum: [new_fact, new_person, new_organisation, new_project, proposed_decision, changed_summary, changed_details, new_document, new_playbook, cadence_change, conflict, stale_fact]
         target:
           oneOf:
             - $ref: "#/components/schemas/KnowledgeInboxTarget"
@@ -2433,9 +2684,15 @@ components:
 
     ProjectDetail:
       type: object
-      required: [project, facts, decisions, openTasks, people, organisations, notes, activity]
+      required: [project, goal, documents, playbooks, facts, decisions, openTasks, people, organisations, notes, activity]
       properties:
         project: { $ref: "#/components/schemas/Project" }
+        goal:
+          oneOf:
+            - $ref: "#/components/schemas/ProjectGoal"
+            - type: "null"
+        documents: { type: array, items: { $ref: "#/components/schemas/LibraryDocument" } }
+        playbooks: { type: array, items: { $ref: "#/components/schemas/Playbook" }, description: Global ones and those linked to the project or its organisations, paused ones included }
         facts: { type: array, items: { $ref: "#/components/schemas/Fact" } }
         decisions: { type: array, items: { $ref: "#/components/schemas/Decision" } }
         openTasks: { type: array, items: { $ref: "#/components/schemas/Task" } }
@@ -2443,6 +2700,14 @@ components:
         organisations: { type: array, items: { $ref: "#/components/schemas/LinkedEntity" } }
         notes: { type: array, items: { $ref: "#/components/schemas/Note" } }
         activity: { type: array, items: { $ref: "#/components/schemas/TimelineItem" } }
+
+    ProjectGoal:
+      type: object
+      required: [id, name, parentName]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        parentName: { type: [string, "null"], description: Set when the project is linked to a sub-goal }
 
     PersonListItem:
       type: object
@@ -2464,7 +2729,7 @@ components:
 
     Person:
       type: object
-      required: [id, name, slug, role, email, relationshipSummary, confidential, aiAccess, lastContactAt, organisation, createdAt, updatedAt]
+      required: [id, name, slug, role, email, relationshipSummary, confidential, aiAccess, lastContactAt, organisation, cadence, cadencePaused, isSelf, createdAt, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -2479,6 +2744,9 @@ components:
           oneOf:
             - $ref: "#/components/schemas/EntitySummary"
             - type: "null"
+        cadence: { $ref: "#/components/schemas/Cadence" }
+        cadencePaused: { type: boolean }
+        isSelf: { type: boolean, description: "Ollie's own record" }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
@@ -2504,12 +2772,15 @@ components:
         relationshipSummary: { type: [string, "null"] }
         confidential: { type: boolean }
         aiAccess: { type: boolean }
+        cadence: { $ref: "#/components/schemas/Cadence" }
+        cadencePaused: { type: boolean }
 
     PersonDetail:
       type: object
-      required: [person, iOwe, theyOwe, projects, facts, notes, timeline]
+      required: [person, cadence, iOwe, theyOwe, projects, facts, notes, timeline]
       properties:
         person: { $ref: "#/components/schemas/Person" }
+        cadence: { $ref: "#/components/schemas/PersonCadence" }
         iOwe: { type: array, items: { $ref: "#/components/schemas/Task" } }
         theyOwe: { type: array, items: { $ref: "#/components/schemas/Task" } }
         projects: { type: array, items: { $ref: "#/components/schemas/LinkedEntity" } }
@@ -2596,7 +2867,7 @@ components:
       type: object
       required: [type, id, title, snippet, slug, status, hiddenFromAi, parent]
       properties:
-        type: { type: string, enum: [task, project, person, organisation, decision, note, fact] }
+        type: { type: string, enum: [task, project, person, organisation, decision, note, fact, document] }
         id: { type: integer }
         title: { type: string }
         snippet: { type: [string, "null"] }
@@ -2884,3 +3155,276 @@ components:
         count: { type: integer }
         items: { type: array, items: { $ref: "#/components/schemas/ItemLabel" } }
         context: { type: [string, "null"], description: The Ask question, search words or requested name }
+
+    Cadence:
+      type: string
+      enum: [none, weekly, fortnightly, monthly, two_monthly, quarterly]
+
+    CadenceStatus:
+      type: string
+      enum: [overdue, due_soon, on_track, paused, none]
+
+    CadenceTab:
+      type: string
+      enum: [all, overdue, due_soon, on_track]
+
+    PersonCadence:
+      type: object
+      required: [status, daysSince, daysOverdue, daysLeft, cadence, cadenceLabel, cadencePaused, pausedByProjects]
+      properties:
+        status: { $ref: "#/components/schemas/CadenceStatus" }
+        daysSince: { type: [integer, "null"], description: Whole days since the last contact; null when there is none on file }
+        daysOverdue: { type: [integer, "null"] }
+        daysLeft: { type: [integer, "null"] }
+        cadence: { $ref: "#/components/schemas/Cadence" }
+        cadenceLabel: { type: string }
+        cadencePaused: { type: boolean }
+        pausedByProjects: { type: boolean, description: True when every linked project is paused or complete }
+
+    CadenceProject:
+      type: object
+      required: [id, name, slug, lifecycle]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        lifecycle: { $ref: "#/components/schemas/ProjectLifecycle" }
+
+    CadenceRow:
+      allOf:
+        - $ref: "#/components/schemas/PersonCadence"
+        - type: object
+          required: [id, name, slug, confidential, role, organisation, project, lastContactAt]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            slug: { type: string }
+            confidential: { type: boolean }
+            role: { type: [string, "null"] }
+            organisation:
+              oneOf:
+                - $ref: "#/components/schemas/NamedLink"
+                - type: "null"
+            project:
+              oneOf:
+                - $ref: "#/components/schemas/CadenceProject"
+                - type: "null"
+            lastContactAt: { type: [string, "null"], format: date-time }
+
+    CadenceCounts:
+      type: object
+      required: [all, overdue, due_soon, on_track]
+      properties:
+        all: { type: integer }
+        overdue: { type: integer }
+        due_soon: { type: integer }
+        on_track: { type: integer }
+
+    CadencePage:
+      type: object
+      required: [tab, counts, people]
+      properties:
+        tab: { $ref: "#/components/schemas/CadenceTab" }
+        counts: { $ref: "#/components/schemas/CadenceCounts" }
+        people: { type: array, items: { $ref: "#/components/schemas/CadenceRow" } }
+
+    CheckInThread:
+      type: object
+      required: [ref, type, title, path]
+      properties:
+        ref: { type: string }
+        type: { type: string, enum: [task, project] }
+        title: { type: string }
+        path: { type: string, description: App path to open the thread }
+
+    CheckInDraft:
+      type: object
+      required: [text, threads]
+      properties:
+        text: { type: string }
+        threads: { type: array, items: { $ref: "#/components/schemas/CheckInThread" } }
+
+    NamedLink:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+
+    Goal:
+      type: object
+      required: [id, parentId, name, statement, targetText, periodStart, periodEnd, confidential, sortOrder]
+      properties:
+        id: { type: integer }
+        parentId: { type: [integer, "null"] }
+        name: { type: string }
+        statement: { type: [string, "null"] }
+        targetText: { type: [string, "null"], description: Never sent to AI tools when the goal is confidential }
+        periodStart: { type: [string, "null"], format: date }
+        periodEnd: { type: [string, "null"], format: date }
+        confidential: { type: boolean }
+        sortOrder: { type: integer }
+
+    GoalProject:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+
+    SubGoal:
+      allOf:
+        - $ref: "#/components/schemas/Goal"
+        - type: object
+          required: [projects]
+          properties:
+            projects: { type: array, items: { $ref: "#/components/schemas/GoalProject" } }
+
+    GoalView:
+      allOf:
+        - $ref: "#/components/schemas/Goal"
+        - type: object
+          required: [number, subGoals, projects, openTasks, dueThisWeek]
+          properties:
+            number: { type: integer, description: Position on the page, from 1 }
+            subGoals: { type: array, items: { $ref: "#/components/schemas/SubGoal" } }
+            projects: { type: array, items: { $ref: "#/components/schemas/GoalProject" }, description: Projects linked to the goal itself, not its sub-goals }
+            openTasks: { type: integer, description: Including its sub-goals }
+            dueThisWeek: { type: integer }
+
+    UnlinkedTask:
+      type: object
+      required: [id, title, status, dueDate, project]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        status: { type: string }
+        dueDate: { type: [string, "null"], format: date }
+        project:
+          oneOf:
+            - $ref: "#/components/schemas/GoalProject"
+            - type: "null"
+
+    GoalsPage:
+      type: object
+      required: [goals, supporting, thisWeekTotal, unlinked, weekStart]
+      properties:
+        goals: { type: array, items: { $ref: "#/components/schemas/GoalView" } }
+        supporting: { type: integer, description: "This week's tasks that count towards a goal" }
+        thisWeekTotal: { type: integer, description: "Tasks due this week or in Now" }
+        unlinked: { type: array, items: { $ref: "#/components/schemas/UnlinkedTask" } }
+        weekStart: { type: string, format: date }
+
+    GoalOption:
+      type: object
+      required: [id, name, parentId]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        parentId: { type: [integer, "null"] }
+
+    GoalInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        parentId: { type: [integer, "null"] }
+        statement: { type: [string, "null"], maxLength: 2000 }
+        targetText: { type: [string, "null"], maxLength: 2000 }
+        periodStart: { type: [string, "null"], format: date }
+        periodEnd: { type: [string, "null"], format: date }
+        confidential: { type: boolean }
+        sortOrder: { type: integer }
+
+    GoalUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        parentId: { type: [integer, "null"] }
+        statement: { type: [string, "null"], maxLength: 2000 }
+        targetText: { type: [string, "null"], maxLength: 2000 }
+        periodStart: { type: [string, "null"], format: date }
+        periodEnd: { type: [string, "null"], format: date }
+        confidential: { type: boolean }
+        sortOrder: { type: integer }
+
+    DocLocation:
+      type: string
+      enum: [dropbox, gdrive, claude_project, other]
+
+    LibraryDocument:
+      type: object
+      required: [id, title, url, location, summary, confidential, lastConfirmedAt, createdBy, createdAt, projects, hiddenFromAi]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        url: { type: string }
+        location: { $ref: "#/components/schemas/DocLocation" }
+        summary: { type: [string, "null"] }
+        confidential: { type: [boolean, "null"], description: null means inherit from linked projects }
+        lastConfirmedAt: { type: string, format: date-time, description: Shown as Updated }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        projects: { type: array, items: { $ref: "#/components/schemas/NamedLink" } }
+        hiddenFromAi: { type: boolean }
+
+    DocumentInput:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string, minLength: 1, maxLength: 2000 }
+        title: { type: [string, "null"], maxLength: 300 }
+        summary: { type: [string, "null"], maxLength: 2000 }
+        location: { $ref: "#/components/schemas/DocLocation" }
+        confidential: { type: [boolean, "null"] }
+        projectIds: { type: array, items: { type: integer } }
+
+    DocumentUpdate:
+      type: object
+      properties:
+        url: { type: string, minLength: 1, maxLength: 2000 }
+        title: { type: string, minLength: 1, maxLength: 300 }
+        summary: { type: [string, "null"], maxLength: 2000 }
+        location: { $ref: "#/components/schemas/DocLocation" }
+        confidential: { type: [boolean, "null"] }
+        projectIds: { type: array, items: { type: integer } }
+        confirm: { type: boolean, description: Still current; moves Updated to now }
+
+    Playbook:
+      type: object
+      required: [id, title, appliesWhen, rule, enabled, createdBy, createdAt, updatedAt, projects, organisations, sentToAi]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        appliesWhen: { type: string }
+        rule: { type: string }
+        enabled: { type: boolean }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        projects: { type: array, items: { $ref: "#/components/schemas/NamedLink" } }
+        organisations: { type: array, items: { $ref: "#/components/schemas/NamedLink" } }
+        sentToAi: { type: boolean, description: Enabled and global or linked to something AI can read }
+
+    PlaybookInput:
+      type: object
+      required: [title, appliesWhen, rule]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        appliesWhen: { type: string, minLength: 1, maxLength: 300 }
+        rule: { type: string, minLength: 1, maxLength: 400 }
+        enabled: { type: boolean }
+        projectIds: { type: array, items: { type: integer } }
+        organisationIds: { type: array, items: { type: integer } }
+
+    PlaybookUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        appliesWhen: { type: string, minLength: 1, maxLength: 300 }
+        rule: { type: string, minLength: 1, maxLength: 400 }
+        enabled: { type: boolean }
+        projectIds: { type: array, items: { type: integer } }
+        organisationIds: { type: array, items: { type: integer } }

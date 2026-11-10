@@ -19,6 +19,8 @@ const FIELD_LABELS: Record<string, string> = {
   person: "For",
   waitingOn: "Waiting on",
   confidential: "Confidential",
+  goal: "Goal",
+  notGoalWork: "Not goal work",
 };
 
 function describeChange(c: FieldChange): string {

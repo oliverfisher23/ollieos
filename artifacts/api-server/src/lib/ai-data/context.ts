@@ -33,6 +33,7 @@ import {
 } from "./visibility";
 import { recordReads, sanitiseRefs, type AiScope } from "./scope";
 import { searchItems, type SearchType } from "./search";
+import { cadenceForAi, documentsForAi, goalForProject, playbookContextFor, playbooksFor, type DocumentOut, type PlaybookOut } from "./direction";
 
 export type PickType = "project" | "person" | "organisation";
 export const PICK_TYPES: readonly PickType[] = ["project", "person", "organisation"];
@@ -308,6 +309,15 @@ export interface ContextOut {
     role?: string | null;
     email?: string | null;
     organisation?: NamedRef | null;
+    /** Projects only: the goal it serves */
+    goal?: NamedRef | null;
+    /** Projects only: active, paused or complete */
+    lifecycle?: string;
+    /** People only: how often Ollie wants to be in touch, and where that stands */
+    cadence?: string;
+    cadence_status?: string;
+    days_overdue?: number;
+    days_left?: number;
   };
   summary: string | null;
   facts: { ref: string; text: string; source: string | null; attribute: string | null; created_at: string; last_confirmed_at: string; needs_check: boolean }[];
@@ -319,6 +329,10 @@ export interface ContextOut {
   projects: NamedRef[];
   notes: { ref: string; title: string | null; body: string; created_at: string }[];
   recent_activity: { ref: string; kind: string; summary: string; occurred_at: string; source_url: string | null }[];
+  /** Projects only: documents in the Library for it */
+  documents?: DocumentOut[];
+  /** Rules Ollie wants followed when drafting anything about this item */
+  playbooks: PlaybookOut[];
 }
 
 /** Ids of `other` linked to an item, either way round. */
@@ -340,7 +354,7 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
   let summary: string | null;
   if (type === "project") {
     const [p] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
-    entity = { ref: toRef(type, id), type, name: p.name, slug: p.slug, area: p.area, status: p.status };
+    entity = { ref: toRef(type, id), type, name: p.name, slug: p.slug, area: p.area, status: p.status, goal: await goalForProject(p.goalId), lifecycle: p.lifecycle };
     summary = p.summary;
   } else if (type === "person") {
     const [p] = await db.select().from(peopleTable).where(eq(peopleTable.id, id));
@@ -352,7 +366,7 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
         .where(and(eq(organisationsTable.id, p.organisationId), sql.raw(organisationVisible("organisations", g))));
       if (o) organisation = { ref: toRef("organisation", o.id), name: o.name };
     }
-    entity = { ref: toRef(type, id), type, name: p.name, slug: p.slug, role: p.role, email: p.email, organisation };
+    entity = { ref: toRef(type, id), type, name: p.name, slug: p.slug, role: p.role, email: p.email, organisation, ...(await cadenceForAi(p)) };
     summary = p.relationshipSummary;
   } else {
     const [o] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, id));
@@ -447,6 +461,12 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
     ).map((o) => [o.id, o.name]),
   );
 
+  const playbookContext = await playbookContextFor(type, id);
+  const [documents, playbooks] = await Promise.all([
+    type === "project" ? documentsForAi(scope, { projectId: id, limit: 50, via }) : Promise.resolve(undefined),
+    playbooksFor(scope, playbookContext),
+  ]);
+
   const tasks = await toTaskOuts(scope, taskRows);
   const out: ContextOut = {
     entity,
@@ -480,6 +500,8 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
       occurred_at: a.occurredAt.toISOString(),
       source_url: a.sourceUrl,
     })),
+    ...(documents ? { documents } : {}),
+    playbooks,
   };
 
   // Second check: drop anything that is not visible, in case a join above is ever wrong.
@@ -495,6 +517,8 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
   out.projects = keep(out.projects);
   out.notes = keep(out.notes);
   out.recent_activity = keep(out.recent_activity);
+  if (out.documents) out.documents = keep(out.documents);
+  out.playbooks = keep(out.playbooks);
   if (out.entity.organisation && !ok.has(out.entity.organisation.ref)) out.entity.organisation = null;
 
   await recordReads(scope, contextRefs(out), { via });
@@ -514,6 +538,8 @@ function contextRefs(c: ContextOut): string[] {
     ...c.projects.map((x) => x.ref),
     ...c.notes.map((x) => x.ref),
     ...c.recent_activity.map((x) => x.ref),
+    ...(c.documents ?? []).map((x) => x.ref),
+    ...c.playbooks.map((x) => x.ref),
   ];
 }
 

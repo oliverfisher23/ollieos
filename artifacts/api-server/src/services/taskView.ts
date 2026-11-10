@@ -1,5 +1,5 @@
 import { and, inArray, sql } from "drizzle-orm";
-import { db, noiseRulesTable, peopleTable, projectsTable, tasksTable, type Task as TaskRow } from "@workspace/db";
+import { db, goalsTable, noiseRulesTable, peopleTable, projectsTable, tasksTable, type Task as TaskRow } from "@workspace/db";
 import { taskVisible } from "../lib/ai-data/visibility";
 import { noiseRuleLabel } from "./noiseRules";
 import type { DbOrTx } from "../lib/audit";
@@ -20,6 +20,8 @@ export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "wait
   noiseRule: { id: number; matchType: string; matchValue: string; label: string } | null;
   /** AI tools cannot read this task without an approval (own flag or inherited) */
   hiddenFromAi: boolean;
+  /** The goal it counts towards: its own link, else its project's (inherited) */
+  goal: { id: number; name: string; inherited: boolean } | null;
 };
 
 const STALE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -46,10 +48,10 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
       : Promise.resolve([] as EntitySummary[]),
     projectIds.size
       ? conn
-          .select({ id: projectsTable.id, name: projectsTable.name, slug: projectsTable.slug, confidential: projectsTable.confidential })
+          .select({ id: projectsTable.id, name: projectsTable.name, slug: projectsTable.slug, confidential: projectsTable.confidential, goalId: projectsTable.goalId })
           .from(projectsTable)
           .where(inArray(projectsTable.id, [...projectIds]))
-      : Promise.resolve([] as EntitySummary[]),
+      : Promise.resolve([] as (EntitySummary & { goalId: number | null })[]),
     ruleIds.size
       ? conn
           .select({ id: noiseRulesTable.id, matchType: noiseRulesTable.matchType, matchValue: noiseRulesTable.matchValue })
@@ -64,11 +66,28 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
       : Promise.resolve([] as { id: number }[]),
   ]);
   const hiddenSet = new Set(hidden.map((h) => h.id));
+  const goalIds = new Set<number>();
+  for (const r of rows) if (r.goalId) goalIds.add(r.goalId);
+  for (const p of projects) if (p.goalId) goalIds.add(p.goalId);
+  const goals = goalIds.size
+    ? await conn.select({ id: goalsTable.id, name: goalsTable.name }).from(goalsTable).where(inArray(goalsTable.id, [...goalIds]))
+    : [];
+  const goalById = new Map(goals.map((g) => [g.id, g]));
   const ruleById = new Map(rules.map((r) => [r.id, { ...r, label: noiseRuleLabel(r.matchType, r.matchValue) }]));
   const now = Date.now();
 
   const personById = new Map(people.map((p) => [p.id, p]));
-  const projectById = new Map(projects.map((p) => [p.id, p]));
+  const projectById = new Map(projects.map(({ goalId: _g, ...p }) => [p.id, p]));
+  const projectGoal = new Map(projects.map((p) => [p.id, p.goalId]));
+  const goalFor = (r: TaskRow): TaskView["goal"] => {
+    if (r.goalId) {
+      const g = goalById.get(r.goalId);
+      return g ? { ...g, inherited: false } : null;
+    }
+    const pg = r.projectId ? projectGoal.get(r.projectId) : null;
+    const g = pg ? goalById.get(pg) : null;
+    return g ? { ...g, inherited: true } : null;
+  };
 
   return rows.map((r) => {
     const { search: _search, personId, projectId, waitingOnPersonId, noiseRuleId, sourceChannel: _channel, ...rest } = r;
@@ -80,6 +99,7 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
       stale: r.status === "backlog" && now - r.updatedAt.getTime() >= STALE_MS,
       noiseRule: noiseRuleId ? (ruleById.get(noiseRuleId) ?? null) : null,
       hiddenFromAi: hiddenSet.has(r.id),
+      goal: goalFor(r),
     };
   });
 }

@@ -5,7 +5,7 @@
  */
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
-import { isIsoDate, todayLondon } from "@workspace/shared";
+import { CADENCES, PLAYBOOK_RULE_MAX, isIsoDate, todayLondon } from "@workspace/shared";
 import { handle } from "../../lib/handle";
 import {
   doneSinceForIngest,
@@ -25,6 +25,7 @@ import { onSweepFinished } from "../../services/factReviews";
 import { FACT_ATTRIBUTES, SUGGESTION_SOURCES, propose, type ProposeMeta } from "../../services/suggestions";
 import { logger } from "../../lib/logger";
 import { ValidationError } from "../../services/tasks";
+import { parseLink, titleFromUrl } from "../../services/library";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -344,7 +345,7 @@ router.post(
 /* ---------- Suggestions (feature 01) ---------- */
 
 const SuggestionItem = z.object({
-  kind: z.enum(["fact", "decision", "person", "organisation", "project"]),
+  kind: z.enum(["fact", "decision", "person", "organisation", "project", "document", "playbook", "cadence"]),
   /** fact: the project, person or organisation; decision: the project. Name, slug or ref. */
   entity: optText(200),
   text: optText(2000),
@@ -363,6 +364,18 @@ const SuggestionItem = z.object({
   area: optText(200),
   status: optText(200),
   summary: optText(5000),
+  /** document */
+  url: optText(2000),
+  title: optText(300),
+  /** document and playbook: the projects it belongs to; playbook: organisations too */
+  projects: z.array(z.string().trim().min(1).max(200)).max(10).nullish(),
+  organisations: z.array(z.string().trim().min(1).max(200)).max(10).nullish(),
+  /** playbook */
+  applies_when: optText(300),
+  rule: optText(PLAYBOOK_RULE_MAX),
+  /** cadence: entity is the person */
+  cadence: z.enum(CADENCES).nullish(),
+  reason: optText(500),
   source: optText(500),
   source_type: z.enum(SUGGESTION_SOURCES).nullish(),
   source_ref: optText(500),
@@ -436,12 +449,63 @@ async function suggestOne(scope: AiScope, writer: Writer, s: SuggestionItem): Pr
       const match = (s.slug ? await resolvePick(scope, { slug: s.slug }, ["project"], exact) : null) ?? (await resolvePick(scope, { name: s.name }, ["project"], exact));
       return proposeProject(meta, { matchId: match?.id ?? null, name: s.name, area: s.area, status: s.status, summary: s.summary });
     }
+    case "document": {
+      if (!s.url) return { error: "A document needs a url" };
+      const url = parseLink(s.url);
+      const projects = await picks(scope, s.projects, "project");
+      if ("error" in projects) return projects;
+      return propose(meta, {
+        kind: "document",
+        payload: {
+          url: url.toString(),
+          title: s.title ?? titleFromUrl(url),
+          summary: s.summary ?? null,
+          project_ids: projects.map((p) => p.id),
+          project_names: projects.map((p) => p.name),
+        },
+      });
+    }
+    case "playbook": {
+      if (!s.title || !s.applies_when || !s.rule) return { error: "A playbook needs title, applies_when and rule" };
+      const projects = await picks(scope, s.projects, "project");
+      if ("error" in projects) return projects;
+      const orgs = await picks(scope, s.organisations, "organisation");
+      if ("error" in orgs) return orgs;
+      return propose(meta, {
+        kind: "playbook",
+        payload: {
+          title: s.title,
+          applies_when: s.applies_when,
+          rule: s.rule,
+          project_ids: projects.map((p) => p.id),
+          organisation_ids: orgs.map((o) => o.id),
+          link_names: [...projects, ...orgs].map((x) => x.name),
+        },
+      });
+    }
+    case "cadence": {
+      if (!s.entity || !s.cadence) return { error: "A cadence suggestion needs entity (the person) and cadence" };
+      const person = await resolvePick(scope, s.entity, ["person"]);
+      if (!person) return { error: `No visible person matches "${s.entity}"` };
+      return propose(meta, { kind: "cadence", entityType: "person", entityId: person.id, payload: { cadence: s.cadence, reason: s.reason ?? null } });
+    }
   }
 }
 
+/** Resolves a list of names to visible projects or organisations; any miss is an error, so nothing links to the wrong item. */
+async function picks(scope: AiScope, names: string[] | null | undefined, type: "project" | "organisation"): Promise<{ id: number; name: string }[] | { error: string }> {
+  const out: { id: number; name: string }[] = [];
+  for (const n of names ?? []) {
+    const hit = await resolvePick(scope, n, [type]);
+    if (!hit) return { error: `No visible ${type} matches "${n}"` };
+    if (!out.some((o) => o.id === hit.id)) out.push({ id: hit.id, name: hit.name });
+  }
+  return out;
+}
+
 /**
- * POST /api/ingest/suggestions: facts, decisions, people, organisations and projects for Ollie
- * to approve. Same rules as the MCP tools; each item reports suggested, conflict, duplicate,
+ * POST /api/ingest/suggestions: facts, decisions, people, organisations, projects, documents,
+ * playbooks and cadences for Ollie to approve. Same rules as the MCP tools; each item reports suggested, conflict, duplicate,
  * previously_rejected, unchanged or error.
  */
 router.post(

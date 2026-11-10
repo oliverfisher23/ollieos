@@ -18,6 +18,7 @@ import {
   visibleTaskId,
   type PickType,
 } from "../lib/ai-data/context";
+import { findDocumentsForAi, getPlaybooksForAi, goalsForAi, overdueContactsForAi } from "../lib/ai-data/direction";
 import { requestAccess } from "../lib/ai-data/requests";
 import type { AiScope } from "../lib/ai-data/scope";
 import { SEARCH_TYPES } from "../lib/ai-data/search";
@@ -41,6 +42,7 @@ export const SERVER_INSTRUCTIONS = [
   SOURCE_OF_TRUTH,
   'A fact marked "needs_check": true may be out of date. If you rely on one, tell Ollie it may be out of date.',
   "Facts, decisions, new people, organisations and projects, and changes to existing records, are suggestions until Ollie approves them in his Knowledge Inbox. Use list_my_suggestions to avoid proposing the same thing twice. Tasks, promises, notes and activity go in directly.",
+  "Before drafting anything on Ollie's behalf, call get_playbooks for the project or person concerned and follow every rule it returns.",
 ].join(" ");
 
 const STATUSES = ["inbox", "now", "backlog", "waiting", "done", "noise"] as const;
@@ -118,7 +120,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
   server.registerTool(
     "search",
     {
-      description: describe("Full-text search across tasks, projects, people, organisations, decisions and notes."),
+      description: describe("Full-text search across tasks, projects, people, organisations, decisions, notes, facts and documents."),
       inputSchema: {
         query: z.string().min(1).max(500),
         types: z.array(z.enum(SEARCH_TYPES)).optional(),
@@ -132,7 +134,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     "get_context",
     {
       description: describe(
-        "Everything about one project, person or organisation: summary, current facts, decisions, open tasks, promises, what they owe Ollie, people, notes and the last 20 touchpoints.",
+        "Everything about one project, person or organisation: summary, current facts, decisions, open tasks, promises, what they owe Ollie, people, notes, the last 20 touchpoints and the playbooks that apply. For a project, also its goal and its documents.",
       ),
       inputSchema: Pick.shape,
     },
@@ -158,6 +160,68 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     async (a) => {
       const out = await listTasksForAi(scope, a);
       return "error" in out ? err(out.error, out.message) : ok(out);
+    },
+  );
+
+  server.registerTool(
+    "list_goals",
+    {
+      description: describe(
+        "Ollie's goals for the year, with sub-goals, the projects serving each, and counts of open tasks and tasks due this week. Use it to judge what matters most. Targets of confidential goals are left out.",
+      ),
+      inputSchema: {},
+    },
+    async () => ok(await goalsForAi(scope)),
+  );
+
+  server.registerTool(
+    "list_overdue_contacts",
+    {
+      description: describe(
+        "People Ollie has not been in touch with for longer than the cadence he set for them, most overdue first. days_overdue is null when there is no contact on file. Paused cadences are left out.",
+      ),
+      inputSchema: {
+        include_due_soon: z.boolean().optional().describe("Also list people whose check-in is due soon"),
+        limit: z.number().int().min(1).max(200).optional().describe("Default 50"),
+      },
+    },
+    async (a) => ok(await overdueContactsForAi(scope, { includeDueSoon: a.include_due_soon, limit: a.limit })),
+  );
+
+  server.registerTool(
+    "find_documents",
+    {
+      description: describe(
+        "Finds documents in Ollie's Library: links to files in Dropbox, Google Drive and Claude projects, with a summary. OllieOS holds the link, not the file. Narrow it to one project if you like.",
+      ),
+      inputSchema: {
+        query: z.string().min(1).max(500),
+        project: Pick.optional(),
+        limit: z.number().int().min(1).max(50).optional().describe("Default 20"),
+      },
+    },
+    async (a) => {
+      const project = a.project ? await resolvePick(scope, a.project, ["project"]) : null;
+      if (a.project && !project) return NOT_FOUND("project");
+      return ok(await findDocumentsForAi(scope, a.query, project?.id, a.limit ?? 20));
+    },
+  );
+
+  server.registerTool(
+    "get_playbooks",
+    {
+      description: describe(
+        'Ollie\'s rules for drafting: terminology, tone and things to avoid. Give a context (a project, person or organisation) to get the rules that apply there, "general" for rules that apply everywhere, or nothing for all of them with what each applies to. Follow every rule returned.',
+      ),
+      inputSchema: {
+        context: z.union([z.literal("general"), Pick]).optional(),
+      },
+    },
+    async (a) => {
+      if (a.context === undefined || a.context === "general") return ok({ playbooks: await getPlaybooksForAi(scope, a.context ?? null) });
+      const hit = await resolvePick(scope, a.context);
+      if (!hit) return NOT_FOUND("project, person or organisation");
+      return ok({ context: { ref: `${hit.type}:${hit.id}`, name: hit.name }, playbooks: await getPlaybooksForAi(scope, hit) });
     },
   );
 

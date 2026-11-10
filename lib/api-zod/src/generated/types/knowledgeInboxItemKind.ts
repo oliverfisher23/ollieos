@@ -17,6 +17,9 @@ export const KnowledgeInboxItemKind = {
   proposed_decision: 'proposed_decision',
   changed_summary: 'changed_summary',
   changed_details: 'changed_details',
+  new_document: 'new_document',
+  new_playbook: 'new_playbook',
+  cadence_change: 'cadence_change',
   conflict: 'conflict',
   stale_fact: 'stale_fact',
 } as const;

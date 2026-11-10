@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, Redirect, useParams } from 'wouter';
-import { updateProject, useGetProject, useListProjects, type ProjectUpdate } from '@workspace/api-client-react';
-import { formatDayMonth } from '@workspace/shared';
+import { updateProject, useGetProject, useListGoalOptions, useListProjects, type ProjectLifecycle, type ProjectUpdate } from '@workspace/api-client-react';
+import { LIFECYCLE_LABELS, PROJECT_LIFECYCLES, formatDayMonth, formatDayMonthShort, DOC_LOCATION_LABELS } from '@workspace/shared';
 import { KnowledgeLayout } from '@/components/knowledge/layout';
 import { CreateDialog } from '@/components/knowledge/create-dialog';
 import { InlineText } from '@/components/inline-text';
@@ -21,6 +21,8 @@ import {
 } from '@/components/knowledge/parts';
 import { isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
 import { Skel } from '@/components/bits';
+import { DocumentDialog, PlaybookCard, PlaybookDialog } from '@/pages/knowledge/library';
+import { HiddenFromAi } from '@/components/knowledge/parts';
 
 /** /knowledge: the most recently updated project, or an empty state. */
 export function KnowledgeIndexPage() {
@@ -56,6 +58,9 @@ export function ProjectPage() {
   const q = useGetProject(slug);
   const write = useKnowledgeWrite();
   const unlink = useUnlink();
+  const goals = useListGoalOptions();
+  const [addingDoc, setAddingDoc] = useState(false);
+  const [addingPlaybook, setAddingPlaybook] = useState(false);
   const save = (patch: ProjectUpdate, done?: string) => write(() => updateProject(slug, patch), { done });
 
   if (q.isLoading) return <KnowledgeLayout testId="page-project"><PageSkeleton /></KnowledgeLayout>;
@@ -66,7 +71,8 @@ export function ProjectPage() {
       </KnowledgeLayout>
     );
   }
-  const { project, facts, decisions, openTasks, people, organisations, activity } = q.data;
+  const { project, goal, documents, playbooks, facts, decisions, openTasks, people, organisations, activity } = q.data;
+  const topGoals = (goals.data ?? []).filter((g) => g.parentId == null);
 
   return (
     <KnowledgeLayout testId="page-project">
@@ -85,6 +91,55 @@ export function ProjectPage() {
             </span>
             <span className="oo-pill" data-testid="text-project-updated">Updated {formatDayMonth(project.updatedAt)}</span>
             {project.archived && <span className="oo-pill" data-tone="noise">Archived</span>}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', fontSize: 13 }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span className="oo-muted">Goal</span>
+              <select
+                className="oo-select"
+                style={{ minHeight: 30, padding: '3px 6px', fontSize: 13, maxWidth: 260 }}
+                value={project.goalId ?? ''}
+                onChange={(e) => {
+                  const id = e.target.value ? Number(e.target.value) : null;
+                  const name = goals.data?.find((g) => g.id === id)?.name;
+                  void save({ goalId: id }, id ? `Linked to ${name}` : 'No goal now');
+                }}
+                data-testid="select-project-goal"
+              >
+                <option value="">No goal</option>
+                {topGoals.map((g) => {
+                  const subs = (goals.data ?? []).filter((s) => s.parentId === g.id);
+                  return subs.length ? (
+                    <optgroup key={g.id} label={g.name}>
+                      <option value={g.id}>{g.name}</option>
+                      {subs.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </optgroup>
+                  ) : (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  );
+                })}
+                {goal && !goals.data?.some((g) => g.id === goal.id) && <option value={goal.id}>{goal.name}</option>}
+              </select>
+            </label>
+            <span role="group" aria-label="Lifecycle" className="oo-seg" style={{ display: 'inline-flex', padding: 3 }} data-testid="seg-project-lifecycle">
+              {PROJECT_LIFECYCLES.map((l: ProjectLifecycle) => (
+                <button
+                  key={l}
+                  type="button"
+                  aria-pressed={project.lifecycle === l}
+                  style={{ minHeight: 28, padding: '3px 10px' }}
+                  onClick={() => project.lifecycle !== l && save({ lifecycle: l }, l === 'active' ? 'Project active again' : `Project ${l}. Check-ins with its people pause too.`)}
+                  data-testid={'radio-lifecycle-' + l}
+                >
+                  {LIFECYCLE_LABELS[l]}
+                </button>
+              ))}
+            </span>
+            {goal && (
+              <Link href="/goals" className="oo-link" data-testid="link-project-goal">
+                Counts towards {goal.parentName ? `${goal.parentName}: ${goal.name}` : goal.name}
+              </Link>
+            )}
           </div>
         </div>
         <AccessPanel
@@ -122,6 +177,50 @@ export function ProjectPage() {
         <TaskRows tasks={openTasks} empty="No open tasks on this project. Add @project to a task to file it here." />
       </section>
 
+      <section aria-labelledby="docs-h" style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="section-project-documents">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <h2 id="docs-h" className="oo-h2">Documents</h2>
+          <button type="button" className="oo-textbtn" onClick={() => setAddingDoc(true)} data-testid="button-project-add-link">Add a link</button>
+        </div>
+        {documents.length === 0 ? (
+          <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>No documents linked. Add the proposal, the brief or the shared folder.</p>
+        ) : (
+          <div>
+            {documents.map((d) => (
+              <div key={d.id} className="oo-krow" data-testid={'row-project-document-' + d.id}>
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: '1 1 260px' }}>
+                  <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                    <a href={d.url} target="_blank" rel="noreferrer" className="oo-krow-link" style={{ fontWeight: 500 }} data-testid={'link-project-document-' + d.id}>{d.title}<span className="oo-sr"> (opens in a new tab)</span></a>
+                    {d.hiddenFromAi && <HiddenFromAi confidential={d.confidential === true} />}
+                  </span>
+                  {d.summary && <span className="oo-muted" style={{ fontSize: 13 }}>{d.summary}</span>}
+                </span>
+                <span style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }} className="oo-muted">
+                  <span className="oo-loc" data-loc={d.location}>{DOC_LOCATION_LABELS[d.location]}</span>
+                  <Link href={'/knowledge/library?document=' + d.id} className="oo-link">Updated {formatDayMonthShort(d.lastConfirmedAt)}</Link>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section aria-labelledby="pbs-h" style={{ display: 'flex', flexDirection: 'column', gap: 10 }} data-testid="section-project-playbooks">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <h2 id="pbs-h" className="oo-h2">Playbooks</h2>
+          <span style={{ display: 'flex', gap: 12 }}>
+            <Link href="/knowledge/library?tab=playbooks" className="oo-link" style={{ fontSize: 13 }} data-testid="link-all-playbooks">All playbooks</Link>
+            <button type="button" className="oo-textbtn" onClick={() => setAddingPlaybook(true)} data-testid="button-project-new-playbook">New playbook</button>
+          </span>
+        </div>
+        <p className="oo-muted" style={{ margin: 0, fontSize: 13 }}>What Claude follows when drafting for this project: global playbooks and any linked to it or its organisations.</p>
+        {playbooks.length === 0 ? (
+          <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>No playbooks apply.</p>
+        ) : (
+          <div className="oo-kgrid">{playbooks.map((p) => <PlaybookCard key={p.id} p={p} compact />)}</div>
+        )}
+      </section>
+
       <div className="oo-kgrid">
         <section aria-labelledby="pp-h" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <h2 id="pp-h" className="oo-h2">People</h2>
@@ -151,6 +250,9 @@ export function ProjectPage() {
           <Timeline items={activity.slice(0, 8)} empty="Nothing yet. Captures, notes and finished tasks show up here." compact />
         </section>
       </div>
+
+      {addingDoc && <DocumentDialog presetProjectId={project.id} onClose={() => setAddingDoc(false)} />}
+      {addingPlaybook && <PlaybookDialog presetProjectId={project.id} onClose={() => setAddingPlaybook(false)} />}
 
       <AddNote entityType="project" entityId={project.id} placeholder={`Anything worth remembering about ${project.name}`} />
 

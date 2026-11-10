@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
 import {
   db,
+  goalsTable,
   organisationsTable,
   peopleTable,
   projectsTable,
@@ -9,13 +10,16 @@ import {
   type Person as PersonRow,
   type Project as ProjectRow,
 } from "@workspace/db";
-import { OPEN_STATUSES, type TaskStatus } from "@workspace/shared";
+import { OPEN_STATUSES, type Cadence, type CadenceState, type ProjectLifecycle, type TaskStatus } from "@workspace/shared";
 import { writeAudit } from "../../lib/audit";
 import { ConflictError, NotFoundError, ValidationError } from "../tasks";
 import { toTaskViews, type TaskView } from "../taskView";
 import { ACTOR, cleanText, uniqueSlug, type EntitySummary } from "./common";
 import { factsFor, linkedIds, listDecisions, notesFor, type DecisionView, type FactView, type NoteView } from "./items";
 import { timelineFor, type TimelineItem } from "./timeline";
+import { assertGoal } from "../goals";
+import { listDocuments, playbooksForProject, type DocumentView, type PlaybookView } from "../library";
+import { cadenceFor } from "../cadence";
 
 const OPEN = [...OPEN_STATUSES] as TaskStatus[];
 const priorityRank = sql`case ${tasksTable.priority} when 'high' then 0 when 'medium' then 1 else 2 end`;
@@ -85,6 +89,10 @@ export interface LinkedEntity extends EntitySummary {
 
 export interface ProjectDetail {
   project: ProjectView;
+  /** The linked goal or sub-goal, with its parent's name for a sub-goal */
+  goal: { id: number; name: string; parentName: string | null } | null;
+  documents: DocumentView[];
+  playbooks: PlaybookView[];
   facts: FactView[];
   decisions: DecisionView[];
   openTasks: TaskView[];
@@ -131,7 +139,7 @@ async function loadProject(slug: string): Promise<ProjectRow> {
 export async function getProject(slug: string): Promise<ProjectDetail> {
   const project = await loadProject(slug);
   const id = project.id;
-  const [facts, decisions, openTasks, linkedPeople, linkedOrgs, notes, taskPeople] = await Promise.all([
+  const [facts, decisions, openTasks, linkedPeople, linkedOrgs, notes, taskPeople, goal, documents, playbooks] = await Promise.all([
     factsFor("project", id),
     listDecisions(id),
     openTasksWhere(eq(tasksTable.projectId, id)),
@@ -142,6 +150,9 @@ export async function getProject(slug: string): Promise<ProjectDetail> {
       .selectDistinct({ id: tasksTable.personId })
       .from(tasksTable)
       .where(and(eq(tasksTable.projectId, id), isNotNull(tasksTable.personId), ne(tasksTable.status, "noise"))),
+    projectGoal(project.goalId),
+    listDocuments(id),
+    playbooksForProject(id),
   ]);
   const peopleIds = [...new Set([...linkedPeople, ...taskPeople.map((p) => p.id!)])];
   const [people, organisations, activity] = await Promise.all([
@@ -149,7 +160,16 @@ export async function getProject(slug: string): Promise<ProjectDetail> {
     summaries(organisationsTable, linkedOrgs, new Set(linkedOrgs)),
     timelineFor("project", id, notes),
   ]);
-  return { project: stripSearch(project), facts, decisions, openTasks, people, organisations, notes, activity };
+  return { project: stripSearch(project), goal, documents, playbooks, facts, decisions, openTasks, people, organisations, notes, activity };
+}
+
+async function projectGoal(goalId: number | null): Promise<ProjectDetail["goal"]> {
+  if (!goalId) return null;
+  const [g] = await db
+    .select({ id: goalsTable.id, name: goalsTable.name, parentName: sql<string | null>`(select p.name from goals p where p.id = ${goalsTable.parentId})` })
+    .from(goalsTable)
+    .where(eq(goalsTable.id, goalId));
+  return g ?? null;
 }
 
 export interface ProjectInput {
@@ -184,7 +204,7 @@ export async function createProject(input: ProjectInput): Promise<ProjectView> {
   return stripSearch(row);
 }
 
-export type ProjectUpdate = Partial<ProjectInput> & { archived?: boolean };
+export type ProjectUpdate = Partial<ProjectInput> & { archived?: boolean; goalId?: number | null; lifecycle?: ProjectLifecycle };
 
 export async function updateProject(slug: string, input: ProjectUpdate): Promise<ProjectView> {
   const current = await loadProject(slug);
@@ -200,6 +220,11 @@ export async function updateProject(slug: string, input: ProjectUpdate): Promise
   if (input.confidential !== undefined) set.confidential = input.confidential;
   if (input.aiAccess !== undefined) set.aiAccess = input.aiAccess;
   if (input.archived !== undefined) set.archived = input.archived;
+  if (input.goalId !== undefined && input.goalId !== current.goalId) {
+    await assertGoal(input.goalId);
+    set.goalId = input.goalId;
+  }
+  if (input.lifecycle !== undefined && input.lifecycle !== current.lifecycle) set.lifecycle = input.lifecycle;
   if (!Object.keys(set).length) return stripSearch(current);
   const row = await db.transaction(async (tx) => {
     const [updated] = await tx.update(projectsTable).set(set).where(eq(projectsTable.id, current.id)).returning();
@@ -208,7 +233,12 @@ export async function updateProject(slug: string, input: ProjectUpdate): Promise
       action: "update",
       entityType: "project",
       entityId: current.id,
-      payload: { fields: Object.keys(set), ...accessChange(current, set) },
+      payload: {
+        fields: Object.keys(set),
+        ...accessChange(current, set),
+        ...(set.goalId !== undefined ? { goal: { from: current.goalId, to: set.goalId } } : {}),
+        ...(set.lifecycle !== undefined ? { lifecycle: { from: current.lifecycle, to: set.lifecycle } } : {}),
+      },
     });
     return updated;
   });
@@ -292,8 +322,11 @@ async function lastContactFor(ids: number[]): Promise<Map<number, Date>> {
 
 export type PersonView = Omit<PersonRow, "search" | "organisationId"> & { organisation: EntitySummary | null };
 
+export type PersonCadence = CadenceState & { cadence: Cadence; cadenceLabel: string; cadencePaused: boolean; pausedByProjects: boolean };
+
 export interface PersonDetail {
   person: PersonView;
+  cadence: PersonCadence;
   iOwe: TaskView[];
   theyOwe: TaskView[];
   projects: LinkedEntity[];
@@ -325,7 +358,7 @@ async function toPersonView(row: PersonRow): Promise<PersonView> {
 export async function getPerson(slug: string): Promise<PersonDetail> {
   const row = await loadPerson(slug);
   const id = row.id;
-  const [person, iOwe, theyOwe, linkedProjects, taskProjects, facts, notes] = await Promise.all([
+  const [person, iOwe, theyOwe, linkedProjects, taskProjects, facts, notes, cadence] = await Promise.all([
     toPersonView(row),
     openTasksWhere(and(eq(tasksTable.personId, id), ne(tasksTable.status, "waiting"))),
     openTasksWhere(and(eq(tasksTable.waitingOnPersonId, id), eq(tasksTable.status, "waiting"))),
@@ -336,10 +369,11 @@ export async function getPerson(slug: string): Promise<PersonDetail> {
       .where(and(or(eq(tasksTable.personId, id), eq(tasksTable.waitingOnPersonId, id)), isNotNull(tasksTable.projectId), ne(tasksTable.status, "noise"))),
     factsFor("person", id),
     notesFor("person", id),
+    cadenceFor(row),
   ]);
   const projectIds = [...new Set([...linkedProjects, ...taskProjects.map((p) => p.id!)])];
   const [projects, timeline] = await Promise.all([summaries(projectsTable, projectIds, new Set(linkedProjects)), timelineFor("person", id, notes)]);
-  return { person, iOwe, theyOwe, projects, facts, notes, timeline };
+  return { person, cadence, iOwe, theyOwe, projects, facts, notes, timeline };
 }
 
 export interface PersonInput {
@@ -351,6 +385,8 @@ export interface PersonInput {
   confidential?: boolean;
   aiAccess?: boolean;
 }
+
+export type PersonUpdate = Partial<PersonInput> & { cadence?: Cadence; cadencePaused?: boolean };
 
 async function assertOrg(id: number | null | undefined) {
   if (!id) return;
@@ -390,7 +426,7 @@ export async function createPerson(input: PersonInput): Promise<PersonView> {
   return toPersonView(row);
 }
 
-export async function updatePerson(slug: string, input: Partial<PersonInput>): Promise<PersonView> {
+export async function updatePerson(slug: string, input: PersonUpdate): Promise<PersonView> {
   const current = await loadPerson(slug);
   const set: Partial<PersonRow> = {};
   if (input.name !== undefined) {
@@ -411,6 +447,11 @@ export async function updatePerson(slug: string, input: Partial<PersonInput>): P
   if (input.relationshipSummary !== undefined) set.relationshipSummary = cleanText(input.relationshipSummary);
   if (input.confidential !== undefined) set.confidential = input.confidential;
   if (input.aiAccess !== undefined) set.aiAccess = input.aiAccess;
+  if (input.cadence !== undefined && input.cadence !== current.cadence) {
+    if (current.isSelf && input.cadence !== "none") throw new ValidationError("Your own record has no cadence");
+    set.cadence = input.cadence;
+  }
+  if (input.cadencePaused !== undefined && input.cadencePaused !== current.cadencePaused) set.cadencePaused = input.cadencePaused;
   if (!Object.keys(set).length) return toPersonView(current);
   const row = await db.transaction(async (tx) => {
     const [updated] = await tx.update(peopleTable).set(set).where(eq(peopleTable.id, current.id)).returning();

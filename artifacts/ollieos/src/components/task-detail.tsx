@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   getTaskDraftPrompt,
   useGetTask,
+  useListGoalOptions,
   useListPeople,
   useListProjects,
   useUpdateTask,
@@ -42,6 +43,7 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
   const detail = useGetTask(id);
   const people = useListPeople();
   const projects = useListProjects();
+  const goals = useListGoalOptions();
   const update = useUpdateTask();
   const invalidate = useInvalidateTasks();
   const actions = useTaskActions();
@@ -200,6 +202,22 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                   {(people.data ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label htmlFor="td-goal" className="oo-field-label">Goal</label>
+              <select id="td-goal" className="oo-input"
+                value={task.notGoalWork ? 'not' : task.goalId != null ? String(task.goalId) : ''}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === 'not') save({ goalId: null, notGoalWork: true }, 'Marked as not goal work');
+                  else save({ goalId: v ? Number(v) : null, notGoalWork: false });
+                }}
+                data-testid="select-task-goal">
+                <option value="">{task.goal?.inherited ? `From its project: ${task.goal.name}` : 'No goal'}</option>
+                {(goals.data ?? []).map((g) => <option key={g.id} value={g.id}>{g.parentId != null ? '\u2003' + g.name : g.name}</option>)}
+                <option value="not">Not goal work</option>
+              </select>
             </div>
 
             {task.status === 'waiting' && (

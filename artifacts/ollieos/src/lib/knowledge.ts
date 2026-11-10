@@ -4,7 +4,7 @@ import { useInvalidateTasks } from '@/lib/task-cache';
 import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
 
-const KNOWLEDGE_PREFIXES = ['/api/projects', '/api/people', '/api/organisations', '/api/decisions', '/api/notes', '/api/search', '/api/suggestions'];
+const KNOWLEDGE_PREFIXES = ['/api/projects', '/api/people', '/api/organisations', '/api/decisions', '/api/notes', '/api/search', '/api/suggestions', '/api/goals', '/api/documents', '/api/playbooks', '/api/home'];
 
 /** Invalidates every Knowledge query, plus the task caches that show project and person names. */
 export function useInvalidateKnowledge() {
@@ -77,6 +77,7 @@ export const TYPE_LABELS: Record<string, string> = {
   decision: 'Decision',
   note: 'Note',
   fact: 'Fact',
+  document: 'Document',
 };
 
 export function firstName(name: string): string {

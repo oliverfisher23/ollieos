@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useSearch } from 'wouter';
 import { useListKnowledgeInbox, useListProjects, useSearchKnowledge, type SearchHit } from '@workspace/api-client-react';
 import { Skel } from '@/components/bits';
 import { IconSearch } from '@/components/icons';
@@ -8,6 +8,8 @@ import { CreateDialog } from '@/components/knowledge/create-dialog';
 import { TYPE_LABELS, entityPath } from '@/lib/knowledge';
 
 const LIBRARY = [
+  { href: '/knowledge/library', label: 'Documents' },
+  { href: '/knowledge/library?tab=playbooks', label: 'Playbooks' },
   { href: '/knowledge/people', label: 'People' },
   { href: '/knowledge/organisations', label: 'Organisations' },
   { href: '/knowledge/decisions', label: 'Decisions' },
@@ -24,12 +26,19 @@ export function KnowledgeLayout({ children, testId }: { children: ReactNode; tes
 }
 
 function hitPath(h: SearchHit): string | null {
+  if (h.type === 'document') return '/knowledge/library?document=' + h.id;
   if (h.type === 'fact') return h.parent ? entityPath(h.parent.type, h.parent.slug, h.parent.id) : null;
   return entityPath(h.type, h.slug, h.id);
 }
 
 function KnowledgeSidebar() {
   const [location] = useLocation();
+  const params = new URLSearchParams(useSearch());
+  const libraryTab = params.get('tab') === 'playbooks' ? 'playbooks' : 'documents';
+  const libraryCurrent = (href: string) => {
+    if (!href.startsWith('/knowledge/library')) return location === href || location.startsWith(href + '/');
+    return location === '/knowledge/library' && (href.includes('playbooks') ? libraryTab === 'playbooks' : libraryTab === 'documents');
+  };
   const [text, setText] = useState('');
   const [q, setQ] = useState('');
   const [creating, setCreating] = useState(false);
@@ -127,7 +136,7 @@ function KnowledgeSidebar() {
           <nav aria-label="Library">
             <span className="oo-side-label">Library</span>
             {LIBRARY.map((l) => (
-              <Link key={l.href} href={l.href} aria-current={location === l.href || location.startsWith(l.href + '/') ? 'page' : undefined} data-testid={'link-library-' + l.label.toLowerCase()}>
+              <Link key={l.href} href={l.href} aria-current={libraryCurrent(l.href) ? 'page' : undefined} data-testid={'link-library-' + l.label.toLowerCase()}>
                 {l.label}
               </Link>
             ))}

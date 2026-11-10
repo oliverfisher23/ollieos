@@ -10,7 +10,7 @@ import {
   type KnowledgeInboxItemKind,
 } from '@workspace/api-client-react';
 import { daysBetween, formatDayMonth, formatTime, londonDate, todayLondon } from '@workspace/shared';
-import { Skel } from '@/components/bits';
+import { CharCount, Skel } from '@/components/bits';
 import { KnowledgeLayout } from '@/components/knowledge/layout';
 import { entityPath, useKnowledgeWrite } from '@/lib/knowledge';
 
@@ -30,8 +30,17 @@ const KIND: Record<KnowledgeInboxItemKind, { label: string; tone: string }> = {
   proposed_decision: { label: 'Proposed decision', tone: 'decision' },
   changed_summary: { label: 'Changed summary', tone: 'person' },
   changed_details: { label: 'Changed details', tone: 'person' },
+  new_document: { label: 'New document', tone: 'fact' },
+  new_playbook: { label: 'New playbook', tone: 'decision' },
+  cadence_change: { label: 'Suggested cadence', tone: 'person' },
   conflict: { label: 'Conflict', tone: 'conflict' },
   stale_fact: { label: 'Stale fact', tone: 'stale' },
+};
+
+const APPROVED: Partial<Record<KnowledgeInboxItemKind, string>> = {
+  new_document: 'Added to the Library',
+  new_playbook: 'Added to playbooks and switched on',
+  cadence_change: 'Cadence set',
 };
 
 const EMPTY: Record<Tab, string> = {
@@ -183,7 +192,7 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
           onSave={(fields) =>
             it.group === 'stale'
               ? resolve({ action: 'edit', text: fields.text ?? '' }, 'Updated and confirmed today', true)
-              : run(() => approveSuggestion(it.id, { fields }), 'Added to knowledge, with your edits', true)
+              : run(() => approveSuggestion(it.id, { fields }), (APPROVED[it.kind] ?? 'Added to knowledge') + ', with your edits', true)
           }
         />
       ) : (
@@ -224,7 +233,7 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
         <div className="oo-icard-actions">
           {it.group === 'suggested' && (
             <>
-              <button type="button" className="oo-btn oo-btn-ink" disabled={busy} onClick={() => run(() => approveSuggestion(it.id, {}), 'Added to knowledge', true)} data-testid={'button-approve-' + testKey}>Approve</button>
+              <button type="button" className="oo-btn oo-btn-ink" disabled={busy} onClick={() => run(() => approveSuggestion(it.id, {}), APPROVED[it.kind] ?? 'Added to knowledge', true)} data-testid={'button-approve-' + testKey}>Approve</button>
               {it.fields.some((f) => f.editable) && (
                 <button type="button" className="oo-btn oo-btn-outline" disabled={busy} onClick={() => setMode('edit')} data-testid={'button-edit-' + testKey}>Edit, then approve</button>
               )}
@@ -261,12 +270,14 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
   );
 }
 
-const LONG = new Set(['text', 'summary', 'relationship_summary']);
+const LONG = new Set(['text', 'summary', 'relationship_summary', 'rule']);
+const REQUIRED = new Set(['text', 'name', 'title', 'applies_when', 'rule']);
+const MAX: Record<string, number> = { rule: 400 };
 
 function EditForm({ it, busy, onSave, onCancel }: { it: KnowledgeInboxItem; busy: boolean; onSave: (fields: Record<string, string>) => void; onCancel: () => void }) {
   const editable = it.fields.filter((f) => f.editable);
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(editable.map((f) => [f.key, f.value ?? ''])));
-  const missing = editable.some((f) => (f.key === 'text' || f.key === 'name') && !values[f.key]?.trim());
+  const missing = editable.some((f) => (REQUIRED.has(f.key) && !values[f.key]?.trim()) || (MAX[f.key] !== undefined && (values[f.key] ?? '').trim().length > MAX[f.key]));
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (missing || busy) return;
@@ -281,7 +292,10 @@ function EditForm({ it, busy, onSave, onCancel }: { it: KnowledgeInboxItem; busy
           <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label htmlFor={id} style={{ fontSize: 12 }} className="oo-muted">{f.label}{f.before !== null ? ` (was: ${f.before})` : ''}</label>
             {LONG.has(f.key) ? (
-              <textarea id={id} className="oo-textarea" rows={3} autoFocus={i === 0} value={values[f.key]} onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))} onKeyDown={(e) => e.key === 'Escape' && onCancel()} data-testid={'input-' + id} />
+              <>
+                <textarea id={id} className="oo-textarea" rows={3} autoFocus={i === 0} value={values[f.key]} onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))} onKeyDown={(e) => e.key === 'Escape' && onCancel()} data-testid={'input-' + id} />
+                {MAX[f.key] !== undefined && <CharCount n={(values[f.key] ?? '').trim().length} max={MAX[f.key]} />}
+              </>
             ) : (
               <input id={id} className="oo-input" autoFocus={i === 0} value={values[f.key]} onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))} onKeyDown={(e) => e.key === 'Escape' && onCancel()} data-testid={'input-' + id} />
             )}

@@ -8,6 +8,8 @@ import knowledgeRouter from "./knowledge";
 import knowledgeInboxRouter from "./knowledgeInbox";
 import askRouter from "./ask";
 import accessRouter from "./access";
+import goalsRouter from "./goals";
+import libraryRouter from "./library";
 import ingestRouter from "./ingest";
 import { oauthConsentRouter, oauthPublicRouter } from "../oauth/routes";
 import { requireOllie } from "../middlewares/requireOllie";
@@ -31,6 +33,8 @@ router.use(knowledgeRouter);
 router.use(knowledgeInboxRouter);
 router.use(askRouter);
 router.use(accessRouter);
+router.use(goalsRouter);
+router.use(libraryRouter);
 router.use(oauthConsentRouter);
 
 export default router;

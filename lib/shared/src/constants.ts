@@ -49,3 +49,72 @@ export const WAITING_AMBER_DAYS = 5;
 
 /** Backlog items are marked Stale after this many days untouched. */
 export const STALE_BACKLOG_DAYS = 30;
+
+/* ---------- Relationship cadence (feature 05) ---------- */
+
+export const CADENCES = ["weekly", "fortnightly", "monthly", "two_monthly", "quarterly", "none"] as const;
+export type Cadence = (typeof CADENCES)[number];
+
+export const CADENCE_LABELS: Record<Cadence, string> = {
+  weekly: "Weekly",
+  fortnightly: "Every 2 weeks",
+  monthly: "Monthly",
+  two_monthly: "Every 2 months",
+  quarterly: "Quarterly",
+  none: "None",
+};
+
+/** Length of one cadence period in days. */
+export const CADENCE_DAYS: Record<Exclude<Cadence, "none">, number> = {
+  weekly: 7,
+  fortnightly: 14,
+  monthly: 30,
+  two_monthly: 60,
+  quarterly: 91,
+};
+
+/** Due soon covers the last 20% of a period. */
+export const DUE_SOON_SHARE = 0.2;
+
+export type CadenceStatus = "overdue" | "due_soon" | "on_track" | "paused" | "none";
+
+export interface CadenceState {
+  status: CadenceStatus;
+  /** Whole days since the last contact; null when there is none on file */
+  daysSince: number | null;
+  /** Days past the period; null unless overdue with a contact on file */
+  daysOverdue: number | null;
+  /** Days left in the period; null unless due soon or on track */
+  daysLeft: number | null;
+}
+
+/**
+ * Where someone stands against their cadence. Overdue after one full period with no contact (or with
+ * none on file at all); due soon in the last 20% of the period. Paused cadences have no status.
+ */
+export function cadenceState(input: { cadence: Cadence; paused: boolean; daysSince: number | null }): CadenceState {
+  const { cadence, paused, daysSince } = input;
+  if (cadence === "none") return { status: "none", daysSince, daysOverdue: null, daysLeft: null };
+  if (paused) return { status: "paused", daysSince, daysOverdue: null, daysLeft: null };
+  const period = CADENCE_DAYS[cadence];
+  if (daysSince == null) return { status: "overdue", daysSince, daysOverdue: null, daysLeft: null };
+  if (daysSince > period) return { status: "overdue", daysSince, daysOverdue: daysSince - period, daysLeft: null };
+  const left = period - daysSince;
+  return { status: left <= period * DUE_SOON_SHARE ? "due_soon" : "on_track", daysSince, daysOverdue: null, daysLeft: left };
+}
+
+export const PROJECT_LIFECYCLES = ["active", "paused", "complete"] as const;
+export type ProjectLifecycle = (typeof PROJECT_LIFECYCLES)[number];
+export const LIFECYCLE_LABELS: Record<ProjectLifecycle, string> = { active: "Active", paused: "Paused", complete: "Complete" };
+
+export const DOC_LOCATIONS = ["dropbox", "gdrive", "claude_project", "other"] as const;
+export type DocLocation = (typeof DOC_LOCATIONS)[number];
+export const DOC_LOCATION_LABELS: Record<DocLocation, string> = {
+  dropbox: "Dropbox",
+  gdrive: "Google Drive",
+  claude_project: "Claude project",
+  other: "Other",
+};
+
+/** Longest a playbook rule may be (feature 07). */
+export const PLAYBOOK_RULE_MAX = 400;

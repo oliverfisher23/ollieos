@@ -58,3 +58,13 @@ export function Avatar({ name, id, size = 28 }: { name: string; id: number | str
 export function Skel({ h = 14, w = '100%', className = '' }: { h?: number; w?: number | string; className?: string }) {
   return <span aria-hidden="true" className={'oo-skel ' + className} style={{ display: 'block', height: h, width: w }} />;
 }
+
+/** "123 of 400" under a field with a length limit; turns red past the limit. */
+export function CharCount({ n, max, id }: { n: number; max: number; id?: string }) {
+  const over = n > max;
+  return (
+    <span id={id} className="oo-num" aria-live={over ? 'polite' : 'off'} style={{ fontSize: 12, alignSelf: 'flex-end', color: over ? 'var(--oo-danger)' : 'var(--oo-ink-faint)' }} data-testid="text-char-count">
+      {over ? `${n - max} over the ${max} limit` : `${n} of ${max}`}
+    </span>
+  );
+}
