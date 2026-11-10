@@ -29,6 +29,7 @@ import { digestSummaryFromLines } from "./ask/model";
 import { briefableIds } from "./briefs";
 import { listCadence } from "./cadence";
 import { inboxCounts } from "./knowledgeInbox";
+import { dueIdeas } from "./strategy";
 import { NotFoundError, ValidationError } from "./tasks";
 
 const SECTION_MAX = 5;
@@ -59,7 +60,7 @@ const SOURCE_WORDS: Record<string, string> = { email: "email", slack: "Slack", m
 async function gather(date: string, since: Date, now: Date) {
   const day = londonRange(date, 1);
   const soon = addDays(date, 3);
-  const [inbox, deadline, done, promises, newPeople, waiting, events, knowledge, cadence] = await Promise.all([
+  const [inbox, deadline, done, promises, newPeople, waiting, events, knowledge, cadence, ideas] = await Promise.all([
     db
       .select({ source: tasksTable.source, n: sql<number>`count(*)::int` })
       .from(tasksTable)
@@ -98,6 +99,7 @@ async function gather(date: string, since: Date, now: Date) {
       .orderBy(asc(calendarEventsTable.startsAt)),
     inboxCounts(),
     listCadence("overdue", date),
+    dueIdeas(date),
   ]);
 
   // Replies on Waiting on: email or Slack since the window from someone Ollie is waiting on.
@@ -136,7 +138,7 @@ async function gather(date: string, since: Date, now: Date) {
   }
   replies = replies.slice(0, 20);
 
-  return { inbox, deadline: deadline[0] ?? null, done, promises, newPeople, replies, events, knowledge, cadence };
+  return { inbox, deadline: deadline[0] ?? null, done, promises, newPeople, replies, events, knowledge, cadence, ideas };
 }
 
 async function buildSections(date: string, since: Date, now: Date): Promise<DigestSections> {
@@ -158,6 +160,19 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
       text: `${plural(g.knowledge.total, "item", "items")} to review in your Knowledge Inbox${extra.length ? `, including ${extra.join(" and ")}` : ""}`,
       href: "/knowledge/inbox",
       refs: [],
+      confidential: false,
+    });
+  }
+
+  // Ideas Ollie asked to come back to, on their day (Part H). One line, or one per idea when few.
+  if (g.ideas.length === 1) {
+    const i = g.ideas[0];
+    needs.push({ text: `Idea to come back to: ${clip(i.title)}`, href: `/strategy?idea=${i.id}`, refs: [toRef("idea", i.id)], confidential: false });
+  } else if (g.ideas.length > 1) {
+    needs.push({
+      text: `${plural(g.ideas.length, "idea", "ideas")} to come back to, starting with ${clip(g.ideas[0].title, 60)}`,
+      href: "/strategy?tab=come_back",
+      refs: g.ideas.map((i) => toRef("idea", i.id)),
       confidential: false,
     });
   }

@@ -4,17 +4,19 @@ import {
   decisionVisible,
   documentVisible,
   factVisible,
+  ideaVisible,
   noteVisible,
   organisationVisible,
   personVisible,
   projectVisible,
   sessionVisible,
+  strategyVisible,
   taskVisible,
   NO_GRANTS,
 } from "./visibility";
 import type { AiScope } from "./scope";
 
-export const SEARCH_TYPES = ["task", "project", "person", "organisation", "decision", "note", "fact", "document", "session"] as const;
+export const SEARCH_TYPES = ["task", "project", "person", "organisation", "decision", "note", "fact", "document", "session", "strategy", "idea"] as const;
 export type SearchType = (typeof SEARCH_TYPES)[number];
 
 export interface SearchHit {
@@ -170,6 +172,24 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
         from cowork_sessions cs
         where (${textMatch(sql.raw("cs.search"), tsq, sql.raw("cs.title"), q, mode)})${v.where}
         order by rank desc, cs.happened_at desc limit ${limit}`;
+    }
+    case "strategy": {
+      const v = vis(strategyVisible("ss", g), visibleOnly);
+      return sql`select 'strategy' as type, ss.id, ss.name as title, left(ss.body, 300) as snippet, null as slug,
+          null as entity_type, null::int as entity_id, ${rankExpr(sql.raw("ss.search"), tsq)} as rank,
+          ${v.hidden} as hidden_from_ai, ss.confidential, null as status, null::boolean as needs_check
+        from strategy_sections ss
+        where ss.deleted_at is null and (${textMatch(sql.raw("ss.search"), tsq, sql.raw("concat_ws(' ', ss.name, ss.body)"), q, mode)})${v.where}
+        order by rank desc, ss.updated_at desc limit ${limit}`;
+    }
+    case "idea": {
+      const v = vis(ideaVisible("i", g), visibleOnly);
+      return sql`select 'idea' as type, i.id, i.title, left(i.notes, 300) as snippet, null as slug,
+          null as entity_type, null::int as entity_id, ${rankExpr(sql.raw("i.search"), tsq)} as rank,
+          ${v.hidden} as hidden_from_ai, i.confidential, i.status::text as status, null::boolean as needs_check
+        from ideas i
+        where i.deleted_at is null and (${textMatch(sql.raw("i.search"), tsq, sql.raw("concat_ws(' ', i.title, i.notes)"), q, mode)})${v.where}
+        order by rank desc, i.updated_at desc limit ${limit}`;
     }
   }
 }

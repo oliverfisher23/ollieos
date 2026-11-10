@@ -39,7 +39,10 @@ export default function GoalsPage() {
             )}
           </p>
         </div>
-        <button type="button" className="oo-btn oo-btn-ink" onClick={() => setAdding(true)} data-testid="button-new-goal">New goal</button>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Link href="/strategy" className="oo-btn oo-btn-outline" data-testid="link-goals-strategy">Strategy and ideas</Link>
+          <button type="button" className="oo-btn oo-btn-ink" onClick={() => setAdding(true)} data-testid="button-new-goal">New goal</button>
+        </span>
       </div>
 
       {adding && <NewGoalForm onDone={() => setAdding(false)} />}

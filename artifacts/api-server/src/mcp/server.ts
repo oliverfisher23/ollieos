@@ -23,6 +23,7 @@ import { findDocumentsForAi, getPlaybooksForAi, goalsForAi, overdueContactsForAi
 import { requestAccess } from "../lib/ai-data/requests";
 import type { AiScope } from "../lib/ai-data/scope";
 import { SEARCH_TYPES } from "../lib/ai-data/search";
+import { resolveGoalForAi, strategyForAi } from "../lib/ai-data/strategy";
 import { listMySuggestions } from "../lib/ai-data/suggestions";
 import { proposalReply, proposePerson, proposeProject } from "../services/aiPropose";
 import { FACT_ATTRIBUTES, SUGGESTION_SOURCES, propose, type ProposeMeta } from "../services/suggestions";
@@ -36,6 +37,7 @@ import { NotFoundError, updateTask, ValidationError, type TaskUpdateInput } from
 import { AttendeeSchema, syncCalendarFeed } from "../services/calendarSync";
 import { briefForAi, resolveEventForAi } from "../services/briefs";
 import { saveSession, SESSION_LIMITS, type SessionAction } from "../services/sessions";
+import { addIdeaFromAi } from "../services/strategy";
 
 export const SOURCE_OF_TRUTH =
   "OllieOS is the source of truth for Ollie's work: tasks, projects, people and decisions. Check it before asking Ollie for context.";
@@ -48,6 +50,7 @@ export const SERVER_INSTRUCTIONS = [
   "Before drafting anything on Ollie's behalf, call get_playbooks for the project or person concerned and follow every rule it returns.",
   "To see how things connect (who knows whom, which organisations sit behind a project), use explore and find_connection. Propose a missing relationship with propose_relationship.",
   "In a Cowork session, call get_context for the project or person it is about before you start, and call save_session once at the end with what was done.",
+  "For questions of direction or priority, read Ollie's strategy and open ideas with get_strategy. When an idea worth coming back to comes up, add it with add_idea; it goes straight onto his list, marked as yours.",
 ].join(" ");
 
 const STATUSES = ["inbox", "now", "backlog", "waiting", "done", "noise", "dropped"] as const;
@@ -136,7 +139,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
   server.registerTool(
     "search",
     {
-      description: describe("Full-text search across tasks, projects, people, organisations, decisions, notes, facts, documents and Cowork sessions."),
+      description: describe("Full-text search across tasks, projects, people, organisations, decisions, notes, facts, documents, Cowork sessions, strategy sections and ideas."),
       inputSchema: {
         query: z.string().min(1).max(500),
         types: z.array(z.enum(SEARCH_TYPES)).optional(),
@@ -198,8 +201,8 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
   server.registerTool(
     "fetch",
     {
-      description: describe("The full text of one item by its ref, as returned by search, explore or get_context."),
-      inputSchema: { id: z.string().min(3).max(60).describe("A ref such as decision:12 or document:4") },
+      description: describe("The full text of one item by its ref, as returned by search, explore, get_context or get_strategy."),
+      inputSchema: { id: z.string().min(3).max(60).describe("A ref such as decision:12, document:4 or idea:3") },
     },
     async (a) =>
       guard(async () => {
@@ -305,6 +308,17 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
         if (id == null) return NOT_FOUND("work meeting with a brief");
         return ok(await briefForAi(scope, id));
       }),
+  );
+
+  server.registerTool(
+    "get_strategy",
+    {
+      description: describe(
+        "Ollie's strategy, in the sections he wrote and in his order (each with the goals and projects it drives), and his open ideas: new ones and ones he wants to come back to, with the date. due is true when that date has arrived. Use it to judge what fits his direction.",
+      ),
+      inputSchema: {},
+    },
+    async () => ok(await strategyForAi(scope)),
   );
 
   /* ---------- Tasks ---------- */
@@ -456,6 +470,39 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
         );
         const task = result.taskId != null ? await taskForAi(scope, result.taskId, "log_promise") : null;
         return ok({ ...(task ? { task } : { message: "Already captured." }), duplicate: result.outcome === "duplicate", ...(unmatched.length ? { unmatched } : {}) });
+      }),
+  );
+
+  server.registerTool(
+    "add_idea",
+    {
+      description: describe(
+        "Adds an idea or brainstorm to Ollie's ideas list, as New and marked as yours, for him to come back to. Use it for ideas, not tasks: something to do goes in create_task. Check get_strategy first so you do not add the same idea twice. Ideas cannot be changed once added.",
+      ),
+      inputSchema: {
+        title: z.string().min(1).max(300).describe("The idea in a line"),
+        notes: z.string().max(20000).optional().describe("The thinking behind it, or the whole brainstorm"),
+        goal: z.string().max(200).optional().describe("A goal ref such as goal:2, or its name"),
+        project: Pick.optional(),
+        from_session: z.boolean().optional().describe("true when it came up in a Cowork session"),
+        confidential: z.boolean().optional(),
+      },
+    },
+    async (a) =>
+      guard(async () => {
+        const [goal, project] = await Promise.all([a.goal ? resolveGoalForAi(a.goal) : null, pickOrNull(scope, a.project, ["project"])]);
+        if (a.goal && !goal) return NOT_FOUND("goal");
+        if (a.project && !project) return NOT_FOUND("project");
+        const r = await addIdeaFromAi(writer, {
+          title: a.title,
+          notes: a.notes ?? null,
+          goalId: goal?.id ?? null,
+          projectId: project?.id ?? null,
+          confidential: a.confidential ?? false,
+          fromSession: a.from_session ?? false,
+        });
+        if (!r.visible) return ok(HIDDEN_SAVE);
+        return ok({ idea: { ref: `idea:${r.id}`, title: a.title.trim(), status: "new" }, message: "Added to Ollie's ideas as New, marked as yours." });
       }),
   );
 

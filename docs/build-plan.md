@@ -1000,7 +1000,7 @@ Goal: OllieOS does more of the work around email, meetings and knowledge, and ke
 - **Archived:** older than 90 days with no open task or promise from it. Archived sessions stay on Sessions (under "Show archived sessions") and in search, but are left out of `get_context` and meeting briefs.
 - **Where they show:** Knowledge, Sessions (search, each session's summary, what was done, projects and people, tasks, approved decisions and documents, knowledge status, transcript, AI access, delete); knowledge search and Claude's `search`; Ask; `get_context` for a project or person (latest 5); briefs cite them. Checked in development with one real read, which proposed two decisions and a new person from a placeholder session. Approved by Ollie on 10th November 2026.
 
-### Part G: Knowledge graph (asked for 10th November 2026)
+### Part G: Knowledge graph (asked for 10th November 2026, approved 10th November 2026)
 
 Ollie asked for a graph of everything in OllieOS that Claude, ChatGPT and Gemini can all use, plus a visual map inside OllieOS. No export file.
 
@@ -1053,3 +1053,6 @@ Ollie asked for a Strategy page for context about his strategy, plus brainstorms
   - Taking an idea forward creates the task or project and links back to it.
   - Claude's `add_idea` lands as New, marked From Claude.
   - A confidential section or idea never reaches Claude.
+- **Built (10th November 2026):** a Strategy page at `/strategy`, in the rail between Goals and Knowledge; on phones it opens from Home (a "Strategy and ideas" card) and from Goals. Sections are added by name, edited in place, moved up and down, linked to goals and projects, and deleted with Undo (kept for a week, then gone). Each shows when it last changed. Ideas have a quick add box with optional notes, tabs for New, Come back to (with a due count), Taken forward and Dropped, and search. Come back to needs a day (quick picks for a week, a month or 3 months, or any date); from that day the idea shows on Home ("Ideas to come back to") and in the morning digest until it is moved, re-dated or dropped. Take forward makes a Backlog task (notes, project and goal carried over) or a project (notes as its summary, goal linked) and the idea links to it. Each idea shows who added it: Ollie, Claude or a Cowork session.
+  - Claude: `get_strategy` (sections in order, plus new and come-back-to ideas with their dates) and `add_idea` (title, notes, goal, project, from_session; lands as New and is marked as Claude's, skipping the Knowledge Inbox). Strategy and ideas are in `search`, `fetch` and Ask. Claude cannot change or delete either. The Cowork instructions mention both tools, so the block needs pasting into Cowork again.
+  - Who can read what: a section or idea is hidden from AI when it is confidential, has AI access off, or is linked to a hidden project (or, for an idea, became a hidden task or project). Goals never hide anything, because goal names are always readable by AI and only their targets are confidential. Neither has approvals of its own: approving a project opens what it hides.

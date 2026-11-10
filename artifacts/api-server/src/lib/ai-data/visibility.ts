@@ -162,6 +162,25 @@ export function sessionVisible(alias: string, g: Grants = NO_GRANTS): string {
   end)`;
 }
 
+/**
+ * A strategy section (Part H) is hidden when it is confidential or has AI access off, or when any
+ * project it drives is hidden. Goals never hide it: a goal's name is always visible to AI.
+ * There are no grants on sections; a grant on the project unlocks an inherited one.
+ */
+export function strategyVisible(alias: string, g: Grants = NO_GRANTS): string {
+  const s = alias;
+  return `(${s}.deleted_at is null and not ${s}.confidential and ${s}.ai_access
+    and not exists (select 1 from projects x where x.id = any(${s}.project_ids) and ${ownHidden("x", "project", g)}))`;
+}
+
+/** An idea (Part H) follows its own switches, and is hidden when its project, or the project it became, is hidden. */
+export function ideaVisible(alias: string, g: Grants = NO_GRANTS): string {
+  const i = alias;
+  return `(${i}.deleted_at is null and not ${i}.confidential and ${i}.ai_access
+    and not exists (select 1 from projects x where x.id in (${i}.project_id, ${i}.taken_project_id) and ${ownHidden("x", "project", g)})
+    and (${i}.taken_task_id is null or exists (select 1 from tasks xt where xt.id = ${i}.taken_task_id and ${taskVisible("xt", g)})))`;
+}
+
 /** A session older than this with nothing from it still open is archived (Part F). */
 export const SESSION_ARCHIVE_DAYS = 90;
 

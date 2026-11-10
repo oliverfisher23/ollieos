@@ -10,11 +10,14 @@ import type { DoNextItem } from './doNextItem';
 import type { HomeSummaryAccess } from './homeSummaryAccess';
 import type { HomeSummaryDoneThisWeek } from './homeSummaryDoneThisWeek';
 import type { HomeSummaryInbox } from './homeSummaryInbox';
+import type { Idea } from './idea';
 import type { KnowledgeInboxCounts } from './knowledgeInboxCounts';
 import type { Task } from './task';
 import type { WaitingItem } from './waitingItem';
 
 export interface HomeSummary {
+  /** Ideas set to come back to on or before today */
+  ideasDue: Idea[];
   /**
      * Today's date (YYYY-MM-DD) once today's digest exists, otherwise null
      * @nullable

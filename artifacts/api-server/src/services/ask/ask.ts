@@ -4,6 +4,8 @@ import {
   db,
   decisionsTable,
   coworkSessionsTable,
+  ideasTable,
+  strategySectionsTable,
   documentsTable,
   factsTable,
   goalsTable,
@@ -115,6 +117,8 @@ function entityPath(type: string, slug: string | null, id: number): string | nul
   if (type === "goal") return `/goals`;
   if (type === "document") return `/knowledge/library?document=${id}`;
   if (type === "session") return `/knowledge/sessions?session=${id}`;
+  if (type === "strategy") return `/strategy?section=${id}`;
+  if (type === "idea") return `/strategy?idea=${id}`;
   return null;
 }
 
@@ -124,7 +128,7 @@ const clip = (s: string, n = 48) => (s.length > n ? s.slice(0, n - 1).trimEnd() 
 async function resolveChips(refs: string[]) {
   const parsed = refs.map(parseRef).filter((r): r is NonNullable<typeof r> => !!r);
   const ids = (t: string) => [...new Set(parsed.filter((r) => r.type === t).map((r) => r.id))];
-  const [tasks, decisions, notes, facts, goals, documents, sessions] = await Promise.all([
+  const [tasks, decisions, notes, facts, goals, documents, sessions, sections, ideas] = await Promise.all([
     ids("task").length ? db.select().from(tasksTable).where(inArray(tasksTable.id, ids("task"))) : [],
     ids("decision").length ? db.select().from(decisionsTable).where(inArray(decisionsTable.id, ids("decision"))) : [],
     ids("note").length ? db.select().from(notesTable).where(inArray(notesTable.id, ids("note"))) : [],
@@ -139,6 +143,10 @@ async function resolveChips(refs: string[]) {
           .from(coworkSessionsTable)
           .where(inArray(coworkSessionsTable.id, ids("session")))
       : [],
+    ids("strategy").length
+      ? db.select({ id: strategySectionsTable.id, name: strategySectionsTable.name, confidential: strategySectionsTable.confidential }).from(strategySectionsTable).where(inArray(strategySectionsTable.id, ids("strategy")))
+      : [],
+    ids("idea").length ? db.select({ id: ideasTable.id, title: ideasTable.title, confidential: ideasTable.confidential }).from(ideasTable).where(inArray(ideasTable.id, ids("idea"))) : [],
   ]);
   const parents = [
     ...parsed.filter((r) => r.type === "project" || r.type === "person" || r.type === "organisation"),
@@ -219,6 +227,12 @@ async function resolveChips(refs: string[]) {
       path: entityPath("session", null, s.id),
       confidential: s.confidential === true,
     });
+  }
+  for (const s of sections) {
+    chips.set(toRef("strategy", s.id), { ref: toRef("strategy", s.id), type: "strategy", label: `Strategy · ${clip(s.name, 36)}`, path: entityPath("strategy", null, s.id), confidential: s.confidential });
+  }
+  for (const i of ideas) {
+    chips.set(toRef("idea", i.id), { ref: toRef("idea", i.id), type: "idea", label: `Idea · ${clip(i.title, 36)}`, path: entityPath("idea", null, i.id), confidential: i.confidential });
   }
   return { chips, taskById };
 }

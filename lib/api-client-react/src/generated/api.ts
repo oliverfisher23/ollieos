@@ -92,6 +92,11 @@ import type {
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   HomeSummary,
+  Idea,
+  IdeaForward,
+  IdeaInput,
+  IdeaList,
+  IdeaUpdate,
   KnowledgeInbox,
   KnowledgeSettings,
   KnowledgeSettingsUpdate,
@@ -101,6 +106,7 @@ import type {
   ListAiActivityParams,
   ListCadenceParams,
   ListDocumentsParams,
+  ListIdeasParams,
   ListKnowledgeInboxParams,
   ListProjectsParams,
   ListRelationshipsParams,
@@ -163,6 +169,10 @@ import type {
   SessionDetail,
   SessionListItem,
   SessionUpdate,
+  StrategyOrder,
+  StrategySection,
+  StrategySectionInput,
+  StrategySectionUpdate,
   SuggestionApprove,
   SuggestionDecision,
   SweepStatus,
@@ -6073,6 +6083,1143 @@ export const useReadSessionKnowledge = <TError = ErrorType<ErrorResponse | NotAu
         TContext
       > => {
       return useMutation(getReadSessionKnowledgeMutationOptions(options), queryClient);
+    }
+
+export const getListStrategySectionsUrl = () => {
+
+
+
+
+  return `/api/strategy/sections`
+}
+
+/**
+ * @summary Ollie's strategy sections, in his order
+ */
+export const listStrategySections = async ( options?: Parameters<typeof customFetch>[1]): Promise<StrategySection[]> => {
+
+  return customFetch<StrategySection[]>(getListStrategySectionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStrategySectionsQueryKey = () => {
+    return [
+    `/api/strategy/sections`
+    ] as const;
+    }
+
+
+export const getListStrategySectionsQueryOptions = <TData = Awaited<ReturnType<typeof listStrategySections>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategySections>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStrategySectionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStrategySections>>> = ({ signal }) => listStrategySections({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStrategySections>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListStrategySectionsQueryResult = NonNullable<Awaited<ReturnType<typeof listStrategySections>>>
+export type ListStrategySectionsQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListStrategySections<TData = Awaited<ReturnType<typeof listStrategySections>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategySections>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStrategySections>>,
+          TError,
+          Awaited<ReturnType<typeof listStrategySections>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStrategySections<TData = Awaited<ReturnType<typeof listStrategySections>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategySections>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStrategySections>>,
+          TError,
+          Awaited<ReturnType<typeof listStrategySections>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStrategySections<TData = Awaited<ReturnType<typeof listStrategySections>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategySections>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Ollie's strategy sections, in his order
+ */
+
+export function useListStrategySections<TData = Awaited<ReturnType<typeof listStrategySections>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStrategySections>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListStrategySectionsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateStrategySectionUrl = () => {
+
+
+
+
+  return `/api/strategy/sections`
+}
+
+/**
+ * @summary Add a section at the end
+ */
+export const createStrategySection = async (strategySectionInput: StrategySectionInput, options?: Parameters<typeof customFetch>[1]): Promise<StrategySection> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StrategySection>(getCreateStrategySectionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(strategySectionInput)
+  }
+);}
+
+
+
+
+
+export const getCreateStrategySectionMutationKey = () => ['createStrategySection'] as const;
+
+export const getCreateStrategySectionMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStrategySection>>, TError,CreateStrategySectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createStrategySection>>, TError,CreateStrategySectionMutationVariables, TContext> => {
+
+const mutationKey = getCreateStrategySectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createStrategySection>>, CreateStrategySectionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createStrategySection(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateStrategySectionMutationResult = NonNullable<Awaited<ReturnType<typeof createStrategySection>>>
+    export type CreateStrategySectionMutationBody = BodyType<StrategySectionInput>
+    export type CreateStrategySectionMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type CreateStrategySectionMutationVariables = {data: BodyType<StrategySectionInput>}
+
+    /**
+ * @summary Add a section at the end
+ */
+export const useCreateStrategySection = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStrategySection>>, TError,CreateStrategySectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createStrategySection>>,
+        TError,
+        CreateStrategySectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateStrategySectionMutationOptions(options), queryClient);
+    }
+
+export const getReorderStrategySectionsUrl = () => {
+
+
+
+
+  return `/api/strategy/sections/order`
+}
+
+/**
+ * @summary Put every section in a new order
+ */
+export const reorderStrategySections = async (strategyOrder: StrategyOrder, options?: Parameters<typeof customFetch>[1]): Promise<StrategySection[]> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StrategySection[]>(getReorderStrategySectionsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(strategyOrder)
+  }
+);}
+
+
+
+
+
+export const getReorderStrategySectionsMutationKey = () => ['reorderStrategySections'] as const;
+
+export const getReorderStrategySectionsMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderStrategySections>>, TError,ReorderStrategySectionsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reorderStrategySections>>, TError,ReorderStrategySectionsMutationVariables, TContext> => {
+
+const mutationKey = getReorderStrategySectionsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reorderStrategySections>>, ReorderStrategySectionsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  reorderStrategySections(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReorderStrategySectionsMutationResult = NonNullable<Awaited<ReturnType<typeof reorderStrategySections>>>
+    export type ReorderStrategySectionsMutationBody = BodyType<StrategyOrder>
+    export type ReorderStrategySectionsMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type ReorderStrategySectionsMutationVariables = {data: BodyType<StrategyOrder>}
+
+    /**
+ * @summary Put every section in a new order
+ */
+export const useReorderStrategySections = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderStrategySections>>, TError,ReorderStrategySectionsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reorderStrategySections>>,
+        TError,
+        ReorderStrategySectionsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReorderStrategySectionsMutationOptions(options), queryClient);
+    }
+
+export const getUpdateStrategySectionUrl = (id: number,) => {
+
+
+
+
+  return `/api/strategy/sections/${id}`
+}
+
+/**
+ * @summary Rename, edit, link or change who can read a section
+ */
+export const updateStrategySection = async (id: number,
+    strategySectionUpdate: StrategySectionUpdate, options?: Parameters<typeof customFetch>[1]): Promise<StrategySection> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StrategySection>(getUpdateStrategySectionUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(strategySectionUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateStrategySectionMutationKey = () => ['updateStrategySection'] as const;
+
+export const getUpdateStrategySectionMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStrategySection>>, TError,UpdateStrategySectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateStrategySection>>, TError,UpdateStrategySectionMutationVariables, TContext> => {
+
+const mutationKey = getUpdateStrategySectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateStrategySection>>, UpdateStrategySectionMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateStrategySection(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateStrategySectionMutationResult = NonNullable<Awaited<ReturnType<typeof updateStrategySection>>>
+    export type UpdateStrategySectionMutationBody = BodyType<StrategySectionUpdate>
+    export type UpdateStrategySectionMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type UpdateStrategySectionMutationVariables = {id: number;data: BodyType<StrategySectionUpdate>}
+
+    /**
+ * @summary Rename, edit, link or change who can read a section
+ */
+export const useUpdateStrategySection = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStrategySection>>, TError,UpdateStrategySectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateStrategySection>>,
+        TError,
+        UpdateStrategySectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateStrategySectionMutationOptions(options), queryClient);
+    }
+
+export const getDeleteStrategySectionUrl = (id: number,) => {
+
+
+
+
+  return `/api/strategy/sections/${id}`
+}
+
+/**
+ * @summary Delete a section; it can be brought back for a week
+ */
+export const deleteStrategySection = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteStrategySectionUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteStrategySectionMutationKey = () => ['deleteStrategySection'] as const;
+
+export const getDeleteStrategySectionMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStrategySection>>, TError,DeleteStrategySectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteStrategySection>>, TError,DeleteStrategySectionMutationVariables, TContext> => {
+
+const mutationKey = getDeleteStrategySectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteStrategySection>>, DeleteStrategySectionMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteStrategySection(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteStrategySectionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteStrategySection>>>
+
+    export type DeleteStrategySectionMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type DeleteStrategySectionMutationVariables = {id: number}
+
+    /**
+ * @summary Delete a section; it can be brought back for a week
+ */
+export const useDeleteStrategySection = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStrategySection>>, TError,DeleteStrategySectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteStrategySection>>,
+        TError,
+        DeleteStrategySectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteStrategySectionMutationOptions(options), queryClient);
+    }
+
+export const getRestoreStrategySectionUrl = (id: number,) => {
+
+
+
+
+  return `/api/strategy/sections/${id}/restore`
+}
+
+/**
+ * @summary Undo deleting a section
+ */
+export const restoreStrategySection = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<StrategySection> => {
+
+  return customFetch<StrategySection>(getRestoreStrategySectionUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRestoreStrategySectionMutationKey = () => ['restoreStrategySection'] as const;
+
+export const getRestoreStrategySectionMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreStrategySection>>, TError,RestoreStrategySectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreStrategySection>>, TError,RestoreStrategySectionMutationVariables, TContext> => {
+
+const mutationKey = getRestoreStrategySectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreStrategySection>>, RestoreStrategySectionMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  restoreStrategySection(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreStrategySectionMutationResult = NonNullable<Awaited<ReturnType<typeof restoreStrategySection>>>
+
+    export type RestoreStrategySectionMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type RestoreStrategySectionMutationVariables = {id: number}
+
+    /**
+ * @summary Undo deleting a section
+ */
+export const useRestoreStrategySection = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreStrategySection>>, TError,RestoreStrategySectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof restoreStrategySection>>,
+        TError,
+        RestoreStrategySectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRestoreStrategySectionMutationOptions(options), queryClient);
+    }
+
+export const getListIdeasUrl = (params?: ListIdeasParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/ideas?${stringifiedParams}` : `/api/ideas`
+}
+
+/**
+ * @summary Ideas in one tab, with counts for every tab
+ */
+export const listIdeas = async (params?: ListIdeasParams, options?: Parameters<typeof customFetch>[1]): Promise<IdeaList> => {
+
+  return customFetch<IdeaList>(getListIdeasUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListIdeasQueryKey = (params?: ListIdeasParams,) => {
+    return [
+    `/api/ideas`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListIdeasQueryOptions = <TData = Awaited<ReturnType<typeof listIdeas>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(params?: ListIdeasParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listIdeas>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListIdeasQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listIdeas>>> = ({ signal }) => listIdeas(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listIdeas>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListIdeasQueryResult = NonNullable<Awaited<ReturnType<typeof listIdeas>>>
+export type ListIdeasQueryError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+export function useListIdeas<TData = Awaited<ReturnType<typeof listIdeas>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: undefined |  ListIdeasParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listIdeas>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listIdeas>>,
+          TError,
+          Awaited<ReturnType<typeof listIdeas>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListIdeas<TData = Awaited<ReturnType<typeof listIdeas>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params?: ListIdeasParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listIdeas>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listIdeas>>,
+          TError,
+          Awaited<ReturnType<typeof listIdeas>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListIdeas<TData = Awaited<ReturnType<typeof listIdeas>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params?: ListIdeasParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listIdeas>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Ideas in one tab, with counts for every tab
+ */
+
+export function useListIdeas<TData = Awaited<ReturnType<typeof listIdeas>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params?: ListIdeasParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listIdeas>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListIdeasQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateIdeaUrl = () => {
+
+
+
+
+  return `/api/ideas`
+}
+
+/**
+ * @summary Jot down an idea
+ */
+export const createIdea = async (ideaInput: IdeaInput, options?: Parameters<typeof customFetch>[1]): Promise<Idea> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Idea>(getCreateIdeaUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(ideaInput)
+  }
+);}
+
+
+
+
+
+export const getCreateIdeaMutationKey = () => ['createIdea'] as const;
+
+export const getCreateIdeaMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createIdea>>, TError,CreateIdeaMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createIdea>>, TError,CreateIdeaMutationVariables, TContext> => {
+
+const mutationKey = getCreateIdeaMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createIdea>>, CreateIdeaMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createIdea(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateIdeaMutationResult = NonNullable<Awaited<ReturnType<typeof createIdea>>>
+    export type CreateIdeaMutationBody = BodyType<IdeaInput>
+    export type CreateIdeaMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type CreateIdeaMutationVariables = {data: BodyType<IdeaInput>}
+
+    /**
+ * @summary Jot down an idea
+ */
+export const useCreateIdea = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createIdea>>, TError,CreateIdeaMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createIdea>>,
+        TError,
+        CreateIdeaMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateIdeaMutationOptions(options), queryClient);
+    }
+
+export const getGetIdeaUrl = (id: number,) => {
+
+
+
+
+  return `/api/ideas/${id}`
+}
+
+/**
+ * @summary One idea
+ */
+export const getIdea = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Idea> => {
+
+  return customFetch<Idea>(getGetIdeaUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetIdeaQueryKey = (id: number,) => {
+    return [
+    `/api/ideas/${id}`
+    ] as const;
+    }
+
+
+export const getGetIdeaQueryOptions = <TData = Awaited<ReturnType<typeof getIdea>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getIdea>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetIdeaQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getIdea>>> = ({ signal }) => getIdea(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getIdea>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetIdeaQueryResult = NonNullable<Awaited<ReturnType<typeof getIdea>>>
+export type GetIdeaQueryError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+
+
+export function useGetIdea<TData = Awaited<ReturnType<typeof getIdea>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getIdea>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getIdea>>,
+          TError,
+          Awaited<ReturnType<typeof getIdea>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetIdea<TData = Awaited<ReturnType<typeof getIdea>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getIdea>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getIdea>>,
+          TError,
+          Awaited<ReturnType<typeof getIdea>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetIdea<TData = Awaited<ReturnType<typeof getIdea>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getIdea>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary One idea
+ */
+
+export function useGetIdea<TData = Awaited<ReturnType<typeof getIdea>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getIdea>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetIdeaQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateIdeaUrl = (id: number,) => {
+
+
+
+
+  return `/api/ideas/${id}`
+}
+
+/**
+ * @summary Edit an idea, move it between tabs or pick a day to come back to it
+ */
+export const updateIdea = async (id: number,
+    ideaUpdate: IdeaUpdate, options?: Parameters<typeof customFetch>[1]): Promise<Idea> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Idea>(getUpdateIdeaUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(ideaUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateIdeaMutationKey = () => ['updateIdea'] as const;
+
+export const getUpdateIdeaMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateIdea>>, TError,UpdateIdeaMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateIdea>>, TError,UpdateIdeaMutationVariables, TContext> => {
+
+const mutationKey = getUpdateIdeaMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateIdea>>, UpdateIdeaMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateIdea(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateIdeaMutationResult = NonNullable<Awaited<ReturnType<typeof updateIdea>>>
+    export type UpdateIdeaMutationBody = BodyType<IdeaUpdate>
+    export type UpdateIdeaMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type UpdateIdeaMutationVariables = {id: number;data: BodyType<IdeaUpdate>}
+
+    /**
+ * @summary Edit an idea, move it between tabs or pick a day to come back to it
+ */
+export const useUpdateIdea = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateIdea>>, TError,UpdateIdeaMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateIdea>>,
+        TError,
+        UpdateIdeaMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateIdeaMutationOptions(options), queryClient);
+    }
+
+export const getDeleteIdeaUrl = (id: number,) => {
+
+
+
+
+  return `/api/ideas/${id}`
+}
+
+/**
+ * @summary Delete an idea; it can be brought back for a week
+ */
+export const deleteIdea = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteIdeaUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteIdeaMutationKey = () => ['deleteIdea'] as const;
+
+export const getDeleteIdeaMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteIdea>>, TError,DeleteIdeaMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteIdea>>, TError,DeleteIdeaMutationVariables, TContext> => {
+
+const mutationKey = getDeleteIdeaMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteIdea>>, DeleteIdeaMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteIdea(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteIdeaMutationResult = NonNullable<Awaited<ReturnType<typeof deleteIdea>>>
+
+    export type DeleteIdeaMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type DeleteIdeaMutationVariables = {id: number}
+
+    /**
+ * @summary Delete an idea; it can be brought back for a week
+ */
+export const useDeleteIdea = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteIdea>>, TError,DeleteIdeaMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteIdea>>,
+        TError,
+        DeleteIdeaMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteIdeaMutationOptions(options), queryClient);
+    }
+
+export const getTakeIdeaForwardUrl = (id: number,) => {
+
+
+
+
+  return `/api/ideas/${id}/forward`
+}
+
+/**
+ * @summary Turn an idea into a task or a project and link the two
+ */
+export const takeIdeaForward = async (id: number,
+    ideaForward: IdeaForward, options?: Parameters<typeof customFetch>[1]): Promise<Idea> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Idea>(getTakeIdeaForwardUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(ideaForward)
+  }
+);}
+
+
+
+
+
+export const getTakeIdeaForwardMutationKey = () => ['takeIdeaForward'] as const;
+
+export const getTakeIdeaForwardMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeIdeaForward>>, TError,TakeIdeaForwardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof takeIdeaForward>>, TError,TakeIdeaForwardMutationVariables, TContext> => {
+
+const mutationKey = getTakeIdeaForwardMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof takeIdeaForward>>, TakeIdeaForwardMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  takeIdeaForward(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TakeIdeaForwardMutationResult = NonNullable<Awaited<ReturnType<typeof takeIdeaForward>>>
+    export type TakeIdeaForwardMutationBody = BodyType<IdeaForward>
+    export type TakeIdeaForwardMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type TakeIdeaForwardMutationVariables = {id: number;data: BodyType<IdeaForward>}
+
+    /**
+ * @summary Turn an idea into a task or a project and link the two
+ */
+export const useTakeIdeaForward = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeIdeaForward>>, TError,TakeIdeaForwardMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof takeIdeaForward>>,
+        TError,
+        TakeIdeaForwardMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTakeIdeaForwardMutationOptions(options), queryClient);
+    }
+
+export const getRestoreIdeaUrl = (id: number,) => {
+
+
+
+
+  return `/api/ideas/${id}/restore`
+}
+
+/**
+ * @summary Undo deleting an idea
+ */
+export const restoreIdea = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Idea> => {
+
+  return customFetch<Idea>(getRestoreIdeaUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRestoreIdeaMutationKey = () => ['restoreIdea'] as const;
+
+export const getRestoreIdeaMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreIdea>>, TError,RestoreIdeaMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreIdea>>, TError,RestoreIdeaMutationVariables, TContext> => {
+
+const mutationKey = getRestoreIdeaMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreIdea>>, RestoreIdeaMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  restoreIdea(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreIdeaMutationResult = NonNullable<Awaited<ReturnType<typeof restoreIdea>>>
+
+    export type RestoreIdeaMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type RestoreIdeaMutationVariables = {id: number}
+
+    /**
+ * @summary Undo deleting an idea
+ */
+export const useRestoreIdea = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreIdea>>, TError,RestoreIdeaMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof restoreIdea>>,
+        TError,
+        RestoreIdeaMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRestoreIdeaMutationOptions(options), queryClient);
     }
 
 export const getUpdateDocumentUrl = (id: number,) => {

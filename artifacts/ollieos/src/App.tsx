@@ -18,6 +18,7 @@ import { DecisionPage, DecisionsListPage, NotePage, NotesListPage } from '@/page
 import KnowledgeInboxPage from '@/pages/knowledge/inbox';
 import SettingsPage from '@/pages/settings';
 import GoalsPage from '@/pages/goals';
+import StrategyPage from '@/pages/strategy';
 import PeopleCadencePage from '@/pages/people-cadence';
 import LibraryPage from '@/pages/knowledge/library';
 import SessionsPage from '@/pages/knowledge/sessions';
@@ -85,6 +86,7 @@ function Router() {
         <Route path="/digest">{() => <DigestPage />}</Route>
         <Route path="/digest/:date">{(p) => <DigestPage key={p.date} date={p.date} />}</Route>
         <Route path="/goals" component={GoalsPage} />
+        <Route path="/strategy" component={StrategyPage} />
         <Route path="/people" component={PeopleCadencePage} />
         <Route path="/people/:slug">{(p) => <Redirect to={'/knowledge/people/' + p.slug} replace />}</Route>
         <Route path="/settings">{() => <Redirect to="/settings/connectors" replace />}</Route>

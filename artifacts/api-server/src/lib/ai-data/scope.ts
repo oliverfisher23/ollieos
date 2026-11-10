@@ -10,11 +10,13 @@ import {
   documentsTable,
   factsTable,
   goalsTable,
+  ideasTable,
   notesTable,
   organisationsTable,
   peopleTable,
   playbooksTable,
   projectsTable,
+  strategySectionsTable,
   tasksTable,
 } from "@workspace/db";
 import { parseRef, toRef, type RefType } from "@workspace/shared";
@@ -31,6 +33,8 @@ import {
   playbookVisible,
   sessionVisible,
   projectVisible,
+  strategyVisible,
+  ideaVisible,
   taskVisible,
   type GrantType,
   type Grants,
@@ -128,6 +132,10 @@ export async function visibleRefs(scope: AiScope, refList: readonly string[]): P
     q("session", (i) =>
       db.select({ id: coworkSessionsTable.id }).from(coworkSessionsTable).where(and(inArray(coworkSessionsTable.id, i), sql.raw(sessionVisible("cowork_sessions", g)))),
     ),
+    q("strategy", (i) =>
+      db.select({ id: strategySectionsTable.id }).from(strategySectionsTable).where(and(inArray(strategySectionsTable.id, i), sql.raw(strategyVisible("strategy_sections", g)))),
+    ),
+    q("idea", (i) => db.select({ id: ideasTable.id }).from(ideasTable).where(and(inArray(ideasTable.id, i), sql.raw(ideaVisible("ideas", g))))),
   ]);
   return new Set(parts.flat());
 }

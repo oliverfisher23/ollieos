@@ -383,6 +383,67 @@ export type HomeSummaryAccess = {
   open: AccessRequest[];
 };
 
+export type IdeaStatus = typeof IdeaStatus[keyof typeof IdeaStatus];
+
+
+export const IdeaStatus = {
+  new: 'new',
+  come_back: 'come_back',
+  taken_forward: 'taken_forward',
+  dropped: 'dropped',
+} as const;
+
+export interface NamedItem {
+  id: number;
+  name: string;
+}
+
+export interface SessionLink {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export type IdeaSource = typeof IdeaSource[keyof typeof IdeaSource];
+
+
+export const IdeaSource = {
+  ollie: 'ollie',
+  claude: 'claude',
+  session: 'session',
+} as const;
+
+export type IdeaTakenTask = {
+  id: number;
+  title: string;
+} | null;
+
+export interface Idea {
+  id: number;
+  title: string;
+  /** @nullable */
+  notes: string | null;
+  status: IdeaStatus;
+  /**
+     * YYYY-MM-DD
+     * @nullable
+     */
+  comeBackOn: string | null;
+  /** Come back to and its day has arrived */
+  due: boolean;
+  goal: NamedItem | null;
+  project: SessionLink | null;
+  takenTask: IdeaTakenTask;
+  takenProject: SessionLink | null;
+  confidential: boolean;
+  aiAccess: boolean;
+  hiddenFromAi: boolean;
+  source: IdeaSource;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface KnowledgeInboxCounts {
   suggested: number;
   conflicts: number;
@@ -395,6 +456,8 @@ export interface KnowledgeInboxCounts {
 }
 
 export interface HomeSummary {
+  /** Ideas set to come back to on or before today */
+  ideasDue: Idea[];
   /**
      * Today's date (YYYY-MM-DD) once today's digest exists, otherwise null
      * @nullable
@@ -2409,6 +2472,8 @@ export const SearchHitType = {
   fact: 'fact',
   document: 'document',
   session: 'session',
+  strategy: 'strategy',
+  idea: 'idea',
 } as const;
 
 export interface SearchHit {
@@ -3153,12 +3218,6 @@ export interface DriveImport {
   documents: LibraryDocument[];
 }
 
-export interface SessionLink {
-  id: number;
-  name: string;
-  slug: string;
-}
-
 export interface SessionListItem {
   id: number;
   title: string;
@@ -3307,6 +3366,140 @@ export interface PlaybookUpdate {
   organisationIds?: number[];
 }
 
+export interface StrategySection {
+  id: number;
+  name: string;
+  body: string;
+  sortOrder: number;
+  goals: NamedItem[];
+  projects: SessionLink[];
+  confidential: boolean;
+  aiAccess: boolean;
+  /** True when AI cannot read it */
+  hiddenFromAi: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StrategySectionInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /** @maxLength 50000 */
+  body?: string;
+  goalIds?: number[];
+  projectIds?: number[];
+  confidential?: boolean;
+  aiAccess?: boolean;
+}
+
+export interface StrategySectionUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name?: string;
+  /** @maxLength 50000 */
+  body?: string;
+  goalIds?: number[];
+  projectIds?: number[];
+  confidential?: boolean;
+  aiAccess?: boolean;
+}
+
+export type IdeaListCounts = {
+  new: number;
+  come_back: number;
+  taken_forward: number;
+  dropped: number;
+};
+
+export interface IdeaList {
+  ideas: Idea[];
+  counts: IdeaListCounts;
+  due: number;
+}
+
+export type IdeaInputStatus = typeof IdeaInputStatus[keyof typeof IdeaInputStatus];
+
+
+export const IdeaInputStatus = {
+  new: 'new',
+  come_back: 'come_back',
+  dropped: 'dropped',
+} as const;
+
+export interface IdeaInput {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  title: string;
+  /**
+     * @maxLength 50000
+     * @nullable
+     */
+  notes?: string | null;
+  status?: IdeaInputStatus;
+  /** @nullable */
+  comeBackOn?: string | null;
+  /** @nullable */
+  goalId?: number | null;
+  /** @nullable */
+  projectId?: number | null;
+  confidential?: boolean;
+  aiAccess?: boolean;
+}
+
+export type IdeaUpdateStatus = typeof IdeaUpdateStatus[keyof typeof IdeaUpdateStatus];
+
+
+export const IdeaUpdateStatus = {
+  new: 'new',
+  come_back: 'come_back',
+  dropped: 'dropped',
+} as const;
+
+export interface IdeaUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  title?: string;
+  /**
+     * @maxLength 50000
+     * @nullable
+     */
+  notes?: string | null;
+  status?: IdeaUpdateStatus;
+  /** @nullable */
+  comeBackOn?: string | null;
+  /** @nullable */
+  goalId?: number | null;
+  /** @nullable */
+  projectId?: number | null;
+  confidential?: boolean;
+  aiAccess?: boolean;
+}
+
+export interface StrategyOrder {
+  ids: number[];
+}
+
+export type IdeaForwardAs = typeof IdeaForwardAs[keyof typeof IdeaForwardAs];
+
+
+export const IdeaForwardAs = {
+  task: 'task',
+  project: 'project',
+} as const;
+
+export interface IdeaForward {
+  as: IdeaForwardAs;
+}
+
 /**
  * Invalid input, not found, conflict or upstream failure
  */
@@ -3387,6 +3580,14 @@ projectId?: number;
 export type ListSessionsParams = {
 /**
  * Words to look for in the title, summary, outcomes and transcript
+ */
+q?: string;
+};
+
+export type ListIdeasParams = {
+status?: IdeaStatus;
+/**
+ * Words to look for in the title and notes
  */
 q?: string;
 };

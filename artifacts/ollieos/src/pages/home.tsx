@@ -7,7 +7,7 @@ import {
   type HomeSummary,
   type WaitingItem,
 } from '@workspace/api-client-react';
-import { SOURCE_LABELS, WAITING_AMBER_DAYS, formatLong, formatShort, formatTime, greeting } from '@workspace/shared';
+import { SOURCE_LABELS, WAITING_AMBER_DAYS, formatLong, formatShort, formatTime, greeting, todayLondon } from '@workspace/shared';
 import { AddBox } from '@/components/add-box';
 import { Avatar, PriorityPill, Skel } from '@/components/bits';
 import { IconArrowOut, IconCheck, IconLock, IconSettings } from '@/components/icons';
@@ -184,7 +184,15 @@ export default function HomePage() {
         <TodayPhone events={d.today} />
         <WaitingCard items={d.waitingOn} phone />
         <PromisesCard home={d} />
+        {d.ideasDue.length > 0 && <IdeasCard home={d} />}
         <DoneCard home={d} />
+        <Link href="/strategy" className="oo-dark-card oo-glass-quiet" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-strategy-phone">
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span className="oo-label" style={{ fontSize: 12 }}>Strategy and ideas</span>
+            <span className="oo-t2" style={{ fontSize: 13 }}>Your strategy, and ideas to come back to</span>
+          </span>
+          <IconArrowOut size={18} />
+        </Link>
       </>
     );
   } else {
@@ -210,6 +218,7 @@ export default function HomePage() {
         </div>
         <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
           <PromisesCard home={d} />
+          {d.ideasDue.length > 0 && <IdeasCard home={d} />}
           <DoneCard home={d} />
         </div>
       </>
@@ -421,6 +430,31 @@ function PromisesCard({ home }: { home: HomeSummary }) {
           })}
         </div>
       )}
+    </section>
+  );
+}
+
+/** Ideas Ollie picked a day to come back to, from that day until he moves them on (Part H). */
+function IdeasCard({ home }: { home: HomeSummary }) {
+  const ideas = home.ideasDue;
+  const today = todayLondon();
+  return (
+    <section aria-labelledby="h-ideas-due" className="oo-dark-card oo-glass-quiet" style={{ gap: 10 }} data-testid="card-ideas-due">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <h2 id="h-ideas-due" className="oo-label">Ideas to come back to</h2>
+        <span className="oo-serif-roman" style={{ fontSize: 28, lineHeight: 1 }} data-testid="text-ideas-due-count">{ideas.length}</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
+        {ideas.slice(0, 5).map((i) => (
+          <Link key={i.id} href={'/strategy?idea=' + i.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, color: 'inherit', textDecoration: 'none' }} data-testid={'row-idea-due-' + i.id}>
+            <span style={{ minWidth: 0 }}>{i.title}</span>
+            <span className="oo-t3 oo-num" style={{ flex: 'none' }}>{i.comeBackOn === today ? 'Today' : 'Since ' + formatShort(i.comeBackOn!)}</span>
+          </Link>
+        ))}
+      </div>
+      <div style={{ marginTop: 'auto' }}>
+        <Link href="/strategy?tab=come_back" className="oo-btn oo-btn-white" data-testid="link-ideas-due">Open ideas</Link>
+      </div>
     </section>
   );
 }

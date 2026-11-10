@@ -587,6 +587,16 @@ export async function connectionForAi(scope: AiScope, from: string, to: string) 
 
 /** fetch for an AI tool: the full text of one item, the shape ChatGPT expects. */
 export async function fetchForAi(scope: AiScope, ref: string) {
+  // Strategy sections and ideas are not on the map, so they are fetched as plain items.
+  const plain = /^(strategy|idea):(\d+)$/.exec(ref.trim());
+  if (plain) {
+    const key = `${plain[1]}:${Number(plain[2])}`;
+    const [doc] = await loadVisibleDocs(scope, [key]);
+    if (!doc) return null;
+    await recordReads(scope, [key], { via: "fetch" });
+    const title = doc.text.split("\n")[0].replace(/^\[[^\]]+\]\s*/, "");
+    return { id: key, title, text: doc.text, url: null, metadata: { type: plain[1], detail: null } };
+  }
   const pt = parseGraphRef(ref);
   if (!pt) return null;
   const key = gref(pt.type, pt.id);

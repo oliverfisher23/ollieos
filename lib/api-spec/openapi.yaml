@@ -1366,6 +1366,226 @@ paths:
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
+  /strategy/sections:
+    get:
+      operationId: listStrategySections
+      tags: [direction]
+      summary: Ollie's strategy sections, in his order
+      responses:
+        "200":
+          description: Sections
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/StrategySection" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: createStrategySection
+      tags: [direction]
+      summary: Add a section at the end
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StrategySectionInput" }
+      responses:
+        "201":
+          description: The new section
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StrategySection" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /strategy/sections/order:
+    put:
+      operationId: reorderStrategySections
+      tags: [direction]
+      summary: Put every section in a new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StrategyOrder" }
+      responses:
+        "200":
+          description: Sections in their new order
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/StrategySection" } }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /strategy/sections/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    patch:
+      operationId: updateStrategySection
+      tags: [direction]
+      summary: Rename, edit, link or change who can read a section
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StrategySectionUpdate" }
+      responses:
+        "200":
+          description: The section
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StrategySection" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteStrategySection
+      tags: [direction]
+      summary: Delete a section; it can be brought back for a week
+      responses:
+        "204":
+          description: Deleted
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /strategy/sections/{id}/restore:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: restoreStrategySection
+      tags: [direction]
+      summary: Undo deleting a section
+      responses:
+        "200":
+          description: The section
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StrategySection" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /ideas:
+    get:
+      operationId: listIdeas
+      tags: [direction]
+      summary: Ideas in one tab, with counts for every tab
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/IdeaStatus" }
+        - name: q
+          in: query
+          required: false
+          description: Words to look for in the title and notes
+          schema: { type: string }
+      responses:
+        "200":
+          description: Ideas
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IdeaList" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: createIdea
+      tags: [direction]
+      summary: Jot down an idea
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IdeaInput" }
+      responses:
+        "201":
+          description: The idea
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Idea" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /ideas/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      operationId: getIdea
+      tags: [direction]
+      summary: One idea
+      responses:
+        "200":
+          description: The idea
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Idea" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      operationId: updateIdea
+      tags: [direction]
+      summary: Edit an idea, move it between tabs or pick a day to come back to it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IdeaUpdate" }
+      responses:
+        "200":
+          description: The idea
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Idea" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteIdea
+      tags: [direction]
+      summary: Delete an idea; it can be brought back for a week
+      responses:
+        "204":
+          description: Deleted
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /ideas/{id}/forward:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: takeIdeaForward
+      tags: [direction]
+      summary: Turn an idea into a task or a project and link the two
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IdeaForward" }
+      responses:
+        "200":
+          description: The idea, now taken forward
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Idea" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /ideas/{id}/restore:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: restoreIdea
+      tags: [direction]
+      summary: Undo deleting an idea
+      responses:
+        "200":
+          description: The idea
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Idea" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /documents/{id}:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -3085,8 +3305,12 @@ components:
 
     HomeSummary:
       type: object
-      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access, knowledgeInbox, digestDate]
+      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access, knowledgeInbox, digestDate, ideasDue]
       properties:
+        ideasDue:
+          type: array
+          description: Ideas set to come back to on or before today
+          items: { $ref: "#/components/schemas/Idea" }
         digestDate:
           type: [string, "null"]
           description: Today's date (YYYY-MM-DD) once today's digest exists, otherwise null
@@ -4563,7 +4787,7 @@ components:
       type: object
       required: [type, id, title, snippet, slug, status, hiddenFromAi, parent]
       properties:
-        type: { type: string, enum: [task, project, person, organisation, decision, note, fact, document, session] }
+        type: { type: string, enum: [task, project, person, organisation, decision, note, fact, document, session, strategy, idea] }
         id: { type: integer }
         title: { type: string }
         snippet: { type: [string, "null"] }
@@ -5392,3 +5616,141 @@ components:
         enabled: { type: boolean }
         projectIds: { type: array, items: { type: integer } }
         organisationIds: { type: array, items: { type: integer } }
+
+    NamedItem:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+
+    StrategySection:
+      type: object
+      required: [id, name, body, sortOrder, goals, projects, confidential, aiAccess, hiddenFromAi, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        body: { type: string }
+        sortOrder: { type: integer }
+        goals: { type: array, items: { $ref: "#/components/schemas/NamedItem" } }
+        projects: { type: array, items: { $ref: "#/components/schemas/SessionLink" } }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+        hiddenFromAi: { type: boolean, description: True when AI cannot read it, by its own switches or a hidden project it drives }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    StrategySectionInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        body: { type: string, maxLength: 50000 }
+        goalIds: { type: array, items: { type: integer } }
+        projectIds: { type: array, items: { type: integer } }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+
+    StrategySectionUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        body: { type: string, maxLength: 50000 }
+        goalIds: { type: array, items: { type: integer } }
+        projectIds: { type: array, items: { type: integer } }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+
+    IdeaStatus:
+      type: string
+      enum: [new, come_back, taken_forward, dropped]
+
+    Idea:
+      type: object
+      required: [id, title, notes, status, comeBackOn, due, goal, project, takenTask, takenProject, confidential, aiAccess, hiddenFromAi, source, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        notes: { type: [string, "null"] }
+        status: { $ref: "#/components/schemas/IdeaStatus" }
+        comeBackOn: { type: [string, "null"], description: YYYY-MM-DD, for Come back to }
+        due: { type: boolean, description: Come back to and its day has arrived }
+        goal:
+          oneOf:
+            - $ref: "#/components/schemas/NamedItem"
+            - type: "null"
+        project:
+          oneOf:
+            - $ref: "#/components/schemas/SessionLink"
+            - type: "null"
+        takenTask:
+          oneOf:
+            - type: object
+              required: [id, title]
+              properties:
+                id: { type: integer }
+                title: { type: string }
+            - type: "null"
+        takenProject:
+          oneOf:
+            - $ref: "#/components/schemas/SessionLink"
+            - type: "null"
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+        hiddenFromAi: { type: boolean }
+        source: { type: string, enum: [ollie, claude, session] }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    IdeaList:
+      type: object
+      required: [ideas, counts, due]
+      properties:
+        ideas: { type: array, items: { $ref: "#/components/schemas/Idea" } }
+        counts:
+          type: object
+          required: [new, come_back, taken_forward, dropped]
+          properties:
+            new: { type: integer }
+            come_back: { type: integer }
+            taken_forward: { type: integer }
+            dropped: { type: integer }
+        due: { type: integer }
+
+    IdeaInput:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 300 }
+        notes: { type: [string, "null"], maxLength: 50000 }
+        status: { type: string, enum: [new, come_back, dropped] }
+        comeBackOn: { type: [string, "null"] }
+        goalId: { type: [integer, "null"] }
+        projectId: { type: [integer, "null"] }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+
+    IdeaUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 300 }
+        notes: { type: [string, "null"], maxLength: 50000 }
+        status: { type: string, enum: [new, come_back, dropped] }
+        comeBackOn: { type: [string, "null"] }
+        goalId: { type: [integer, "null"] }
+        projectId: { type: [integer, "null"] }
+        confidential: { type: boolean }
+        aiAccess: { type: boolean }
+
+    StrategyOrder:
+      type: object
+      required: [ids]
+      properties:
+        ids: { type: array, items: { type: integer } }
+
+    IdeaForward:
+      type: object
+      required: [as]
+      properties:
+        as: { type: string, enum: [task, project] }

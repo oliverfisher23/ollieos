@@ -6,11 +6,13 @@ import {
   auditEventsTable,
   coworkSessionsTable,
   db,
+  ideasTable,
   factsTable,
   notesTable,
   organisationsTable,
   peopleTable,
   projectsTable,
+  strategySectionsTable,
   tasksTable,
   type AccessRequest,
 } from "@workspace/db";
@@ -44,6 +46,8 @@ function pathFor(type: string, slug: string | null, id: number): string | null {
   if (type === "note") return `/knowledge/notes/${id}`;
   if (type === "task") return `/tasks?task=${id}`;
   if (type === "session") return `/knowledge/sessions?session=${id}`;
+  if (type === "strategy") return `/strategy?section=${id}`;
+  if (type === "idea") return `/strategy?idea=${id}`;
   return null;
 }
 
@@ -53,7 +57,7 @@ const clip = (s: string, n = 60) => (s.length > n ? s.slice(0, n - 1).trimEnd() 
 export async function describeRefs(refList: readonly string[]): Promise<Map<string, ItemView>> {
   const refs = refList.map(parseRef).filter((r): r is NonNullable<typeof r> => !!r);
   const ids = (t: string) => [...new Set(refs.filter((r) => r.type === t).map((r) => r.id))];
-  const [notes, facts, acts, conf, sessions] = await Promise.all([
+  const [notes, facts, acts, conf, sessions, sections, ideas] = await Promise.all([
     ids("note").length ? db.select().from(notesTable).where(inArray(notesTable.id, ids("note"))) : [],
     ids("fact").length ? db.select().from(factsTable).where(inArray(factsTable.id, ids("fact"))) : [],
     ids("activity").length ? db.select().from(activityTable).where(inArray(activityTable.id, ids("activity"))) : [],
@@ -61,6 +65,10 @@ export async function describeRefs(refList: readonly string[]): Promise<Map<stri
     ids("session").length
       ? db.select({ id: coworkSessionsTable.id, title: coworkSessionsTable.title, confidential: coworkSessionsTable.confidential }).from(coworkSessionsTable).where(inArray(coworkSessionsTable.id, ids("session")))
       : [],
+    ids("strategy").length
+      ? db.select({ id: strategySectionsTable.id, name: strategySectionsTable.name, confidential: strategySectionsTable.confidential }).from(strategySectionsTable).where(inArray(strategySectionsTable.id, ids("strategy")))
+      : [],
+    ids("idea").length ? db.select({ id: ideasTable.id, title: ideasTable.title, confidential: ideasTable.confidential }).from(ideasTable).where(inArray(ideasTable.id, ids("idea"))) : [],
   ]);
   const entities = await resolveEntities([
     ...refs.filter((r) => ["project", "person", "organisation", "task", "decision"].includes(r.type)),
@@ -94,6 +102,14 @@ export async function describeRefs(refList: readonly string[]): Promise<Map<stri
   for (const s of sessions) {
     const ref = `session:${s.id}`;
     out.set(ref, { ref, type: "session", id: s.id, name: clip(`Cowork session: ${s.title}`), path: pathFor("session", null, s.id), confidential: s.confidential === true });
+  }
+  for (const s of sections) {
+    const ref = `strategy:${s.id}`;
+    out.set(ref, { ref, type: "strategy", id: s.id, name: clip(`Strategy: ${s.name}`), path: pathFor("strategy", null, s.id), confidential: s.confidential });
+  }
+  for (const i of ideas) {
+    const ref = `idea:${i.id}`;
+    out.set(ref, { ref, type: "idea", id: i.id, name: clip(`Idea: ${i.title}`), path: pathFor("idea", null, i.id), confidential: i.confidential });
   }
   return out;
 }

@@ -17,6 +17,7 @@ import emailRouter from "./email";
 import researchRouter from "./research";
 import sessionsRouter from "./sessions";
 import graphRouter from "./graph";
+import strategyRouter from "./strategy";
 import ingestRouter from "./ingest";
 import { oauthConsentRouter, oauthPublicRouter } from "../oauth/routes";
 import { requireOllie } from "../middlewares/requireOllie";
@@ -49,6 +50,7 @@ router.use(emailRouter);
 router.use(researchRouter);
 router.use(sessionsRouter);
 router.use(graphRouter);
+router.use(strategyRouter);
 router.use(oauthConsentRouter);
 
 export default router;

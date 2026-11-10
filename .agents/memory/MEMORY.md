@@ -10,3 +10,4 @@
 - [Documents and Dropbox reading](document-knowledge.md) — Sonnet refuses thinking "disabled"; ~2p a file; full Springpod read belongs in production
 - [Running one-off server code](one-off-scripts.md) — no tsx: esbuild bundle with a __dirname banner; poll the queue, not readWaiting
 - [Connecting ChatGPT and Gemini](ai-assistant-connections.md) — Gemini app cannot add MCP; ChatGPT custom connectors plan-limited; re-check before promising
+- [Visibility SQL aliases](visibility-sql-aliases.md) — never alias the outer table `x` around a visibility helper; its subqueries already use it

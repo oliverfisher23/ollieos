@@ -112,6 +112,39 @@ export const LogoutMobileSessionResponse = zod.object({
  * @summary Everything the Home screen needs in one call
  */
 export const GetHomeResponse = zod.object({
+  "ideasDue": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "notes": zod.string().nullable(),
+  "status": zod.enum(['new', 'come_back', 'taken_forward', 'dropped']),
+  "comeBackOn": zod.string().nullable().describe('YYYY-MM-DD'),
+  "due": zod.boolean().describe('Come back to and its day has arrived'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "takenTask": zod.union([zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+}),zod.null()]),
+  "takenProject": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "hiddenFromAi": zod.boolean(),
+  "source": zod.enum(['ollie', 'claude', 'session']),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})).describe('Ideas set to come back to on or before today'),
   "digestDate": zod.string().nullable().describe('Today\'s date (YYYY-MM-DD) once today\'s digest exists, otherwise null'),
   "knowledgeInbox": zod.object({
   "suggested": zod.int(),
@@ -3629,6 +3662,491 @@ export const ReadSessionKnowledgeResponse = zod.object({
 
 
 /**
+ * @summary Ollie's strategy sections, in his order
+ */
+export const ListStrategySectionsResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "body": zod.string(),
+  "sortOrder": zod.int(),
+  "goals": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+})),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "hiddenFromAi": zod.boolean().describe('True when AI cannot read it'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListStrategySectionsResponse = zod.array(ListStrategySectionsResponseItem)
+
+
+/**
+ * @summary Add a section at the end
+ */
+export const createStrategySectionBodyNameMax = 200;
+
+export const createStrategySectionBodyBodyMax = 50000;
+
+
+
+export const CreateStrategySectionBody = zod.object({
+  "name": zod.string().min(1).max(createStrategySectionBodyNameMax),
+  "body": zod.string().max(createStrategySectionBodyBodyMax).optional(),
+  "goalIds": zod.array(zod.int()).optional(),
+  "projectIds": zod.array(zod.int()).optional(),
+  "confidential": zod.boolean().optional(),
+  "aiAccess": zod.boolean().optional()
+})
+
+export const CreateStrategySectionResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "body": zod.string(),
+  "sortOrder": zod.int(),
+  "goals": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+})),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "hiddenFromAi": zod.boolean().describe('True when AI cannot read it'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Put every section in a new order
+ */
+export const ReorderStrategySectionsBody = zod.object({
+  "ids": zod.array(zod.int())
+})
+
+export const ReorderStrategySectionsResponseItem = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "body": zod.string(),
+  "sortOrder": zod.int(),
+  "goals": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+})),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "hiddenFromAi": zod.boolean().describe('True when AI cannot read it'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ReorderStrategySectionsResponse = zod.array(ReorderStrategySectionsResponseItem)
+
+
+/**
+ * @summary Rename, edit, link or change who can read a section
+ */
+export const UpdateStrategySectionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateStrategySectionBodyNameMax = 200;
+
+export const updateStrategySectionBodyBodyMax = 50000;
+
+
+
+export const UpdateStrategySectionBody = zod.object({
+  "name": zod.string().min(1).max(updateStrategySectionBodyNameMax).optional(),
+  "body": zod.string().max(updateStrategySectionBodyBodyMax).optional(),
+  "goalIds": zod.array(zod.int()).optional(),
+  "projectIds": zod.array(zod.int()).optional(),
+  "confidential": zod.boolean().optional(),
+  "aiAccess": zod.boolean().optional()
+})
+
+export const UpdateStrategySectionResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "body": zod.string(),
+  "sortOrder": zod.int(),
+  "goals": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+})),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "hiddenFromAi": zod.boolean().describe('True when AI cannot read it'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a section; it can be brought back for a week
+ */
+export const DeleteStrategySectionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteStrategySectionResponse = zod.void()
+
+
+/**
+ * @summary Undo deleting a section
+ */
+export const RestoreStrategySectionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RestoreStrategySectionResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "body": zod.string(),
+  "sortOrder": zod.int(),
+  "goals": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+})),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "hiddenFromAi": zod.boolean().describe('True when AI cannot read it'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Ideas in one tab, with counts for every tab
+ */
+export const ListIdeasQueryParams = zod.object({
+  "status": zod.enum(['new', 'come_back', 'taken_forward', 'dropped']).optional(),
+  "q": zod.coerce.string().optional().describe('Words to look for in the title and notes')
+})
+
+export const ListIdeasResponse = zod.object({
+  "ideas": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "notes": zod.string().nullable(),
+  "status": zod.enum(['new', 'come_back', 'taken_forward', 'dropped']),
+  "comeBackOn": zod.string().nullable().describe('YYYY-MM-DD'),
+  "due": zod.boolean().describe('Come back to and its day has arrived'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "takenTask": zod.union([zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+}),zod.null()]),
+  "takenProject": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "hiddenFromAi": zod.boolean(),
+  "source": zod.enum(['ollie', 'claude', 'session']),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "counts": zod.object({
+  "new": zod.int(),
+  "come_back": zod.int(),
+  "taken_forward": zod.int(),
+  "dropped": zod.int()
+}),
+  "due": zod.int()
+})
+
+
+/**
+ * @summary Jot down an idea
+ */
+export const createIdeaBodyTitleMax = 300;
+
+export const createIdeaBodyNotesMax = 50000;
+
+
+
+export const CreateIdeaBody = zod.object({
+  "title": zod.string().min(1).max(createIdeaBodyTitleMax),
+  "notes": zod.string().max(createIdeaBodyNotesMax).nullish(),
+  "status": zod.enum(['new', 'come_back', 'dropped']).optional(),
+  "comeBackOn": zod.string().nullish(),
+  "goalId": zod.int().nullish(),
+  "projectId": zod.int().nullish(),
+  "confidential": zod.boolean().optional(),
+  "aiAccess": zod.boolean().optional()
+})
+
+export const CreateIdeaResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "notes": zod.string().nullable(),
+  "status": zod.enum(['new', 'come_back', 'taken_forward', 'dropped']),
+  "comeBackOn": zod.string().nullable().describe('YYYY-MM-DD'),
+  "due": zod.boolean().describe('Come back to and its day has arrived'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "takenTask": zod.union([zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+}),zod.null()]),
+  "takenProject": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "hiddenFromAi": zod.boolean(),
+  "source": zod.enum(['ollie', 'claude', 'session']),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary One idea
+ */
+export const GetIdeaParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetIdeaResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "notes": zod.string().nullable(),
+  "status": zod.enum(['new', 'come_back', 'taken_forward', 'dropped']),
+  "comeBackOn": zod.string().nullable().describe('YYYY-MM-DD'),
+  "due": zod.boolean().describe('Come back to and its day has arrived'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "takenTask": zod.union([zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+}),zod.null()]),
+  "takenProject": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "hiddenFromAi": zod.boolean(),
+  "source": zod.enum(['ollie', 'claude', 'session']),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Edit an idea, move it between tabs or pick a day to come back to it
+ */
+export const UpdateIdeaParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateIdeaBodyTitleMax = 300;
+
+export const updateIdeaBodyNotesMax = 50000;
+
+
+
+export const UpdateIdeaBody = zod.object({
+  "title": zod.string().min(1).max(updateIdeaBodyTitleMax).optional(),
+  "notes": zod.string().max(updateIdeaBodyNotesMax).nullish(),
+  "status": zod.enum(['new', 'come_back', 'dropped']).optional(),
+  "comeBackOn": zod.string().nullish(),
+  "goalId": zod.int().nullish(),
+  "projectId": zod.int().nullish(),
+  "confidential": zod.boolean().optional(),
+  "aiAccess": zod.boolean().optional()
+})
+
+export const UpdateIdeaResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "notes": zod.string().nullable(),
+  "status": zod.enum(['new', 'come_back', 'taken_forward', 'dropped']),
+  "comeBackOn": zod.string().nullable().describe('YYYY-MM-DD'),
+  "due": zod.boolean().describe('Come back to and its day has arrived'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "takenTask": zod.union([zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+}),zod.null()]),
+  "takenProject": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "hiddenFromAi": zod.boolean(),
+  "source": zod.enum(['ollie', 'claude', 'session']),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete an idea; it can be brought back for a week
+ */
+export const DeleteIdeaParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteIdeaResponse = zod.void()
+
+
+/**
+ * @summary Turn an idea into a task or a project and link the two
+ */
+export const TakeIdeaForwardParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const TakeIdeaForwardBody = zod.object({
+  "as": zod.enum(['task', 'project'])
+})
+
+export const TakeIdeaForwardResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "notes": zod.string().nullable(),
+  "status": zod.enum(['new', 'come_back', 'taken_forward', 'dropped']),
+  "comeBackOn": zod.string().nullable().describe('YYYY-MM-DD'),
+  "due": zod.boolean().describe('Come back to and its day has arrived'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "takenTask": zod.union([zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+}),zod.null()]),
+  "takenProject": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "hiddenFromAi": zod.boolean(),
+  "source": zod.enum(['ollie', 'claude', 'session']),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Undo deleting an idea
+ */
+export const RestoreIdeaParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RestoreIdeaResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "notes": zod.string().nullable(),
+  "status": zod.enum(['new', 'come_back', 'taken_forward', 'dropped']),
+  "comeBackOn": zod.string().nullable().describe('YYYY-MM-DD'),
+  "due": zod.boolean().describe('Come back to and its day has arrived'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()]),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "takenTask": zod.union([zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+}),zod.null()]),
+  "takenProject": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),zod.null()]),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "hiddenFromAi": zod.boolean(),
+  "source": zod.enum(['ollie', 'claude', 'session']),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary Edit a document, or confirm it is still current
  */
 export const UpdateDocumentParams = zod.object({
@@ -4805,7 +5323,7 @@ export const SearchKnowledgeQueryParams = zod.object({
 export const SearchKnowledgeResponse = zod.object({
   "q": zod.string(),
   "hits": zod.array(zod.object({
-  "type": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note', 'fact', 'document', 'session']),
+  "type": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note', 'fact', 'document', 'session', 'strategy', 'idea']),
   "id": zod.int(),
   "title": zod.string(),
   "snippet": zod.string().nullable(),

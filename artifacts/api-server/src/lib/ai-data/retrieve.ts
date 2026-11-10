@@ -8,12 +8,14 @@ import {
   documentsTable,
   factsTable,
   goalsTable,
+  ideasTable,
   linksTable,
   notesTable,
   organisationsTable,
   peopleTable,
   playbooksTable,
   projectsTable,
+  strategySectionsTable,
   tasksTable,
 } from "@workspace/db";
 import { DOC_LOCATION_LABELS, PRIORITY_LABELS, SOURCE_LABELS, STATUS_LABELS, formatLong, parseRef, toRef, type RefType } from "@workspace/shared";
@@ -22,6 +24,7 @@ import {
   decisionVisible,
   documentVisible,
   factVisible,
+  ideaVisible,
   noteVisible,
   organisationVisible,
   personVisible,
@@ -29,6 +32,7 @@ import {
   projectVisible,
   sessionArchived,
   sessionVisible,
+  strategyVisible,
   taskVisible,
   type Grants,
 } from "./visibility";
@@ -62,6 +66,8 @@ function filters(g: Grants) {
     playbook: sql.raw(playbookVisible("playbooks", g)),
     activity: sql.raw(activityVisible("activity", g)),
     session: sql.raw(sessionVisible("cowork_sessions", g)),
+    strategy: sql.raw(strategyVisible("strategy_sections", g)),
+    idea: sql.raw(ideaVisible("ideas", g)),
   };
 }
 
@@ -100,6 +106,16 @@ async function visibleNames(refs: { type: RefType; id: number }[], g: Grants): P
   return out;
 }
 
+const IDEA_STATUS_WORDS: Record<string, string> = { new: "New", come_back: "Come back to", taken_forward: "Taken forward", dropped: "Dropped" };
+
+/** Goal names by id. Goals are always visible by name. */
+async function goalNamesFor(ids: number[]): Promise<Map<number, string>> {
+  const unique = [...new Set(ids)];
+  if (!unique.length) return new Map();
+  const rows = await db.select({ id: goalsTable.id, name: goalsTable.name }).from(goalsTable).where(inArray(goalsTable.id, unique));
+  return new Map(rows.map((r) => [r.id, r.name]));
+}
+
 const day = (d: Date | string | null | undefined) => (d ? formatLong(d) : null);
 const line = (parts: (string | null | undefined | false)[]) => parts.filter(Boolean).join(" | ");
 /** How much of a document's text goes to the AI with it */
@@ -112,7 +128,7 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
   const refs = refList.map(parseRef).filter((r): r is NonNullable<typeof r> => !!r);
   const ids = (t: RefType) => [...new Set(refs.filter((r) => r.type === t).map((r) => r.id))];
 
-  const [tasks, projects, people, orgs, decisions, notes, facts, goals, documents, playbooks, activity, sessions] = await Promise.all([
+  const [tasks, projects, people, orgs, decisions, notes, facts, goals, documents, playbooks, activity, sessions, sections, ideas] = await Promise.all([
     ids("task").length ? db.select().from(tasksTable).where(and(inArray(tasksTable.id, ids("task")), v.task)) : [],
     ids("project").length ? db.select().from(projectsTable).where(and(inArray(projectsTable.id, ids("project")), v.project)) : [],
     ids("person").length ? db.select().from(peopleTable).where(and(inArray(peopleTable.id, ids("person")), v.person)) : [],
@@ -145,6 +161,8 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
     ids("playbook").length ? db.select().from(playbooksTable).where(and(inArray(playbooksTable.id, ids("playbook")), v.playbook)) : [],
     ids("activity").length ? db.select().from(activityTable).where(and(inArray(activityTable.id, ids("activity")), v.activity)) : [],
     ids("session").length ? db.select().from(coworkSessionsTable).where(and(inArray(coworkSessionsTable.id, ids("session")), v.session)) : [],
+    ids("strategy").length ? db.select().from(strategySectionsTable).where(and(inArray(strategySectionsTable.id, ids("strategy")), v.strategy)) : [],
+    ids("idea").length ? db.select().from(ideasTable).where(and(inArray(ideasTable.id, ids("idea")), v.idea)) : [],
   ]);
 
   const nameRefs: { type: RefType; id: number }[] = [];
@@ -155,6 +173,12 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
   }
   for (const p of people) if (p.organisationId) nameRefs.push({ type: "organisation", id: p.organisationId });
   for (const d of decisions) if (d.projectId != null) nameRefs.push({ type: "project", id: d.projectId });
+  for (const s of sections) for (const id of s.projectIds) nameRefs.push({ type: "project", id });
+  for (const i of ideas) {
+    if (i.projectId) nameRefs.push({ type: "project", id: i.projectId });
+    if (i.takenProjectId) nameRefs.push({ type: "project", id: i.takenProjectId });
+    if (i.takenTaskId) nameRefs.push({ type: "task", id: i.takenTaskId });
+  }
   for (const s of sessions) {
     for (const id of s.projectIds) nameRefs.push({ type: "project", id });
     for (const id of s.personIds) nameRefs.push({ type: "person", id });
@@ -295,6 +319,37 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
     });
   }
 
+  const goalNames = await goalNamesFor([...sections.flatMap((s) => s.goalIds), ...ideas.map((i) => i.goalId).filter((x): x is number => x != null)]);
+  for (const s of sections) {
+    const ref = toRef("strategy", s.id);
+    const drives = [...s.goalIds.map((id) => goalNames.get(id)), ...s.projectIds.map((id) => name("project", id))].filter(Boolean);
+    docs.push({
+      ref,
+      type: "strategy",
+      id: s.id,
+      text: [`[${ref}] Ollie's strategy, section "${s.name}" (updated ${day(s.updatedAt)})`, drives.length && `Drives: ${drives.join(", ")}`, s.body.trim() ? clip(s.body, 4000) : "(empty)"]
+        .filter(Boolean)
+        .join("\n"),
+    });
+  }
+  for (const i of ideas) {
+    const ref = toRef("idea", i.id);
+    const linked = [i.goalId != null && goalNames.get(i.goalId), name("project", i.projectId)].filter(Boolean);
+    const became = i.takenTaskId ? name("task", i.takenTaskId) : i.takenProjectId ? name("project", i.takenProjectId) : null;
+    docs.push({
+      ref,
+      type: "idea",
+      id: i.id,
+      text: [
+        `[${ref}] Idea${i.source === "ollie" ? "" : " (added by Claude)"}, ${day(i.createdAt)}: ${i.title}`,
+        line([`Status: ${IDEA_STATUS_WORDS[i.status]}`, i.status === "come_back" && i.comeBackOn && `Come back on ${day(i.comeBackOn)}`, became && `Became ${became}`, linked.length > 0 && `Linked to: ${linked.join(", ")}`]),
+        i.notes && `Notes: ${clip(i.notes, 2000)}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+  }
+
   const parentNames = new Map(goals.map((g) => [g.id, g.name]));
   const missingParents = goals.map((g) => g.parentId).filter((p): p is number => p != null && !parentNames.has(p));
   if (missingParents.length) {
@@ -426,7 +481,7 @@ export interface Retrieval {
 /** The ref a grant would name to unlock a hidden search hit. Facts have no flag of their own, so their entity is granted. */
 function grantRefFor(h: SearchHit): string | null {
   // Documents and sessions have no grants of their own; they unlock through their project.
-  if (h.type === "document" || h.type === "session") return null;
+  if (h.type === "document" || h.type === "session" || h.type === "strategy" || h.type === "idea") return null;
   if (h.type === "fact") {
     return h.entityType && h.entityId != null && ["project", "person", "organisation", "task", "decision"].includes(h.entityType)
       ? `${h.entityType}:${h.entityId}`
