@@ -82,7 +82,7 @@ export function AddBox({ idPrefix = 'home', autoFocus = false, onAdded }: { idPr
         maxLength={add ? undefined : 1000}
         onChange={(e) => (add ? setText(e.target.value) : setQuestion(e.target.value))}
         onKeyDown={onKey}
-        placeholder={add ? 'Add a task…  e.g. Chase the demo date !high due:fri @project' : 'Ask anything you know…  e.g. What do I owe Paul?'}
+        placeholder={add ? 'Add a task…  e.g. Chase the demo date !high due:fri @project' : 'Ask anything you know…  e.g. What do I owe people this week?'}
         data-testid={'input-add-' + idPrefix}
       />
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '2px 6px 4px 10px' }}>

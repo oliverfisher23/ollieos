@@ -13,6 +13,9 @@ import {
 } from '@workspace/api-client-react';
 import { todayLondon } from '@workspace/shared';
 import { useKnowledgeWrite } from '@/lib/knowledge';
+import { InternalSwitch } from './org-options';
+import { Dropdown } from '@/components/dropdown';
+import { orgOptions, personOptions, projectOptions } from '@/components/dropdown-options';
 
 export type CreateKind = 'project' | 'person' | 'organisation' | 'decision' | 'note';
 
@@ -26,13 +29,37 @@ const TITLES: Record<CreateKind, string> = {
 
 type Values = Record<string, string>;
 
-export function CreateDialog({ kind, onClose, presetProjectId }: { kind: CreateKind; onClose: () => void; presetProjectId?: number }) {
+/**
+ * `stay` keeps Ollie on the page he is on after creating (adding a colleague from an organisation's
+ * page), instead of opening the new item.
+ */
+export function CreateDialog({
+  kind,
+  onClose,
+  presetProjectId,
+  presetOrganisationId,
+  presetInternal,
+  stay,
+}: {
+  kind: CreateKind;
+  onClose: () => void;
+  presetProjectId?: number;
+  presetOrganisationId?: number;
+  presetInternal?: boolean;
+  stay?: boolean;
+}) {
   const [, navigate] = useLocation();
   const write = useKnowledgeWrite();
-  const [v, setV] = useState<Values>({ decidedAt: todayLondon(), projectId: presetProjectId ? String(presetProjectId) : '' });
+  const [v, setV] = useState<Values>({
+    decidedAt: todayLondon(),
+    projectId: presetProjectId ? String(presetProjectId) : '',
+    organisationId: presetOrganisationId ? String(presetOrganisationId) : '',
+  });
+  const [internal, setInternal] = useState(!!presetInternal);
   const [confidential, setConfidential] = useState(false);
   const [busy, setBusy] = useState(false);
   const set = (k: string) => (e: { target: { value: string } }) => setV((cur) => ({ ...cur, [k]: e.target.value }));
+  const pick = (k: string) => (value: string) => setV((cur) => ({ ...cur, [k]: value }));
   const val = (k: string) => (v[k] ?? '').trim() || null;
 
   const needsProjects = kind === 'decision' || kind === 'note';
@@ -60,7 +87,7 @@ export function CreateDialog({ kind, onClose, presetProjectId }: { kind: CreateK
       );
       if (p) path = '/knowledge/people/' + p.slug;
     } else if (kind === 'organisation') {
-      const o = await write(() => createOrganisation({ name: val('name')!, type: val('type'), confidential }), { done: 'Organisation added', fail: 'Could not add that organisation' });
+      const o = await write(() => createOrganisation({ name: val('name')!, type: val('type'), internal, confidential }), { done: 'Organisation added', fail: 'Could not add that organisation' });
       if (o) path = '/knowledge/organisations/' + o.slug;
     } else if (kind === 'decision') {
       const d = await write(
@@ -79,7 +106,7 @@ export function CreateDialog({ kind, onClose, presetProjectId }: { kind: CreateK
     setBusy(false);
     if (path) {
       onClose();
-      navigate(path);
+      if (!stay) navigate(path);
     }
   };
 
@@ -99,9 +126,9 @@ export function CreateDialog({ kind, onClose, presetProjectId }: { kind: CreateK
             <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {kind === 'project' && (
                 <>
-                  {field('name', 'Name', { required: true, placeholder: 'RAF Micro Internship' })}
-                  {field('area', 'Area', { placeholder: 'Defence' })}
-                  {field('status', 'Status', { placeholder: 'Proposal sent' })}
+                  {field('name', 'Name', { required: true, placeholder: 'What you call this project' })}
+                  {field('area', 'Area', { placeholder: 'Sector or team' })}
+                  {field('status', 'Status', { placeholder: 'Where it stands' })}
                   <label>
                     <span>Summary <span className="oo-muted">(optional)</span></span>
                     <textarea className="oo-textarea" rows={3} value={v.summary ?? ''} onChange={set('summary')} data-testid="input-new-project-summary" />
@@ -111,13 +138,11 @@ export function CreateDialog({ kind, onClose, presetProjectId }: { kind: CreateK
               {kind === 'person' && (
                 <>
                   {field('name', 'Name', { required: true })}
-                  <label>
-                    <span>Organisation <span className="oo-muted">(optional)</span></span>
-                    <select className="oo-input" value={v.organisationId ?? ''} onChange={set('organisationId')} data-testid="select-new-person-organisation">
-                      <option value="">None</option>
-                      {(orgs.data ?? []).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-                    </select>
-                  </label>
+                  <div className="oo-dd-field">
+                    <label htmlFor="new-person-org">Organisation <span className="oo-muted">(optional)</span></label>
+                    <Dropdown id="new-person-org" value={v.organisationId ?? ''} onChange={pick('organisationId')} testId="select-new-person-organisation" searchPlaceholder="Search organisations"
+                      options={[{ value: '', label: 'None' }, ...orgOptions(orgs.data)]} />
+                  </div>
                   {field('role', 'Role')}
                   {field('email', 'Email', { type: 'email' })}
                 </>
@@ -125,37 +150,42 @@ export function CreateDialog({ kind, onClose, presetProjectId }: { kind: CreateK
               {kind === 'organisation' && (
                 <>
                   {field('name', 'Name', { required: true })}
-                  {field('type', 'Type', { placeholder: 'Client, partner, supplier…' })}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span>External or internal</span>
+                    <InternalSwitch value={internal} onChange={setInternal} testId="seg-new-organisation-internal" />
+                    <span className="oo-muted" style={{ fontSize: 13 }}>
+                      {internal ? 'Your own company. People here are your colleagues.' : 'A client, partner or supplier.'}
+                    </span>
+                  </div>
+                  {field('type', 'Type', { placeholder: internal ? 'Your company' : 'Client, partner, supplier…' })}
                 </>
               )}
               {kind === 'decision' && (
                 <>
-                  <label>
-                    <span>Project</span>
-                    <select className="oo-input" value={v.projectId ?? ''} onChange={set('projectId')} required data-testid="select-new-decision-project">
-                      <option value="">Choose a project…</option>
-                      {(projects.data ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                  </label>
+                  <div className="oo-dd-field">
+                    <label htmlFor="new-decision-project">Project</label>
+                    <Dropdown id="new-decision-project" value={v.projectId ?? ''} onChange={pick('projectId')} placeholder="Choose a project…" testId="select-new-decision-project" searchPlaceholder="Search projects"
+                      options={projectOptions(projects.data)} />
+                  </div>
                   <label>
                     <span>What was decided</span>
                     <textarea className="oo-textarea" rows={3} value={v.text ?? ''} onChange={set('text')} required data-testid="input-new-decision-text" />
                   </label>
                   {field('decidedAt', 'Decided on', { type: 'date', required: true })}
-                  {field('decidedBy', 'Decided by', { placeholder: 'Ollie and Paul' })}
+                  {field('decidedBy', 'Decided by', { placeholder: 'Who made the call' })}
                 </>
               )}
               {kind === 'note' && (
                 <>
-                  <label>
-                    <span>About</span>
-                    <select className="oo-input" value={v.attach ?? ''} onChange={set('attach')} required data-testid="select-new-note-attach">
-                      <option value="">Choose what this note is about…</option>
-                      <optgroup label="Projects">{(projects.data ?? []).map((p) => <option key={'p' + p.id} value={'project:' + p.id}>{p.name}</option>)}</optgroup>
-                      <optgroup label="People">{(people.data ?? []).map((p) => <option key={'u' + p.id} value={'person:' + p.id}>{p.name}</option>)}</optgroup>
-                      <optgroup label="Organisations">{(orgs.data ?? []).map((o) => <option key={'o' + o.id} value={'organisation:' + o.id}>{o.name}</option>)}</optgroup>
-                    </select>
-                  </label>
+                  <div className="oo-dd-field">
+                    <label htmlFor="new-note-attach">About</label>
+                    <Dropdown id="new-note-attach" value={v.attach ?? ''} onChange={pick('attach')} placeholder="Choose what this note is about…" testId="select-new-note-attach" searchPlaceholder="Search projects, people and organisations"
+                      options={[
+                        ...projectOptions(projects.data).map((o) => ({ ...o, value: 'project:' + o.value, group: 'Projects' })),
+                        ...personOptions(people.data).map((o) => ({ ...o, value: 'person:' + o.value, group: 'People' })),
+                        ...(orgs.data ?? []).map((o) => ({ value: 'organisation:' + o.id, label: o.name, group: 'Organisations' })),
+                      ]} />
+                  </div>
                   {field('title', 'Title')}
                   <label>
                     <span>Note</span>

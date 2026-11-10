@@ -76,6 +76,7 @@ const OrganisationCreate = z
   .object({
     name: z.string().min(1).max(200),
     type: shortText(),
+    internal: z.boolean().optional(),
     summary: shortText(20000),
     confidential: z.boolean().optional(),
     aiAccess: z.boolean().optional(),

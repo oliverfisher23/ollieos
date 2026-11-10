@@ -26,6 +26,7 @@ import { Avatar } from '@/components/bits';
 import { IconClose, IconLock } from '@/components/icons';
 import { InlineText } from '@/components/inline-text';
 import { refPath, useKnowledgeWrite } from '@/lib/knowledge';
+import { Dropdown } from '@/components/dropdown';
 
 /* ---------- Access ---------- */
 
@@ -219,17 +220,15 @@ export function FactsSection({ entityType, entityId, facts, title = 'Key facts' 
           placeholder="Something true about this, in one line"
           testId="fact"
           extra={
-            <select
-              className="oo-select"
-              aria-label="What the fact is about"
+            <Dropdown
+              variant="compact"
+              ariaLabel="What the fact is about"
               title="A fact about a job title, status and so on replaces the current fact of that kind"
               value={attribute ?? ''}
-              onChange={(e) => setAttribute((e.target.value || null) as FactInputAttribute)}
-              data-testid="select-fact-attribute"
-            >
-              <option value="">General fact</option>
-              {FACT_ATTRIBUTES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-            </select>
+              onChange={(v) => setAttribute((v || null) as FactInputAttribute)}
+              options={[{ value: '', label: 'General fact' }, ...FACT_ATTRIBUTES.map((a) => ({ value: a.value, label: a.label }))]}
+              testId="select-fact-attribute"
+            />
           }
           onCancel={() => {
             setAdding(false);
@@ -579,6 +578,7 @@ export function EntityChipLink({
 
 type LinkTarget = 'person' | 'project' | 'organisation';
 const TARGET_LABEL: Record<LinkTarget, string> = { person: 'a person', project: 'a project', organisation: 'an organisation' };
+const SEARCH_LABEL: Record<LinkTarget, string> = { person: 'Search people', project: 'Search projects', organisation: 'Search organisations' };
 
 /** "Link a person" and friends: pick from a list, then POST /links. */
 export function LinkPicker({ fromType, fromId, toType, exclude }: { fromType: Linkable; fromId: number; toType: LinkTarget; exclude: number[] }) {
@@ -610,10 +610,19 @@ export function LinkPicker({ fromType, fromId, toType, exclude }: { fromType: Li
   };
   return (
     <form onSubmit={submit} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }} data-testid={'form-link-' + toType}>
-      <select className="oo-input" style={{ width: 'auto', minWidth: 200 }} aria-label={'Choose ' + TARGET_LABEL[toType]} value={choice} onChange={(e) => setChoice(e.target.value)} autoFocus data-testid={'select-link-' + toType}>
-        <option value="">{list.length ? `Choose ${TARGET_LABEL[toType]}…` : 'Nothing to link'}</option>
-        {list.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-      </select>
+      <Dropdown
+        variant="control"
+        style={{ minWidth: 220 }}
+        ariaLabel={'Choose ' + TARGET_LABEL[toType]}
+        value={choice}
+        onChange={setChoice}
+        disabled={!list.length}
+        placeholder={list.length ? `Choose ${TARGET_LABEL[toType]}…` : 'Nothing to link'}
+        searchPlaceholder={SEARCH_LABEL[toType]}
+        defaultOpen={list.length > 0}
+        options={list.map((x) => ({ value: String(x.id), label: x.name }))}
+        testId={'select-link-' + toType}
+      />
       <button type="submit" className="oo-btn oo-btn-ink" disabled={!choice} data-testid={'button-save-link-' + toType}>Link</button>
       <button type="button" className="oo-btn oo-btn-outline" onClick={() => setOpen(false)} data-testid={'button-cancel-link-' + toType}>Cancel</button>
     </form>

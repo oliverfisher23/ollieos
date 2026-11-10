@@ -1437,6 +1437,8 @@ export interface OrganisationListItem {
   aiAccess: boolean;
   /** @nullable */
   type: string | null;
+  /** Ollie's own company rather than a client */
+  internal: boolean;
   peopleCount: number;
 }
 
@@ -1446,6 +1448,8 @@ export interface Organisation {
   slug: string;
   /** @nullable */
   type: string | null;
+  /** Ollie's own company rather than a client */
+  internal: boolean;
   /** @nullable */
   summary: string | null;
   confidential: boolean;
@@ -1462,6 +1466,7 @@ export interface OrganisationInput {
   name: string;
   /** @nullable */
   type?: string | null;
+  internal?: boolean;
   /** @nullable */
   summary?: string | null;
   confidential?: boolean;
@@ -1476,6 +1481,7 @@ export interface OrganisationUpdate {
   name?: string;
   /** @nullable */
   type?: string | null;
+  internal?: boolean;
   /** @nullable */
   summary?: string | null;
   confidential?: boolean;

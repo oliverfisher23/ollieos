@@ -18,6 +18,8 @@ import { TriStateAccess } from '@/components/knowledge/parts';
 import { useInvalidateTasks } from '@/lib/task-cache';
 import { useTaskActions } from '@/lib/task-actions';
 import { notify } from '@/lib/notify';
+import { Dropdown } from '@/components/dropdown';
+import { goalOptions, personOptions, projectOptions } from '@/components/dropdown-options';
 
 const STATUSES: { value: TaskStatus; label: string }[] = [
   { value: 'inbox', label: 'Inbox' },
@@ -188,46 +190,40 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <label htmlFor="td-project" className="oo-field-label">Project</label>
-                <select id="td-project" className="oo-input" value={task.project?.id ?? ''}
-                  onChange={(e) => save({ projectId: e.target.value ? Number(e.target.value) : null })} data-testid="select-project">
-                  <option value="">No project</option>
-                  {(projects.data ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                <Dropdown id="td-project" value={String(task.project?.id ?? '')}
+                  onChange={(v) => save({ projectId: v ? Number(v) : null })} testId="select-project" searchPlaceholder="Search projects"
+                  options={[{ value: '', label: 'No project' }, ...projectOptions(projects.data)]} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <label htmlFor="td-person" className="oo-field-label">For</label>
-                <select id="td-person" className="oo-input" value={task.person?.id ?? ''}
-                  onChange={(e) => save({ personId: e.target.value ? Number(e.target.value) : null })} data-testid="select-person">
-                  <option value="">Nobody in particular</option>
-                  {(people.data ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                <Dropdown id="td-person" value={String(task.person?.id ?? '')}
+                  onChange={(v) => save({ personId: v ? Number(v) : null })} testId="select-person" searchPlaceholder="Search people"
+                  options={[{ value: '', label: 'Nobody in particular' }, ...personOptions(people.data)]} />
               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label htmlFor="td-goal" className="oo-field-label">Goal</label>
-              <select id="td-goal" className="oo-input"
+              <Dropdown id="td-goal"
                 value={task.notGoalWork ? 'not' : task.goalId != null ? String(task.goalId) : ''}
-                onChange={(e) => {
-                  const v = e.target.value;
+                onChange={(v) => {
                   if (v === 'not') save({ goalId: null, notGoalWork: true }, 'Marked as not goal work');
                   else save({ goalId: v ? Number(v) : null, notGoalWork: false });
                 }}
-                data-testid="select-task-goal">
-                <option value="">{task.goal?.inherited ? `From its project: ${task.goal.name}` : 'No goal'}</option>
-                {(goals.data ?? []).map((g) => <option key={g.id} value={g.id}>{g.parentId != null ? '\u2003' + g.name : g.name}</option>)}
-                <option value="not">Not goal work</option>
-              </select>
+                testId="select-task-goal" searchPlaceholder="Search goals"
+                options={[
+                  { value: '', label: task.goal?.inherited ? `From its project: ${task.goal.name}` : 'No goal' },
+                  ...goalOptions(goals.data),
+                  { value: 'not', label: 'Not goal work', group: '' },
+                ]} />
             </div>
 
             {task.status === 'waiting' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <label htmlFor="td-waiting" className="oo-field-label">Waiting on{task.waitingSince ? ' since ' + formatDayMonth(task.waitingSince) : ''}</label>
-                <select id="td-waiting" className="oo-input" value={task.waitingOn?.id ?? ''}
-                  onChange={(e) => save({ waitingOnPersonId: e.target.value ? Number(e.target.value) : null })} data-testid="select-waiting-on">
-                  <option value="">Choose a person</option>
-                  {(people.data ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                <Dropdown id="td-waiting" value={String(task.waitingOn?.id ?? '')}
+                  onChange={(v) => save({ waitingOnPersonId: v ? Number(v) : null })} testId="select-waiting-on" searchPlaceholder="Search people"
+                  options={[{ value: '', label: 'Choose a person' }, ...personOptions(people.data)]} />
                 <div>
                   <button type="button" className="oo-btn oo-btn-outline" disabled={acting} onClick={() => run(() => actions.copyChase(task))} data-testid="button-detail-chase">Copy chase line</button>
                 </div>

@@ -18,6 +18,8 @@ import { KnowledgeLayout, ListHeader } from '@/components/knowledge/layout';
 import { CreateDialog } from '@/components/knowledge/create-dialog';
 import { HiddenFromAi, PageProblem, PageSkeleton, TriStateAccess } from '@/components/knowledge/parts';
 import { entityPath, isNotFound, TYPE_LABELS, useKnowledgeWrite } from '@/lib/knowledge';
+import { Dropdown } from '@/components/dropdown';
+import { projectOptions } from '@/components/dropdown-options';
 
 /* ---------- Shared ---------- */
 
@@ -118,10 +120,18 @@ export function DecisionPage() {
         <dd><InlineText value={d.source} label="Source" placeholder="Where it was decided, such as a meeting or email" testId="decision-source" onSave={(v) => save({ source: v })} /></dd>
         <dt><label htmlFor="decision-project">Project</label></dt>
         <dd>
-          <select id="decision-project" className="oo-input" style={{ width: 'auto', minHeight: 32, padding: '3px 8px' }} value={d.project.id} onChange={(e) => save({ projectId: Number(e.target.value) }, 'Moved to another project')} data-testid="select-decision-project">
-            {!(projects.data ?? []).some((p) => p.id === d.project.id) && <option value={d.project.id}>{d.project.name}</option>}
-            {(projects.data ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          <Dropdown
+            id="decision-project"
+            variant="compact"
+            value={String(d.project.id)}
+            onChange={(v) => save({ projectId: Number(v) }, 'Moved to another project')}
+            searchPlaceholder="Search projects"
+            options={[
+              ...((projects.data ?? []).some((p) => p.id === d.project.id) ? [] : [{ value: String(d.project.id), label: d.project.name }]),
+              ...projectOptions(projects.data),
+            ]}
+            testId="select-decision-project"
+          />
         </dd>
         <dt>Recorded</dt>
         <dd>{formatDayMonth(d.createdAt)} by {d.createdBy === 'ollie' ? 'you' : d.createdBy.charAt(0).toUpperCase() + d.createdBy.slice(1)}</dd>

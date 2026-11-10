@@ -14,6 +14,7 @@ export interface OrganisationUpdate {
   name?: string;
   /** @nullable */
   type?: string | null;
+  internal?: boolean;
   /** @nullable */
   summary?: string | null;
   confidential?: boolean;

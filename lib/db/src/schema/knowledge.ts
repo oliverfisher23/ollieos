@@ -28,6 +28,8 @@ export const organisationsTable = pgTable(
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
     type: text("type"),
+    /** Ollie's own company (Springpod), as opposed to clients, partners and suppliers */
+    internal: boolean("internal").notNull().default(false),
     summary: text("summary"),
     confidential: boolean("confidential").notNull().default(false),
     aiAccess: boolean("ai_access").notNull().default(true),

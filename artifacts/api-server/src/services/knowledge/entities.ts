@@ -474,6 +474,7 @@ export type OrganisationView = Omit<OrgRow, "search">;
 export interface OrganisationListItem extends EntitySummary {
   aiAccess: boolean;
   type: string | null;
+  internal: boolean;
   peopleCount: number;
 }
 
@@ -486,10 +487,12 @@ export async function listOrganisations(): Promise<OrganisationListItem[]> {
       confidential: organisationsTable.confidential,
       aiAccess: organisationsTable.aiAccess,
       type: organisationsTable.type,
+      internal: organisationsTable.internal,
       peopleCount: sql<number>`(select count(*)::int from people p where p.organisation_id = organisations.id)`,
     })
     .from(organisationsTable)
-    .orderBy(asc(organisationsTable.name));
+    // External organisations first, then Ollie's own company.
+    .orderBy(asc(organisationsTable.internal), asc(organisationsTable.name));
   return rows.map((r) => ({ ...r, peopleCount: Number(r.peopleCount) }));
 }
 
@@ -530,6 +533,7 @@ export async function getOrganisation(slug: string): Promise<OrganisationDetail>
 export interface OrganisationInput {
   name: string;
   type?: string | null;
+  internal?: boolean;
   summary?: string | null;
   confidential?: boolean;
   aiAccess?: boolean;
@@ -546,6 +550,7 @@ export async function createOrganisation(input: OrganisationInput): Promise<Orga
         name,
         slug,
         type: cleanText(input.type),
+        internal: input.internal ?? false,
         summary: cleanText(input.summary),
         confidential: input.confidential ?? false,
         aiAccess: input.aiAccess ?? true,
@@ -566,6 +571,7 @@ export async function updateOrganisation(slug: string, input: Partial<Organisati
     set.name = name;
   }
   if (input.type !== undefined) set.type = cleanText(input.type);
+  if (input.internal !== undefined && input.internal !== current.internal) set.internal = input.internal;
   if (input.summary !== undefined) set.summary = cleanText(input.summary);
   if (input.confidential !== undefined) set.confidential = input.confidential;
   if (input.aiAccess !== undefined) set.aiAccess = input.aiAccess;

@@ -320,6 +320,8 @@ export interface ContextOut {
     cadence_status?: string;
     days_overdue?: number;
     days_left?: number;
+    /** Organisations only: Ollie's own company (his colleagues work there) rather than an external one */
+    internal?: boolean;
   };
   summary: string | null;
   facts: { ref: string; text: string; source: string | null; attribute: string | null; created_at: string; last_confirmed_at: string; needs_check: boolean }[];
@@ -372,7 +374,7 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
     summary = p.relationshipSummary;
   } else {
     const [o] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, id));
-    entity = { ref: toRef(type, id), type, name: o.name, slug: o.slug };
+    entity = { ref: toRef(type, id), type, name: o.name, slug: o.slug, internal: o.internal };
     summary = o.summary;
   }
 

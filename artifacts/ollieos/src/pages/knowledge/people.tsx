@@ -13,6 +13,8 @@ import { Avatar, Skel } from '@/components/bits';
 import { IconLeft } from '@/components/icons';
 import { InlineText } from '@/components/inline-text';
 import { KnowledgeLayout, ListHeader } from '@/components/knowledge/layout';
+import { Dropdown } from '@/components/dropdown';
+import { orgOptions } from '@/components/dropdown-options';
 import { CreateDialog } from '@/components/knowledge/create-dialog';
 import {
   AccessPanel,
@@ -179,17 +181,17 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
           <dl className="oo-dl">
             <dt><label htmlFor="person-org">Organisation</label></dt>
             <dd>
-              <select
+              <Dropdown
                 id="person-org"
-                className="oo-input"
-                style={{ minHeight: 30, padding: '3px 6px', fontSize: 13 }}
-                value={person.organisation?.id ?? ''}
-                onChange={(e) => save({ organisationId: e.target.value ? Number(e.target.value) : null })}
-                data-testid="select-person-org"
-              >
-                <option value="">None</option>
-                {(orgs.data ?? []).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-              </select>
+                variant="compact"
+                value={String(person.organisation?.id ?? '')}
+                onChange={(v) => save({ organisationId: v ? Number(v) : null })}
+                placeholder="None"
+                searchPlaceholder="Search organisations"
+                options={[{ value: '', label: 'None' }, ...orgOptions(orgs.data)]}
+                testId="select-person-org"
+                style={{ width: '100%' }}
+              />
             </dd>
             <dt>Email</dt>
             <dd><InlineText value={person.email} label="Email" placeholder="Add an email" testId="person-email" onSave={(v) => save({ email: v })} /></dd>

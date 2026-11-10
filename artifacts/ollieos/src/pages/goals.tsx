@@ -173,7 +173,7 @@ function NewGoalForm({ parentId, onDone }: { parentId?: number; onDone: () => vo
     <form onSubmit={submit} className={parentId ? undefined : 'oo-kcard'} style={{ display: 'flex', flexDirection: 'column', gap: 10 }} data-testid={'form-new-' + idp}>
       <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 }}>
         <span>{parentId ? 'Sub-goal' : 'Goal name'}</span>
-        <input className="oo-input" autoFocus value={name} maxLength={200} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onDone()} placeholder={parentId ? 'Grow the RAF work' : 'Growth'} data-testid={`input-new-${idp}-name`} />
+        <input className="oo-input" autoFocus value={name} maxLength={200} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onDone()} placeholder={parentId ? 'A part of this goal' : 'A broad goal'} data-testid={`input-new-${idp}-name`} />
       </label>
       {!parentId && (
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 }}>

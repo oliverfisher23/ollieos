@@ -182,6 +182,8 @@ Initials avatar, name, organisation and role, Relationship summary, "I owe them"
 
 Same layout pattern: title, summary, linked items, timeline.
 
+Organisations are external (clients, partners, suppliers) or internal (Springpod itself, added 10th November 2026). The Organisations list shows external ones first, then internal. Each organisation page has an External/Internal switch and lets Ollie add someone he already knows (moving them from any other organisation) or a new person. The AI is told which organisation is his own company, so it knows who his colleagues are.
+
 ### 8.5 Editing
 
 Every field edits in place. Key facts and decisions are separate rows, not free text, so AI can read and add them one at a time.
@@ -197,7 +199,7 @@ Every field edits in place. Key facts and decisions are separate rows, not free 
 | `sweep_runs` | id, started_at, finished_at, items_created, items_noise, items_duplicate, activity_logged, errors |
 | `projects` | id, name, slug, area, status, summary, confidential, ai_access, created_at, updated_at |
 | `people` | id, name, slug, organisation_id, role, email, relationship_summary, confidential, ai_access, last_contact_at |
-| `organisations` | id, name, slug, type, summary, confidential, ai_access |
+| `organisations` | id, name, slug, type, internal, summary, confidential, ai_access |
 | `facts` | id, entity_type, entity_id, text, source, created_by, created_at, superseded_by |
 | `decisions` | id, project_id, text, decided_at, decided_by, source, confidential |
 | `notes` | id, entity_type, entity_id, body, created_by, created_at, confidential |

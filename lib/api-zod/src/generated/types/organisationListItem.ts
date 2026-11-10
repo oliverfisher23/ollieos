@@ -14,5 +14,7 @@ export interface OrganisationListItem {
   aiAccess: boolean;
   /** @nullable */
   type: string | null;
+  /** Ollie's own company rather than a client */
+  internal: boolean;
   peopleCount: number;
 }

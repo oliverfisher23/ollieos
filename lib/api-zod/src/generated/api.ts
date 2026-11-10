@@ -2709,6 +2709,7 @@ export const ListOrganisationsResponseItem = zod.object({
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
   "type": zod.string().nullable(),
+  "internal": zod.boolean().describe('Ollie\'s own company rather than a client'),
   "peopleCount": zod.int()
 })
 export const ListOrganisationsResponse = zod.array(ListOrganisationsResponseItem)
@@ -2724,6 +2725,7 @@ export const createOrganisationBodyNameMax = 200;
 export const CreateOrganisationBody = zod.object({
   "name": zod.string().min(1).max(createOrganisationBodyNameMax),
   "type": zod.string().nullish(),
+  "internal": zod.boolean().optional(),
   "summary": zod.string().nullish(),
   "confidential": zod.boolean().optional(),
   "aiAccess": zod.boolean().optional()
@@ -2734,6 +2736,7 @@ export const CreateOrganisationResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "type": zod.string().nullable(),
+  "internal": zod.boolean().describe('Ollie\'s own company rather than a client'),
   "summary": zod.string().nullable(),
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
@@ -2755,6 +2758,7 @@ export const GetOrganisationResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "type": zod.string().nullable(),
+  "internal": zod.boolean().describe('Ollie\'s own company rather than a client'),
   "summary": zod.string().nullable(),
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
@@ -2838,6 +2842,7 @@ export const updateOrganisationBodyNameMax = 200;
 export const UpdateOrganisationBody = zod.object({
   "name": zod.string().min(1).max(updateOrganisationBodyNameMax).optional(),
   "type": zod.string().nullish(),
+  "internal": zod.boolean().optional(),
   "summary": zod.string().nullish(),
   "confidential": zod.boolean().optional(),
   "aiAccess": zod.boolean().optional()
@@ -2848,6 +2853,7 @@ export const UpdateOrganisationResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string(),
   "type": zod.string().nullable(),
+  "internal": zod.boolean().describe('Ollie\'s own company rather than a client'),
   "summary": zod.string().nullable(),
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),

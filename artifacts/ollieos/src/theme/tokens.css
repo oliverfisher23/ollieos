@@ -79,6 +79,7 @@
   --oo-shadow-card: 0 10px 30px rgba(0, 0, 0, 0.18);
   --oo-shadow-panel: 0 1px 2px rgba(27, 29, 34, 0.04);
   --oo-shadow-detail: 0 16px 40px rgba(27, 29, 34, 0.12);
+  --oo-shadow-menu: 0 14px 34px rgba(27, 29, 34, 0.14), 0 2px 6px rgba(27, 29, 34, 0.06);
 
   /* Status and priority pills */
   --oo-pill-now-bg: #eef3c7;

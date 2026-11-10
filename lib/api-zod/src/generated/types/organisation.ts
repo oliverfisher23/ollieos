@@ -12,6 +12,8 @@ export interface Organisation {
   slug: string;
   /** @nullable */
   type: string | null;
+  /** Ollie's own company rather than a client */
+  internal: boolean;
   /** @nullable */
   summary: string | null;
   confidential: boolean;

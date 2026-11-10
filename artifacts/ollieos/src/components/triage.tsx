@@ -7,6 +7,8 @@ import { IconLeft } from '@/components/icons';
 import { NoiseRuleChooser } from '@/components/noise-rule-chooser';
 import { useTaskActions } from '@/lib/task-actions';
 import { PHONE_QUERY, useMedia } from '@/lib/use-media';
+import { Dropdown } from '@/components/dropdown';
+import { personOptions } from '@/components/dropdown-options';
 
 type Action = TriageInputAction;
 
@@ -234,11 +236,9 @@ function LastStrip({
       {last.action === 'waiting' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <label htmlFor="tri-waiting" className="oo-t2" style={{ fontSize: 13 }}>Waiting on</label>
-          <select id="tri-waiting" className="oo-tri-input" style={{ width: 'auto', minWidth: 180 }} disabled={busy}
-            value={t.waitingOn?.id ?? ''} onChange={(e) => onWaiting(e.target.value ? Number(e.target.value) : null)} data-testid="select-triage-waiting">
-            <option value="">Nobody chosen yet</option>
-            {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          <Dropdown id="tri-waiting" variant="dark" style={{ minWidth: 200 }} disabled={busy}
+            value={String(t.waitingOn?.id ?? '')} onChange={(v) => onWaiting(v ? Number(v) : null)} searchPlaceholder="Search people"
+            options={[{ value: '', label: 'Nobody chosen yet' }, ...personOptions(people)]} testId="select-triage-waiting" />
         </div>
       )}
       {last.action === 'noise' && <NoiseRuleChooser key={t.id} task={t} dark toast={false} />}

@@ -3,20 +3,26 @@ import { Link, useLocation, useSearch } from 'wouter';
 import {
   useGetTaskSummary,
   useListTasks,
+  updateTask,
   useUpdateTask,
   type ListTasksParams,
+  type Priority,
+  type TaskStatus,
+  type TaskUpdate,
   type Task,
   type TaskSource,
   type TaskTab,
   type TriageInputAction,
 } from '@workspace/api-client-react';
-import { SOURCE_LABELS, TASK_SOURCES, addDays, formatShort, formatWeekRange, todayLondon, weekStartOf } from '@workspace/shared';
-import { PriorityPill, Skel, SourceLabel, SourceMark, StatusPill } from '@/components/bits';
+import { SOURCE_LABELS, TASK_SOURCES, addDays, formatWeekRange, todayLondon, weekStartOf } from '@workspace/shared';
+import { Skel, SourceLabel, SourceMark } from '@/components/bits';
+import { DueCell, PriorityCell, StatusCell } from '@/components/task-cell-editors';
 import { IconCheck, IconLeft, IconRight, IconSearch } from '@/components/icons';
 import { TaskDetailPanel } from '@/components/task-detail';
 import { useInvalidateTasks } from '@/lib/task-cache';
 import { notify, notifyUndo } from '@/lib/notify';
 import { useTaskActions } from '@/lib/task-actions';
+import { Dot, Dropdown } from '@/components/dropdown';
 
 const TABS: { value: TaskTab; label: string }[] = [
   { value: 'inbox', label: 'Inbox' },
@@ -115,10 +121,17 @@ export default function TasksPage() {
             {list.isLoading ? '…' : rows.length} {rows.length === 1 ? 'task' : 'tasks'}
           </span>
           <label htmlFor="filter-source" className="oo-sr">Source</label>
-          <select id="filter-source" className="oo-control" value={source ?? ''} onChange={(e) => set({ source: e.target.value || null })} data-testid="select-source">
-            <option value="">All sources</option>
-            {TASK_SOURCES.map((s) => <option key={s} value={s}>{SOURCE_LABELS[s]}</option>)}
-          </select>
+          <Dropdown
+            id="filter-source"
+            variant="control"
+            value={source ?? ''}
+            onChange={(v) => set({ source: v || null })}
+            options={[
+              { value: '', label: 'All sources' },
+              ...TASK_SOURCES.map((s) => ({ value: s, label: SOURCE_LABELS[s], leading: <Dot color={`var(--oo-src-${s}-fg)`} /> })),
+            ]}
+            testId="select-source"
+          />
           <button type="button" className="oo-control" aria-pressed={week === thisWeek}
             onClick={() => set({ week: week === thisWeek ? null : thisWeek })} data-testid="button-this-week">This week</button>
           <div style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid var(--oo-control-border)', borderRadius: 'var(--oo-r-input)', background: 'var(--oo-panel)' }}>
@@ -307,6 +320,32 @@ function TaskRows({ tab, rows, selected, onOpen }: { tab: TaskTab; rows: Task[];
     );
   };
 
+  // Quick edits from the row, the same as the detail panel.
+  const saveRow = async (t: Task, data: TaskUpdate) => {
+    try {
+      await updateTask(t.id, data);
+      invalidate(t.id);
+    } catch {
+      notify('That did not save', 'Try again in a moment.');
+    }
+  };
+  const setStatus = (t: Task, status: TaskStatus) => {
+    if (status === t.status) return;
+    if (status === 'done') return void runRow(t, () => actions.markDone(t));
+    if (status === 'inbox') return void saveRow(t, { status }).then(() => notify('Moved to Inbox', t.title));
+    void runRow(t, () => actions.triage(t, { action: status }));
+  };
+  const shownStatus = (t: Task): TaskStatus => (doneOf(t) ? 'done' : t.status === 'done' ? 'now' : t.status);
+  const statusCell = (t: Task, testId: string) => (
+    <StatusCell title={t.title} status={t.status} shown={shownStatus(t)} onChange={(s) => setStatus(t, s)} testId={testId} />
+  );
+  const priorityCell = (t: Task, testId: string) => (
+    <PriorityCell title={t.title} priority={t.priority} onChange={(p: Priority) => saveRow(t, { priority: p })} testId={testId} />
+  );
+  const dueCell = (t: Task, testId: string, compact?: boolean) => (
+    <DueCell title={t.title} due={t.dueDate} compact={compact} onChange={(d) => saveRow(t, { dueDate: d })} testId={testId} />
+  );
+
   const doneOf = (t: Task) => pending[t.id] ?? t.status === 'done';
   const leaving = (t: Task) => t.id in pending && doneOf(t) !== (t.status === 'done');
 
@@ -359,9 +398,9 @@ function TaskRows({ tab, rows, selected, onOpen }: { tab: TaskTab; rows: Task[];
                 </td>
                 <td><SourceLabel source={t.source} /></td>
                 <td className="oo-soft">{t.fromName ?? t.person?.name ?? ''}</td>
-                <td><PriorityPill priority={t.priority} /></td>
-                <td className="oo-num">{t.dueDate ? formatShort(t.dueDate) : <span className="oo-muted">No date</span>}</td>
-                <td><StatusPill status={doneOf(t) ? 'done' : t.status === 'done' ? 'now' : t.status} testId={'status-task-' + t.id} /></td>
+                <td onClick={(e) => e.stopPropagation()}>{priorityCell(t, 'select-row-priority-' + t.id)}</td>
+                <td onClick={(e) => e.stopPropagation()}>{dueCell(t, 'select-row-due-' + t.id)}</td>
+                <td onClick={(e) => e.stopPropagation()} data-testid={'status-task-' + t.id}>{statusCell(t, 'select-row-status-' + t.id)}</td>
                 {extraCol && <td onClick={(e) => e.stopPropagation()}>{rowActions(t)}</td>}
               </tr>
             ))}
@@ -377,9 +416,9 @@ function TaskRows({ tab, rows, selected, onOpen }: { tab: TaskTab; rows: Task[];
                 onFocus={() => inbox && setCursor(t.id)} data-testid={'button-open-task-mobile-' + t.id}>{t.title}</button>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                 <SourceMark source={t.source} size={20} />
-                <PriorityPill priority={t.priority} />
-                <StatusPill status={doneOf(t) ? 'done' : t.status === 'done' ? 'now' : t.status} />
-                <span className="oo-muted oo-num" style={{ fontSize: 12 }}>{t.dueDate ? formatShort(t.dueDate) : 'No date'}</span>
+                {priorityCell(t, 'select-card-priority-' + t.id)}
+                {statusCell(t, 'select-card-status-' + t.id)}
+                {dueCell(t, 'select-card-due-' + t.id, true)}
                 {t.stale && <StalePill id={t.id} />}
               </div>
               {extraCol && rowActions(t)}

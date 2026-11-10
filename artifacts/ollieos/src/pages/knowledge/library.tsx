@@ -22,6 +22,7 @@ import { InlineText } from '@/components/inline-text';
 import { KnowledgeLayout } from '@/components/knowledge/layout';
 import { HiddenFromAi, PageProblem, TriStateAccess } from '@/components/knowledge/parts';
 import { useKnowledgeWrite } from '@/lib/knowledge';
+import { Dropdown } from '@/components/dropdown';
 
 type Tab = 'documents' | 'playbooks';
 
@@ -245,13 +246,19 @@ export function DocumentDialog({ doc, presetProjectId, onClose }: { doc?: Librar
                 <span>Summary <span className="oo-muted">(one line on what it is)</span></span>
                 <textarea className="oo-textarea" rows={2} value={summary} maxLength={2000} onChange={(e) => setSummary(e.target.value)} data-testid="input-document-summary" />
               </label>
-              <label>
-                <span>Where it lives</span>
-                <select className="oo-input" value={location} onChange={(e) => setLocation(e.target.value as DocLocation | '')} data-testid="select-document-location">
-                  {!doc && <option value="">Work it out from the link</option>}
-                  {DOC_LOCATIONS.map((l) => <option key={l} value={l}>{DOC_LOCATION_LABELS[l]}</option>)}
-                </select>
-              </label>
+              <div className="oo-dd-field">
+                <label htmlFor="document-location">Where it lives</label>
+                <Dropdown
+                  id="document-location"
+                  value={location}
+                  onChange={(v) => setLocation(v as DocLocation | '')}
+                  options={[
+                    ...(doc ? [] : [{ value: '', label: 'Work it out from the link' }]),
+                    ...DOC_LOCATIONS.map((l) => ({ value: l, label: DOC_LOCATION_LABELS[l] })),
+                  ]}
+                  testId="select-document-location"
+                />
+              </div>
               <MultiPick label="Projects" items={projects.data ?? []} value={projectIds} onChange={setProjectIds} testId="pick-document-projects" />
               <TriStateAccess wide value={confidential} hidden={false} parent="its projects" onChange={setConfidential} testId="document-access" />
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' }}>
@@ -389,11 +396,11 @@ export function PlaybookDialog({ presetProjectId, onClose }: { presetProjectId?:
             <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <label>
                 <span>Title</span>
-                <input className="oo-input" required autoFocus value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} placeholder="PwC terminology" data-testid="input-playbook-title" />
+                <input className="oo-input" required autoFocus value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} placeholder="House style for a client" data-testid="input-playbook-title" />
               </label>
               <label>
                 <span>Applies when</span>
-                <input className="oo-input" required value={appliesWhen} maxLength={300} onChange={(e) => setAppliesWhen(e.target.value)} placeholder="Writing anything for or about PwC" data-testid="input-playbook-applies" />
+                <input className="oo-input" required value={appliesWhen} maxLength={300} onChange={(e) => setAppliesWhen(e.target.value)} placeholder="Writing anything for or about that client" data-testid="input-playbook-applies" />
               </label>
               <label>
                 <span>Rule</span>

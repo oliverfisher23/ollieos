@@ -223,7 +223,7 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
       ref,
       type: "organisation",
       id: o.id,
-      text: [`[${ref}] Organisation: ${o.name}`, o.type && `Type: ${o.type}`, o.summary && `Summary: ${clip(o.summary)}`].filter(Boolean).join("\n"),
+      text: [`[${ref}] Organisation: ${o.name}`, o.internal ? "Internal: Ollie's own company; people here are his colleagues" : "External", o.type && `Type: ${o.type}`, o.summary && `Summary: ${clip(o.summary)}`].filter(Boolean).join("\n"),
     });
   }
   for (const d of decisions) {

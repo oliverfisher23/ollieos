@@ -5,6 +5,7 @@ import { LIFECYCLE_LABELS, PROJECT_LIFECYCLES, formatDayMonth, formatDayMonthSho
 import { KnowledgeLayout } from '@/components/knowledge/layout';
 import { CreateDialog } from '@/components/knowledge/create-dialog';
 import { InlineText } from '@/components/inline-text';
+import { Dropdown } from '@/components/dropdown';
 import {
   AccessPanel,
   AddNote,
@@ -93,34 +94,30 @@ export function ProjectPage() {
             {project.archived && <span className="oo-pill" data-tone="noise">Archived</span>}
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', fontSize: 13 }}>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span className="oo-muted">Goal</span>
-              <select
-                className="oo-select"
-                style={{ minHeight: 30, padding: '3px 6px', fontSize: 13, maxWidth: 260 }}
-                value={project.goalId ?? ''}
-                onChange={(e) => {
-                  const id = e.target.value ? Number(e.target.value) : null;
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <label htmlFor="project-goal" className="oo-muted">Goal</label>
+              <Dropdown
+                id="project-goal"
+                variant="compact"
+                style={{ maxWidth: 280 }}
+                value={String(project.goalId ?? '')}
+                onChange={(v) => {
+                  const id = v ? Number(v) : null;
                   const name = goals.data?.find((g) => g.id === id)?.name;
                   void save({ goalId: id }, id ? `Linked to ${name}` : 'No goal now');
                 }}
-                data-testid="select-project-goal"
-              >
-                <option value="">No goal</option>
-                {topGoals.map((g) => {
-                  const subs = (goals.data ?? []).filter((s) => s.parentId === g.id);
-                  return subs.length ? (
-                    <optgroup key={g.id} label={g.name}>
-                      <option value={g.id}>{g.name}</option>
-                      {subs.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </optgroup>
-                  ) : (
-                    <option key={g.id} value={g.id}>{g.name}</option>
-                  );
-                })}
-                {goal && !goals.data?.some((g) => g.id === goal.id) && <option value={goal.id}>{goal.name}</option>}
-              </select>
-            </label>
+                searchPlaceholder="Search goals"
+                options={[
+                  { value: '', label: 'No goal' },
+                  ...topGoals.flatMap((g) => [
+                    { value: String(g.id), label: g.name },
+                    ...(goals.data ?? []).filter((x) => x.parentId === g.id).map((x) => ({ value: String(x.id), label: x.name, indent: true })),
+                  ]),
+                  ...(goal && !goals.data?.some((g) => g.id === goal.id) ? [{ value: String(goal.id), label: goal.name }] : []),
+                ]}
+                testId="select-project-goal"
+              />
+            </span>
             <span role="group" aria-label="Lifecycle" className="oo-seg" style={{ display: 'inline-flex', padding: 3 }} data-testid="seg-project-lifecycle">
               {PROJECT_LIFECYCLES.map((l: ProjectLifecycle) => (
                 <button

@@ -14,6 +14,7 @@ import { CADENCES, CADENCE_LABELS, formatDayMonthShort } from '@workspace/shared
 import { Avatar, Skel } from '@/components/bits';
 import { LockMark, PageProblem } from '@/components/knowledge/parts';
 import { copyText, firstName, useKnowledgeWrite } from '@/lib/knowledge';
+import { Dropdown } from '@/components/dropdown';
 import { errorMessage, notify } from '@/lib/notify';
 
 const TABS: { id: CadenceTab; url: string; label: string }[] = [
@@ -179,19 +180,18 @@ function RowAction({ p, onDraft }: { p: CadenceRow; onDraft: () => void }) {
 export function CadenceSelect({ personSlug, name, value, label, testId }: { personSlug: string; name: string; value: Cadence; label: string; testId: string }) {
   const write = useKnowledgeWrite();
   return (
-    <select
-      className="oo-select"
-      style={{ minHeight: 30, padding: '3px 6px', fontSize: 13 }}
-      aria-label={`${label} for ${name}`}
+    <Dropdown
+      variant="compact"
+      ariaLabel={`${label} for ${name}`}
       value={value}
-      onChange={(e) => {
-        const next = e.target.value as Cadence;
+      onChange={(v) => {
+        const next = v as Cadence;
         void write(() => updatePerson(personSlug, { cadence: next }), { done: next === 'none' ? `${firstName(name)} has no cadence now` : `Cadence set to ${CADENCE_LABELS[next].toLowerCase()}` });
       }}
-      data-testid={testId}
-    >
-      {CADENCES.map((c) => <option key={c} value={c}>{CADENCE_LABELS[c]}</option>)}
-    </select>
+      options={CADENCES.map((c) => ({ value: c, label: CADENCE_LABELS[c] }))}
+      align="end"
+      testId={testId}
+    />
   );
 }
 

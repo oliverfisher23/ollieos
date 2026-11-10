@@ -26,6 +26,8 @@ import { hiddenSummary, requestItemName, useAccessActions, whenLabel } from '@/l
 import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
 import { CopyField } from '@/components/copy-field';
+import { Dropdown } from '@/components/dropdown';
+import { personOptions, projectOptions } from '@/components/dropdown-options';
 
 const H2 = { margin: 0, fontSize: 16, fontWeight: 600 } as const;
 
@@ -155,12 +157,20 @@ function ItemPicker({ value, onChange, testId }: { value: string; onChange: (v: 
   const people = useListPeople();
   const orgs = useListOrganisations();
   return (
-    <select className="oo-input" value={value} onChange={(e) => onChange(e.target.value)} style={{ maxWidth: 360 }} data-testid={testId}>
-      <option value="">Choose an item</option>
-      <optgroup label="Projects">{(projects.data ?? []).map((p) => <option key={p.id} value={'project:' + p.id}>{p.name}</option>)}</optgroup>
-      <optgroup label="People">{(people.data ?? []).map((p) => <option key={p.id} value={'person:' + p.id}>{p.name}</option>)}</optgroup>
-      <optgroup label="Organisations">{(orgs.data ?? []).map((o) => <option key={o.id} value={'organisation:' + o.id}>{o.name}</option>)}</optgroup>
-    </select>
+    <Dropdown
+      ariaLabel="Item to share"
+      value={value}
+      onChange={onChange}
+      placeholder="Choose an item"
+      searchPlaceholder="Search projects, people and organisations"
+      style={{ maxWidth: 360 }}
+      options={[
+        ...projectOptions(projects.data).map((o) => ({ ...o, value: 'project:' + o.value, group: 'Projects' })),
+        ...personOptions(people.data).map((o) => ({ ...o, value: 'person:' + o.value, group: 'People' })),
+        ...(orgs.data ?? []).map((o) => ({ value: 'organisation:' + o.id, label: o.name, group: 'Organisations' })),
+      ]}
+      testId={testId}
+    />
   );
 }
 

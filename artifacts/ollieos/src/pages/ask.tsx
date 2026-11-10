@@ -124,7 +124,7 @@ export default function AskPage() {
         <AskBox
           busy={!!pending}
           label={turns.length ? 'Ask a follow-up' : 'Ask OllieOS'}
-          placeholder={turns.length ? 'Ask a follow-up…' : 'Ask anything you know…  e.g. What do I owe Paul?'}
+          placeholder={turns.length ? 'Ask a follow-up…' : 'Ask anything you know…  e.g. What do I owe people this week?'}
           autoFocus={showRecent}
           onSend={send}
         />

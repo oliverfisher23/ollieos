@@ -3183,7 +3183,7 @@ components:
 
     OrganisationListItem:
       type: object
-      required: [id, name, slug, confidential, aiAccess, type, peopleCount]
+      required: [id, name, slug, confidential, aiAccess, type, internal, peopleCount]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -3191,16 +3191,18 @@ components:
         confidential: { type: boolean }
         aiAccess: { type: boolean }
         type: { type: [string, "null"] }
+        internal: { type: boolean, description: Ollie's own company rather than a client, partner or supplier }
         peopleCount: { type: integer }
 
     Organisation:
       type: object
-      required: [id, name, slug, type, summary, confidential, aiAccess, createdAt, updatedAt]
+      required: [id, name, slug, type, internal, summary, confidential, aiAccess, createdAt, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
         slug: { type: string }
         type: { type: [string, "null"] }
+        internal: { type: boolean, description: Ollie's own company rather than a client, partner or supplier }
         summary: { type: [string, "null"] }
         confidential: { type: boolean }
         aiAccess: { type: boolean }
@@ -3213,6 +3215,7 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 200 }
         type: { type: [string, "null"] }
+        internal: { type: boolean }
         summary: { type: [string, "null"] }
         confidential: { type: boolean }
         aiAccess: { type: boolean }
@@ -3222,6 +3225,7 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 200 }
         type: { type: [string, "null"] }
+        internal: { type: boolean }
         summary: { type: [string, "null"] }
         confidential: { type: boolean }
         aiAccess: { type: boolean }
