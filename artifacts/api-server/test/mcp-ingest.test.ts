@@ -1,145 +1,16 @@
-import { createHash, randomBytes } from "node:crypto";
-import type { AddressInfo } from "node:net";
-import type { Server } from "node:http";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { activityTable, captureLogTable, db, noiseRulesTable, peopleTable, pool, tasksTable } from "@workspace/db";
+import { activityTable, captureLogTable, db, noiseRulesTable, peopleTable, tasksTable } from "@workspace/db";
 import { londonRange, todayLondon } from "@workspace/shared";
-import { createSession } from "../src/lib/auth";
 import { SOURCE_OF_TRUTH } from "../src/mcp/server";
-import { decision, fact, link, note, person, project, resetDb, task } from "./helpers";
-
-const OLLIE = "ollie-test@example.com";
-const KEY = "test-ingest-key-" + randomBytes(8).toString("hex");
-process.env.ALLOWED_EMAIL = OLLIE;
-process.env.INBOX_API_KEY = KEY;
-process.env.SESSION_SECRET ??= "test-session-secret";
-
-let server: Server;
-let base = "";
-let sid = "";
-
-beforeAll(async () => {
-  const { default: app } = await import("../src/app");
-  server = app.listen(0);
-  await new Promise((r) => server.once("listening", r));
-  base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-});
-
-afterAll(async () => {
-  await new Promise((r) => server.close(r));
-  await pool.end();
-});
-
-async function signIn() {
-  sid = await createSession({
-    user: { id: "ollie", email: OLLIE, firstName: "Ollie", lastName: null, profileImageUrl: null } as never,
-    access_token: "x",
-    expires_at: Math.floor(Date.now() / 1000) + 3600,
-  });
-}
-
-/* ---------- OAuth helpers ---------- */
-
-const REDIRECT = "https://claude.ai/api/mcp/auth_callback";
-
-function pkce() {
-  const verifier = randomBytes(32).toString("base64url");
-  const challenge = createHash("sha256").update(verifier).digest("base64url");
-  return { verifier, challenge };
-}
-
-async function register(name = "Claude", redirect = REDIRECT) {
-  const res = await fetch(`${base}/api/oauth/register`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ client_name: name, redirect_uris: [redirect], token_endpoint_auth_method: "none", grant_types: ["authorization_code", "refresh_token"] }),
-  });
-  expect(res.status).toBe(201);
-  return (await res.json()) as { client_id: string };
-}
-
-async function authorize(clientId: string, challenge: string, redirect = REDIRECT, scopes = "read write") {
-  const u = new URL(`${base}/api/oauth/authorize`);
-  u.search = new URLSearchParams({
-    response_type: "code",
-    client_id: clientId,
-    redirect_uri: redirect,
-    code_challenge: challenge,
-    code_challenge_method: "S256",
-    state: "st-1",
-    scope: scopes,
-    resource: `${base}/mcp`,
-  }).toString();
-  const res = await fetch(u, { redirect: "manual" });
-  return res;
-}
-
-async function consent(location: string, decision: "approve" | "deny") {
-  const req = new URL(location, base).searchParams.get("req")!;
-  const res = await fetch(`${base}/api/oauth/consent`, {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${sid}` },
-    body: JSON.stringify({ req, decision }),
-  });
-  return res;
-}
-
-async function token(body: Record<string, string>) {
-  return fetch(`${base}/api/oauth/token`, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams(body).toString(),
-  });
-}
-
-/** Runs the whole flow Claude runs, and returns the tokens. */
-async function connect(name = "Claude", scopes = "read write") {
-  const { client_id } = await register(name);
-  const { verifier, challenge } = pkce();
-  const auth = await authorize(client_id, challenge, REDIRECT, scopes);
-  expect(auth.status).toBe(302);
-  const approved = await consent(auth.headers.get("location")!, "approve");
-  const { redirectTo } = (await approved.json()) as { redirectTo: string };
-  const code = new URL(redirectTo).searchParams.get("code")!;
-  const res = await token({ grant_type: "authorization_code", code, redirect_uri: REDIRECT, client_id, code_verifier: verifier });
-  expect(res.status).toBe(200);
-  const tokens = (await res.json()) as { access_token: string; refresh_token: string };
-  return { client_id, ...tokens };
-}
-
-async function mcp(accessToken: string) {
-  const c = new Client({ name: "test", version: "1.0.0" });
-  await c.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`), { requestInit: { headers: { authorization: `Bearer ${accessToken}` } } }));
-  return c;
-}
-
-type ToolOut = { isError?: boolean; text: string; json: Record<string, unknown> };
-async function call(c: Client, name: string, args: Record<string, unknown>): Promise<ToolOut> {
-  const r = (await c.callTool({ name, arguments: args })) as { isError?: boolean; content: { type: string; text: string }[] };
-  const text = r.content.map((x) => x.text).join("\n");
-  return { isError: r.isError, text, json: JSON.parse(text) };
-}
-
-async function ingest(path: string, init: { method?: string; body?: unknown; key?: string } = {}) {
-  const res = await fetch(`${base}/api/ingest/${path}`, {
-    method: init.method ?? (init.body !== undefined ? "POST" : "GET"),
-    headers: { "content-type": "application/json", authorization: `Bearer ${init.key ?? KEY}` },
-    body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
-  });
-  return { status: res.status, body: (await res.json()) as Record<string, any> };
-}
+import { decision, fact, link, note, person, project, task } from "./helpers";
+import { authorize, base, call, connect, consent, ingest, mcp, pkce, register, sid, token, useServer, REDIRECT } from "./harness";
 
 function item(ref: string, extra: Record<string, unknown> = {}) {
   return { source: "email", source_ref: ref, title: `Reply about ${ref}`, from_name: "Jo", from_address: "jo@example.com", ...extra };
 }
 
-beforeEach(async () => {
-  await resetDb();
-  await signIn();
-});
+useServer();
 
 /* ---------- OAuth ---------- */
 
@@ -261,6 +132,7 @@ describe("no delete tool (criterion 7)", () => {
         "add_note",
         "create_task",
         "get_context",
+        "list_my_suggestions",
         "list_tasks",
         "log_activity",
         "log_decision",
@@ -473,7 +345,7 @@ describe("ingest", () => {
     expect(home.today[1].brief).toEqual({ type: "person", slug: jo.slug, name: "Jo Bloggs" });
   });
 
-  it("rejects unresolved calendar associations without replacing the existing window", async () => {
+  it("stores events whose names do not match and reports them, the same for hidden and unknown (build plan 30)", async () => {
     const hidden = await project("Private acquisition", { confidential: true });
     await person("Private attendee", { aiAccess: false });
     const visible = await person("Visible attendee");
@@ -485,24 +357,24 @@ describe("ingest", () => {
       ends_at: new Date(day + 11 * 3600_000).toISOString(),
     };
     const { calendarEventsTable } = await import("@workspace/db");
-    await db.insert(calendarEventsTable).values({
-      sourceRef: "existing",
-      title: "Existing meeting",
-      startsAt: new Date(event.starts_at),
-      endsAt: new Date(event.ends_at),
-    });
     const c = await mcp((await connect()).access_token);
-    for (const association of [
-      { project: hidden.name },
-      { project: `project:${hidden.id}` },
-      { project: "Unknown project" },
-      { people: [visible.name, "Private attendee"] },
-      { people: ["Unknown person"] },
-    ]) {
+    for (const [association, unmatched] of [
+      [{ project: hidden.name }, [hidden.name]],
+      [{ project: "Unknown project" }, ["Unknown project"]],
+      [{ people: [visible.name, "Private attendee"] }, ["Private attendee"]],
+      [{ people: ["Unknown person"] }, ["Unknown person"]],
+    ] as const) {
       const events = [{ ...event, ...association }];
-      expect((await ingest("calendar", { body: { events } })).status).toBe(400);
-      expect((await call(c, "upsert_calendar", { events })).isError).toBe(true);
-      expect((await db.select().from(calendarEventsTable)).map((r) => r.sourceRef)).toEqual(["existing"]);
+      const viaIngest = await ingest("calendar", { body: { events } });
+      expect(viaIngest.status).toBe(200);
+      expect(viaIngest.body).toMatchObject({ replaced: 1, unmatched });
+      const viaMcp = await call(c, "upsert_calendar", { events });
+      expect(viaMcp.isError).toBeFalsy();
+      expect(viaMcp.json).toMatchObject({ unmatched });
+      const rows = await db.select().from(calendarEventsTable);
+      expect(rows.map((r) => r.sourceRef)).toEqual(["private-event"]);
+      expect(rows[0].projectId).toBeNull();
+      expect(rows[0].personIds).toEqual("people" in association && association.people.includes(visible.name) ? [visible.id] : []);
     }
     await c.close();
   });
@@ -518,14 +390,17 @@ describe("ingest", () => {
     await db.insert(calendarEventsTable).values([
       { ...baseEvent, sourceRef: "title", title: `Discuss ${hiddenProject.name}` },
       { ...baseEvent, sourceRef: "attendees", title: "Meeting", attendees: ["HIDDEN@example.test"] },
-      { ...baseEvent, sourceRef: "location", title: "Meeting", location: hiddenProject.slug },
+      { ...baseEvent, sourceRef: "location", title: "Meeting", location: `${hiddenProject.name.toUpperCase()} war room` },
+      // Whole names only: part of a hidden name, or a slug, does not hide an event.
+      { ...baseEvent, sourceRef: "partial", title: "Merger talk", location: hiddenProject.slug },
+      { ...baseEvent, sourceRef: "longer", title: "Hidden attendees list" },
       { ...baseEvent, sourceRef: "mixed", title: "Meeting", personIds: [visible.id, hiddenPerson.id] },
       { ...baseEvent, sourceRef: "safe", title: "Public meeting", personIds: [visible.id] },
     ]);
     const c = await mcp((await connect()).access_token);
     const result = await c.readResource({ uri: "ollieos://today" });
     const today = JSON.parse((result.contents[0] as { text: string }).text);
-    expect(today.calendar.map((r: { title: string }) => r.title)).toEqual(["Public meeting"]);
+    expect(today.calendar.map((r: { title: string }) => r.title).sort()).toEqual(["Hidden attendees list", "Merger talk", "Public meeting"]);
     await c.close();
   });
 
@@ -564,24 +439,33 @@ describe("ingest", () => {
 /* ---------- MCP writes ---------- */
 
 describe("MCP writes", () => {
-  it("creates, updates and links through the tools, audited as the client", async () => {
+  it("writes tasks and promises directly, and proposes knowledge for Ollie to approve", async () => {
+    const shed = await project("Garden shed", { summary: "Timber shed" });
+    await person("Jo Bloggs");
     const c = await mcp((await connect()).access_token);
     const proj = await call(c, "upsert_project", { name: "Garden shed", area: "Home" });
-    expect(proj.json.created).toBe(true);
-    expect((await call(c, "upsert_project", { name: "garden shed", summary: "Timber shed" })).json.created).toBe(false);
-    const jo = await call(c, "upsert_person", { name: "Jo Bloggs", email: "jo@example.com" });
-    expect((await call(c, "upsert_person", { name: "Joanna", email: "JO@example.com", role: "Builder" })).json).toMatchObject({ created: false, person: { name: "Jo Bloggs" } });
+    expect(proj.json).toMatchObject({ status: "suggested", project: { ref: `project:${shed.id}` } });
+    expect((await call(c, "upsert_project", { name: "garden shed", summary: "Timber shed" })).json.status).toBe("unchanged");
+    expect((await call(c, "upsert_project", { name: "Greenhouse" })).json.status).toBe("suggested");
+    expect((await call(c, "upsert_person", { name: "Jo Bloggs", role: "Builder" })).json).toMatchObject({ status: "suggested", person: { name: "Jo Bloggs" } });
     const created = await call(c, "create_task", { title: "Order timber", project: { name: "Garden shed" }, person: { name: "Bloggs" }, status: "now" });
     const ref = (created.json.task as { ref: string }).ref;
     expect(created.json.task).toMatchObject({ status: "now", project: { name: "Garden shed" }, person: { name: "Jo Bloggs" } });
     const updated = await call(c, "update_task", { ref, status: "waiting", waiting_on: { name: "Jo Bloggs" }, notes_append: "Quote due Friday" });
     expect(updated.json.task).toMatchObject({ status: "waiting", waiting_on: { name: "Jo Bloggs" }, notes: "Quote due Friday" });
-    const f1 = await call(c, "add_fact", { entity: { name: "Garden shed" }, text: "Budget is 2k" });
-    const f2 = await call(c, "add_fact", { entity: { name: "Garden shed" }, text: "Budget is 3k", supersedes: (f1.json.fact as { ref: string }).ref });
-    expect(f2.json.superseded).toBe((f1.json.fact as { ref: string }).ref);
+    const f1 = await call(c, "add_fact", { entity: { name: "Garden shed" }, text: "Budget is 2k", source: "Email from Jo" });
+    expect(f1.json).toMatchObject({ status: "suggested", suggestion_id: expect.any(Number) });
+    expect((await call(c, "add_fact", { entity: { name: "Garden shed" }, text: "budget is 2k." })).json.status).toBe("duplicate");
+    const d = await call(c, "log_decision", { project: { name: "Garden shed" }, text: "Go with timber" });
+    expect(d.json.status).toBe("suggested");
+    const secret = await call(c, "log_decision", { project: { name: "Garden shed" }, text: "Budget cap is private", confidential: true });
+    expect(secret.json).toEqual({ status: "suggested", message: expect.stringContaining("confidential") });
     const ctx = await call(c, "get_context", { slug: "garden-shed" });
-    expect((ctx.json.facts as { text: string }[]).map((f) => f.text)).toEqual(["Budget is 3k"]);
+    expect(ctx.json.facts).toEqual([]);
     expect((ctx.json.waiting_on_them as unknown[]).length).toBe(1);
+    const mine = await call(c, "list_my_suggestions", {});
+    const listed = (mine.json.suggestions as { kind: string; text: string }[]).map((x) => x.text).sort();
+    expect(listed).toEqual(["Budget is 2k", "Go with timber", "Greenhouse", "area: Home", "role: Builder"].sort());
     const promise = await call(c, "log_promise", { title: "Send Jo the drawings", to_person: "Jo Bloggs", source: "meeting" });
     expect(promise.json.task).toMatchObject({ kind: "promise", person: { name: "Jo Bloggs" } });
     expect((await call(c, "request_access", { item: "Anything", reason: "Context" })).json).toEqual({ status: "pending", message: "Sent to Ollie for approval." });
@@ -590,6 +474,5 @@ describe("MCP writes", () => {
     const log = (await (await fetch(`${base}/api/ai-activity`, { headers: { authorization: `Bearer ${sid}` } })).json()) as { actor: string; kind: string }[];
     expect(log.some((l) => l.actor === "Claude" && l.kind === "write")).toBe(true);
     expect(log.some((l) => l.actor === "Claude" && l.kind === "read")).toBe(true);
-    void jo;
   });
 });

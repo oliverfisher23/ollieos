@@ -21,21 +21,27 @@ import {
 import { requestAccess } from "../lib/ai-data/requests";
 import type { AiScope } from "../lib/ai-data/scope";
 import { SEARCH_TYPES } from "../lib/ai-data/search";
+import { listMySuggestions } from "../lib/ai-data/suggestions";
+import { proposalReply, proposePerson, proposeProject } from "../services/aiPropose";
+import { FACT_ATTRIBUTES, SUGGESTION_SOURCES, propose, type ProposeMeta } from "../services/suggestions";
 import {
-  addFact,
   addNote,
   captureTask,
   logActivity,
-  logDecision,
   replaceCalendar,
-  upsertPerson,
-  upsertProject,
   type Writer,
 } from "../services/aiWrites";
 import { updateTask, ValidationError, type TaskUpdateInput } from "../services/tasks";
 
 export const SOURCE_OF_TRUTH =
   "OllieOS is the source of truth for Ollie's work: tasks, projects, people and decisions. Check it before asking Ollie for context.";
+
+/** Sent once when a client connects. */
+export const SERVER_INSTRUCTIONS = [
+  SOURCE_OF_TRUTH,
+  'A fact marked "needs_check": true may be out of date. If you rely on one, tell Ollie it may be out of date.',
+  "Facts, decisions, new people, organisations and projects, and changes to existing records, are suggestions until Ollie approves them in his Knowledge Inbox. Use list_my_suggestions to avoid proposing the same thing twice. Tasks, promises, notes and activity go in directly.",
+].join(" ");
 
 const STATUSES = ["inbox", "now", "backlog", "waiting", "done", "noise"] as const;
 const PRIORITIES = ["high", "medium", "low"] as const;
@@ -105,7 +111,7 @@ async function resolveNames(scope: AiScope, names: string[] | undefined, type: P
 }
 
 export function buildMcpServer(scope: AiScope, writer: Writer, permissions: readonly string[]): McpServer {
-  const server = new McpServer({ name: "OllieOS", version: "1.0.0" }, { instructions: SOURCE_OF_TRUTH });
+  const server = new McpServer({ name: "OllieOS", version: "1.0.0" }, { instructions: SERVER_INSTRUCTIONS });
 
   /* ---------- Reads ---------- */
 
@@ -309,15 +315,31 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
 
   /* ---------- Knowledge ---------- */
 
+  const SourceFields = {
+    source: z.string().max(500).optional().describe('Where this came from, for Ollie, e.g. "Email from Veronica Wilkinson, 30th October"'),
+    source_type: z.enum(SUGGESTION_SOURCES).optional(),
+    source_url: z.string().url().max(2000).optional(),
+  };
+  const metaOf = (a: { source?: string; source_type?: string; source_url?: string }): ProposeMeta => ({
+    proposedBy: writer.actor,
+    clientId: writer.clientId,
+    sourceType: a.source_type ?? "chat",
+    sourceUrl: a.source_url ?? null,
+    sourceLabel: a.source ?? null,
+  });
+
   server.registerTool(
     "add_fact",
     {
-      description: describe("Adds a current fact to a project, person or organisation. To correct a fact, pass the old one's ref as supersedes."),
+      description: describe(
+        "Proposes a current fact about a project, person or organisation. It goes to Ollie's Knowledge Inbox and becomes knowledge once he approves it. To correct a fact, pass the old one's ref as supersedes. Give an attribute when the fact is one of the listed kinds, so disagreements are spotted.",
+      ),
       inputSchema: {
         entity: Pick,
         text: z.string().min(1).max(2000),
-        source: z.string().max(500).optional(),
+        attribute: z.enum(FACT_ATTRIBUTES).optional().describe("job_title, organisation, status, next_step or decision_date"),
         supersedes: z.string().max(40).optional().describe("Ref of the fact this replaces, such as fact:7"),
+        ...SourceFields,
       },
     },
     async (a) =>
@@ -331,42 +353,56 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
           if (old.entityType !== entity.type || old.entityId !== entity.id) return err("invalid_input", "That fact belongs to something else.");
           supersedes = old.id;
         }
-        const f = await addFact(writer, { entityType: entity.type, entityId: entity.id, text: a.text, source: a.source, supersedes });
-        return ok({
-          fact: { ref: `fact:${f.id}`, text: f.text, source: f.source, created_at: f.createdAt.toISOString() },
-          ...(supersedes != null ? { superseded: `fact:${supersedes}` } : {}),
+        const r = await propose(metaOf(a), {
+          kind: "fact",
+          entityType: entity.type,
+          entityId: entity.id,
+          payload: { text: a.text.trim(), attribute: a.attribute ?? null, supersedes, source: a.source ?? null },
         });
+        return ok(proposalReply(r));
       }),
   );
 
   server.registerTool(
     "log_decision",
     {
-      description: describe("Records a decision on a project."),
+      description: describe("Proposes a decision on a project. It stays a proposal, not an agreed decision, until Ollie approves it in his Knowledge Inbox."),
       inputSchema: {
         project: Pick,
         text: z.string().min(1).max(2000),
         decided_at: isoDate.optional().describe("Default today"),
         decided_by: z.string().max(200).optional(),
-        source: z.string().max(500).optional(),
         confidential: z.boolean().optional(),
+        ...SourceFields,
       },
     },
     async (a) =>
       guard(async () => {
         const project = await resolvePick(scope, a.project, ["project"]);
         if (!project) return NOT_FOUND("project");
-        const d = await logDecision(writer, {
-          projectId: project.id,
-          text: a.text,
-          decidedAt: a.decided_at ?? todayLondon(),
-          decidedBy: a.decided_by,
-          source: a.source,
-          confidential: a.confidential ?? null,
+        const r = await propose(metaOf(a), {
+          kind: "decision",
+          entityType: "project",
+          entityId: project.id,
+          payload: {
+            text: a.text.trim(),
+            decided_at: a.decided_at ?? todayLondon(),
+            decided_by: a.decided_by ?? null,
+            source: a.source ?? null,
+            confidential: a.confidential ?? null,
+          },
         });
-        if (a.confidential) return ok(HIDDEN_SAVE);
-        return ok({ decision: { ref: `decision:${d.id}`, text: d.text, decided_at: d.decidedAt, decided_by: d.decidedBy, project: { ref: `project:${project.id}`, name: project.name } } });
+        return ok(proposalReply(r));
       }),
+  );
+
+  server.registerTool(
+    "list_my_suggestions",
+    {
+      description: describe("Lists what you have proposed that is still waiting for Ollie, and what he rejected in the last 30 days. Check it before proposing, so you do not repeat yourself."),
+      inputSchema: { status: z.enum(["pending", "rejected", "all"]).optional().describe("Default all") },
+    },
+    async (a) => guard(async () => ok(await listMySuggestions(scope, a.status ?? "all"))),
   );
 
   server.registerTool(
@@ -432,7 +468,9 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
   server.registerTool(
     "upsert_person",
     {
-      description: describe("Adds a person, or fills in details on one that exists. Matches by slug, then email, then exact name. Fields you leave out are kept."),
+      description: describe(
+        "Proposes a new person, or new details for one that exists. Matches by slug, then email, then exact name. Either way it goes to Ollie's Knowledge Inbox for approval. Fields you leave out are kept.",
+      ),
       inputSchema: {
         name: z.string().min(1).max(200),
         slug: z.string().max(200).optional(),
@@ -440,6 +478,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
         organisation: z.string().max(200).optional().describe("Name or slug of an existing organisation"),
         role: z.string().max(200).optional(),
         relationship_summary: z.string().max(2000).optional(),
+        ...SourceFields,
       },
     },
     async (a) =>
@@ -450,17 +489,17 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
           (a.email ? await resolvePick(scope, { name: a.email }, ["person"], exact) : null) ??
           (await resolvePick(scope, { name: a.name }, ["person"], exact));
         const org = a.organisation ? await resolvePick(scope, a.organisation, ["organisation"], exact) : null;
-        const p = await upsertPerson(writer, {
-          existingId: match?.id ?? null,
-          name: a.name,
+        const r = await proposePerson(metaOf(a), {
+          matchId: match?.id ?? null,
+          name: a.name.trim(),
           email: a.email,
-          organisationId: org?.id ?? null,
           role: a.role,
+          organisation: org ? { id: org.id, name: org.name } : null,
           relationshipSummary: a.relationship_summary,
         });
         return ok({
-          person: { ref: `person:${p.id}`, name: p.name, slug: p.slug },
-          created: p.created,
+          ...proposalReply(r),
+          ...(match ? { person: { ref: `person:${match.id}`, name: match.name } } : {}),
           ...(a.organisation && !org ? { unmatched: [a.organisation] } : {}),
         });
       }),
@@ -469,13 +508,16 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
   server.registerTool(
     "upsert_project",
     {
-      description: describe("Adds a project, or fills in details on one that exists. Matches by slug, then exact name. Fields you leave out are kept."),
+      description: describe(
+        "Proposes a new project, or new details for one that exists. Matches by slug, then exact name. Either way it goes to Ollie's Knowledge Inbox for approval. Fields you leave out are kept.",
+      ),
       inputSchema: {
         name: z.string().min(1).max(200),
         slug: z.string().max(200).optional(),
         area: z.string().max(200).optional(),
         status: z.string().max(200).optional(),
         summary: z.string().max(5000).optional(),
+        ...SourceFields,
       },
     },
     async (a) =>
@@ -483,8 +525,8 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
         const exact = { partial: false };
         const match =
           (a.slug ? await resolvePick(scope, { slug: a.slug }, ["project"], exact) : null) ?? (await resolvePick(scope, { name: a.name }, ["project"], exact));
-        const p = await upsertProject(writer, { existingId: match?.id ?? null, name: a.name, area: a.area, status: a.status, summary: a.summary });
-        return ok({ project: { ref: `project:${p.id}`, name: p.name, slug: p.slug }, created: p.created });
+        const r = await proposeProject(metaOf(a), { matchId: match?.id ?? null, name: a.name.trim(), area: a.area, status: a.status, summary: a.summary });
+        return ok({ ...proposalReply(r), ...(match ? { project: { ref: `project:${match.id}`, name: match.name } } : {}) });
       }),
   );
 
@@ -528,10 +570,9 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
         for (const e of a.events) {
           const people = await resolveNames(scope, e.people, "person");
           people.unmatched.forEach((u) => unmatched.add(u));
+          // Unmatched names are reported, never a reason to drop the event (build plan 30).
           const project = e.project ? await resolvePick(scope, e.project, ["project"]) : null;
-          if ((e.project && !project) || people.unmatched.length) {
-            return err("invalid_input", "Every calendar association must match a visible project or person.");
-          }
+          if (e.project && !project) unmatched.add(e.project);
           events.push({
             sourceRef: e.source_ref,
             title: e.title,
@@ -545,7 +586,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
           });
         }
         const r = await replaceCalendar(writer, events);
-        return ok({ replaced: r.replaced, unmatched_people: [...unmatched], ...(r.outsideWindow ? { skipped_outside_window: r.outsideWindow } : {}) });
+        return ok({ replaced: r.replaced, unmatched: [...unmatched], ...(r.outsideWindow ? { skipped_outside_window: r.outsideWindow } : {}) });
       }),
   );
 

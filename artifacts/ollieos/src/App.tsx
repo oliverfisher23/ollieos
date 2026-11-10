@@ -15,6 +15,7 @@ import { KnowledgeIndexPage, ProjectPage } from '@/pages/knowledge/projects';
 import { PeopleListPage, PersonPage } from '@/pages/knowledge/people';
 import { OrganisationPage, OrganisationsListPage } from '@/pages/knowledge/organisations';
 import { DecisionPage, DecisionsListPage, NotePage, NotesListPage } from '@/pages/knowledge/records';
+import KnowledgeInboxPage from '@/pages/knowledge/inbox';
 import SettingsPage from '@/pages/settings';
 import OAuthConsentPage from '@/pages/oauth-consent';
 import { TriageDialog } from '@/components/triage';
@@ -52,6 +53,7 @@ function Router() {
         <Route path="/tasks" component={TasksPage} />
         <Route path="/ask" component={AskPage} />
         <Route path="/ask/:threadId" component={AskPage} />
+        <Route path="/knowledge/inbox" component={KnowledgeInboxPage} />
         <Route path="/knowledge" component={KnowledgeIndexPage} />
         <Route path="/knowledge/projects/:slug" component={ProjectPage} />
         <Route path="/knowledge/people" component={PeopleListPage} />

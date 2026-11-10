@@ -13,6 +13,7 @@ import {
 } from "@workspace/shared";
 import { toTaskViews, type TaskView } from "./taskView";
 import { listAccessRequests } from "./access";
+import { ensureSelfPerson, inboxCounts } from "./knowledgeInbox";
 
 const OPEN = [...OPEN_STATUSES] as TaskStatus[];
 
@@ -145,12 +146,14 @@ export async function getHome() {
     ]);
 
   const briefs = await briefsFor(todayEvents);
-  const [candidates, waiting, promises, latestDone, access] = await Promise.all([
+  await ensureSelfPerson().catch(() => undefined);
+  const [candidates, waiting, promises, latestDone, access, knowledgeInbox] = await Promise.all([
     toTaskViews(candidateRows),
     toTaskViews(waitingRows),
     toTaskViews(promiseRows),
     toTaskViews(doneRows),
     listAccessRequests(),
+    inboxCounts(),
   ]);
 
   const waitingOn = waiting
@@ -181,5 +184,6 @@ export async function getHome() {
       brief: briefs.get(e.id) ?? null,
     })),
     access: { pending: access.pending, open: access.open },
+    knowledgeInbox,
   };
 }

@@ -369,7 +369,15 @@ export type HomeSummaryAccess = {
   open: AccessRequest[];
 };
 
+export interface KnowledgeInboxCounts {
+  suggested: number;
+  conflicts: number;
+  stale: number;
+  total: number;
+}
+
 export interface HomeSummary {
+  knowledgeInbox: KnowledgeInboxCounts;
   /** Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped. */
   doNext: DoNextItem[];
   inbox: HomeSummaryInbox;
@@ -540,12 +548,261 @@ export interface PersonChip {
   linked: boolean;
 }
 
+export interface ShelfLives {
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  general: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  status: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  next_step: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  decision_date: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  job_title: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  organisation: number;
+}
+
+export interface KnowledgeSettings {
+  shelfLifeDays: ShelfLives;
+  /** @nullable */
+  lastCheckAt: string | null;
+}
+
+export type KnowledgeSettingsUpdateShelfLifeDays = {
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  general?: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  status?: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  next_step?: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  decision_date?: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  job_title?: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  organisation?: number;
+};
+
+export interface KnowledgeSettingsUpdate {
+  shelfLifeDays: KnowledgeSettingsUpdateShelfLifeDays;
+}
+
+export interface FactCheckResult {
+  stale: number;
+  conflicts: number;
+}
+
+export interface KnowledgeInboxTarget {
+  type: string;
+  /**
+     * Null for a person
+     * @nullable
+     */
+  id: number | null;
+  name: string;
+  /** @nullable */
+  slug: string | null;
+  isSelf: boolean;
+}
+
+export interface KnowledgeInboxField {
+  key: string;
+  label: string;
+  /** @nullable */
+  value: string | null;
+  /** @nullable */
+  before: string | null;
+  editable: boolean;
+}
+
+export interface KnowledgeInboxOption {
+  /** fact:12 or suggestion:4 */
+  ref: string;
+  label: string;
+  text: string;
+}
+
+export type KnowledgeInboxItemGroup = typeof KnowledgeInboxItemGroup[keyof typeof KnowledgeInboxItemGroup];
+
+
+export const KnowledgeInboxItemGroup = {
+  suggested: 'suggested',
+  conflicts: 'conflicts',
+  stale: 'stale',
+} as const;
+
+export type KnowledgeInboxItemKind = typeof KnowledgeInboxItemKind[keyof typeof KnowledgeInboxItemKind];
+
+
+export const KnowledgeInboxItemKind = {
+  new_fact: 'new_fact',
+  new_person: 'new_person',
+  new_organisation: 'new_organisation',
+  new_project: 'new_project',
+  proposed_decision: 'proposed_decision',
+  changed_summary: 'changed_summary',
+  changed_details: 'changed_details',
+  conflict: 'conflict',
+  stale_fact: 'stale_fact',
+} as const;
+
+export interface KnowledgeInboxItem {
+  key: string;
+  /** Suggestion id on the Suggested tab */
+  id: number;
+  group: KnowledgeInboxItemGroup;
+  kind: KnowledgeInboxItemKind;
+  target: KnowledgeInboxTarget | null;
+  by: string;
+  createdAt: string;
+  /** @nullable */
+  text: string | null;
+  fields: KnowledgeInboxField[];
+  /** @nullable */
+  attribute: string | null;
+  /**
+     * The current fact a proposed fact would replace
+     * @nullable
+     */
+  replaces: string | null;
+  /** @nullable */
+  source: string | null;
+  /** @nullable */
+  sourceUrl: string | null;
+  options: KnowledgeInboxOption[];
+  /** @nullable */
+  lastConfirmedAt: string | null;
+}
+
+export interface KnowledgeInbox {
+  counts: KnowledgeInboxCounts;
+  items: KnowledgeInboxItem[];
+}
+
+/**
+ * Edited values by field key
+ */
+export type SuggestionApproveFields = {[key: string]: string};
+
+export interface SuggestionApprove {
+  /** Edited values by field key */
+  fields?: SuggestionApproveFields;
+}
+
+export type SuggestionDecisionStatus = typeof SuggestionDecisionStatus[keyof typeof SuggestionDecisionStatus];
+
+
+export const SuggestionDecisionStatus = {
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export type SuggestionDecisionResult = {
+  type: string;
+  id: number;
+} | null;
+
+export interface SuggestionDecision {
+  id: number;
+  status: SuggestionDecisionStatus;
+  result: SuggestionDecisionResult;
+}
+
+export type FactReviewResolveAction = typeof FactReviewResolveAction[keyof typeof FactReviewResolveAction];
+
+
+export const FactReviewResolveAction = {
+  still_true: 'still_true',
+  edit: 'edit',
+  no_longer_true: 'no_longer_true',
+  keep: 'keep',
+  write_own: 'write_own',
+} as const;
+
+export interface FactReviewResolve {
+  action: FactReviewResolveAction;
+  /**
+     * For edit and write_own
+     * @minLength 1
+     * @maxLength 2000
+     */
+  text?: string;
+  /**
+     * For keep: fact:12 or suggestion:4
+     * @maxLength 40
+     */
+  ref?: string;
+}
+
+export type FactReviewResultStatus = typeof FactReviewResultStatus[keyof typeof FactReviewResultStatus];
+
+
+export const FactReviewResultStatus = {
+  resolved: 'resolved',
+} as const;
+
+export interface FactReviewResult {
+  id: number;
+  status: FactReviewResultStatus;
+}
+
 export interface FactVersion {
   id: number;
   text: string;
   createdAt: string;
   createdBy: string;
 }
+
+/**
+ * @nullable
+ */
+export type FactAttribute = typeof FactAttribute[keyof typeof FactAttribute] | null;
+
+
+export const FactAttribute = {
+  job_title: 'job_title',
+  organisation: 'organisation',
+  status: 'status',
+  next_step: 'next_step',
+  decision_date: 'decision_date',
+} as const;
 
 export interface Fact {
   id: number;
@@ -554,8 +811,18 @@ export interface Fact {
   text: string;
   /** @nullable */
   source: string | null;
+  /** @nullable */
+  attribute: FactAttribute;
   createdBy: string;
   createdAt: string;
+  lastConfirmedAt: string;
+  /** Stale or in conflict */
+  needsCheck: boolean;
+  /**
+     * Set when approved from the Knowledge Inbox
+     * @nullable
+     */
+  approvedAt: string | null;
   /** Earlier versions this fact replaced, newest first */
   history: FactVersion[];
 }
@@ -569,6 +836,21 @@ export const FactInputEntityType = {
   organisation: 'organisation',
 } as const;
 
+/**
+ * With an attribute, the new fact replaces any current fact with the same attribute
+ * @nullable
+ */
+export type FactInputAttribute = typeof FactInputAttribute[keyof typeof FactInputAttribute] | null;
+
+
+export const FactInputAttribute = {
+  job_title: 'job_title',
+  organisation: 'organisation',
+  status: 'status',
+  next_step: 'next_step',
+  decision_date: 'decision_date',
+} as const;
+
 export interface FactInput {
   entityType: FactInputEntityType;
   entityId: number;
@@ -579,6 +861,11 @@ export interface FactInput {
   text: string;
   /** @nullable */
   source?: string | null;
+  /**
+     * With an attribute, the new fact replaces any current fact with the same attribute
+     * @nullable
+     */
+  attribute?: FactInputAttribute;
 }
 
 export interface FactSupersede {
@@ -1242,6 +1529,19 @@ export type ListProjectsIncludeArchived = typeof ListProjectsIncludeArchived[key
 export const ListProjectsIncludeArchived = {
   true: 'true',
   false: 'false',
+} as const;
+
+export type ListKnowledgeInboxParams = {
+tab?: ListKnowledgeInboxTab;
+};
+
+export type ListKnowledgeInboxTab = typeof ListKnowledgeInboxTab[keyof typeof ListKnowledgeInboxTab];
+
+
+export const ListKnowledgeInboxTab = {
+  suggested: 'suggested',
+  conflicts: 'conflicts',
+  stale: 'stale',
 } as const;
 
 export type SearchKnowledgeParams = {

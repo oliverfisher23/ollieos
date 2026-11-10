@@ -10,10 +10,12 @@ import type { DoNextItem } from './doNextItem';
 import type { HomeSummaryAccess } from './homeSummaryAccess';
 import type { HomeSummaryDoneThisWeek } from './homeSummaryDoneThisWeek';
 import type { HomeSummaryInbox } from './homeSummaryInbox';
+import type { KnowledgeInboxCounts } from './knowledgeInboxCounts';
 import type { Task } from './task';
 import type { WaitingItem } from './waitingItem';
 
 export interface HomeSummary {
+  knowledgeInbox: KnowledgeInboxCounts;
   /** Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped. */
   doNext: DoNextItem[];
   inbox: HomeSummaryInbox;

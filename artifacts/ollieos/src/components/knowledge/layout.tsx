@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { useListProjects, useSearchKnowledge, type SearchHit } from '@workspace/api-client-react';
+import { useListKnowledgeInbox, useListProjects, useSearchKnowledge, type SearchHit } from '@workspace/api-client-react';
 import { Skel } from '@/components/bits';
 import { IconSearch } from '@/components/icons';
 import { HiddenFromAi } from '@/components/knowledge/parts';
@@ -39,6 +39,8 @@ function KnowledgeSidebar() {
   }, [text]);
 
   const projects = useListProjects();
+  const inbox = useListKnowledgeInbox({ tab: 'suggested' });
+  const toReview = inbox.data?.counts.total;
   const search = useSearchKnowledge({ q }, { query: { enabled: q.length > 0 } as never });
 
   return (
@@ -91,6 +93,12 @@ function KnowledgeSidebar() {
         </div>
       ) : (
         <>
+          <nav aria-label="Review">
+            <Link href="/knowledge/inbox" aria-current={location === '/knowledge/inbox' ? 'page' : undefined} data-testid="link-knowledge-inbox">
+              Knowledge Inbox
+              {toReview !== undefined && <span className="oo-count oo-num" aria-label={`${toReview} to review`} data-testid="text-knowledge-inbox-count">{toReview}</span>}
+            </Link>
+          </nav>
           <nav aria-label="Projects">
             <span className="oo-side-label">Projects</span>
             {projects.isLoading ? (

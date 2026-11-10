@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import {
   db,
   decisionsTable,
@@ -31,8 +31,13 @@ export interface FactView {
   entityId: number;
   text: string;
   source: string | null;
+  attribute: string | null;
   createdBy: string;
   createdAt: Date;
+  lastConfirmedAt: Date;
+  /** Stale or in conflict: shown as "Needs a check" */
+  needsCheck: boolean;
+  approvedAt: Date | null;
   /** Earlier versions this fact replaced, newest first */
   history: { id: number; text: string; createdAt: Date; createdBy: string }[];
 }
@@ -44,20 +49,42 @@ export async function factsFor(entityType: "project" | "person" | "organisation"
     .from(factsTable)
     .where(and(eq(factsTable.entityType, entityType), eq(factsTable.entityId, entityId)))
     .orderBy(asc(factsTable.createdAt), asc(factsTable.id));
-  const replacedBy = new Map<number, FactRow>();
-  for (const r of rows) if (r.supersededBy) replacedBy.set(r.supersededBy, r);
+  // A fact can replace several (a resolved conflict); a retired fact points at itself and has no successor.
+  const replaced = new Map<number, FactRow[]>();
+  for (const r of rows) if (r.supersededBy && r.supersededBy !== r.id) replaced.set(r.supersededBy, [...(replaced.get(r.supersededBy) ?? []), r]);
   return rows
     .filter((r) => r.supersededBy === null)
     .map((r) => {
       const history: FactView["history"] = [];
-      let prev = replacedBy.get(r.id);
-      while (prev && history.length < 50) {
+      const queue = [...(replaced.get(r.id) ?? [])];
+      const seen = new Set<number>([r.id]);
+      while (queue.length && history.length < 50) {
+        const prev = queue.shift()!;
+        if (seen.has(prev.id)) continue;
+        seen.add(prev.id);
         history.push({ id: prev.id, text: prev.text, createdAt: prev.createdAt, createdBy: prev.createdBy });
-        prev = replacedBy.get(prev.id);
+        queue.push(...(replaced.get(prev.id) ?? []));
       }
-      const { search: _s, supersededBy: _x, ...rest } = r;
-      return { ...rest, history };
+      history.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || b.id - a.id);
+      return toFactView(r, history);
     });
+}
+
+function toFactView(r: FactRow, history: FactView["history"]): FactView {
+  return {
+    id: r.id,
+    entityType: r.entityType,
+    entityId: r.entityId,
+    text: r.text,
+    source: r.source,
+    attribute: r.attribute,
+    createdBy: r.createdBy,
+    createdAt: r.createdAt,
+    lastConfirmedAt: r.lastConfirmedAt,
+    needsCheck: r.needsCheck,
+    approvedAt: r.approvedAt,
+    history,
+  };
 }
 
 export interface FactInput {
@@ -65,23 +92,53 @@ export interface FactInput {
   entityId: number;
   text: string;
   source?: string | null;
+  attribute?: FactRow["attribute"];
 }
 
+/**
+ * Ollie's own fact applies at once. With an attribute, it replaces any current fact with the
+ * same attribute on the same item (build plan 42), so the two never conflict.
+ */
 export async function createFact(input: FactInput): Promise<FactView> {
   const text = cleanText(input.text);
   if (!text) throw new ValidationError("A fact needs some text");
   await resolveEntity(input.entityType, input.entityId);
-  const row = await db.transaction(async (tx) => {
+  const attribute = input.attribute ?? null;
+  const createdId = await db.transaction(async (tx) => {
     const [created] = await tx
       .insert(factsTable)
-      .values({ entityType: input.entityType, entityId: input.entityId, text, source: cleanText(input.source), createdBy: ACTOR })
+      .values({ entityType: input.entityType, entityId: input.entityId, text, attribute, source: cleanText(input.source), createdBy: ACTOR })
       .returning();
+    let replaced: number[] = [];
+    if (attribute) {
+      const rows = await tx
+        .update(factsTable)
+        .set({ supersededBy: created.id })
+        .where(
+          and(
+            eq(factsTable.entityType, input.entityType),
+            eq(factsTable.entityId, input.entityId),
+            eq(factsTable.attribute, attribute),
+            isNull(factsTable.supersededBy),
+            ne(factsTable.id, created.id),
+          ),
+        )
+        .returning({ id: factsTable.id });
+      replaced = rows.map((r) => r.id);
+    }
     await touch(tx, input.entityType, input.entityId);
-    await writeAudit(tx, { actor: ACTOR, action: "create", entityType: "fact", entityId: created.id, payload: { on: `${input.entityType}:${input.entityId}` } });
-    return created;
+    await writeAudit(tx, {
+      actor: ACTOR,
+      action: replaced.length ? "supersede" : "create",
+      entityType: "fact",
+      entityId: created.id,
+      payload: { on: `${input.entityType}:${input.entityId}`, ...(replaced.length ? { replaced } : {}) },
+    });
+    return created.id;
   });
-  const { search: _s, supersededBy: _x, ...rest } = row;
-  return { ...rest, history: [] };
+  const current = (await factsFor(input.entityType, input.entityId)).find((f) => f.id === createdId);
+  if (!current) throw new NotFoundError("That fact does not exist");
+  return current;
 }
 
 /** Replaces a fact: inserts the new text as a new row and points the old one at it. The old row is never edited otherwise. */
@@ -102,6 +159,7 @@ export async function supersedeFact(id: number, input: { text: string; source?: 
         entityType: old.entityType,
         entityId: old.entityId,
         text,
+        attribute: old.attribute,
         source: input.source === undefined ? old.source : cleanText(input.source),
         createdBy: ACTOR,
       })

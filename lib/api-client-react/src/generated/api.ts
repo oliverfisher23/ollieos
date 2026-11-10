@@ -48,7 +48,10 @@ import type {
   ErrorEnvelope,
   ErrorResponse,
   Fact,
+  FactCheckResult,
   FactInput,
+  FactReviewResolve,
+  FactReviewResult,
   FactSupersede,
   GetOAuthConsentParams,
   GetTaskSummaryParams,
@@ -56,9 +59,13 @@ import type {
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   HomeSummary,
+  KnowledgeInbox,
+  KnowledgeSettings,
+  KnowledgeSettingsUpdate,
   LinkInput,
   LinkResult,
   ListAiActivityParams,
+  ListKnowledgeInboxParams,
   ListProjectsParams,
   ListTasksParams,
   LogoutBrowserSessionParams,
@@ -93,6 +100,8 @@ import type {
   QuickAddResult,
   SearchKnowledgeParams,
   SearchResult,
+  SuggestionApprove,
+  SuggestionDecision,
   SweepStatus,
   Task,
   TaskDetail,
@@ -4403,6 +4412,629 @@ export const useSupersedeFact = <TError = ErrorType<ErrorResponse | NotAuthorise
         TContext
       > => {
       return useMutation(getSupersedeFactMutationOptions(options), queryClient);
+    }
+
+export const getListKnowledgeInboxUrl = (params?: ListKnowledgeInboxParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/suggestions?${stringifiedParams}` : `/api/suggestions`
+}
+
+/**
+ * @summary Knowledge Inbox items for one tab, with the open count for every tab
+ */
+export const listKnowledgeInbox = async (params?: ListKnowledgeInboxParams, options?: Parameters<typeof customFetch>[1]): Promise<KnowledgeInbox> => {
+
+  return customFetch<KnowledgeInbox>(getListKnowledgeInboxUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListKnowledgeInboxQueryKey = (params?: ListKnowledgeInboxParams,) => {
+    return [
+    `/api/suggestions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListKnowledgeInboxQueryOptions = <TData = Awaited<ReturnType<typeof listKnowledgeInbox>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(params?: ListKnowledgeInboxParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listKnowledgeInbox>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListKnowledgeInboxQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listKnowledgeInbox>>> = ({ signal }) => listKnowledgeInbox(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listKnowledgeInbox>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListKnowledgeInboxQueryResult = NonNullable<Awaited<ReturnType<typeof listKnowledgeInbox>>>
+export type ListKnowledgeInboxQueryError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+export function useListKnowledgeInbox<TData = Awaited<ReturnType<typeof listKnowledgeInbox>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: undefined |  ListKnowledgeInboxParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listKnowledgeInbox>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listKnowledgeInbox>>,
+          TError,
+          Awaited<ReturnType<typeof listKnowledgeInbox>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListKnowledgeInbox<TData = Awaited<ReturnType<typeof listKnowledgeInbox>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params?: ListKnowledgeInboxParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listKnowledgeInbox>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listKnowledgeInbox>>,
+          TError,
+          Awaited<ReturnType<typeof listKnowledgeInbox>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListKnowledgeInbox<TData = Awaited<ReturnType<typeof listKnowledgeInbox>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params?: ListKnowledgeInboxParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listKnowledgeInbox>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Knowledge Inbox items for one tab, with the open count for every tab
+ */
+
+export function useListKnowledgeInbox<TData = Awaited<ReturnType<typeof listKnowledgeInbox>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params?: ListKnowledgeInboxParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listKnowledgeInbox>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListKnowledgeInboxQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApproveSuggestionUrl = (id: number,) => {
+
+
+
+
+  return `/api/suggestions/${id}/approve`
+}
+
+/**
+ * @summary Approve a suggestion, optionally with edited fields
+ */
+export const approveSuggestion = async (id: number,
+    suggestionApprove?: SuggestionApprove, options?: Parameters<typeof customFetch>[1]): Promise<SuggestionDecision> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SuggestionDecision>(getApproveSuggestionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(suggestionApprove)
+  }
+);}
+
+
+
+
+
+export const getApproveSuggestionMutationKey = () => ['approveSuggestion'] as const;
+
+export const getApproveSuggestionMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveSuggestion>>, TError,ApproveSuggestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveSuggestion>>, TError,ApproveSuggestionMutationVariables, TContext> => {
+
+const mutationKey = getApproveSuggestionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveSuggestion>>, ApproveSuggestionMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  approveSuggestion(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveSuggestionMutationResult = NonNullable<Awaited<ReturnType<typeof approveSuggestion>>>
+    export type ApproveSuggestionMutationBody = BodyType<SuggestionApprove> | undefined
+    export type ApproveSuggestionMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type ApproveSuggestionMutationVariables = {id: number;data?: BodyType<SuggestionApprove>}
+
+    /**
+ * @summary Approve a suggestion, optionally with edited fields
+ */
+export const useApproveSuggestion = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveSuggestion>>, TError,ApproveSuggestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof approveSuggestion>>,
+        TError,
+        ApproveSuggestionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveSuggestionMutationOptions(options), queryClient);
+    }
+
+export const getRejectSuggestionUrl = (id: number,) => {
+
+
+
+
+  return `/api/suggestions/${id}/reject`
+}
+
+/**
+ * @summary Reject a suggestion. It is kept 30 days so it is not proposed again.
+ */
+export const rejectSuggestion = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<SuggestionDecision> => {
+
+  return customFetch<SuggestionDecision>(getRejectSuggestionUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRejectSuggestionMutationKey = () => ['rejectSuggestion'] as const;
+
+export const getRejectSuggestionMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectSuggestion>>, TError,RejectSuggestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectSuggestion>>, TError,RejectSuggestionMutationVariables, TContext> => {
+
+const mutationKey = getRejectSuggestionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectSuggestion>>, RejectSuggestionMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  rejectSuggestion(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectSuggestionMutationResult = NonNullable<Awaited<ReturnType<typeof rejectSuggestion>>>
+
+    export type RejectSuggestionMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type RejectSuggestionMutationVariables = {id: number}
+
+    /**
+ * @summary Reject a suggestion. It is kept 30 days so it is not proposed again.
+ */
+export const useRejectSuggestion = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectSuggestion>>, TError,RejectSuggestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof rejectSuggestion>>,
+        TError,
+        RejectSuggestionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRejectSuggestionMutationOptions(options), queryClient);
+    }
+
+export const getResolveFactReviewUrl = (id: number,) => {
+
+
+
+
+  return `/api/fact-reviews/${id}/resolve`
+}
+
+/**
+ * @summary Resolve a stale fact or a conflict
+ */
+export const resolveFactReview = async (id: number,
+    factReviewResolve: FactReviewResolve, options?: Parameters<typeof customFetch>[1]): Promise<FactReviewResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FactReviewResult>(getResolveFactReviewUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(factReviewResolve)
+  }
+);}
+
+
+
+
+
+export const getResolveFactReviewMutationKey = () => ['resolveFactReview'] as const;
+
+export const getResolveFactReviewMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveFactReview>>, TError,ResolveFactReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveFactReview>>, TError,ResolveFactReviewMutationVariables, TContext> => {
+
+const mutationKey = getResolveFactReviewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveFactReview>>, ResolveFactReviewMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  resolveFactReview(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveFactReviewMutationResult = NonNullable<Awaited<ReturnType<typeof resolveFactReview>>>
+    export type ResolveFactReviewMutationBody = BodyType<FactReviewResolve>
+    export type ResolveFactReviewMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type ResolveFactReviewMutationVariables = {id: number;data: BodyType<FactReviewResolve>}
+
+    /**
+ * @summary Resolve a stale fact or a conflict
+ */
+export const useResolveFactReview = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveFactReview>>, TError,ResolveFactReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof resolveFactReview>>,
+        TError,
+        ResolveFactReviewMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResolveFactReviewMutationOptions(options), queryClient);
+    }
+
+export const getGetKnowledgeSettingsUrl = () => {
+
+
+
+
+  return `/api/settings/knowledge`
+}
+
+/**
+ * @summary Shelf lives for facts and when the weekly check last ran
+ */
+export const getKnowledgeSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<KnowledgeSettings> => {
+
+  return customFetch<KnowledgeSettings>(getGetKnowledgeSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetKnowledgeSettingsQueryKey = () => {
+    return [
+    `/api/settings/knowledge`
+    ] as const;
+    }
+
+
+export const getGetKnowledgeSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getKnowledgeSettings>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getKnowledgeSettings>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetKnowledgeSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getKnowledgeSettings>>> = ({ signal }) => getKnowledgeSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getKnowledgeSettings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetKnowledgeSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getKnowledgeSettings>>>
+export type GetKnowledgeSettingsQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetKnowledgeSettings<TData = Awaited<ReturnType<typeof getKnowledgeSettings>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getKnowledgeSettings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getKnowledgeSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getKnowledgeSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetKnowledgeSettings<TData = Awaited<ReturnType<typeof getKnowledgeSettings>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getKnowledgeSettings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getKnowledgeSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getKnowledgeSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetKnowledgeSettings<TData = Awaited<ReturnType<typeof getKnowledgeSettings>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getKnowledgeSettings>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Shelf lives for facts and when the weekly check last ran
+ */
+
+export function useGetKnowledgeSettings<TData = Awaited<ReturnType<typeof getKnowledgeSettings>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getKnowledgeSettings>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetKnowledgeSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateKnowledgeSettingsUrl = () => {
+
+
+
+
+  return `/api/settings/knowledge`
+}
+
+/**
+ * @summary Change shelf lives, in days
+ */
+export const updateKnowledgeSettings = async (knowledgeSettingsUpdate: KnowledgeSettingsUpdate, options?: Parameters<typeof customFetch>[1]): Promise<KnowledgeSettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<KnowledgeSettings>(getUpdateKnowledgeSettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(knowledgeSettingsUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateKnowledgeSettingsMutationKey = () => ['updateKnowledgeSettings'] as const;
+
+export const getUpdateKnowledgeSettingsMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateKnowledgeSettings>>, TError,UpdateKnowledgeSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateKnowledgeSettings>>, TError,UpdateKnowledgeSettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateKnowledgeSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateKnowledgeSettings>>, UpdateKnowledgeSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateKnowledgeSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateKnowledgeSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateKnowledgeSettings>>>
+    export type UpdateKnowledgeSettingsMutationBody = BodyType<KnowledgeSettingsUpdate>
+    export type UpdateKnowledgeSettingsMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type UpdateKnowledgeSettingsMutationVariables = {data: BodyType<KnowledgeSettingsUpdate>}
+
+    /**
+ * @summary Change shelf lives, in days
+ */
+export const useUpdateKnowledgeSettings = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateKnowledgeSettings>>, TError,UpdateKnowledgeSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateKnowledgeSettings>>,
+        TError,
+        UpdateKnowledgeSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateKnowledgeSettingsMutationOptions(options), queryClient);
+    }
+
+export const getRunFactCheckUrl = () => {
+
+
+
+
+  return `/api/settings/knowledge/check`
+}
+
+/**
+ * @summary Run the weekly fact check now
+ */
+export const runFactCheck = async ( options?: Parameters<typeof customFetch>[1]): Promise<FactCheckResult> => {
+
+  return customFetch<FactCheckResult>(getRunFactCheckUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRunFactCheckMutationKey = () => ['runFactCheck'] as const;
+
+export const getRunFactCheckMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runFactCheck>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runFactCheck>>, TError,void, TContext> => {
+
+const mutationKey = getRunFactCheckMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runFactCheck>>, void> = () => {
+
+
+          return  runFactCheck(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunFactCheckMutationResult = NonNullable<Awaited<ReturnType<typeof runFactCheck>>>
+
+    export type RunFactCheckMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Run the weekly fact check now
+ */
+export const useRunFactCheck = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runFactCheck>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof runFactCheck>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRunFactCheckMutationOptions(options), queryClient);
     }
 
 export const getCreateLinkUrl = () => {

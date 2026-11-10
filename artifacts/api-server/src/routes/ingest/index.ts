@@ -5,7 +5,7 @@
  */
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
-import { isIsoDate } from "@workspace/shared";
+import { isIsoDate, todayLondon } from "@workspace/shared";
 import { handle } from "../../lib/handle";
 import {
   doneSinceForIngest,
@@ -13,12 +13,17 @@ import {
   lastSweepFinishedAt,
   openTasksForIngest,
   resolvePick,
+  visibleFact,
   visibleTaskId,
   type PickType,
 } from "../../lib/ai-data/context";
 import { buildScope, type AiScope } from "../../lib/ai-data/scope";
 import { captureTask, enabledRules, finishSweep, logActivity, replaceCalendar, startSweep, type Writer } from "../../services/aiWrites";
 import { captureSweepClient, ingestKeyConfigured, ingestKeyMatches, touchClient } from "../../services/clients";
+import { proposalReply, proposeOrganisation, proposePerson, proposeProject, type AiProposeResult } from "../../services/aiPropose";
+import { onSweepFinished } from "../../services/factReviews";
+import { FACT_ATTRIBUTES, SUGGESTION_SOURCES, propose, type ProposeMeta } from "../../services/suggestions";
+import { logger } from "../../lib/logger";
 import { ValidationError } from "../../services/tasks";
 
 declare global {
@@ -175,6 +180,20 @@ const SweepRunBody = z
   .strict();
 
 /**
+ * Work that runs when a sweep finishes (build plan 32 and 50): the weekly fact check after
+ * Sunday 18:00 and clearing old rejected suggestions. A failure here never fails the sweep.
+ */
+async function scheduledWork() {
+  try {
+    const r = await onSweepFinished(new Date());
+    return { rejected_cleared: r.cleared, fact_check: r.check };
+  } catch (err) {
+    logger.error({ err }, "Scheduled work after the sweep failed");
+    return { error: "Scheduled work did not run. It will try again after the next sweep." };
+  }
+}
+
+/**
  * POST /api/ingest/sweep-run. Without an id it starts a run and returns the id. With an id it
  * finishes that run. Without an id but with finished_at, it records a whole run in one call.
  */
@@ -193,7 +212,7 @@ router.post(
     if (b.id == null) {
       const id = await startSweep(writer, b.started_at ? new Date(b.started_at) : new Date());
       if (b.finished_at) await finishSweep(writer, id, new Date(b.finished_at), counts);
-      res.status(201).json({ id, finished: !!b.finished_at });
+      res.status(201).json({ id, finished: !!b.finished_at, ...(b.finished_at ? { scheduled: await scheduledWork() } : {}) });
       return;
     }
     const done = await finishSweep(writer, b.id, b.finished_at ? new Date(b.finished_at) : new Date(), counts);
@@ -201,7 +220,7 @@ router.post(
       res.status(409).json({ error: "That sweep run does not exist or is already finished" });
       return;
     }
-    res.json({ id: b.id, finished: true });
+    res.json({ id: b.id, finished: true, scheduled: await scheduledWork() });
   }),
 );
 
@@ -245,10 +264,9 @@ router.post(
     for (const e of body.events) {
       const people = await resolveAll(scope, e.people ?? [], "person");
       people.unmatched.forEach((u) => unmatched.add(u));
+      // Unmatched names are reported, never a reason to drop the event (build plan 30).
       const project = e.project ? await resolvePick(scope, e.project, ["project"]) : null;
-      if ((e.project && !project) || people.unmatched.length) {
-        throw new ValidationError("Every calendar association must match a visible project or person.");
-      }
+      if (e.project && !project) unmatched.add(e.project);
       events.push({
         sourceRef: e.source_ref,
         title: e.title,
@@ -320,6 +338,146 @@ router.post(
       });
     }
     res.json({ results, logged: results.filter((r) => r.outcome === "created").length });
+  }),
+);
+
+/* ---------- Suggestions (feature 01) ---------- */
+
+const SuggestionItem = z.object({
+  kind: z.enum(["fact", "decision", "person", "organisation", "project"]),
+  /** fact: the project, person or organisation; decision: the project. Name, slug or ref. */
+  entity: optText(200),
+  text: optText(2000),
+  attribute: z.enum(FACT_ATTRIBUTES).nullish(),
+  supersedes: optText(40),
+  decided_at: z.string().refine(isIsoDate, "Use YYYY-MM-DD").nullish(),
+  decided_by: optText(200),
+  confidential: z.boolean().nullish(),
+  name: optText(200),
+  slug: optText(200),
+  email: z.string().trim().email().max(320).nullish(),
+  organisation: optText(200),
+  role: optText(200),
+  relationship_summary: optText(2000),
+  type: optText(200),
+  area: optText(200),
+  status: optText(200),
+  summary: optText(5000),
+  source: optText(500),
+  source_type: z.enum(SUGGESTION_SOURCES).nullish(),
+  source_ref: optText(500),
+  source_url: optText(2000),
+});
+type SuggestionItem = z.infer<typeof SuggestionItem>;
+
+async function suggestOne(scope: AiScope, writer: Writer, s: SuggestionItem): Promise<AiProposeResult | { error: string }> {
+  const meta: ProposeMeta = {
+    proposedBy: scope.actor,
+    clientId: writer.clientId,
+    sourceType: s.source_type ?? null,
+    sourceRef: s.source_ref ?? null,
+    sourceUrl: s.source_url ?? null,
+    sourceLabel: s.source ?? null,
+  };
+  const exact = { partial: false };
+  switch (s.kind) {
+    case "fact": {
+      if (!s.entity || !s.text) return { error: "A fact needs entity and text" };
+      const entity = await resolvePick(scope, s.entity);
+      if (!entity) return { error: `No visible project, person or organisation matches "${s.entity}"` };
+      let supersedes: number | null = null;
+      if (s.supersedes) {
+        const old = await visibleFact(scope, s.supersedes);
+        if (!old || old.entityType !== entity.type || old.entityId !== entity.id) return { error: "supersedes must be a current fact on the same item" };
+        supersedes = old.id;
+      }
+      return propose(meta, {
+        kind: "fact",
+        entityType: entity.type,
+        entityId: entity.id,
+        payload: { text: s.text, attribute: s.attribute ?? null, supersedes, source: s.source ?? null },
+      });
+    }
+    case "decision": {
+      if (!s.entity || !s.text) return { error: "A decision needs entity (the project) and text" };
+      const project = await resolvePick(scope, s.entity, ["project"]);
+      if (!project) return { error: `No visible project matches "${s.entity}"` };
+      return propose(meta, {
+        kind: "decision",
+        entityType: "project",
+        entityId: project.id,
+        payload: { text: s.text, decided_at: s.decided_at ?? todayLondon(), decided_by: s.decided_by ?? null, source: s.source ?? null, confidential: s.confidential ?? null },
+      });
+    }
+    case "person": {
+      if (!s.name) return { error: "A person needs a name" };
+      const match =
+        (s.slug ? await resolvePick(scope, { slug: s.slug }, ["person"], exact) : null) ??
+        (s.email ? await resolvePick(scope, { name: s.email }, ["person"], exact) : null) ??
+        (await resolvePick(scope, { name: s.name }, ["person"], exact));
+      const org = s.organisation ? await resolvePick(scope, s.organisation, ["organisation"], exact) : null;
+      return proposePerson(meta, {
+        matchId: match?.id ?? null,
+        name: s.name,
+        email: s.email,
+        role: s.role,
+        organisation: org ? { id: org.id, name: org.name } : null,
+        relationshipSummary: s.relationship_summary,
+      });
+    }
+    case "organisation": {
+      if (!s.name) return { error: "An organisation needs a name" };
+      const match =
+        (s.slug ? await resolvePick(scope, { slug: s.slug }, ["organisation"], exact) : null) ?? (await resolvePick(scope, { name: s.name }, ["organisation"], exact));
+      return proposeOrganisation(meta, { matchId: match?.id ?? null, name: s.name, type: s.type, summary: s.summary });
+    }
+    case "project": {
+      if (!s.name) return { error: "A project needs a name" };
+      const match = (s.slug ? await resolvePick(scope, { slug: s.slug }, ["project"], exact) : null) ?? (await resolvePick(scope, { name: s.name }, ["project"], exact));
+      return proposeProject(meta, { matchId: match?.id ?? null, name: s.name, area: s.area, status: s.status, summary: s.summary });
+    }
+  }
+}
+
+/**
+ * POST /api/ingest/suggestions: facts, decisions, people, organisations and projects for Ollie
+ * to approve. Same rules as the MCP tools; each item reports suggested, conflict, duplicate,
+ * previously_rejected, unchanged or error.
+ */
+router.post(
+  "/ingest/suggestions",
+  handle(async (req, res) => {
+    const { scope, writer } = req.ingest!;
+    const raw: unknown = Array.isArray(req.body) ? req.body : (req.body?.suggestions ?? req.body?.items);
+    if (!Array.isArray(raw)) throw new ValidationError("Send an array of suggestions, or { suggestions: [...] }");
+    if (raw.length > 100) throw new ValidationError("At most 100 suggestions per call");
+    const results: Record<string, unknown>[] = [];
+    for (const item of raw) {
+      const parsed = SuggestionItem.safeParse(item);
+      if (!parsed.success) {
+        results.push({ status: "error", error: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") });
+        continue;
+      }
+      try {
+        const r = await suggestOne(scope, writer, parsed.data);
+        results.push("error" in r ? { status: "error", error: r.error } : proposalReply(r));
+      } catch (err) {
+        if (err instanceof ValidationError) results.push({ status: "error", error: err.message });
+        else throw err;
+      }
+    }
+    const count = (st: string) => results.filter((r) => r.status === st).length;
+    res.json({
+      results,
+      counts: {
+        suggested: count("suggested"),
+        conflict: count("conflict"),
+        duplicate: count("duplicate"),
+        previously_rejected: count("previously_rejected"),
+        unchanged: count("unchanged"),
+        error: count("error"),
+      },
+    });
   }),
 );
 

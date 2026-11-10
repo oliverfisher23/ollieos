@@ -214,7 +214,12 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
   for (const f of facts) {
     const ref = toRef("fact", f.id);
     const about = names.get(`${f.entityType}:${f.entityId}`);
-    docs.push({ ref, type: "fact", id: f.id, text: `[${ref}] Fact${about ? ` about ${about}` : ""}: ${f.text}` });
+    docs.push({
+      ref,
+      type: "fact",
+      id: f.id,
+      text: `[${ref}] Fact${about ? ` about ${about}` : ""}${f.needsCheck ? " (NEEDS A CHECK: may be out of date)" : ""}: ${f.text}`,
+    });
   }
 
   const order = new Map(refList.map((r, i) => [r, i]));

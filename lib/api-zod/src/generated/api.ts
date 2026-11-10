@@ -112,6 +112,12 @@ export const LogoutMobileSessionResponse = zod.object({
  * @summary Everything the Home screen needs in one call
  */
 export const GetHomeResponse = zod.object({
+  "knowledgeInbox": zod.object({
+  "suggested": zod.int(),
+  "conflicts": zod.int(),
+  "stale": zod.int(),
+  "total": zod.int()
+}),
   "doNext": zod.array(zod.object({
   "task": zod.object({
   "id": zod.int(),
@@ -1162,8 +1168,12 @@ export const GetProjectResponse = zod.object({
   "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
+  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal(null)]).nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
+  "lastConfirmedAt": zod.coerce.date(),
+  "needsCheck": zod.boolean().describe('Stale or in conflict'),
+  "approvedAt": zod.coerce.date().nullable().describe('Set when approved from the Knowledge Inbox'),
   "history": zod.array(zod.object({
   "id": zod.int(),
   "text": zod.string(),
@@ -1528,8 +1538,12 @@ export const GetPersonResponse = zod.object({
   "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
+  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal(null)]).nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
+  "lastConfirmedAt": zod.coerce.date(),
+  "needsCheck": zod.boolean().describe('Stale or in conflict'),
+  "approvedAt": zod.coerce.date().nullable().describe('Set when approved from the Knowledge Inbox'),
   "history": zod.array(zod.object({
   "id": zod.int(),
   "text": zod.string(),
@@ -1691,8 +1705,12 @@ export const GetOrganisationResponse = zod.object({
   "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
+  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal(null)]).nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
+  "lastConfirmedAt": zod.coerce.date(),
+  "needsCheck": zod.boolean().describe('Stale or in conflict'),
+  "approvedAt": zod.coerce.date().nullable().describe('Set when approved from the Knowledge Inbox'),
   "history": zod.array(zod.object({
   "id": zod.int(),
   "text": zod.string(),
@@ -2007,7 +2025,8 @@ export const CreateFactBody = zod.object({
   "entityType": zod.enum(['project', 'person', 'organisation']),
   "entityId": zod.int(),
   "text": zod.string().min(1).max(createFactBodyTextMax),
-  "source": zod.string().nullish()
+  "source": zod.string().nullish(),
+  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal(null)]).nullish().describe('With an attribute, the new fact replaces any current fact with the same attribute')
 })
 
 export const CreateFactResponse = zod.object({
@@ -2016,8 +2035,12 @@ export const CreateFactResponse = zod.object({
   "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
+  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal(null)]).nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
+  "lastConfirmedAt": zod.coerce.date(),
+  "needsCheck": zod.boolean().describe('Stale or in conflict'),
+  "approvedAt": zod.coerce.date().nullable().describe('Set when approved from the Knowledge Inbox'),
   "history": zod.array(zod.object({
   "id": zod.int(),
   "text": zod.string(),
@@ -2049,14 +2072,231 @@ export const SupersedeFactResponse = zod.object({
   "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
+  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal(null)]).nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
+  "lastConfirmedAt": zod.coerce.date(),
+  "needsCheck": zod.boolean().describe('Stale or in conflict'),
+  "approvedAt": zod.coerce.date().nullable().describe('Set when approved from the Knowledge Inbox'),
   "history": zod.array(zod.object({
   "id": zod.int(),
   "text": zod.string(),
   "createdAt": zod.coerce.date(),
   "createdBy": zod.string()
 })).describe('Earlier versions this fact replaced, newest first')
+})
+
+
+/**
+ * @summary Knowledge Inbox items for one tab, with the open count for every tab
+ */
+export const listKnowledgeInboxQueryTabDefault = `suggested`;
+
+export const ListKnowledgeInboxQueryParams = zod.object({
+  "tab": zod.enum(['suggested', 'conflicts', 'stale']).default(listKnowledgeInboxQueryTabDefault)
+})
+
+export const ListKnowledgeInboxResponse = zod.object({
+  "counts": zod.object({
+  "suggested": zod.int(),
+  "conflicts": zod.int(),
+  "stale": zod.int(),
+  "total": zod.int()
+}),
+  "items": zod.array(zod.object({
+  "key": zod.string(),
+  "id": zod.int().describe('Suggestion id on the Suggested tab'),
+  "group": zod.enum(['suggested', 'conflicts', 'stale']),
+  "kind": zod.enum(['new_fact', 'new_person', 'new_organisation', 'new_project', 'proposed_decision', 'changed_summary', 'changed_details', 'conflict', 'stale_fact']),
+  "target": zod.union([zod.object({
+  "type": zod.string(),
+  "id": zod.int().nullable().describe('Null for a person'),
+  "name": zod.string(),
+  "slug": zod.string().nullable(),
+  "isSelf": zod.boolean()
+}),zod.null()]),
+  "by": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "text": zod.string().nullable(),
+  "fields": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "value": zod.string().nullable(),
+  "before": zod.string().nullable(),
+  "editable": zod.boolean()
+})),
+  "attribute": zod.string().nullable(),
+  "replaces": zod.string().nullable().describe('The current fact a proposed fact would replace'),
+  "source": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "options": zod.array(zod.object({
+  "ref": zod.string().describe('fact:12 or suggestion:4'),
+  "label": zod.string(),
+  "text": zod.string()
+})),
+  "lastConfirmedAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * @summary Approve a suggestion, optionally with edited fields
+ */
+export const ApproveSuggestionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const approveSuggestionBodyFieldsMaxOne = 5000;
+
+
+
+export const ApproveSuggestionBody = zod.object({
+  "fields": zod.record(zod.string(), zod.string().max(approveSuggestionBodyFieldsMaxOne)).optional().describe('Edited values by field key')
+})
+
+export const ApproveSuggestionResponse = zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['approved', 'rejected']),
+  "result": zod.union([zod.object({
+  "type": zod.string(),
+  "id": zod.int()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Reject a suggestion. It is kept 30 days so it is not proposed again.
+ */
+export const RejectSuggestionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RejectSuggestionResponse = zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['approved', 'rejected']),
+  "result": zod.union([zod.object({
+  "type": zod.string(),
+  "id": zod.int()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Resolve a stale fact or a conflict
+ */
+export const ResolveFactReviewParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const resolveFactReviewBodyTextMax = 2000;
+
+export const resolveFactReviewBodyRefMax = 40;
+
+
+
+export const ResolveFactReviewBody = zod.object({
+  "action": zod.enum(['still_true', 'edit', 'no_longer_true', 'keep', 'write_own']),
+  "text": zod.string().min(1).max(resolveFactReviewBodyTextMax).optional().describe('For edit and write_own'),
+  "ref": zod.string().max(resolveFactReviewBodyRefMax).optional().describe('For keep: fact:12 or suggestion:4')
+})
+
+export const ResolveFactReviewResponse = zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['resolved'])
+})
+
+
+/**
+ * @summary Shelf lives for facts and when the weekly check last ran
+ */
+export const getKnowledgeSettingsResponseShelfLifeDaysGeneralMax = 3650;
+
+export const getKnowledgeSettingsResponseShelfLifeDaysStatusMax = 3650;
+
+export const getKnowledgeSettingsResponseShelfLifeDaysNextStepMax = 3650;
+
+export const getKnowledgeSettingsResponseShelfLifeDaysDecisionDateMax = 3650;
+
+export const getKnowledgeSettingsResponseShelfLifeDaysJobTitleMax = 3650;
+
+export const getKnowledgeSettingsResponseShelfLifeDaysOrganisationMax = 3650;
+
+
+
+export const GetKnowledgeSettingsResponse = zod.object({
+  "shelfLifeDays": zod.object({
+  "general": zod.int().min(1).max(getKnowledgeSettingsResponseShelfLifeDaysGeneralMax),
+  "status": zod.int().min(1).max(getKnowledgeSettingsResponseShelfLifeDaysStatusMax),
+  "next_step": zod.int().min(1).max(getKnowledgeSettingsResponseShelfLifeDaysNextStepMax),
+  "decision_date": zod.int().min(1).max(getKnowledgeSettingsResponseShelfLifeDaysDecisionDateMax),
+  "job_title": zod.int().min(1).max(getKnowledgeSettingsResponseShelfLifeDaysJobTitleMax),
+  "organisation": zod.int().min(1).max(getKnowledgeSettingsResponseShelfLifeDaysOrganisationMax)
+}),
+  "lastCheckAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Change shelf lives, in days
+ */
+export const updateKnowledgeSettingsBodyShelfLifeDaysGeneralMax = 3650;
+
+export const updateKnowledgeSettingsBodyShelfLifeDaysStatusMax = 3650;
+
+export const updateKnowledgeSettingsBodyShelfLifeDaysNextStepMax = 3650;
+
+export const updateKnowledgeSettingsBodyShelfLifeDaysDecisionDateMax = 3650;
+
+export const updateKnowledgeSettingsBodyShelfLifeDaysJobTitleMax = 3650;
+
+export const updateKnowledgeSettingsBodyShelfLifeDaysOrganisationMax = 3650;
+
+
+
+export const UpdateKnowledgeSettingsBody = zod.object({
+  "shelfLifeDays": zod.object({
+  "general": zod.int().min(1).max(updateKnowledgeSettingsBodyShelfLifeDaysGeneralMax).optional(),
+  "status": zod.int().min(1).max(updateKnowledgeSettingsBodyShelfLifeDaysStatusMax).optional(),
+  "next_step": zod.int().min(1).max(updateKnowledgeSettingsBodyShelfLifeDaysNextStepMax).optional(),
+  "decision_date": zod.int().min(1).max(updateKnowledgeSettingsBodyShelfLifeDaysDecisionDateMax).optional(),
+  "job_title": zod.int().min(1).max(updateKnowledgeSettingsBodyShelfLifeDaysJobTitleMax).optional(),
+  "organisation": zod.int().min(1).max(updateKnowledgeSettingsBodyShelfLifeDaysOrganisationMax).optional()
+})
+})
+
+export const updateKnowledgeSettingsResponseShelfLifeDaysGeneralMax = 3650;
+
+export const updateKnowledgeSettingsResponseShelfLifeDaysStatusMax = 3650;
+
+export const updateKnowledgeSettingsResponseShelfLifeDaysNextStepMax = 3650;
+
+export const updateKnowledgeSettingsResponseShelfLifeDaysDecisionDateMax = 3650;
+
+export const updateKnowledgeSettingsResponseShelfLifeDaysJobTitleMax = 3650;
+
+export const updateKnowledgeSettingsResponseShelfLifeDaysOrganisationMax = 3650;
+
+
+
+export const UpdateKnowledgeSettingsResponse = zod.object({
+  "shelfLifeDays": zod.object({
+  "general": zod.int().min(1).max(updateKnowledgeSettingsResponseShelfLifeDaysGeneralMax),
+  "status": zod.int().min(1).max(updateKnowledgeSettingsResponseShelfLifeDaysStatusMax),
+  "next_step": zod.int().min(1).max(updateKnowledgeSettingsResponseShelfLifeDaysNextStepMax),
+  "decision_date": zod.int().min(1).max(updateKnowledgeSettingsResponseShelfLifeDaysDecisionDateMax),
+  "job_title": zod.int().min(1).max(updateKnowledgeSettingsResponseShelfLifeDaysJobTitleMax),
+  "organisation": zod.int().min(1).max(updateKnowledgeSettingsResponseShelfLifeDaysOrganisationMax)
+}),
+  "lastCheckAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Run the weekly fact check now
+ */
+export const RunFactCheckResponse = zod.object({
+  "stale": zod.int(),
+  "conflicts": zod.int()
 })
 
 

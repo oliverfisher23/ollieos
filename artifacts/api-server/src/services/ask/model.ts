@@ -50,6 +50,7 @@ function systemPrompt(): string {
     `- Every entry in "items" must cite, in "refs", the ref of each item it relies on, written exactly as shown in square brackets, for example task:42. Only cite refs that appear in <items>.`,
     `- "items" holds one entry per distinct thing that answers the question (a promise, a task, a decision, a fact), as one short sentence.`,
     `- "summary" is one to three sentences that answer the question directly, drawing only on what the cited items say.`,
+    `- A fact marked "NEEDS A CHECK" may be out of date. If you rely on one, say so in "summary" and in that entry, for example "(this may be out of date)".`,
     `- "related" lists refs of the people, projects and organisations the answer is about, only from <items>.`,
     `- If the items do not answer the question, set "found" to false, leave "items" and "related" empty, and say in "summary" that OllieOS has nothing on it.`,
     `- "bundleTitle": when the answer lists two or more open tasks that could be done as one piece of work, a short imperative task title for doing them together. Otherwise an empty string.`,

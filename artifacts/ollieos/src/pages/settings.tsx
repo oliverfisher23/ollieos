@@ -9,13 +9,15 @@ import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
 import AiAccessSettings from './settings-ai-access';
 import SweepSettings from './settings-sweep';
+import KnowledgeSettings from './settings-knowledge';
 
 const SECTIONS = [
   { slug: 'ai-access', label: 'AI access', milestone: 4, line: 'Which AI tools can read and write OllieOS, what they have looked at, and what they are asking to see.' },
   { slug: 'sweep', label: 'Capture sweep', milestone: 5, line: 'When the sweep runs, what it reads, and how its last few runs went.' },
+  { slug: 'knowledge', label: 'Knowledge', milestone: 6, line: '' },
   { slug: 'noise-rules', label: 'Noise rules', milestone: 2, line: '' },
-  { slug: 'imports', label: 'Imports', milestone: 6, line: 'Import status for your tasks, Knowledge and memory, one line per kind.' },
-  { slug: 'export', label: 'Export', milestone: 6, line: 'Download your tasks and Knowledge as CSV files.' },
+  { slug: 'imports', label: 'Imports', milestone: 9, line: 'Import status for your tasks, Knowledge and memory, one line per kind.' },
+  { slug: 'export', label: 'Export', milestone: 9, line: 'Download your tasks and Knowledge as CSV files.' },
 ];
 
 export default function SettingsPage() {
@@ -43,6 +45,8 @@ export default function SettingsPage() {
           <AiAccessSettings />
         ) : current.slug === 'sweep' ? (
           <SweepSettings />
+        ) : current.slug === 'knowledge' ? (
+          <KnowledgeSettings />
         ) : (
           <section className="oo-panel flex flex-col gap-3 px-5 py-8 sm:px-8" data-testid={'page-settings-' + current.slug}>
             <span className="oo-serif oo-muted" style={{ fontSize: 18 }}>Arrives in milestone {current.milestone}</span>

@@ -11,20 +11,17 @@ import {
   calendarEventsTable,
   captureLogTable,
   db,
-  decisionsTable,
-  factsTable,
   linksTable,
   noiseRulesTable,
   notesTable,
   peopleTable,
-  projectsTable,
   sweepRunsTable,
   tasksTable,
   type NoiseRule,
 } from "@workspace/db";
 import { addDays, londonRange, todayLondon, type Priority, type TaskSource, type TaskStatus } from "@workspace/shared";
 import { writeAudit } from "../lib/audit";
-import { cleanText, touch, uniqueSlug } from "./knowledge/common";
+import { cleanText, touch } from "./knowledge/common";
 import { ValidationError } from "./tasks";
 
 /** Who is writing: the actor name for audit_events and the ai_clients row. */
@@ -185,56 +182,10 @@ export async function enabledRules(): Promise<NoiseRule[]> {
 
 /* ---------- Knowledge ---------- */
 
-export async function addFact(w: Writer, input: { entityType: "project" | "person" | "organisation"; entityId: number; text: string; source?: string | null; supersedes?: number | null }) {
-  const text = cleanText(input.text);
-  if (!text) throw new ValidationError("A fact needs some text");
-  return db.transaction(async (tx) => {
-    const [created] = await tx
-      .insert(factsTable)
-      .values({ entityType: input.entityType, entityId: input.entityId, text, source: cleanText(input.source), createdBy: w.actor })
-      .returning();
-    if (input.supersedes != null) {
-      const done = await tx
-        .update(factsTable)
-        .set({ supersededBy: created.id })
-        .where(and(eq(factsTable.id, input.supersedes), sql`${factsTable.supersededBy} is null`))
-        .returning({ id: factsTable.id });
-      if (!done.length) throw new ValidationError("That fact has already been replaced");
-    }
-    await touch(tx, input.entityType, input.entityId);
-    await writeAudit(tx, {
-      actor: w.actor,
-      clientId: w.clientId,
-      action: input.supersedes != null ? "supersede" : "create",
-      entityType: "fact",
-      entityId: created.id,
-      payload: { on: `${input.entityType}:${input.entityId}`, replaced: input.supersedes ?? null },
-    });
-    return created;
-  });
-}
-
-export async function logDecision(w: Writer, input: { projectId: number; text: string; decidedAt: string; decidedBy?: string | null; source?: string | null; confidential?: boolean | null }) {
-  const text = cleanText(input.text);
-  if (!text) throw new ValidationError("A decision needs some text");
-  return db.transaction(async (tx) => {
-    const [created] = await tx
-      .insert(decisionsTable)
-      .values({
-        projectId: input.projectId,
-        text,
-        decidedAt: input.decidedAt,
-        decidedBy: cleanText(input.decidedBy),
-        source: cleanText(input.source),
-        confidential: input.confidential ?? null,
-        createdBy: w.actor,
-      })
-      .returning();
-    await touch(tx, "project", input.projectId);
-    await writeAudit(tx, { actor: w.actor, clientId: w.clientId, action: "create", entityType: "decision", entityId: created.id, payload: { projectId: input.projectId } });
-    return created;
-  });
-}
+/*
+ * Facts, decisions, people, organisations and projects from AI clients are suggestions, not
+ * writes: see services/suggestions.ts and services/aiPropose.ts (feature 01, rule 1).
+ */
 
 export async function addNote(w: Writer, input: { entityType: "project" | "person" | "organisation"; entityId: number; title?: string | null; body: string; confidential?: boolean | null }) {
   const body = cleanText(input.body);
@@ -321,92 +272,6 @@ export async function logActivity(w: Writer, input: ActivityInput, via: string):
       payload: { via, kind: input.kind, people: input.personIds, projects: input.projectIds },
     });
     return { id: created.id, duplicate: false };
-  });
-}
-
-export interface PersonUpsert {
-  existingId: number | null;
-  name: string;
-  email?: string | null;
-  organisationId?: number | null;
-  role?: string | null;
-  relationshipSummary?: string | null;
-}
-
-/** Creates a person, or fills in the given fields on a matched one. Fields not given are left alone. */
-export async function upsertPerson(w: Writer, input: PersonUpsert): Promise<{ id: number; name: string; slug: string; created: boolean }> {
-  const name = cleanText(input.name);
-  if (!name) throw new ValidationError("A person needs a name");
-  let email = cleanText(input.email)?.toLowerCase() ?? null;
-  if (email) {
-    // Never reuse an address someone else already has; that could merge two people.
-    const [taken] = await db.select({ id: peopleTable.id }).from(peopleTable).where(sql`lower(${peopleTable.email}) = ${email}`);
-    if (taken && taken.id !== input.existingId) email = null;
-  }
-  return db.transaction(async (tx) => {
-    if (input.existingId != null) {
-      const set: Partial<typeof peopleTable.$inferInsert> = {};
-      if (email) set.email = email;
-      if (input.organisationId != null) set.organisationId = input.organisationId;
-      if (cleanText(input.role)) set.role = cleanText(input.role);
-      if (cleanText(input.relationshipSummary)) set.relationshipSummary = cleanText(input.relationshipSummary);
-      const [row] = Object.keys(set).length
-        ? await tx.update(peopleTable).set(set).where(eq(peopleTable.id, input.existingId)).returning()
-        : await tx.select().from(peopleTable).where(eq(peopleTable.id, input.existingId));
-      if (Object.keys(set).length) {
-        await writeAudit(tx, { actor: w.actor, clientId: w.clientId, action: "update", entityType: "person", entityId: row.id, payload: { fields: Object.keys(set) } });
-      }
-      return { id: row.id, name: row.name, slug: row.slug, created: false };
-    }
-    const slug = await uniqueSlug(tx, "person", name);
-    const [row] = await tx
-      .insert(peopleTable)
-      .values({
-        name,
-        slug,
-        email,
-        organisationId: input.organisationId ?? null,
-        role: cleanText(input.role),
-        relationshipSummary: cleanText(input.relationshipSummary),
-      })
-      .returning();
-    await writeAudit(tx, { actor: w.actor, clientId: w.clientId, action: "create", entityType: "person", entityId: row.id, payload: { name } });
-    return { id: row.id, name: row.name, slug: row.slug, created: true };
-  });
-}
-
-export interface ProjectUpsert {
-  existingId: number | null;
-  name: string;
-  area?: string | null;
-  status?: string | null;
-  summary?: string | null;
-}
-
-export async function upsertProject(w: Writer, input: ProjectUpsert): Promise<{ id: number; name: string; slug: string; created: boolean }> {
-  const name = cleanText(input.name);
-  if (!name) throw new ValidationError("A project needs a name");
-  return db.transaction(async (tx) => {
-    if (input.existingId != null) {
-      const set: Partial<typeof projectsTable.$inferInsert> = {};
-      if (cleanText(input.area)) set.area = cleanText(input.area);
-      if (cleanText(input.status)) set.status = cleanText(input.status);
-      if (cleanText(input.summary)) set.summary = cleanText(input.summary);
-      const [row] = Object.keys(set).length
-        ? await tx.update(projectsTable).set(set).where(eq(projectsTable.id, input.existingId)).returning()
-        : await tx.select().from(projectsTable).where(eq(projectsTable.id, input.existingId));
-      if (Object.keys(set).length) {
-        await writeAudit(tx, { actor: w.actor, clientId: w.clientId, action: "update", entityType: "project", entityId: row.id, payload: { fields: Object.keys(set) } });
-      }
-      return { id: row.id, name: row.name, slug: row.slug, created: false };
-    }
-    const slug = await uniqueSlug(tx, "project", name);
-    const [row] = await tx
-      .insert(projectsTable)
-      .values({ name, slug, area: cleanText(input.area), status: cleanText(input.status), summary: cleanText(input.summary) })
-      .returning();
-    await writeAudit(tx, { actor: w.actor, clientId: w.clientId, action: "create", entityType: "project", entityId: row.id, payload: { name } });
-    return { id: row.id, name: row.name, slug: row.slug, created: true };
   });
 }
 

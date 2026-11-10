@@ -102,6 +102,19 @@
   --oo-banner-border: #efd88f;
   --oo-banner-fg: #5c4a1a;
 
+  /* Knowledge Inbox kind pills and results */
+  --oo-kind-fact-bg: #d9e2f1;
+  --oo-kind-fact-fg: #233455;
+  --oo-kind-person-bg: #efe7fb;
+  --oo-kind-person-fg: #5b2e9c;
+  --oo-kind-decision-bg: #fdf6e1;
+  --oo-kind-decision-fg: #5c4a1a;
+  --oo-kind-conflict-bg: #fbe3dc;
+  --oo-kind-conflict-fg: #8a2a10;
+  --oo-kind-stale-bg: #ece9e2;
+  --oo-kind-stale-fg: #3d3a35;
+  --oo-ok: #2f5320;
+
   /* Source marks */
   --oo-src-email-bg: #d9e2f1;
   --oo-src-email-fg: #233455;

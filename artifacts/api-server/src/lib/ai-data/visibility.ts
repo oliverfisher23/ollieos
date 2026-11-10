@@ -125,3 +125,12 @@ export function factVisible(alias: string, g: Grants = NO_GRANTS): string {
 export function activityVisible(alias: string, g: Grants = NO_GRANTS): string {
   return `(${alias}.entity_type is null or ${entityVisible(`${alias}.entity_type`, `${alias}.entity_id`, g)})`;
 }
+
+/**
+ * A suggestion is hidden when it hangs off a hidden item or proposes a confidential decision.
+ * New people, organisations and projects have no item yet, so only their own flag counts.
+ */
+export function suggestionVisible(alias: string, g: Grants = NO_GRANTS): string {
+  return `(coalesce((${alias}.payload->>'confidential')::boolean, false) = false
+    and (${alias}.entity_type is null or ${entityVisible(`${alias}.entity_type`, `${alias}.entity_id`, g)}))`;
+}

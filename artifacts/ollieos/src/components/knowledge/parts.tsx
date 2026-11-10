@@ -14,6 +14,7 @@ import {
   useListProjects,
   type Decision,
   type Fact,
+  type FactInputAttribute,
   type FactInputEntityType,
   type Linkable,
   type Note,
@@ -189,9 +190,19 @@ export function AccessPanel({
 
 /* ---------- Facts ---------- */
 
+const FACT_ATTRIBUTES: { value: NonNullable<FactInputAttribute>; label: string }[] = [
+  { value: 'job_title', label: 'Job title' },
+  { value: 'organisation', label: 'Organisation' },
+  { value: 'status', label: 'Status' },
+  { value: 'next_step', label: 'Next step' },
+  { value: 'decision_date', label: 'Decision date' },
+];
+const ATTRIBUTE_LABEL = Object.fromEntries(FACT_ATTRIBUTES.map((a) => [a.value, a.label])) as Record<string, string>;
+
 export function FactsSection({ entityType, entityId, facts, title = 'Key facts' }: { entityType: FactInputEntityType; entityId: number; facts: Fact[]; title?: string }) {
   const write = useKnowledgeWrite();
   const [adding, setAdding] = useState(false);
+  const [attribute, setAttribute] = useState<FactInputAttribute>(null);
   const id = 'facts-' + entityType;
   return (
     <section className="oo-kcard" aria-labelledby={id}>
@@ -207,10 +218,29 @@ export function FactsSection({ entityType, entityId, facts, title = 'Key facts' 
           label="New fact"
           placeholder="Something true about this, in one line"
           testId="fact"
-          onCancel={() => setAdding(false)}
+          extra={
+            <select
+              className="oo-select"
+              aria-label="What the fact is about"
+              title="A fact about a job title, status and so on replaces the current fact of that kind"
+              value={attribute ?? ''}
+              onChange={(e) => setAttribute((e.target.value || null) as FactInputAttribute)}
+              data-testid="select-fact-attribute"
+            >
+              <option value="">General fact</option>
+              {FACT_ATTRIBUTES.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+            </select>
+          }
+          onCancel={() => {
+            setAdding(false);
+            setAttribute(null);
+          }}
           onSave={async (text) => {
-            const ok = await write(() => createFact({ entityType, entityId, text }), { fail: 'Could not add that fact' });
-            if (ok) setAdding(false);
+            const ok = await write(() => createFact({ entityType, entityId, text, attribute }), { fail: 'Could not add that fact' });
+            if (ok) {
+              setAdding(false);
+              setAttribute(null);
+            }
           }}
         />
       ) : (
@@ -241,7 +271,13 @@ function FactItem({ fact }: { fact: Fact }) {
         />
       ) : (
         <>
-          <span>{fact.text}</span>{' '}
+          {fact.attribute && <span className="oo-muted" style={{ fontSize: 12, marginRight: 6 }}>{ATTRIBUTE_LABEL[fact.attribute]}:</span>}
+          <span>{fact.text}</span>
+          {fact.needsCheck && (
+            <Link href="/knowledge/inbox?tab=stale" className="oo-check-mark" style={{ textDecoration: 'none' }} title="Nobody has confirmed this in a while. Check it in the Knowledge Inbox." data-testid={'mark-needs-check-' + fact.id}>
+              Needs a check
+            </Link>
+          )}{' '}
           <span style={{ display: 'inline-flex', gap: 10, marginLeft: 4 }}>
             <button type="button" className="oo-textbtn" style={{ fontSize: 12 }} onClick={() => setReplacing(true)} data-testid={'button-replace-fact-' + fact.id}>Replace</button>
             {fact.history.length > 0 && (

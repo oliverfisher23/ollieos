@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { FactInputAttribute } from './factInputAttribute';
 import type { FactInputEntityType } from './factInputEntityType';
 
 export interface FactInput {
@@ -17,4 +18,9 @@ export interface FactInput {
   text: string;
   /** @nullable */
   source?: string | null;
+  /**
+     * With an attribute, the new fact replaces any current fact with the same attribute
+     * @nullable
+     */
+  attribute?: FactInputAttribute;
 }

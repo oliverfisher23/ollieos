@@ -11,7 +11,7 @@ import {
   uniqueIndex,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { activityKindEnum, entityTypeEnum, tsvector } from "./enums";
+import { activityKindEnum, entityTypeEnum, factAttributeEnum, tsvector } from "./enums";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
 const updatedAt = () =>
@@ -73,6 +73,8 @@ export const peopleTable = pgTable(
     confidential: boolean("confidential").notNull().default(false),
     aiAccess: boolean("ai_access").notNull().default(true),
     lastContactAt: timestamp("last_contact_at", { withTimezone: true }),
+    /** Ollie's own record ("Your profile"). At most one row. */
+    isSelf: boolean("is_self").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     search: tsvector("search").generatedAlwaysAs(
@@ -81,12 +83,16 @@ export const peopleTable = pgTable(
   },
   (t) => [
     uniqueIndex("people_email_unique").on(t.email).where(sql`email is not null`),
+    uniqueIndex("people_self_unique").on(t.isSelf).where(sql`is_self`),
     index("people_organisation_idx").on(t.organisationId),
     index("people_search_idx").using("gin", t.search),
   ],
 );
 
-/** Facts are never edited in place: a change inserts a new row and sets superseded_by on the old one. */
+/**
+ * Facts are never edited in place: a change inserts a new row and sets superseded_by on the old one.
+ * A fact marked "No longer true" points superseded_by at itself: it stays in history with no successor.
+ */
 export const factsTable = pgTable(
   "facts",
   {
@@ -95,8 +101,17 @@ export const factsTable = pgTable(
     entityId: integer("entity_id").notNull(),
     text: text("text").notNull(),
     source: text("source"),
+    /** null means a general fact */
+    attribute: factAttributeEnum("attribute"),
     createdBy: text("created_by").notNull(),
     createdAt: createdAt(),
+    /** When Ollie (or the import) last confirmed it; drives "Needs a check" */
+    lastConfirmedAt: timestamp("last_confirmed_at", { withTimezone: true }).notNull().defaultNow(),
+    /** True while the fact is stale or in conflict; AI responses carry it as needs_check */
+    needsCheck: boolean("needs_check").notNull().default(false),
+    /** Set when Ollie approved it from the Knowledge Inbox */
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    suggestionId: integer("suggestion_id"),
     supersededBy: integer("superseded_by").references((): AnyPgColumn => factsTable.id),
     search: tsvector("search").generatedAlwaysAs(sql`to_tsvector('english', coalesce(text,''))`),
   },
@@ -121,6 +136,8 @@ export const decisionsTable = pgTable(
     confidential: boolean("confidential"),
     createdBy: text("created_by").notNull(),
     createdAt: createdAt(),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    suggestionId: integer("suggestion_id"),
     search: tsvector("search").generatedAlwaysAs(sql`to_tsvector('english', coalesce(text,''))`),
   },
   (t) => [

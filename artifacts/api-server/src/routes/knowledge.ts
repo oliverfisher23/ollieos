@@ -109,6 +109,7 @@ const FactCreate = z
     entityId: id,
     text: z.string().min(1).max(2000),
     source: shortText(500),
+    attribute: z.enum(["job_title", "organisation", "status", "next_step", "decision_date"]).nullable().optional(),
   })
   .strict();
 const FactSupersede = z.object({ text: z.string().min(1).max(2000), source: shortText(500) }).strict();

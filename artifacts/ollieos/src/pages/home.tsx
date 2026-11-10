@@ -108,6 +108,14 @@ export default function HomePage() {
       </span>
       <span aria-hidden="true" className="oo-t4">·</span>
       <span data-testid="text-inbox-new">{home.data.inbox.count} new</span>
+      {home.data.knowledgeInbox.total > 0 && (
+        <>
+          <span aria-hidden="true" className="oo-t4">·</span>
+          <Link href="/knowledge/inbox" style={{ color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-knowledge-review">
+            {home.data.knowledgeInbox.total} to review
+          </Link>
+        </>
+      )}
       <AccessStatus access={home.data.access} />
     </>
   ) : (

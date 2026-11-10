@@ -278,7 +278,7 @@ export async function listTasksForAi(scope: AiScope, input: ListTasksInput): Pro
 /* ---------- Search ---------- */
 
 export interface SearchOut {
-  results: { type: string; ref: string; title: string; snippet: string | null; slug: string | null }[];
+  results: { type: string; ref: string; title: string; snippet: string | null; slug: string | null; needs_check?: true }[];
 }
 
 /** search: the shared full-text search over visible items only, logged as one search. */
@@ -290,7 +290,7 @@ export async function searchForAi(scope: AiScope, query: string, types: readonly
   const results = hits
     .filter((h) => ok.has(toRef(h.type, h.id)))
     .slice(0, n)
-    .map((h) => ({ type: h.type, ref: toRef(h.type, h.id), title: h.title, snippet: h.snippet, slug: h.slug }));
+    .map((h) => ({ type: h.type, ref: toRef(h.type, h.id), title: h.title, snippet: h.snippet, slug: h.slug, ...(h.needsCheck ? { needs_check: true as const } : {}) }));
   await recordReads(scope, results.map((r) => r.ref), { via: "search", query: query.slice(0, 200) }, "search");
   return { results };
 }
@@ -310,7 +310,7 @@ export interface ContextOut {
     organisation?: NamedRef | null;
   };
   summary: string | null;
-  facts: { ref: string; text: string; source: string | null; created_at: string }[];
+  facts: { ref: string; text: string; source: string | null; attribute: string | null; created_at: string; last_confirmed_at: string; needs_check: boolean }[];
   decisions: { ref: string; text: string; decided_at: string; decided_by: string | null }[];
   open_tasks: TaskOut[];
   promises: TaskOut[];
@@ -451,7 +451,15 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
   const out: ContextOut = {
     entity,
     summary,
-    facts: factRows.map((f) => ({ ref: toRef("fact", f.id), text: f.text, source: f.source, created_at: f.createdAt.toISOString() })),
+    facts: factRows.map((f) => ({
+      ref: toRef("fact", f.id),
+      text: f.text,
+      source: f.source,
+      attribute: f.attribute,
+      created_at: f.createdAt.toISOString(),
+      last_confirmed_at: f.lastConfirmedAt.toISOString(),
+      needs_check: f.needsCheck,
+    })),
     decisions: decisionRows.map((d) => ({ ref: toRef("decision", d.id), text: d.text, decided_at: d.decidedAt, decided_by: d.decidedBy })),
     open_tasks: tasks.filter((t) => t.kind === "task" && t.status !== "waiting"),
     promises: tasks.filter((t) => t.kind === "promise"),
@@ -522,6 +530,12 @@ export interface CalendarOut {
   people: NamedRef[];
 }
 
+/** Case-insensitive match of the whole term, not inside a longer word. */
+export function wholeWord(term: string): RegExp {
+  const escaped = term.normalize("NFKC").trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  return new RegExp(`(?<![\\p{L}\\p{N}@.])${escaped}(?![\\p{L}\\p{N}@]|\\.[\\p{L}\\p{N}])`, "iu");
+}
+
 /**
  * Calendar events for a London day range, without any event tied to a hidden project or whose
  * people include hidden entities. Unstructured fields must not disclose hidden identities
@@ -537,22 +551,25 @@ async function calendarFor(scope: AiScope, start: Date, end: Date): Promise<Cale
   const personIds = [...new Set(rows.flatMap((r) => r.personIds))];
   const names = await visibleNames(scope, projectIds, personIds);
   const [hiddenProjects, hiddenPeople, hiddenOrganisations] = await Promise.all([
-    db.select({ name: projectsTable.name, slug: projectsTable.slug }).from(projectsTable)
+    db.select({ name: projectsTable.name }).from(projectsTable)
       .where(sql.raw(`not (${projectVisible("projects", scope.grants)})`)),
-    db.select({ name: peopleTable.name, slug: peopleTable.slug, email: peopleTable.email }).from(peopleTable)
+    db.select({ name: peopleTable.name, email: peopleTable.email }).from(peopleTable)
       .where(sql.raw(`not (${personVisible("people", scope.grants)})`)),
-    db.select({ name: organisationsTable.name, slug: organisationsTable.slug }).from(organisationsTable)
+    db.select({ name: organisationsTable.name }).from(organisationsTable)
       .where(sql.raw(`not (${organisationVisible("organisations", scope.grants)})`)),
   ]);
-  const hiddenTerms = [...hiddenProjects, ...hiddenPeople, ...hiddenOrganisations].flatMap((r) =>
-    Object.values(r).filter((v): v is string => typeof v === "string" && v.trim().length > 0).map((v) => v.normalize("NFKC").toLowerCase()),
-  );
+  // Full names and emails only, as whole words: a hidden "Bob Smith" must not drop every event
+  // that mentions "Bob", and slugs are not words people write (build plan 30).
+  const hiddenTerms = [...hiddenProjects, ...hiddenPeople, ...hiddenOrganisations]
+    .flatMap((r) => Object.values(r))
+    .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+    .map((v) => wholeWord(v));
   return rows
     .filter((r) => {
       if (r.projectId != null && !names.projects.has(r.projectId)) return false;
       if (r.personIds.some((p) => !names.people.has(p))) return false;
-      const text = [r.title, r.location ?? "", ...r.attendees].join("\n").normalize("NFKC").toLowerCase();
-      return !hiddenTerms.some((term) => text.includes(term));
+      const text = [r.title, r.location ?? "", ...r.attendees].join("\n").normalize("NFKC");
+      return !hiddenTerms.some((re) => re.test(text));
     })
     .map((r) => ({
       title: r.title,

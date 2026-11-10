@@ -959,6 +959,129 @@ paths:
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
+  /suggestions:
+    get:
+      operationId: listKnowledgeInbox
+      tags: [knowledge]
+      summary: Knowledge Inbox items for one tab, with the open count for every tab
+      parameters:
+        - name: tab
+          in: query
+          required: false
+          schema: { type: string, enum: [suggested, conflicts, stale], default: suggested }
+      responses:
+        "200":
+          description: Items and counts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeInbox" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /suggestions/{id}/approve:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: approveSuggestion
+      tags: [knowledge]
+      summary: Approve a suggestion, optionally with edited fields
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SuggestionApprove" }
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuggestionDecision" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /suggestions/{id}/reject:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: rejectSuggestion
+      tags: [knowledge]
+      summary: Reject a suggestion. It is kept 30 days so it is not proposed again.
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuggestionDecision" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /fact-reviews/{id}/resolve:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: resolveFactReview
+      tags: [knowledge]
+      summary: Resolve a stale fact or a conflict
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FactReviewResolve" }
+      responses:
+        "200":
+          description: Resolved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FactReviewResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /settings/knowledge:
+    get:
+      operationId: getKnowledgeSettings
+      tags: [knowledge]
+      summary: Shelf lives for facts and when the weekly check last ran
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeSettings" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    patch:
+      operationId: updateKnowledgeSettings
+      tags: [knowledge]
+      summary: Change shelf lives, in days
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/KnowledgeSettingsUpdate" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KnowledgeSettings" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /settings/knowledge/check:
+    post:
+      operationId: runFactCheck
+      tags: [knowledge]
+      summary: Run the weekly fact check now
+      responses:
+        "200":
+          description: What the check added
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FactCheckResult" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /links:
     post:
       operationId: createLink
@@ -1786,8 +1909,10 @@ components:
 
     HomeSummary:
       type: object
-      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access]
+      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access, knowledgeInbox]
       properties:
+        knowledgeInbox:
+          $ref: "#/components/schemas/KnowledgeInboxCounts"
         doNext:
           type: array
           description: Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped.
@@ -2023,6 +2148,152 @@ components:
         organisationName: { type: [string, "null"] }
         linked: { type: boolean }
 
+    ShelfLives:
+      type: object
+      required: [general, status, next_step, decision_date, job_title, organisation]
+      properties:
+        general: { type: integer, minimum: 1, maximum: 3650 }
+        status: { type: integer, minimum: 1, maximum: 3650 }
+        next_step: { type: integer, minimum: 1, maximum: 3650 }
+        decision_date: { type: integer, minimum: 1, maximum: 3650 }
+        job_title: { type: integer, minimum: 1, maximum: 3650 }
+        organisation: { type: integer, minimum: 1, maximum: 3650 }
+
+    KnowledgeSettings:
+      type: object
+      required: [shelfLifeDays, lastCheckAt]
+      properties:
+        shelfLifeDays: { $ref: "#/components/schemas/ShelfLives" }
+        lastCheckAt: { type: [string, "null"], format: date-time }
+
+    KnowledgeSettingsUpdate:
+      type: object
+      required: [shelfLifeDays]
+      properties:
+        shelfLifeDays:
+          type: object
+          properties:
+            general: { type: integer, minimum: 1, maximum: 3650 }
+            status: { type: integer, minimum: 1, maximum: 3650 }
+            next_step: { type: integer, minimum: 1, maximum: 3650 }
+            decision_date: { type: integer, minimum: 1, maximum: 3650 }
+            job_title: { type: integer, minimum: 1, maximum: 3650 }
+            organisation: { type: integer, minimum: 1, maximum: 3650 }
+
+    FactCheckResult:
+      type: object
+      required: [stale, conflicts]
+      properties:
+        stale: { type: integer }
+        conflicts: { type: integer }
+
+    KnowledgeInboxCounts:
+      type: object
+      required: [suggested, conflicts, stale, total]
+      properties:
+        suggested: { type: integer }
+        conflicts: { type: integer }
+        stale: { type: integer }
+        total: { type: integer }
+
+    KnowledgeInboxTarget:
+      type: object
+      required: [type, id, name, slug, isSelf]
+      properties:
+        type: { type: string }
+        id: { type: [integer, "null"], description: Null for a person, organisation or project that does not exist yet }
+        name: { type: string }
+        slug: { type: [string, "null"] }
+        isSelf: { type: boolean }
+
+    KnowledgeInboxField:
+      type: object
+      required: [key, label, value, before, editable]
+      properties:
+        key: { type: string }
+        label: { type: string }
+        value: { type: [string, "null"] }
+        before: { type: [string, "null"] }
+        editable: { type: boolean }
+
+    KnowledgeInboxOption:
+      type: object
+      required: [ref, label, text]
+      properties:
+        ref: { type: string, description: "fact:12 or suggestion:4" }
+        label: { type: string }
+        text: { type: string }
+
+    KnowledgeInboxItem:
+      type: object
+      required: [key, id, group, kind, target, by, createdAt, text, fields, attribute, replaces, source, sourceUrl, options, lastConfirmedAt]
+      properties:
+        key: { type: string }
+        id: { type: integer, description: Suggestion id on the Suggested tab, review id otherwise }
+        group: { type: string, enum: [suggested, conflicts, stale] }
+        kind:
+          type: string
+          enum: [new_fact, new_person, new_organisation, new_project, proposed_decision, changed_summary, changed_details, conflict, stale_fact]
+        target:
+          oneOf:
+            - $ref: "#/components/schemas/KnowledgeInboxTarget"
+            - type: "null"
+        by: { type: string }
+        createdAt: { type: string, format: date-time }
+        text: { type: [string, "null"] }
+        fields: { type: array, items: { $ref: "#/components/schemas/KnowledgeInboxField" } }
+        attribute: { type: [string, "null"] }
+        replaces: { type: [string, "null"], description: The current fact a proposed fact would replace }
+        source: { type: [string, "null"] }
+        sourceUrl: { type: [string, "null"] }
+        options: { type: array, items: { $ref: "#/components/schemas/KnowledgeInboxOption" } }
+        lastConfirmedAt: { type: [string, "null"], format: date-time }
+
+    KnowledgeInbox:
+      type: object
+      required: [counts, items]
+      properties:
+        counts: { $ref: "#/components/schemas/KnowledgeInboxCounts" }
+        items: { type: array, items: { $ref: "#/components/schemas/KnowledgeInboxItem" } }
+
+    SuggestionApprove:
+      type: object
+      properties:
+        fields:
+          type: object
+          additionalProperties: { type: string, maxLength: 5000 }
+          description: Edited values by field key
+
+    SuggestionDecision:
+      type: object
+      required: [id, status, result]
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [approved, rejected] }
+        result:
+          oneOf:
+            - type: object
+              required: [type, id]
+              properties:
+                type: { type: string }
+                id: { type: integer }
+            - type: "null"
+
+    FactReviewResolve:
+      type: object
+      required: [action]
+      properties:
+        action: { type: string, enum: [still_true, edit, no_longer_true, keep, write_own] }
+        text: { type: string, minLength: 1, maxLength: 2000, description: For edit and write_own }
+        ref: { type: string, maxLength: 40, description: "For keep: fact:12 or suggestion:4" }
+
+    FactReviewResult:
+      type: object
+      required: [id, status]
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [resolved] }
+
     FactVersion:
       type: object
       required: [id, text, createdAt, createdBy]
@@ -2034,15 +2305,19 @@ components:
 
     Fact:
       type: object
-      required: [id, entityType, entityId, text, source, createdBy, createdAt, history]
+      required: [id, entityType, entityId, text, source, attribute, createdBy, createdAt, lastConfirmedAt, needsCheck, approvedAt, history]
       properties:
         id: { type: integer }
         entityType: { type: string }
         entityId: { type: integer }
         text: { type: string }
         source: { type: [string, "null"] }
+        attribute: { type: [string, "null"], enum: [job_title, organisation, status, next_step, decision_date, null] }
         createdBy: { type: string }
         createdAt: { type: string, format: date-time }
+        lastConfirmedAt: { type: string, format: date-time }
+        needsCheck: { type: boolean, description: Stale or in conflict }
+        approvedAt: { type: [string, "null"], format: date-time, description: Set when approved from the Knowledge Inbox }
         history:
           type: array
           description: Earlier versions this fact replaced, newest first
@@ -2056,6 +2331,10 @@ components:
         entityId: { type: integer }
         text: { type: string, minLength: 1, maxLength: 2000 }
         source: { type: [string, "null"] }
+        attribute:
+          type: [string, "null"]
+          enum: [job_title, organisation, status, next_step, decision_date, null]
+          description: With an attribute, the new fact replaces any current fact with the same attribute
 
     FactSupersede:
       type: object

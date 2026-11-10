@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { FactAttribute } from './factAttribute';
 import type { FactVersion } from './factVersion';
 
 export interface Fact {
@@ -14,8 +15,18 @@ export interface Fact {
   text: string;
   /** @nullable */
   source: string | null;
+  /** @nullable */
+  attribute: FactAttribute;
   createdBy: string;
   createdAt: Date;
+  lastConfirmedAt: Date;
+  /** Stale or in conflict */
+  needsCheck: boolean;
+  /**
+     * Set when approved from the Knowledge Inbox
+     * @nullable
+     */
+  approvedAt: Date | null;
   /** Earlier versions this fact replaced, newest first */
   history: FactVersion[];
 }

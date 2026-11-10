@@ -4,7 +4,7 @@
 |---|---|
 | Based on | `docs/PRD.md` v2.2 (including section 14a), `docs/DESIGN.md`, the nine feature PRDs in `docs/features/`, all sixteen files in `design/screens/` (markup and script blocks) |
 | Written | Monday 9th November 2026; updated Tuesday 10th November 2026 for PRD v2.2 |
-| Status | Milestones 1 to 5 built. The v2.2 additions (sections 10 and 11) are waiting for Ollie's approval. No code has been changed for them |
+| Status | Milestones 1 to 5 built. The v2.2 additions (sections 10 and 11) approved by Ollie on Tuesday 10th November 2026 ("agree with all"); milestone 6 in progress |
 
 Sections 1 to 9 are the original plan for PRD v2.1 and describe what is built. **Section 10** adds everything new in PRD v2.2 and the feature PRDs: schema, pages, API routes, MCP tools and which milestone each feature lands in. **Section 11** lists the conflicts with what is already built, and the unclear points, as questions 23 to 50, each with a proposal. If you are happy with a proposal you can just say "agree with 23, 27, 31" (or "agree with all"), and correct the rest.
 

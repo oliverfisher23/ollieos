@@ -31,6 +31,8 @@ export interface SearchHit {
   /** Own confidential flag (null when inherited) */
   confidential: boolean | null;
   status: string | null;
+  /** Facts only: stale or in conflict */
+  needsCheck: boolean;
 }
 
 export interface SearchOptions {
@@ -86,7 +88,7 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
       const v = vis(taskVisible("t", g), visibleOnly);
       return sql`select 'task' as type, t.id, t.title, coalesce(t.source_subject, t.snippet, t.notes) as snippet, null as slug,
           null as entity_type, null::int as entity_id, ${rankExpr(sql.raw("t.search"), tsq)} as rank,
-          ${v.hidden} as hidden_from_ai, t.confidential, t.status::text as status
+          ${v.hidden} as hidden_from_ai, t.confidential, t.status::text as status, null::boolean as needs_check
         from tasks t
         where t.status <> 'noise' and (${textMatch(sql.raw("t.search"), tsq, sql.raw("t.title"), q, mode)})${v.where}
         order by rank desc, t.updated_at desc limit ${limit}`;
@@ -95,7 +97,7 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
       const v = vis(projectVisible("p", g), visibleOnly);
       return sql`select 'project' as type, p.id, p.name as title, p.summary as snippet, p.slug,
           null as entity_type, null::int as entity_id, ${rankExpr(sql.raw("p.search"), tsq)} as rank,
-          ${v.hidden} as hidden_from_ai, p.confidential, p.status
+          ${v.hidden} as hidden_from_ai, p.confidential, p.status, null::boolean as needs_check
         from projects p
         where (${textMatch(sql.raw("p.search"), tsq, sql.raw("p.name"), q, mode)})${v.where}
         order by rank desc, p.updated_at desc limit ${limit}`;
@@ -105,7 +107,7 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
       return sql`select 'person' as type, pe.id, pe.name as title,
           nullif(concat_ws(' · ', ${sql.raw(visibleOnly ? `case when ${organisationVisible("o", g)} then o.name end` : "o.name")}, pe.role), '') as snippet, pe.slug,
           null as entity_type, null::int as entity_id, ${rankExpr(sql.raw("pe.search"), tsq)} as rank,
-          ${v.hidden} as hidden_from_ai, pe.confidential, null as status
+          ${v.hidden} as hidden_from_ai, pe.confidential, null as status, null::boolean as needs_check
         from people pe left join organisations o on o.id = pe.organisation_id
         where (${textMatch(sql.raw("pe.search"), tsq, sql.raw("pe.name"), q, mode)})${v.where}
         order by rank desc, pe.updated_at desc limit ${limit}`;
@@ -114,7 +116,7 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
       const v = vis(organisationVisible("o", g), visibleOnly);
       return sql`select 'organisation' as type, o.id, o.name as title, coalesce(o.type, o.summary) as snippet, o.slug,
           null as entity_type, null::int as entity_id, ${rankExpr(sql.raw("o.search"), tsq)} as rank,
-          ${v.hidden} as hidden_from_ai, o.confidential, null as status
+          ${v.hidden} as hidden_from_ai, o.confidential, null as status, null::boolean as needs_check
         from organisations o
         where (${textMatch(sql.raw("o.search"), tsq, sql.raw("o.name"), q, mode)})${v.where}
         order by rank desc, o.updated_at desc limit ${limit}`;
@@ -123,7 +125,7 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
       const v = vis(decisionVisible("d", g), visibleOnly);
       return sql`select 'decision' as type, d.id, d.text as title, ${sql.raw(visibleOnly ? `case when ${projectVisible("p", g)} then p.name end` : "p.name")} as snippet, null as slug,
           'project' as entity_type, d.project_id as entity_id, ${rankExpr(sql.raw("d.search"), tsq)} as rank,
-          ${v.hidden} as hidden_from_ai, d.confidential, null as status
+          ${v.hidden} as hidden_from_ai, d.confidential, null as status, null::boolean as needs_check
         from decisions d join projects p on p.id = d.project_id
         where (${textMatch(sql.raw("d.search"), tsq, sql.raw("d.text"), q, mode)})${v.where}
         order by rank desc, d.decided_at desc limit ${limit}`;
@@ -132,7 +134,7 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
       const v = vis(noteVisible("n", g), visibleOnly);
       return sql`select 'note' as type, n.id, coalesce(nullif(n.title, ''), left(n.body, 80)) as title, n.body as snippet, null as slug,
           n.entity_type::text as entity_type, n.entity_id, ${rankExpr(sql.raw("n.search"), tsq)} as rank,
-          ${v.hidden} as hidden_from_ai, n.confidential, null as status
+          ${v.hidden} as hidden_from_ai, n.confidential, null as status, null::boolean as needs_check
         from notes n
         where (${textMatch(sql.raw("n.search"), tsq, sql.raw("concat_ws(' ', n.title, n.body)"), q, mode)})${v.where}
         order by rank desc, n.updated_at desc limit ${limit}`;
@@ -141,7 +143,7 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
       const v = vis(factVisible("f", g), visibleOnly);
       return sql`select 'fact' as type, f.id, f.text as title, null as snippet, null as slug,
           f.entity_type::text as entity_type, f.entity_id, ${rankExpr(sql.raw("f.search"), tsq)} as rank,
-          ${v.hidden} as hidden_from_ai, null::boolean as confidential, null as status
+          ${v.hidden} as hidden_from_ai, null::boolean as confidential, null as status, f.needs_check
         from facts f
         where f.superseded_by is null and (${textMatch(sql.raw("f.search"), tsq, sql.raw("f.text"), q, mode)})${v.where}
         order by rank desc, f.created_at desc limit ${limit}`;
@@ -161,6 +163,7 @@ interface RawHit {
   hidden_from_ai: boolean;
   confidential: boolean | null;
   status: string | null;
+  needs_check: boolean | null;
 }
 
 /** Full-text search across tasks and Knowledge. */
@@ -187,6 +190,7 @@ export async function searchItems(opts: SearchOptions): Promise<SearchHit[]> {
           hiddenFromAi: !!r.hidden_from_ai,
           confidential: r.confidential,
           status: r.status,
+          needsCheck: !!r.needs_check,
         }),
       );
     }),
