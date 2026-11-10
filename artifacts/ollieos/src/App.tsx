@@ -21,6 +21,7 @@ import GoalsPage from '@/pages/goals';
 import PeopleCadencePage from '@/pages/people-cadence';
 import LibraryPage from '@/pages/knowledge/library';
 import { BriefPage, NextBriefPage } from '@/pages/brief';
+import MeetingsPage from '@/pages/meetings';
 import DigestPage from '@/pages/digest';
 import OAuthConsentPage from '@/pages/oauth-consent';
 import { TriageDialog } from '@/components/triage';
@@ -70,6 +71,7 @@ function Router() {
         <Route path="/knowledge/notes" component={NotesListPage} />
         <Route path="/knowledge/notes/:id" component={NotePage} />
         <Route path="/knowledge/library" component={LibraryPage} />
+        <Route path="/meetings" component={MeetingsPage} />
         <Route path="/briefs/next" component={NextBriefPage} />
         <Route path="/briefs/:eventId">{(p) => <BriefPage key={p.eventId} eventId={p.eventId} />}</Route>
         <Route path="/digest">{() => <DigestPage />}</Route>

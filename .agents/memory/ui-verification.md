@@ -22,3 +22,5 @@ Seeding without tsx (not installed): insert the `sessions` row with psql, and al
 Quickest seeding: after inserting only the `users` and `sessions` rows by SQL, create everything else with curl against the test API (`Authorization: Bearer <sid>`); the first `GET /api/goals` also runs the seed goals and playbooks. Only `last_contact_at` and links need SQL. The test API uses the real Anthropic integration, so check-in drafts and Ask answers work there.
 
 For briefs and the digest: seed calendar events relative to now through `/api/ingest/calendar`, then `POST /api/ingest/sweep-run` with only `started_at` and `finished_at` (extra keys answer 400). That one call builds briefs and the digest, the same as a real sweep. Briefs and the digest summary call the real model, so wait about 6 seconds before a brief page screenshot.
+
+Pushing the schema to the test database: `push-force` reads `DATABASE_URL`, so run it as `DATABASE_URL=$(cat /tmp/tdb) pnpm --filter @workspace/db run push-force`. Without the override it force-pushes to the dev database, which holds Ollie's real data.

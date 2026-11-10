@@ -21,6 +21,8 @@ export const meetingBriefsTable = pgTable("meeting_briefs", {
   generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
   why: jsonb("why").$type<BriefLine[] | null>(),
   questions: jsonb("questions").$type<BriefLine[] | null>(),
+  /** Suggested agenda items; null on briefs written before the agenda existed */
+  agenda: jsonb("agenda").$type<BriefLine[] | null>(),
   /** Why the questions are the kind they are, e.g. "You planned to start with discovery" */
   questionsNote: text("questions_note"),
   attendeeIds: integer("attendee_ids").array().notNull().default(sql`'{}'::integer[]`),

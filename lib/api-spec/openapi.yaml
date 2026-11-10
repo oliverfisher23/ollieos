@@ -890,6 +890,19 @@ paths:
         "409": { $ref: "#/components/responses/Error" }
         "502": { $ref: "#/components/responses/Error" }
 
+  /meetings:
+    get:
+      operationId: listMeetings
+      tags: [preparation]
+      summary: Work meetings from today to six days ahead, and the last two weeks with their Granola notes
+      responses:
+        "200":
+          description: Meetings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeetingsList" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /briefs/next:
     get:
       operationId: getNextBrief
@@ -2553,7 +2566,7 @@ components:
 
     BriefAttendeePerson:
       type: object
-      required: [id, slug, name, role, organisation, confidential, lastContactAt]
+      required: [id, slug, name, role, organisation, confidential, lastContactAt, facts, cadence]
       properties:
         id: { type: integer }
         slug: { type: string }
@@ -2562,6 +2575,31 @@ components:
         organisation: { type: [string, "null"] }
         confidential: { type: boolean }
         lastContactAt: { type: [string, "null"], format: date-time }
+        facts:
+          type: array
+          description: Up to 4 current facts, most recently confirmed first
+          items:
+            type: object
+            required: [id, text, needsCheck]
+            properties:
+              id: { type: integer }
+              text: { type: string }
+              needsCheck: { type: boolean }
+        cadence:
+          description: Null when the person has no cadence
+          oneOf:
+            - $ref: "#/components/schemas/BriefCadence"
+            - type: "null"
+
+    BriefCadence:
+      type: object
+      required: [label, status, daysOverdue, daysLeft, daysSince]
+      properties:
+        label: { type: string, description: e.g. "Every 2 weeks" }
+        status: { type: string, description: overdue, due_soon, on_track or paused }
+        daysOverdue: { type: [integer, "null"] }
+        daysLeft: { type: [integer, "null"] }
+        daysSince: { type: [integer, "null"] }
 
     BriefAttendee:
       type: object
@@ -2601,7 +2639,7 @@ components:
 
     BriefView:
       type: object
-      required: [event, generatedAt, failed, notMuch, sourcesLine, why, questions, questionsNote, attendees, promises, projects, goals, documents, playbooks, heldBack, notes, granolaNotes, granolaRef, actions]
+      required: [event, generatedAt, failed, notMuch, sourcesLine, why, questions, questionsNote, agenda, attendees, promises, tasks, waitingOn, earlier, threads, projects, goals, documents, playbooks, heldBack, notes, granolaNotes, granolaRef, actions]
       properties:
         event: { $ref: "#/components/schemas/BriefEvent" }
         generatedAt: { type: string, format: date-time }
@@ -2615,8 +2653,59 @@ components:
           type: [array, "null"]
           items: { $ref: "#/components/schemas/BriefLine" }
         questionsNote: { type: [string, "null"] }
+        agenda:
+          type: [array, "null"]
+          description: Suggested agenda. Null when not much is on file or the brief was written before agendas existed.
+          items: { $ref: "#/components/schemas/BriefLine" }
         attendees: { type: array, items: { $ref: "#/components/schemas/BriefAttendee" } }
         promises: { type: array, items: { $ref: "#/components/schemas/BriefPromise" } }
+        tasks:
+          type: array
+          description: Open tasks for people on the meeting, promises aside
+          items:
+            type: object
+            required: [id, title, status, dueDate, personName]
+            properties:
+              id: { type: integer }
+              title: { type: string }
+              status: { type: string }
+              dueDate: { type: [string, "null"], format: date }
+              personName: { type: [string, "null"] }
+        waitingOn:
+          type: array
+          description: What Ollie is waiting on from people on the meeting
+          items:
+            type: object
+            required: [id, title, since, personName]
+            properties:
+              id: { type: integer }
+              title: { type: string }
+              since: { type: string, format: date-time }
+              personName: { type: [string, "null"] }
+        earlier:
+          type: array
+          description: Granola notes from earlier meetings with any of the same people, newest first
+          items:
+            type: object
+            required: [eventId, title, startsAt, notes, people]
+            properties:
+              eventId: { type: integer }
+              title: { type: string }
+              startsAt: { type: string, format: date-time }
+              notes: { type: string }
+              people: { type: array, items: { type: string } }
+        threads:
+          type: array
+          description: Recent email and Slack exchanges with people on the meeting
+          items:
+            type: object
+            required: [id, kind, summary, occurredAt, url]
+            properties:
+              id: { type: integer }
+              kind: { type: string, description: email or slack }
+              summary: { type: string }
+              occurredAt: { type: string, format: date-time }
+              url: { type: [string, "null"] }
         projects:
           type: array
           items:
@@ -2668,6 +2757,41 @@ components:
               id: { type: integer }
               title: { type: string }
               status: { type: string }
+
+    MeetingRow:
+      type: object
+      required: [id, title, startsAt, endsAt, day, platform, location, attendees, prep, promises, waiting, granolaSnippet]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        day: { type: string, format: date, description: London date }
+        platform: { type: [string, "null"] }
+        location: { type: [string, "null"] }
+        attendees:
+          type: array
+          items:
+            type: object
+            required: [name, slug]
+            properties:
+              name: { type: string }
+              slug: { type: [string, "null"], description: The person's slug when they are in People }
+        prep:
+          type: string
+          enum: [ready, not_much, failed, not_written, none]
+          description: none means nobody or nothing OllieOS knows is on it, so there is no prep page
+        promises: { type: integer, description: Open promises to people on the meeting }
+        waiting: { type: integer, description: Tasks waiting on people on the meeting }
+        granolaSnippet: { type: [string, "null"] }
+
+    MeetingsList:
+      type: object
+      required: [today, upcoming, past]
+      properties:
+        today: { type: string, format: date }
+        upcoming: { type: array, items: { $ref: "#/components/schemas/MeetingRow" } }
+        past: { type: array, items: { $ref: "#/components/schemas/MeetingRow" } }
 
     BriefNotesInput:
       type: object

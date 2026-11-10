@@ -2028,6 +2028,48 @@ export const DraftCheckInResponse = zod.object({
 
 
 /**
+ * @summary Work meetings from today to six days ahead, and the last two weeks with their Granola notes
+ */
+export const ListMeetingsResponse = zod.object({
+  "today": zod.coerce.date(),
+  "upcoming": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "day": zod.coerce.date().describe('London date'),
+  "platform": zod.string().nullable(),
+  "location": zod.string().nullable(),
+  "attendees": zod.array(zod.object({
+  "name": zod.string(),
+  "slug": zod.string().nullable().describe('The person\'s slug when they are in People')
+})),
+  "prep": zod.enum(['ready', 'not_much', 'failed', 'not_written', 'none']).describe('none means nobody or nothing OllieOS knows is on it, so there is no prep page'),
+  "promises": zod.int().describe('Open promises to people on the meeting'),
+  "waiting": zod.int().describe('Tasks waiting on people on the meeting'),
+  "granolaSnippet": zod.string().nullable()
+})),
+  "past": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "day": zod.coerce.date().describe('London date'),
+  "platform": zod.string().nullable(),
+  "location": zod.string().nullable(),
+  "attendees": zod.array(zod.object({
+  "name": zod.string(),
+  "slug": zod.string().nullable().describe('The person\'s slug when they are in People')
+})),
+  "prep": zod.enum(['ready', 'not_much', 'failed', 'not_written', 'none']).describe('none means nobody or nothing OllieOS knows is on it, so there is no prep page'),
+  "promises": zod.int().describe('Open promises to people on the meeting'),
+  "waiting": zod.int().describe('Tasks waiting on people on the meeting'),
+  "granolaSnippet": zod.string().nullable()
+}))
+})
+
+
+/**
  * @summary The brief for the next work meeting, today or tomorrow
  */
 export const GetNextBriefResponse = zod.object({
@@ -2062,6 +2104,15 @@ export const GetNextBriefResponse = zod.object({
 }))
 })).nullable(),
   "questionsNote": zod.string().nullable(),
+  "agenda": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "label": zod.string(),
+  "href": zod.string().nullable(),
+  "external": zod.boolean().describe('True for links outside OllieOS (an email')
+}))
+})).nullable().describe('Suggested agenda. Null when not much is on file or the brief was written before agendas existed.'),
   "attendees": zod.array(zod.object({
   "name": zod.string(),
   "email": zod.string().nullable(),
@@ -2074,7 +2125,19 @@ export const GetNextBriefResponse = zod.object({
   "role": zod.string().nullable(),
   "organisation": zod.string().nullable(),
   "confidential": zod.boolean(),
-  "lastContactAt": zod.coerce.date().nullable()
+  "lastContactAt": zod.coerce.date().nullable(),
+  "facts": zod.array(zod.object({
+  "id": zod.int(),
+  "text": zod.string(),
+  "needsCheck": zod.boolean()
+})).describe('Up to 4 current facts, most recently confirmed first'),
+  "cadence": zod.union([zod.object({
+  "label": zod.string().describe('e.g. "Every 2 weeks"'),
+  "status": zod.string().describe('overdue'),
+  "daysOverdue": zod.int().nullable(),
+  "daysLeft": zod.int().nullable(),
+  "daysSince": zod.int().nullable()
+}),zod.null()]).describe('Null when the person has no cadence')
 }),zod.null()]).describe('The matching person, or null for no previous contact')
 })),
   "promises": zod.array(zod.object({
@@ -2085,6 +2148,33 @@ export const GetNextBriefResponse = zod.object({
   "dueDate": zod.coerce.date().nullable(),
   "personName": zod.string().nullable()
 })),
+  "tasks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string(),
+  "dueDate": zod.coerce.date().nullable(),
+  "personName": zod.string().nullable()
+})).describe('Open tasks for people on the meeting, promises aside'),
+  "waitingOn": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "since": zod.coerce.date(),
+  "personName": zod.string().nullable()
+})).describe('What Ollie is waiting on from people on the meeting'),
+  "earlier": zod.array(zod.object({
+  "eventId": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "notes": zod.string(),
+  "people": zod.array(zod.string())
+})).describe('Granola notes from earlier meetings with any of the same people, newest first'),
+  "threads": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string().describe('email or slack'),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable()
+})).describe('Recent email and Slack exchanges with people on the meeting'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),
@@ -2157,6 +2247,15 @@ export const GetBriefResponse = zod.object({
 }))
 })).nullable(),
   "questionsNote": zod.string().nullable(),
+  "agenda": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "label": zod.string(),
+  "href": zod.string().nullable(),
+  "external": zod.boolean().describe('True for links outside OllieOS (an email')
+}))
+})).nullable().describe('Suggested agenda. Null when not much is on file or the brief was written before agendas existed.'),
   "attendees": zod.array(zod.object({
   "name": zod.string(),
   "email": zod.string().nullable(),
@@ -2169,7 +2268,19 @@ export const GetBriefResponse = zod.object({
   "role": zod.string().nullable(),
   "organisation": zod.string().nullable(),
   "confidential": zod.boolean(),
-  "lastContactAt": zod.coerce.date().nullable()
+  "lastContactAt": zod.coerce.date().nullable(),
+  "facts": zod.array(zod.object({
+  "id": zod.int(),
+  "text": zod.string(),
+  "needsCheck": zod.boolean()
+})).describe('Up to 4 current facts, most recently confirmed first'),
+  "cadence": zod.union([zod.object({
+  "label": zod.string().describe('e.g. "Every 2 weeks"'),
+  "status": zod.string().describe('overdue'),
+  "daysOverdue": zod.int().nullable(),
+  "daysLeft": zod.int().nullable(),
+  "daysSince": zod.int().nullable()
+}),zod.null()]).describe('Null when the person has no cadence')
 }),zod.null()]).describe('The matching person, or null for no previous contact')
 })),
   "promises": zod.array(zod.object({
@@ -2180,6 +2291,33 @@ export const GetBriefResponse = zod.object({
   "dueDate": zod.coerce.date().nullable(),
   "personName": zod.string().nullable()
 })),
+  "tasks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string(),
+  "dueDate": zod.coerce.date().nullable(),
+  "personName": zod.string().nullable()
+})).describe('Open tasks for people on the meeting, promises aside'),
+  "waitingOn": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "since": zod.coerce.date(),
+  "personName": zod.string().nullable()
+})).describe('What Ollie is waiting on from people on the meeting'),
+  "earlier": zod.array(zod.object({
+  "eventId": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "notes": zod.string(),
+  "people": zod.array(zod.string())
+})).describe('Granola notes from earlier meetings with any of the same people, newest first'),
+  "threads": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string().describe('email or slack'),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable()
+})).describe('Recent email and Slack exchanges with people on the meeting'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),
@@ -2276,6 +2414,15 @@ export const RefreshBriefResponse = zod.object({
 }))
 })).nullable(),
   "questionsNote": zod.string().nullable(),
+  "agenda": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "label": zod.string(),
+  "href": zod.string().nullable(),
+  "external": zod.boolean().describe('True for links outside OllieOS (an email')
+}))
+})).nullable().describe('Suggested agenda. Null when not much is on file or the brief was written before agendas existed.'),
   "attendees": zod.array(zod.object({
   "name": zod.string(),
   "email": zod.string().nullable(),
@@ -2288,7 +2435,19 @@ export const RefreshBriefResponse = zod.object({
   "role": zod.string().nullable(),
   "organisation": zod.string().nullable(),
   "confidential": zod.boolean(),
-  "lastContactAt": zod.coerce.date().nullable()
+  "lastContactAt": zod.coerce.date().nullable(),
+  "facts": zod.array(zod.object({
+  "id": zod.int(),
+  "text": zod.string(),
+  "needsCheck": zod.boolean()
+})).describe('Up to 4 current facts, most recently confirmed first'),
+  "cadence": zod.union([zod.object({
+  "label": zod.string().describe('e.g. "Every 2 weeks"'),
+  "status": zod.string().describe('overdue'),
+  "daysOverdue": zod.int().nullable(),
+  "daysLeft": zod.int().nullable(),
+  "daysSince": zod.int().nullable()
+}),zod.null()]).describe('Null when the person has no cadence')
 }),zod.null()]).describe('The matching person, or null for no previous contact')
 })),
   "promises": zod.array(zod.object({
@@ -2299,6 +2458,33 @@ export const RefreshBriefResponse = zod.object({
   "dueDate": zod.coerce.date().nullable(),
   "personName": zod.string().nullable()
 })),
+  "tasks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string(),
+  "dueDate": zod.coerce.date().nullable(),
+  "personName": zod.string().nullable()
+})).describe('Open tasks for people on the meeting, promises aside'),
+  "waitingOn": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "since": zod.coerce.date(),
+  "personName": zod.string().nullable()
+})).describe('What Ollie is waiting on from people on the meeting'),
+  "earlier": zod.array(zod.object({
+  "eventId": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "notes": zod.string(),
+  "people": zod.array(zod.string())
+})).describe('Granola notes from earlier meetings with any of the same people, newest first'),
+  "threads": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string().describe('email or slack'),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable()
+})).describe('Recent email and Slack exchanges with people on the meeting'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),
@@ -2371,6 +2557,15 @@ export const AllowForBriefResponse = zod.object({
 }))
 })).nullable(),
   "questionsNote": zod.string().nullable(),
+  "agenda": zod.array(zod.object({
+  "text": zod.string(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "label": zod.string(),
+  "href": zod.string().nullable(),
+  "external": zod.boolean().describe('True for links outside OllieOS (an email')
+}))
+})).nullable().describe('Suggested agenda. Null when not much is on file or the brief was written before agendas existed.'),
   "attendees": zod.array(zod.object({
   "name": zod.string(),
   "email": zod.string().nullable(),
@@ -2383,7 +2578,19 @@ export const AllowForBriefResponse = zod.object({
   "role": zod.string().nullable(),
   "organisation": zod.string().nullable(),
   "confidential": zod.boolean(),
-  "lastContactAt": zod.coerce.date().nullable()
+  "lastContactAt": zod.coerce.date().nullable(),
+  "facts": zod.array(zod.object({
+  "id": zod.int(),
+  "text": zod.string(),
+  "needsCheck": zod.boolean()
+})).describe('Up to 4 current facts, most recently confirmed first'),
+  "cadence": zod.union([zod.object({
+  "label": zod.string().describe('e.g. "Every 2 weeks"'),
+  "status": zod.string().describe('overdue'),
+  "daysOverdue": zod.int().nullable(),
+  "daysLeft": zod.int().nullable(),
+  "daysSince": zod.int().nullable()
+}),zod.null()]).describe('Null when the person has no cadence')
 }),zod.null()]).describe('The matching person, or null for no previous contact')
 })),
   "promises": zod.array(zod.object({
@@ -2394,6 +2601,33 @@ export const AllowForBriefResponse = zod.object({
   "dueDate": zod.coerce.date().nullable(),
   "personName": zod.string().nullable()
 })),
+  "tasks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string(),
+  "dueDate": zod.coerce.date().nullable(),
+  "personName": zod.string().nullable()
+})).describe('Open tasks for people on the meeting, promises aside'),
+  "waitingOn": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "since": zod.coerce.date(),
+  "personName": zod.string().nullable()
+})).describe('What Ollie is waiting on from people on the meeting'),
+  "earlier": zod.array(zod.object({
+  "eventId": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "notes": zod.string(),
+  "people": zod.array(zod.string())
+})).describe('Granola notes from earlier meetings with any of the same people, newest first'),
+  "threads": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string().describe('email or slack'),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable()
+})).describe('Recent email and Slack exchanges with people on the meeting'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),

@@ -307,7 +307,10 @@ function TodayStrip({ events }: { events: CalendarEvent[] }) {
   const nextId = nextEventId(events);
   return (
     <section aria-labelledby="h-today" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }} data-testid="section-today">
-      <h2 id="h-today" className="oo-label oo-t2" style={{ marginLeft: 4, fontWeight: 500 }}>Today</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, margin: '0 4px' }}>
+        <h2 id="h-today" className="oo-label oo-t2" style={{ fontWeight: 500 }}>Today</h2>
+        <Link href="/meetings" className="oo-t2" style={{ fontSize: 12, textUnderlineOffset: 2 }} data-testid="link-all-meetings">All meetings this week</Link>
+      </div>
       {events.length === 0 ? (
         <div className="oo-today" data-testid="text-today-empty"><span className="oo-t2" style={{ fontSize: 13 }}>{EMPTY_CAL}</span></div>
       ) : (
@@ -333,7 +336,10 @@ function TodayPhone({ events }: { events: CalendarEvent[] }) {
   const nextId = nextEventId(events);
   return (
     <section aria-labelledby="h-today-p" className="oo-dark-card oo-glass" style={{ padding: 16 }} data-testid="section-today">
-      <h2 id="h-today-p" className="oo-label" style={{ fontSize: 12 }}>Today</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        <h2 id="h-today-p" className="oo-label" style={{ fontSize: 12 }}>Today</h2>
+        <Link href="/meetings" className="oo-t2" style={{ fontSize: 13, textUnderlineOffset: 2, padding: '6px 0' }} data-testid="link-all-meetings">All meetings</Link>
+      </div>
       {events.length === 0 ? (
         <p className="oo-t2" style={{ margin: 0, fontSize: 13 }} data-testid="text-today-empty">{EMPTY_CAL}</p>
       ) : events.map((e) => (

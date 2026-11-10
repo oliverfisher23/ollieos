@@ -554,6 +554,16 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-eyebrow { margin: 0; font-family: var(--oo-font-serif); font-style: italic; font-size: 18px; color: var(--oo-ink-muted); }
 .oo-h1 { margin: 0; font-size: 32px; font-weight: 600; letter-spacing: -0.015em; line-height: 1.2; }
 .oo-h2 { margin: 0; font-size: 15px; font-weight: 600; }
+/* Meetings page (Assist Part B) */
+.oo-mt-day { margin: 0 0 4px; font-size: 14px; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid var(--oo-line); }
+.oo-mt-row { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 16px; padding: 14px 8px; margin: 0 -8px; border-bottom: 1px solid var(--oo-line-soft); border-radius: var(--oo-r-card-sm); color: var(--oo-ink); text-decoration: none; }
+.oo-mt-row[data-link="true"]:hover { background: var(--oo-field); }
+.oo-mt-row[data-link="true"]:focus-visible { outline: 2px solid var(--oo-ink); outline-offset: 2px; }
+.oo-mt-row[data-finished] { opacity: 0.6; }
+.oo-mt-when { font-size: 13px; color: var(--oo-ink-muted); padding-top: 2px; }
+@media (max-width: 639px) {
+  .oo-mt-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+}
 .oo-kmain { flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px 36px; display: flex; flex-direction: column; gap: 26px; }
 @media (max-width: 639px) { .oo-kmain { padding: 22px 18px; } .oo-h1 { font-size: 26px; } }
 .oo-kcard { border: 1px solid var(--oo-line); border-radius: var(--oo-r-card); padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }

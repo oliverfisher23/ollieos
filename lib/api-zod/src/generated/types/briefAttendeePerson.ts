@@ -5,6 +5,8 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { BriefAttendeePersonFactsItem } from './briefAttendeePersonFactsItem';
+import type { BriefCadence } from './briefCadence';
 
 export interface BriefAttendeePerson {
   id: number;
@@ -17,4 +19,8 @@ export interface BriefAttendeePerson {
   confidential: boolean;
   /** @nullable */
   lastContactAt: Date | null;
+  /** Up to 4 current facts, most recently confirmed first */
+  facts: BriefAttendeePersonFactsItem[];
+  /** Null when the person has no cadence */
+  cadence: BriefCadence | null;
 }

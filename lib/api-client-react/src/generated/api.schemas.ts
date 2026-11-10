@@ -428,6 +428,25 @@ export interface BriefLine {
   sources: BriefSource[];
 }
 
+export type BriefAttendeePersonFactsItem = {
+  id: number;
+  text: string;
+  needsCheck: boolean;
+};
+
+export interface BriefCadence {
+  /** e.g. "Every 2 weeks" */
+  label: string;
+  /** overdue */
+  status: string;
+  /** @nullable */
+  daysOverdue: number | null;
+  /** @nullable */
+  daysLeft: number | null;
+  /** @nullable */
+  daysSince: number | null;
+}
+
 export interface BriefAttendeePerson {
   id: number;
   slug: string;
@@ -439,6 +458,10 @@ export interface BriefAttendeePerson {
   confidential: boolean;
   /** @nullable */
   lastContactAt: string | null;
+  /** Up to 4 current facts, most recently confirmed first */
+  facts: BriefAttendeePersonFactsItem[];
+  /** Null when the person has no cadence */
+  cadence: BriefCadence | null;
 }
 
 export interface BriefAttendee {
@@ -477,6 +500,42 @@ export interface BriefEvent {
   /** @nullable */
   platform: string | null;
 }
+
+export type BriefViewTasksItem = {
+  id: number;
+  title: string;
+  status: string;
+  /** @nullable */
+  dueDate: string | null;
+  /** @nullable */
+  personName: string | null;
+};
+
+export type BriefViewWaitingOnItem = {
+  id: number;
+  title: string;
+  since: string;
+  /** @nullable */
+  personName: string | null;
+};
+
+export type BriefViewEarlierItem = {
+  eventId: number;
+  title: string;
+  startsAt: string;
+  notes: string;
+  people: string[];
+};
+
+export type BriefViewThreadsItem = {
+  id: number;
+  /** email or slack */
+  kind: string;
+  summary: string;
+  occurredAt: string;
+  /** @nullable */
+  url: string | null;
+};
 
 export type BriefViewProjectsItem = {
   id: number;
@@ -527,8 +586,21 @@ export interface BriefView {
   questions: BriefLine[] | null;
   /** @nullable */
   questionsNote: string | null;
+  /**
+     * Suggested agenda. Null when not much is on file or the brief was written before agendas existed.
+     * @nullable
+     */
+  agenda: BriefLine[] | null;
   attendees: BriefAttendee[];
   promises: BriefPromise[];
+  /** Open tasks for people on the meeting, promises aside */
+  tasks: BriefViewTasksItem[];
+  /** What Ollie is waiting on from people on the meeting */
+  waitingOn: BriefViewWaitingOnItem[];
+  /** Granola notes from earlier meetings with any of the same people, newest first */
+  earlier: BriefViewEarlierItem[];
+  /** Recent email and Slack exchanges with people on the meeting */
+  threads: BriefViewThreadsItem[];
   projects: BriefViewProjectsItem[];
   goals: BriefViewGoalsItem[];
   documents: BriefViewDocumentsItem[];
@@ -546,6 +618,57 @@ export interface BriefView {
   granolaRef: string | null;
   /** Granola actions that went to the Inbox */
   actions: BriefViewActionsItem[];
+}
+
+export type MeetingRowAttendeesItem = {
+  name: string;
+  /**
+     * The person's slug when they are in People
+     * @nullable
+     */
+  slug: string | null;
+};
+
+/**
+ * none means nobody or nothing OllieOS knows is on it, so there is no prep page
+ */
+export type MeetingRowPrep = typeof MeetingRowPrep[keyof typeof MeetingRowPrep];
+
+
+export const MeetingRowPrep = {
+  ready: 'ready',
+  not_much: 'not_much',
+  failed: 'failed',
+  not_written: 'not_written',
+  none: 'none',
+} as const;
+
+export interface MeetingRow {
+  id: number;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  /** London date */
+  day: string;
+  /** @nullable */
+  platform: string | null;
+  /** @nullable */
+  location: string | null;
+  attendees: MeetingRowAttendeesItem[];
+  /** none means nobody or nothing OllieOS knows is on it, so there is no prep page */
+  prep: MeetingRowPrep;
+  /** Open promises to people on the meeting */
+  promises: number;
+  /** Tasks waiting on people on the meeting */
+  waiting: number;
+  /** @nullable */
+  granolaSnippet: string | null;
+}
+
+export interface MeetingsList {
+  today: string;
+  upcoming: MeetingRow[];
+  past: MeetingRow[];
 }
 
 export interface BriefNotesInput {

@@ -1,0 +1,133 @@
+/**
+ * The Meetings page (Assist Part B): every work meeting from today to six days ahead, each with
+ * who is coming and how ready it is, and the work meetings of the last two weeks with their
+ * Granola notes. Ollie's view, so nothing is hidden. Prep pages are the briefs at /briefs/{id}.
+ */
+import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { calendarEventsTable, db, meetingBriefsTable, peopleTable, tasksTable } from "@workspace/db";
+import { OPEN_STATUSES, addDays, londonDate, londonRange, todayLondon } from "@workspace/shared";
+import { eligible, loadMatchers, matchEvent } from "./briefs";
+
+export const MEETINGS_AHEAD_DAYS = 7;
+export const MEETINGS_PAST_DAYS = 14;
+const SNIPPET = 320;
+
+export type PrepState = "ready" | "not_much" | "failed" | "not_written" | "none";
+
+export interface MeetingRow {
+  id: number;
+  title: string;
+  startsAt: Date;
+  endsAt: Date;
+  /** London date, for grouping by day */
+  day: string;
+  platform: string | null;
+  location: string | null;
+  attendees: { name: string; slug: string | null }[];
+  /**
+   * ready: brief written with a summary. not_much: written, little on file. failed: the model
+   * failed last time. not_written: gets a brief, written when opened or after the next sweep.
+   * none: nobody or nothing OllieOS knows is on it, so there is no prep page.
+   */
+  prep: PrepState;
+  /** Open promises Ollie made to people on the meeting */
+  promises: number;
+  /** Tasks Ollie is waiting on from people on the meeting */
+  waiting: number;
+  /** The start of the Granola notes, when there are any */
+  granolaSnippet: string | null;
+}
+
+export interface MeetingsList {
+  today: string;
+  upcoming: MeetingRow[];
+  past: MeetingRow[];
+}
+
+function snippet(notes: string | null): string | null {
+  const t = notes?.replace(/\s+/g, " ").trim();
+  if (!t) return null;
+  if (t.length <= SNIPPET) return t;
+  const cut = t.slice(0, SNIPPET);
+  const space = cut.lastIndexOf(" ");
+  return (space > SNIPPET * 0.8 ? cut.slice(0, space) : cut) + " …";
+}
+
+export async function listMeetings(now = new Date()): Promise<MeetingsList> {
+  const today = todayLondon(now);
+  const ahead = londonRange(today, MEETINGS_AHEAD_DAYS);
+  const from = londonRange(addDays(today, -MEETINGS_PAST_DAYS), 1).start;
+  const events = await db
+    .select()
+    .from(calendarEventsTable)
+    .where(and(eq(calendarEventsTable.personal, false), gte(calendarEventsTable.startsAt, from), lt(calendarEventsTable.startsAt, ahead.end)))
+    .orderBy(asc(calendarEventsTable.startsAt), asc(calendarEventsTable.id));
+  if (!events.length) return { today, upcoming: [], past: [] };
+
+  const m = await loadMatchers();
+  const matches = new Map(events.map((e) => [e.id, matchEvent(e, m)]));
+  const personIds = [...new Set([...matches.values()].flatMap((x) => x.personIds))];
+  const [briefs, people, promiseCounts, waitingCounts] = await Promise.all([
+    db
+      .select({ eventId: meetingBriefsTable.calendarEventId, why: meetingBriefsTable.why, failed: meetingBriefsTable.failed, granolaNotes: meetingBriefsTable.granolaNotes })
+      .from(meetingBriefsTable)
+      .where(inArray(meetingBriefsTable.calendarEventId, events.map((e) => e.id))),
+    personIds.length ? db.select({ id: peopleTable.id, name: peopleTable.name, slug: peopleTable.slug }).from(peopleTable).where(inArray(peopleTable.id, personIds)) : [],
+    personIds.length
+      ? db
+          .select({ id: tasksTable.personId, n: sql<number>`count(*)::int` })
+          .from(tasksTable)
+          .where(and(eq(tasksTable.kind, "promise"), inArray(tasksTable.status, [...OPEN_STATUSES]), inArray(tasksTable.personId, personIds)))
+          .groupBy(tasksTable.personId)
+      : [],
+    personIds.length
+      ? db
+          .select({ id: tasksTable.waitingOnPersonId, n: sql<number>`count(*)::int` })
+          .from(tasksTable)
+          .where(and(eq(tasksTable.status, "waiting"), inArray(tasksTable.waitingOnPersonId, personIds)))
+          .groupBy(tasksTable.waitingOnPersonId)
+      : [],
+  ]);
+  const briefOf = new Map(briefs.map((b) => [b.eventId, b]));
+  const personOf = new Map(people.map((p) => [p.id, p]));
+  const promisesOf = new Map(promiseCounts.map((r) => [r.id!, Number(r.n)]));
+  const waitingOf = new Map(waitingCounts.map((r) => [r.id!, Number(r.n)]));
+  const sum = (ids: number[], counts: Map<number, number>) => ids.reduce((n, id) => n + (counts.get(id) ?? 0), 0);
+
+  const rows: MeetingRow[] = events.map((e) => {
+    const match = matches.get(e.id)!;
+    const brief = briefOf.get(e.id);
+    const prep: PrepState = !eligible(e, match)
+      ? "none"
+      : !brief
+        ? "not_written"
+        : brief.failed
+          ? "failed"
+          : brief.why
+            ? "ready"
+            : "not_much";
+    return {
+      id: e.id,
+      title: e.title,
+      startsAt: e.startsAt,
+      endsAt: e.endsAt,
+      day: londonDate(e.startsAt),
+      platform: e.platform,
+      location: e.location,
+      attendees: match.attendees.map((a) => {
+        const p = a.personId != null ? personOf.get(a.personId) : undefined;
+        return { name: p?.name ?? a.name, slug: p?.slug ?? null };
+      }),
+      prep,
+      promises: sum(match.personIds, promisesOf),
+      waiting: sum(match.personIds, waitingOf),
+      granolaSnippet: snippet(brief?.granolaNotes ?? null),
+    };
+  });
+  const start = ahead.start.getTime();
+  return {
+    today,
+    upcoming: rows.filter((r) => r.startsAt.getTime() >= start),
+    past: rows.filter((r) => r.startsAt.getTime() < start).reverse(),
+  };
+}

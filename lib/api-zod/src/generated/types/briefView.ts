@@ -11,9 +11,13 @@ import type { BriefLine } from './briefLine';
 import type { BriefPromise } from './briefPromise';
 import type { BriefViewActionsItem } from './briefViewActionsItem';
 import type { BriefViewDocumentsItem } from './briefViewDocumentsItem';
+import type { BriefViewEarlierItem } from './briefViewEarlierItem';
 import type { BriefViewGoalsItem } from './briefViewGoalsItem';
 import type { BriefViewPlaybooksItem } from './briefViewPlaybooksItem';
 import type { BriefViewProjectsItem } from './briefViewProjectsItem';
+import type { BriefViewTasksItem } from './briefViewTasksItem';
+import type { BriefViewThreadsItem } from './briefViewThreadsItem';
+import type { BriefViewWaitingOnItem } from './briefViewWaitingOnItem';
 
 export interface BriefView {
   event: BriefEvent;
@@ -33,8 +37,21 @@ export interface BriefView {
   questions: BriefLine[] | null;
   /** @nullable */
   questionsNote: string | null;
+  /**
+     * Suggested agenda. Null when not much is on file or the brief was written before agendas existed.
+     * @nullable
+     */
+  agenda: BriefLine[] | null;
   attendees: BriefAttendee[];
   promises: BriefPromise[];
+  /** Open tasks for people on the meeting, promises aside */
+  tasks: BriefViewTasksItem[];
+  /** What Ollie is waiting on from people on the meeting */
+  waitingOn: BriefViewWaitingOnItem[];
+  /** Granola notes from earlier meetings with any of the same people, newest first */
+  earlier: BriefViewEarlierItem[];
+  /** Recent email and Slack exchanges with people on the meeting */
+  threads: BriefViewThreadsItem[];
   projects: BriefViewProjectsItem[];
   goals: BriefViewGoalsItem[];
   documents: BriefViewDocumentsItem[];

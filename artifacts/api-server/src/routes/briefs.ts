@@ -3,6 +3,7 @@ import { z } from "zod";
 import { handle } from "../lib/handle";
 import { allowForBrief, briefView, nextBriefEventId, updateBriefNotes } from "../services/briefs";
 import { getDigest, listDigests } from "../services/digest";
+import { listMeetings } from "../services/meetings";
 import { NotFoundError } from "../services/tasks";
 
 const router: IRouter = Router();
@@ -10,6 +11,9 @@ const router: IRouter = Router();
 const EventParams = z.object({ eventId: z.coerce.number().int().positive() });
 const NotesBody = z.object({ notes: z.string().max(20000).nullable() }).strict();
 const DateParams = z.object({ date: z.string().min(1).max(20) });
+
+/* Meetings page (Assist Part B): this week's work meetings and the last two weeks'. */
+router.get("/meetings", handle(async (_req, res) => void res.json(await listMeetings())));
 
 /* Meeting briefs (feature 03). Written on open when missing or more than 3 hours old. */
 router.get(

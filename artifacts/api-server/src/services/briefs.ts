@@ -4,12 +4,13 @@
  * today's and tomorrow's work meetings, and again on open when more than 3 hours old.
  */
 import { createHash } from "node:crypto";
-import { and, asc, eq, gt, inArray, lt, sql } from "drizzle-orm";
+import { and, arrayOverlaps, asc, desc, eq, gt, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import {
   activityTable,
   calendarEventsTable,
   db,
   documentsTable,
+  factsTable,
   goalsTable,
   meetingBriefsTable,
   organisationsTable,
@@ -22,7 +23,7 @@ import {
   type CalendarEvent,
   type MeetingBrief,
 } from "@workspace/db";
-import { OPEN_STATUSES, SOURCE_LABELS, addDays, formatLong, formatTime, londonRange, parseRef, todayLondon, toRef } from "@workspace/shared";
+import { CADENCE_LABELS, OPEN_STATUSES, SOURCE_LABELS, addDays, formatLong, formatTime, londonRange, parseRef, todayLondon, toRef } from "@workspace/shared";
 import { getContext, visibleCalendarRows, wholeWord, type ContextOut } from "../lib/ai-data/context";
 import { applicablePlaybookRefs, loadVisibleDocs } from "../lib/ai-data/retrieve";
 import { askClient, defaultScope, recordReads, visibleRefs, type AiScope } from "../lib/ai-data/scope";
@@ -32,24 +33,26 @@ import type { GrantType } from "../lib/ai-data/visibility";
 import { describeRefs, grantDirect } from "./access";
 import { askScope } from "./ask/ask";
 import { writeBriefFromDocs } from "./ask/model";
-import { projectsForPeople } from "./cadence";
+import { projectsForPeople, stateFor } from "./cadence";
 import { ConflictError, NotFoundError } from "./tasks";
 
 export const BRIEF_MAX_AGE_MS = 3 * 60 * 60 * 1000;
+/** Part of the inputs hash: bump when the brief gains a section, so existing briefs are written again. */
+const BRIEF_VERSION = 2;
 const ACTOR = "Ask OllieOS";
 const MAX_PEOPLE = 6;
 const MAX_PROJECTS = 4;
 
 /* ---------- Matching an event to what OllieOS knows ---------- */
 
-interface Matchers {
+export interface Matchers {
   people: { id: number; name: string; email: string | null; organisationId: number | null; isSelf: boolean }[];
   projects: { id: number; name: string; re: RegExp }[];
   orgs: { id: number; name: string; re: RegExp }[];
   selfEmail: string | null;
 }
 
-async function loadMatchers(): Promise<Matchers> {
+export async function loadMatchers(): Promise<Matchers> {
   const [people, projects, orgs] = await Promise.all([
     db
       .select({ id: peopleTable.id, name: peopleTable.name, email: peopleTable.email, organisationId: peopleTable.organisationId, isSelf: peopleTable.isSelf })
@@ -70,7 +73,7 @@ export interface MatchedAttendee extends CalendarAttendee {
   personId: number | null;
 }
 
-interface EventMatch {
+export interface EventMatch {
   attendees: MatchedAttendee[];
   personIds: number[];
   projectIds: number[];
@@ -82,7 +85,7 @@ interface EventMatch {
  * Projects and organisations match the event's project or a whole-word name in the title.
  * Ollie himself is left out.
  */
-function matchEvent(e: CalendarEvent, m: Matchers): EventMatch {
+export function matchEvent(e: CalendarEvent, m: Matchers): EventMatch {
   const details: CalendarAttendee[] = e.attendeeDetails?.length ? e.attendeeDetails : e.attendees.map((name) => ({ name }));
   const byEmail = new Map(m.people.filter((p) => p.email).map((p) => [p.email!.toLowerCase(), p]));
   const byName = new Map<string, (typeof m.people)[number][]>();
@@ -121,7 +124,7 @@ function matchEvent(e: CalendarEvent, m: Matchers): EventMatch {
 }
 
 /** Feature 03 rule 1: not personal, and a known attendee or organisation, or a project. */
-function eligible(e: CalendarEvent, match: EventMatch): boolean {
+export function eligible(e: CalendarEvent, match: EventMatch): boolean {
   return !e.personal && (match.personIds.length > 0 || match.orgIds.length > 0 || match.projectIds.length > 0);
 }
 
@@ -268,7 +271,7 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
   if (hiddenNames.some((re) => re.test(meeting.title))) meeting.title = "(a meeting about something hidden from AI)";
 
   const hash = createHash("sha256")
-    .update(JSON.stringify({ meeting, docs: [...playbooks, ...items].map((d) => d.text) }))
+    .update(JSON.stringify({ v: BRIEF_VERSION, meeting, docs: [...playbooks, ...items].map((d) => d.text) }))
     .digest("hex");
   const now = new Date();
   if (existing && !existing.failed && existing.inputsHash === hash && !opts.force) {
@@ -280,6 +283,7 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
   const substance = items.filter((d) => !["person", "project", "organisation"].includes(d.type));
   let why: BriefLine[] | null = null;
   let questions: BriefLine[] | null = null;
+  let agenda: BriefLine[] | null = null;
   let questionsNote: string | null = null;
   let failed = false;
   let model: string | null = null;
@@ -292,6 +296,7 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
       if (w.length) {
         why = w;
         questions = keepCited(out.questions, allowed, false, 5);
+        agenda = keepCited(out.agenda ?? [], allowed, false, 5);
         questionsNote = out.questionsNote || null;
       }
       model = "anthropic";
@@ -302,7 +307,7 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
     }
   }
 
-  const citedIds = [...new Set([...(why ?? []), ...(questions ?? [])].flatMap((l) => l.cited))];
+  const citedIds = [...new Set([...(why ?? []), ...(agenda ?? []), ...(questions ?? [])].flatMap((l) => l.cited))];
   const inputRefs = [...items, ...playbooks].map((d) => d.ref);
   const plain = await visibleRefs(defaultScope(), inputRefs);
   const values = {
@@ -310,6 +315,7 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
     generatedAt: now,
     why,
     questions,
+    agenda,
     questionsNote,
     attendeeIds: match.personIds,
     projectIds: inputs.projectIds,
@@ -399,11 +405,12 @@ export async function nextBriefEventId(now = new Date()): Promise<number | null>
 }
 
 /**
- * When a sweep finishes: briefs for today's and tomorrow's work meetings that have not started,
- * so each is ready well before the 30 minutes ahead it is needed (criterion 1).
+ * When a sweep finishes: briefs for the work meetings in the next seven days that have not
+ * started, so each is ready well before it is needed (criterion 1) and the Meetings page shows
+ * the whole week prepared (Assist Part B). Unchanged inputs skip the model call.
  */
 export async function buildUpcomingBriefs(now = new Date()): Promise<{ built: number; unchanged: number; failed: number }> {
-  const range = londonRange(todayLondon(now), 2);
+  const range = londonRange(todayLondon(now), 7);
   const events = await db
     .select()
     .from(calendarEventsTable)
@@ -452,14 +459,34 @@ export interface BriefView {
   why: { text: string; sources: BriefSource[] }[] | null;
   questions: { text: string; sources: BriefSource[] }[] | null;
   questionsNote: string | null;
+  /** Suggested agenda; null when not much is on file or the brief predates it */
+  agenda: { text: string; sources: BriefSource[] }[] | null;
   attendees: {
     name: string;
     email: string | null;
     response: string | null;
     organiser: boolean;
-    person: { id: number; slug: string; name: string; role: string | null; organisation: string | null; confidential: boolean; lastContactAt: Date | null } | null;
+    person: {
+      id: number;
+      slug: string;
+      name: string;
+      role: string | null;
+      organisation: string | null;
+      confidential: boolean;
+      lastContactAt: Date | null;
+      facts: { id: number; text: string; needsCheck: boolean }[];
+      cadence: { label: string; status: string; daysOverdue: number | null; daysLeft: number | null; daysSince: number | null } | null;
+    } | null;
   }[];
   promises: { id: number; title: string; source: string; capturedAt: Date; dueDate: string | null; personName: string | null }[];
+  /** Open tasks for people on the meeting (Ollie owes them), promises aside */
+  tasks: { id: number; title: string; status: string; dueDate: string | null; personName: string | null }[];
+  /** What Ollie is waiting on from people on the meeting */
+  waitingOn: { id: number; title: string; since: Date; personName: string | null }[];
+  /** Granola notes from earlier meetings with any of the same people, newest first */
+  earlier: { eventId: number; title: string; startsAt: Date; notes: string; people: string[] }[];
+  /** Recent email and Slack exchanges with the people on the meeting */
+  threads: { id: number; kind: string; summary: string; occurredAt: Date; url: string | null }[];
   projects: { id: number; slug: string; name: string; confidential: boolean }[];
   goals: { id: number; name: string }[];
   documents: { id: number; title: string; url: string; location: string }[];
@@ -564,9 +591,14 @@ export async function briefView(eventId: number, opts: { force?: boolean } = {})
   return viewOf(event, brief, inputs);
 }
 
+const MAX_FACTS = 4;
+const MAX_EARLIER = 3;
+const MAX_THREADS = 8;
+const THREAD_DAYS = 60;
+
 async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefInputs): Promise<BriefView> {
   const people = inputs.match.personIds;
-  const [personRows, promiseRows, projectRows, goalRows, docRows, bookRows, actionRows] = await Promise.all([
+  const [personRows, promiseRows, projectRows, goalRows, docRows, bookRows, actionRows, extra] = await Promise.all([
     people.length
       ? db
           .select({
@@ -576,6 +608,8 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
             role: peopleTable.role,
             confidential: peopleTable.confidential,
             lastContactAt: peopleTable.lastContactAt,
+            cadence: peopleTable.cadence,
+            cadencePaused: peopleTable.cadencePaused,
             organisation: organisationsTable.name,
           })
           .from(peopleTable)
@@ -603,6 +637,7 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
     brief.actionTaskIds.length
       ? db.select({ id: tasksTable.id, title: tasksTable.title, status: tasksTable.status }).from(tasksTable).where(inArray(tasksTable.id, brief.actionTaskIds)).orderBy(asc(tasksTable.id))
       : [],
+    prepExtras(event, people),
   ]);
   const sources = await sourcesFor(brief.citedIds);
   const withSources = (lines: BriefLine[] | null) =>
@@ -619,14 +654,28 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
     why: withSources(brief.why),
     questions: withSources(brief.questions),
     questionsNote: brief.questionsNote,
+    agenda: brief.why ? withSources(brief.agenda) : null,
     attendees: inputs.match.attendees.map((a) => {
       const p = a.personId != null ? byPerson.get(a.personId) : undefined;
+      const cad = p && p.cadence !== "none" ? stateFor(p, extra.projects.get(p.id)) : null;
       return {
         name: p?.name ?? a.name,
         email: a.email ?? null,
         response: a.response ?? null,
         organiser: !!a.organiser,
-        person: p ? { id: p.id, slug: p.slug, name: p.name, role: p.role, organisation: p.organisation, confidential: p.confidential, lastContactAt: p.lastContactAt } : null,
+        person: p
+          ? {
+              id: p.id,
+              slug: p.slug,
+              name: p.name,
+              role: p.role,
+              organisation: p.organisation,
+              confidential: p.confidential,
+              lastContactAt: p.lastContactAt,
+              facts: extra.facts.get(p.id) ?? [],
+              cadence: cad ? { label: CADENCE_LABELS[p.cadence], status: cad.status, daysOverdue: cad.daysOverdue, daysLeft: cad.daysLeft, daysSince: cad.daysSince } : null,
+            }
+          : null,
       };
     }),
     promises: promiseRows.map(({ t, personName }) => ({
@@ -637,6 +686,10 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
       dueDate: t.dueDate,
       personName,
     })),
+    tasks: extra.tasks,
+    waitingOn: extra.waitingOn,
+    earlier: extra.earlier,
+    threads: extra.threads,
     projects: projectRows.sort(order(inputs.projectIds)),
     goals: goalRows,
     documents: docRows,
@@ -646,6 +699,97 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
     granolaNotes: brief.granolaNotes,
     granolaRef: brief.granolaRef,
     actions: actionRows,
+  };
+}
+
+/**
+ * The rest of the prep page (Assist Part B), Ollie's view so nothing is hidden: each person's
+ * current facts, open tasks both ways, Granola notes from earlier meetings with any of the same
+ * people, and recent email and Slack exchanges with them.
+ */
+async function prepExtras(event: CalendarEvent, people: number[]) {
+  if (!people.length) {
+    return {
+      facts: new Map<number, { id: number; text: string; needsCheck: boolean }[]>(),
+      projects: new Map(),
+      tasks: [] as BriefView["tasks"],
+      waitingOn: [] as BriefView["waitingOn"],
+      earlier: [] as BriefView["earlier"],
+      threads: [] as BriefView["threads"],
+    };
+  }
+  const ids = sql.join(people.map((id) => sql`${id}`), sql`, `);
+  const since = new Date(Date.now() - THREAD_DAYS * 86_400_000);
+  const [factRows, projects, taskRows, waitingRows, earlierRows, threadRows, names] = await Promise.all([
+    db
+      .select({ id: factsTable.id, personId: factsTable.entityId, text: factsTable.text, needsCheck: factsTable.needsCheck })
+      .from(factsTable)
+      .where(and(eq(factsTable.entityType, "person"), inArray(factsTable.entityId, people), isNull(factsTable.supersededBy)))
+      .orderBy(desc(factsTable.lastConfirmedAt), desc(factsTable.id)),
+    projectsForPeople(people),
+    db
+      .select({ id: tasksTable.id, title: tasksTable.title, status: tasksTable.status, dueDate: tasksTable.dueDate, personName: peopleTable.name })
+      .from(tasksTable)
+      .leftJoin(peopleTable, eq(peopleTable.id, tasksTable.personId))
+      .where(and(eq(tasksTable.kind, "task"), inArray(tasksTable.status, ["inbox", "now", "backlog"]), inArray(tasksTable.personId, people)))
+      .orderBy(sql`${tasksTable.dueDate} asc nulls last`, asc(tasksTable.createdAt))
+      .limit(10),
+    db
+      .select({ t: tasksTable, personName: peopleTable.name })
+      .from(tasksTable)
+      .leftJoin(peopleTable, eq(peopleTable.id, tasksTable.waitingOnPersonId))
+      .where(and(eq(tasksTable.status, "waiting"), inArray(tasksTable.waitingOnPersonId, people)))
+      .orderBy(sql`coalesce(${tasksTable.waitingSince}, ${tasksTable.capturedAt}, ${tasksTable.createdAt}) asc`)
+      .limit(10),
+    db
+      .select({ eventId: calendarEventsTable.id, title: calendarEventsTable.title, startsAt: calendarEventsTable.startsAt, notes: meetingBriefsTable.granolaNotes, attendeeIds: meetingBriefsTable.attendeeIds })
+      .from(meetingBriefsTable)
+      .innerJoin(calendarEventsTable, eq(calendarEventsTable.id, meetingBriefsTable.calendarEventId))
+      .where(
+        and(
+          ne(calendarEventsTable.id, event.id),
+          lt(calendarEventsTable.startsAt, event.startsAt),
+          sql`${meetingBriefsTable.granolaNotes} is not null`,
+          arrayOverlaps(meetingBriefsTable.attendeeIds, people),
+        ),
+      )
+      .orderBy(desc(calendarEventsTable.startsAt))
+      .limit(MAX_EARLIER),
+    db.execute(sql`
+      select a.id, a.kind, a.summary, a.occurred_at, a.source_url from activity a
+      where a.kind in ('email', 'slack') and a.occurred_at >= ${since.toISOString()}
+        and ((a.entity_type = 'person' and a.entity_id in (${ids}))
+          or exists (select 1 from links l where l.from_type = 'activity' and l.from_id = a.id and l.to_type = 'person' and l.to_id in (${ids}))
+          or exists (select 1 from links l where l.to_type = 'activity' and l.to_id = a.id and l.from_type = 'person' and l.from_id in (${ids})))
+      order by a.occurred_at desc limit ${MAX_THREADS}`),
+    db.select({ id: peopleTable.id, name: peopleTable.name }).from(peopleTable).where(inArray(peopleTable.id, people)),
+  ]);
+  const facts = new Map<number, { id: number; text: string; needsCheck: boolean }[]>();
+  for (const f of factRows) {
+    const list = facts.get(f.personId) ?? [];
+    if (list.length < MAX_FACTS) list.push({ id: f.id, text: f.text, needsCheck: f.needsCheck });
+    facts.set(f.personId, list);
+  }
+  const nameOf = new Map(names.map((n) => [n.id, n.name]));
+  return {
+    facts,
+    projects,
+    tasks: taskRows,
+    waitingOn: waitingRows.map(({ t, personName }) => ({ id: t.id, title: t.title, since: t.waitingSince ?? t.capturedAt ?? t.createdAt, personName })),
+    earlier: earlierRows.map((r) => ({
+      eventId: r.eventId,
+      title: r.title,
+      startsAt: r.startsAt,
+      notes: r.notes!,
+      people: r.attendeeIds.filter((id) => people.includes(id)).map((id) => nameOf.get(id)).filter((n): n is string => !!n),
+    })),
+    threads: (threadRows.rows as { id: number; kind: string; summary: string; occurred_at: string | Date; source_url: string | null }[]).map((r) => ({
+      id: Number(r.id),
+      kind: r.kind,
+      summary: r.summary,
+      occurredAt: new Date(r.occurred_at),
+      url: r.source_url,
+    })),
   };
 }
 
@@ -720,6 +864,7 @@ export interface BriefOut {
   not_much_on_file: boolean;
   why: { text: string; refs: string[] }[];
   questions: { text: string; refs: string[] }[];
+  agenda: { text: string; refs: string[] }[];
   questions_note: string | null;
   attendees: { name: string; response: string | null; person: string | null }[];
   promises: { ref: string; title: string; due_date: string | null }[];
@@ -762,6 +907,7 @@ export async function briefForAi(scope: AiScope, eventId: number): Promise<Brief
     not_much_on_file: !brief.why,
     why: keep(brief.why),
     questions: keep(brief.questions),
+    agenda: brief.why ? keep(brief.agenda) : [],
     questions_note: brief.why ? brief.questionsNote : null,
     attendees: view.attendees.filter((a) => !a.person || ok.has(toRef("person", a.person.id))).map((a) => ({
       name: a.name,
@@ -774,7 +920,10 @@ export async function briefForAi(scope: AiScope, eventId: number): Promise<Brief
     documents: view.documents.filter((d) => ok.has(toRef("document", d.id))).map((d) => ({ ref: toRef("document", d.id), title: d.title, url: d.url })),
     playbooks: view.playbooks.filter((b) => ok.has(toRef("playbook", b.id))).map((b) => ({ ref: toRef("playbook", b.id), title: b.title, rule: b.rule })),
   };
-  if (!out.why.length) out.questions = [];
+  if (!out.why.length) {
+    out.questions = [];
+    out.agenda = [];
+  }
   await recordReads(
     scope,
     [...out.why.flatMap((l) => l.refs), ...out.promises.map((p) => p.ref), ...out.projects.map((p) => p.ref), ...out.documents.map((d) => d.ref), ...out.playbooks.map((p) => p.ref)],

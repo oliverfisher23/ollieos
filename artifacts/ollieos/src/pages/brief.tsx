@@ -14,17 +14,18 @@ import {
   type BriefSource,
   type BriefView,
 } from '@workspace/api-client-react';
-import { formatDayMonth, formatLong, formatTime } from '@workspace/shared';
+import { daysBetween, formatDayMonth, formatLong, formatTime, londonDate, todayLondon } from '@workspace/shared';
 import { Avatar } from '@/components/bits';
 import { IconLeft } from '@/components/icons';
 import { LockMark, PageProblem, PageSkeleton } from '@/components/knowledge/parts';
 import { isNotFound } from '@/lib/knowledge';
 import { errorMessage, notify } from '@/lib/notify';
+import { cadenceStatusLabel } from '@/pages/people-cadence';
 
 const CARD = { background: 'var(--oo-panel)', borderRadius: 'var(--oo-r-panel)', boxShadow: 'var(--oo-shadow-panel)' } as const;
 
 function Back() {
-  return <Link href="/" className="oo-back" style={{ color: 'var(--oo-ink-muted)' }} data-testid="link-back-today"><IconLeft size={14} />Today</Link>;
+  return <Link href="/meetings" className="oo-back" style={{ color: 'var(--oo-ink-muted)' }} data-testid="link-back-meetings"><IconLeft size={14} />Meetings</Link>;
 }
 
 export function BriefPage({ eventId }: { eventId: string }) {
@@ -40,7 +41,7 @@ export function BriefPage({ eventId }: { eventId: string }) {
           {isNotFound(q.error) ? (
             <NoBrief text={(q.error as { data?: { error?: string } } | null)?.data?.error ?? 'This meeting has no brief'} />
           ) : (
-            <PageProblem notFound={false} what="brief" onRetry={() => q.refetch()} back={{ href: '/', label: 'Today' }} />
+            <PageProblem notFound={false} what="brief" onRetry={() => q.refetch()} back={{ href: '/meetings', label: 'Meetings' }} />
           )}
         </main>
       ) : (
@@ -62,7 +63,7 @@ export function NextBriefPage() {
           {isNotFound(q.error) ? (
             <NoBrief text="No work meeting needs a brief between now and the end of tomorrow" />
           ) : (
-            <PageProblem notFound={false} what="brief" onRetry={() => q.refetch()} back={{ href: '/', label: 'Today' }} />
+            <PageProblem notFound={false} what="brief" onRetry={() => q.refetch()} back={{ href: '/meetings', label: 'Meetings' }} />
           )}
         </main>
       ) : (
@@ -77,7 +78,7 @@ function NoBrief({ text }: { text: string }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} data-testid="state-no-brief">
       <p className="oo-serif" style={{ margin: 0, fontSize: 22 }}>No brief</p>
       <p className="oo-muted" style={{ margin: 0, fontSize: 14, maxWidth: '64ch' }}>{text.replace(/\.$/, '')}. Personal events, and meetings with nobody or nothing you know, never get one.</p>
-      <div><Link href="/" className="oo-btn oo-btn-outline" data-testid="link-back">Back to Today</Link></div>
+      <div><Link href="/meetings" className="oo-btn oo-btn-outline" data-testid="link-back">Back to Meetings</Link></div>
     </div>
   );
 }
@@ -199,6 +200,16 @@ function Brief({ brief }: { brief: BriefView }) {
             )}
           </Panel>
 
+          {showContext && brief.agenda && brief.agenda.length > 0 && (
+            <Panel id="b-agenda" title="Suggested agenda">
+              <ol style={{ margin: 0, paddingLeft: 20, listStyle: 'decimal', display: 'flex', flexDirection: 'column', gap: 8, fontSize: 15, lineHeight: 1.5 }} data-testid="list-agenda">
+                {brief.agenda.map((l, i) => (
+                  <li key={i}>{l.text}<Cites sources={l.sources} /></li>
+                ))}
+              </ol>
+            </Panel>
+          )}
+
           {showContext && brief.questions && brief.questions.length > 0 && (
             <Panel id="b-ask" title="Questions to open with">
               {brief.questionsNote && <p className="oo-muted" style={{ margin: 0, fontSize: 13 }} data-testid="text-questions-note">{brief.questionsNote}</p>}
@@ -212,12 +223,39 @@ function Brief({ brief }: { brief: BriefView }) {
 
           {(brief.granolaNotes || brief.actions.length > 0) && <AfterMeeting brief={brief} />}
 
+          {brief.earlier.length > 0 && (
+            <Panel id="b-earlier" title="Last time, from Granola">
+              {brief.earlier.map((m) => <EarlierMeeting key={m.eventId} m={m} />)}
+            </Panel>
+          )}
+
+          {brief.threads.length > 0 && (
+            <Panel id="b-threads" title="Recent email and Slack">
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12 }} data-testid="list-threads">
+                {brief.threads.map((t) => (
+                  <li key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 14, lineHeight: 1.5 }} data-testid={'row-thread-' + t.id}>
+                    <span className="oo-muted" style={{ fontSize: 12 }}>
+                      {t.kind === 'slack' ? 'Slack' : 'Email'} · {formatDayMonth(t.occurredAt)}
+                      {t.url && (
+                        <>
+                          {' · '}
+                          <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--oo-ink-muted)', textUnderlineOffset: 2 }} data-testid={'link-thread-' + t.id}>Open</a>
+                        </>
+                      )}
+                    </span>
+                    <span style={{ overflowWrap: 'anywhere' }}>{t.summary}</span>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          )}
+
           <NotesForAfter brief={brief} />
         </main>
 
         <aside style={{ flex: '1 1 300px', maxWidth: 380, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <Side id="b-prom" title="What you promised">
-            {brief.promises.length === 0 ? (
+          <Side id="b-prom" title="What you owe them">
+            {brief.promises.length === 0 && brief.tasks.length === 0 ? (
               <p className="oo-muted" style={{ margin: 0, fontSize: 14 }} data-testid="text-no-promises">Nothing open to anyone on this meeting.</p>
             ) : (
               brief.promises.map((p) => (
@@ -228,6 +266,32 @@ function Brief({ brief }: { brief: BriefView }) {
                   </span>
                 </Link>
               ))
+            )}
+            {brief.tasks.map((t) => (
+              <Link key={t.id} href={'/tasks?task=' + t.id} style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--oo-ink)', textDecoration: 'none' }} data-testid={'link-task-' + t.id}>
+                {t.title}
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--oo-ink-muted)' }}>
+                  {['Task' + (t.personName ? ' for ' + t.personName : ''), t.dueDate ? 'due ' + formatDayMonth(t.dueDate) : null].filter(Boolean).join(' · ')}
+                </span>
+              </Link>
+            ))}
+          </Side>
+
+          <Side id="b-wait" title="What they owe you">
+            {brief.waitingOn.length === 0 ? (
+              <p className="oo-muted" style={{ margin: 0, fontSize: 14 }} data-testid="text-no-waiting">Nothing you are waiting on from them.</p>
+            ) : (
+              brief.waitingOn.map((t) => {
+                const d = Math.max(0, daysBetween(londonDate(t.since), todayLondon()));
+                return (
+                  <Link key={t.id} href={'/tasks?task=' + t.id} style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--oo-ink)', textDecoration: 'none' }} data-testid={'link-waiting-' + t.id}>
+                    {t.title}
+                    <span style={{ display: 'block', fontSize: 12, color: 'var(--oo-ink-muted)' }}>
+                      {[t.personName, d === 0 ? 'since today' : `waiting ${d} ${d === 1 ? 'day' : 'days'}`].filter(Boolean).join(' · ')}
+                    </span>
+                  </Link>
+                );
+              })
             )}
           </Side>
 
@@ -332,6 +396,7 @@ function AttendeeCard({ a, index }: { a: BriefAttendee; index: number }) {
     a.organiser ? 'organiser' : null,
     a.response ? RESPONSE[a.response] ?? a.response : null,
   ].filter(Boolean).join(' · ');
+  const cadence = p?.cadence ? `${p.cadence.label}, ${cadenceStatusLabel(p.cadence).toLowerCase()}` : null;
   const body = (
     <>
       <Avatar name={a.name} id={p?.id ?? a.name} size={36} />
@@ -339,6 +404,14 @@ function AttendeeCard({ a, index }: { a: BriefAttendee; index: number }) {
         <span style={{ fontSize: 14, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{a.name}{p?.confidential && <LockMark />}</span>
         {role && <span style={{ fontSize: 13, color: 'var(--oo-ink-muted)', overflowWrap: 'anywhere' }}>{role}</span>}
         <span style={{ fontSize: 12, color: 'var(--oo-ink-muted)' }}>{meta}</span>
+        {cadence && <span style={{ fontSize: 12, color: 'var(--oo-ink-muted)' }} data-testid={'text-attendee-cadence-' + index}>Cadence: {cadence}</span>}
+        {p && p.facts.length > 0 && (
+          <ul style={{ margin: '4px 0 0', paddingLeft: 16, listStyle: 'disc', display: 'flex', flexDirection: 'column', gap: 3, fontSize: 13, lineHeight: 1.45, color: 'var(--oo-ink-soft)' }} data-testid={'list-attendee-facts-' + index}>
+            {p.facts.map((f) => (
+              <li key={f.id} style={{ overflowWrap: 'anywhere' }}>{f.text}{f.needsCheck && <span className="oo-muted"> (needs a check)</span>}</li>
+            ))}
+          </ul>
+        )}
       </span>
     </>
   );
@@ -347,6 +420,32 @@ function AttendeeCard({ a, index }: { a: BriefAttendee; index: number }) {
     <Link href={'/knowledge/people/' + p.slug} style={box} data-testid={'card-attendee-' + index}>{body}</Link>
   ) : (
     <div style={box} data-testid={'card-attendee-' + index}>{body}</div>
+  );
+}
+
+const EARLIER_CUT = 600;
+
+/** Granola notes from an earlier meeting with the same people, cut short until opened. */
+function EarlierMeeting({ m }: { m: BriefView['earlier'][number] }) {
+  const [open, setOpen] = useState(false);
+  const long = m.notes.length > EARLIER_CUT;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 12, borderBottom: '1px solid var(--oo-line-soft)' }} data-testid={'card-earlier-' + m.eventId}>
+      <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 8, fontSize: 14 }}>
+        <Link href={'/briefs/' + m.eventId} style={{ fontWeight: 600, color: 'var(--oo-ink)', textUnderlineOffset: 2 }} data-testid={'link-earlier-' + m.eventId}>{m.title}</Link>
+        <span className="oo-muted" style={{ fontSize: 12 }}>{formatLong(m.startsAt)}{m.people.length ? ' · with ' + m.people.join(', ') : ''}</span>
+      </span>
+      <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap', maxWidth: '72ch', color: 'var(--oo-ink-soft)', overflowWrap: 'anywhere' }} data-testid={'text-earlier-notes-' + m.eventId}>
+        {open || !long ? m.notes : m.notes.slice(0, EARLIER_CUT).replace(/\s+\S*$/, '') + ' …'}
+      </div>
+      {long && (
+        <div>
+          <button type="button" className="oo-btn oo-btn-ghost" style={{ minHeight: 32, padding: '0 10px', fontSize: 13 }} onClick={() => setOpen(!open)} aria-expanded={open} data-testid={'button-earlier-more-' + m.eventId}>
+            {open ? 'Show less' : 'Show all'}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
