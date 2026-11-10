@@ -100,7 +100,7 @@ export default function TasksPage() {
   const thisWeek = weekStartOf(todayLondon());
 
   const review = useListReview();
-  const reviewCount = review.data?.pending ?? 0;
+  const reviewCount = review.data?.actions ?? 0;
 
   const rows = list.data ?? [];
   const tabs = summary.data?.tabs;
@@ -115,6 +115,7 @@ export default function TasksPage() {
             {reviewCount > 0 && (
               <Link href="/review" className="oo-link" style={{ fontSize: 14 }} data-testid="link-review">Review {reviewCount}</Link>
             )}
+            <Link href="/email" className="oo-link sm:hidden" style={{ fontSize: 14 }} data-testid="link-email">Email</Link>
             <Link href="/meetings" className="oo-link sm:hidden" style={{ fontSize: 14 }} data-testid="link-meetings">Meetings</Link>
           </span>
         </div>

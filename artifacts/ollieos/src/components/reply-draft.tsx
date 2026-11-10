@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetReplyDraftQueryKey,
   getGetTaskQueryKey,
+  getListEmailDraftsQueryKey,
   saveReplyDraftToGmail,
   useGetReplyDraft,
   writeReplyDraft,
@@ -28,7 +29,7 @@ const same = (a: Fields, b: Fields) => a.to === b.to && a.cc === b.cc && a.subje
  * "Draft reply" on an email task. AI writes the reply from the thread and what OllieOS knows;
  * Ollie edits it and saves it as a draft in the Gmail thread. OllieOS never sends email.
  */
-export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** A follow-up from Review (No reply yet): written straight away when there is none yet */ chase?: boolean }) {
+export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** A follow-up from No reply yet: written straight away when there is none yet */ chase?: boolean }) {
   const autoWrite = chase;
   const qc = useQueryClient();
   const saved = useGetReplyDraft(taskId);
@@ -48,7 +49,7 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
     }
   }, [saved.data, draft]);
 
-  // Chase from Review: start writing as soon as it is clear there is no draft yet.
+  // Chase from No reply yet: start writing as soon as it is clear there is no draft yet.
   const [autoStarted, setAutoStarted] = useState(false);
   useEffect(() => {
     if (!autoWrite || autoStarted || saved.isLoading || !saved.data || saved.data.draft) return;
@@ -65,6 +66,7 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
     setFields(fieldsOf(d));
     qc.setQueryData(getGetReplyDraftQueryKey(taskId), { draft: d });
     qc.invalidateQueries({ queryKey: getGetTaskQueryKey(taskId) });
+    qc.invalidateQueries({ queryKey: getListEmailDraftsQueryKey() });
   };
 
   const write = async () => {

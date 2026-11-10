@@ -23,6 +23,7 @@ import LibraryPage from '@/pages/knowledge/library';
 import { BriefPage, NextBriefPage } from '@/pages/brief';
 import MeetingsPage from '@/pages/meetings';
 import ReviewPage from '@/pages/review';
+import EmailPage from '@/pages/email';
 import DigestPage from '@/pages/digest';
 import OAuthConsentPage from '@/pages/oauth-consent';
 import { TriageDialog } from '@/components/triage';
@@ -59,6 +60,7 @@ function Router() {
         <Route path="/triage" component={TriagePage} />
         <Route path="/tasks" component={TasksPage} />
         <Route path="/review" component={ReviewPage} />
+        <Route path="/email" component={EmailPage} />
         <Route path="/ask" component={AskPage} />
         <Route path="/ask/:threadId" component={AskPage} />
         <Route path="/knowledge/inbox" component={KnowledgeInboxPage} />

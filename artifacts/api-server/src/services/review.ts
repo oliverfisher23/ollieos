@@ -1,5 +1,5 @@
 /**
- * The Review page: items waiting for Ollie that are kept out of the Inbox.
+ * Review items: things waiting for Ollie that are kept out of the Inbox (look back actions on the Review page, unanswered emails on the Email page).
  *
  * - Actions a Granola look back found (Assist Part C). Now, Backlog and Waiting on turn an item into
  *   a task with that status (through captureTask, so a task with the same source is never made

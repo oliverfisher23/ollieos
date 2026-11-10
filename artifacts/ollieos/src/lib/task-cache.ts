@@ -7,6 +7,7 @@ import {
   getListGoalsQueryKey,
   getListNoiseRulesQueryKey,
   getListTasksQueryKey,
+  getListEmailDraftsQueryKey,
 } from '@workspace/api-client-react';
 
 /** Invalidates every query a task edit can touch. */
@@ -20,6 +21,7 @@ export function useInvalidateTasks() {
       qc.invalidateQueries({ queryKey: getGetHomeQueryKey() });
       qc.invalidateQueries({ queryKey: getListNoiseRulesQueryKey() });
       qc.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+      qc.invalidateQueries({ queryKey: getListEmailDraftsQueryKey() });
     },
     [qc],
   );

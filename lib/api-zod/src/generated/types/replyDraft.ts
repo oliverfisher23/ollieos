@@ -26,5 +26,10 @@ export interface ReplyDraft {
      * @nullable
      */
   gmailUrl: string | null;
+  /**
+     * When a Gmail check saw an email sent in the thread after this draft
+     * @nullable
+     */
+  sentAt: Date | null;
   updatedAt: Date;
 }

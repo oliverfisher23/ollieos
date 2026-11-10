@@ -891,7 +891,38 @@ export interface ReplyDraft {
      * @nullable
      */
   gmailUrl: string | null;
+  /**
+     * When a Gmail check saw an email sent in the thread after this draft
+     * @nullable
+     */
+  sentAt: string | null;
   updatedAt: string;
+}
+
+export type EmailDraftItemTask = {
+  id: number;
+  title: string;
+  status: TaskStatus;
+  /** @nullable */
+  fromName: string | null;
+  /** @nullable */
+  fromAddress: string | null;
+  /** @nullable */
+  sourceSubject: string | null;
+  /** @nullable */
+  sourceUrl: string | null;
+  confidential: boolean;
+};
+
+export interface EmailDraftItem {
+  draft: ReplyDraft;
+  task: EmailDraftItemTask;
+  /** A follow-up to an email nobody answered, rather than a reply */
+  chase: boolean;
+}
+
+export interface EmailDraftList {
+  items: EmailDraftItem[];
 }
 
 export interface ReplyDraftResult {

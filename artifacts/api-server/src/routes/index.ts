@@ -13,6 +13,7 @@ import libraryRouter from "./library";
 import briefsRouter from "./briefs";
 import connectorsRouter from "./connectors";
 import reviewRouter from "./review";
+import emailRouter from "./email";
 import researchRouter from "./research";
 import ingestRouter from "./ingest";
 import { oauthConsentRouter, oauthPublicRouter } from "../oauth/routes";
@@ -42,6 +43,7 @@ router.use(libraryRouter);
 router.use(briefsRouter);
 router.use(connectorsRouter);
 router.use(reviewRouter);
+router.use(emailRouter);
 router.use(researchRouter);
 router.use(oauthConsentRouter);
 

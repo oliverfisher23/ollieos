@@ -1203,6 +1203,7 @@ export const GetReplyDraftResponse = zod.object({
   "canSaveToGmail": zod.boolean().describe('False when the email did not come from Gmail directly, so there is no thread to save into'),
   "savedAt": zod.coerce.date().nullable().describe('When it was last saved to Gmail'),
   "gmailUrl": zod.string().nullable().describe('Opens the thread in Gmail, with the draft in it'),
+  "sentAt": zod.coerce.date().nullable().describe('When a Gmail check saw an email sent in the thread after this draft'),
   "updatedAt": zod.coerce.date()
 }),zod.null()])
 })
@@ -1224,6 +1225,7 @@ export const WriteReplyDraftResponse = zod.object({
   "canSaveToGmail": zod.boolean().describe('False when the email did not come from Gmail directly, so there is no thread to save into'),
   "savedAt": zod.coerce.date().nullable().describe('When it was last saved to Gmail'),
   "gmailUrl": zod.string().nullable().describe('Opens the thread in Gmail, with the draft in it'),
+  "sentAt": zod.coerce.date().nullable().describe('When a Gmail check saw an email sent in the thread after this draft'),
   "updatedAt": zod.coerce.date()
 })
 
@@ -1261,7 +1263,61 @@ export const SaveReplyDraftToGmailResponse = zod.object({
   "canSaveToGmail": zod.boolean().describe('False when the email did not come from Gmail directly, so there is no thread to save into'),
   "savedAt": zod.coerce.date().nullable().describe('When it was last saved to Gmail'),
   "gmailUrl": zod.string().nullable().describe('Opens the thread in Gmail, with the draft in it'),
+  "sentAt": zod.coerce.date().nullable().describe('When a Gmail check saw an email sent in the thread after this draft'),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Takes the draft off the Email page's Drafts list. The draft stays on its task.
+ */
+export const DismissEmailDraftParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DismissEmailDraftResponse = zod.object({
+  "taskId": zod.int(),
+  "to": zod.string().describe('Comma-separated addresses'),
+  "cc": zod.string().describe('Comma-separated addresses'),
+  "subject": zod.string(),
+  "body": zod.string(),
+  "canSaveToGmail": zod.boolean().describe('False when the email did not come from Gmail directly, so there is no thread to save into'),
+  "savedAt": zod.coerce.date().nullable().describe('When it was last saved to Gmail'),
+  "gmailUrl": zod.string().nullable().describe('Opens the thread in Gmail, with the draft in it'),
+  "sentAt": zod.coerce.date().nullable().describe('When a Gmail check saw an email sent in the thread after this draft'),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Reply and chase drafts still to go, newest first
+ */
+export const ListEmailDraftsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "draft": zod.object({
+  "taskId": zod.int(),
+  "to": zod.string().describe('Comma-separated addresses'),
+  "cc": zod.string().describe('Comma-separated addresses'),
+  "subject": zod.string(),
+  "body": zod.string(),
+  "canSaveToGmail": zod.boolean().describe('False when the email did not come from Gmail directly, so there is no thread to save into'),
+  "savedAt": zod.coerce.date().nullable().describe('When it was last saved to Gmail'),
+  "gmailUrl": zod.string().nullable().describe('Opens the thread in Gmail, with the draft in it'),
+  "sentAt": zod.coerce.date().nullable().describe('When a Gmail check saw an email sent in the thread after this draft'),
+  "updatedAt": zod.coerce.date()
+}),
+  "task": zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "confidential": zod.boolean()
+}),
+  "chase": zod.boolean().describe('A follow-up to an email nobody answered, rather than a reply')
+}))
 })
 
 

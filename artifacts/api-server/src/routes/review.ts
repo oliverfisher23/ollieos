@@ -1,4 +1,4 @@
-/** The Review page: actions from a Granola look back and unanswered emails, waiting for Ollie. Ollie only. */
+/** Review items: actions from a Granola look back (Review page) and unanswered emails (Email page, No reply yet). Ollie only. */
 import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { handle } from "../lib/handle";

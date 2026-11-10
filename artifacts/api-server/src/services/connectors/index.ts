@@ -215,6 +215,14 @@ async function readGmailRun(now: Date) {
     logger.warn({ err }, "No reply yet could not be brought up to date");
     noReply = { no_reply_failed: 1 };
   }
+  // Drafts on the Email page that Ollie has since sent leave the list.
+  try {
+    const { checkSentDrafts } = await import("../email");
+    const sent = await checkSentDrafts();
+    if (sent) noReply.drafts_sent = sent;
+  } catch (err) {
+    logger.warn({ err }, "Could not check drafts for sent emails");
+  }
   return { found: r.found, account: r.account, counts: { ...c, left_out: r.leftOut, more: r.more ? 1 : 0, ...noReply } };
 }
 

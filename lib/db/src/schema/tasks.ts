@@ -129,6 +129,10 @@ export const replyDraftsTable = pgTable("reply_drafts", {
   account: text("account"),
   gmailDraftId: text("gmail_draft_id"),
   savedAt: timestamp("saved_at", { withTimezone: true }),
+  /** When a Gmail check saw Ollie send an email in the thread after this draft was written */
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  /** When Ollie took it off the Drafts list on the Email page; the draft stays on the task */
+  dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()

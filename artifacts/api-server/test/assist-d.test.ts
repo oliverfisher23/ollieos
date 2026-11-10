@@ -5,8 +5,9 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { db, peopleTable, reviewItemsTable, tasksTable } from "@workspace/db";
+import { db, peopleTable, replyDraftsTable, reviewItemsTable, tasksTable } from "@workspace/db";
 import { afterWorkingDays, refreshNoReply, waitForNoReplyScan } from "../src/services/connectors/noReply";
+import { checkSentDrafts } from "../src/services/email";
 import type { NoReplyCandidate, NoReplyVerdict } from "../src/services/connectors/noReplyJudge";
 import { api, OLLIE, useServer } from "./harness";
 import { person } from "./helpers";
@@ -359,5 +360,58 @@ describe("No reply yet", () => {
     await waitForNoReplyScan();
     const done = (await api("review/no-reply")).body;
     expect(done).toMatchObject({ status: "done", done: 25, pending: 2 });
+  });
+});
+
+describe("Email page, Drafts", () => {
+  async function chasedWithDraft() {
+    mixedSentMail();
+    await scan();
+    const item = (await pendingNoReply()).find((i) => i.text.startsWith("Sam"))!;
+    const r = await api("review/decide", { body: { ids: [item.id], action: "waiting" } });
+    const taskId = r.body.items[0].taskId as number;
+    expect((await api(`tasks/${taskId}/reply-draft`, { body: {} })).status).toBe(200);
+    return taskId;
+  }
+  const drafts = async () => {
+    const r = await api("email/drafts");
+    expect(r.status).toBe(200);
+    return r.body.items as Record<string, any>[];
+  };
+
+  it("lists drafts still to go, and Done takes one off until a new draft is written", async () => {
+    const taskId = await chasedWithDraft();
+    const list = await drafts();
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ chase: true, task: { id: taskId, status: "waiting" }, draft: { subject: "Re: Contract", sentAt: null } });
+
+    expect((await api(`tasks/${taskId}/reply-draft/dismiss`, { body: {} })).status).toBe(200);
+    expect(await drafts()).toHaveLength(0);
+    // The draft stays on the task.
+    expect((await api(`tasks/${taskId}/reply-draft`)).body.draft).not.toBeNull();
+
+    expect((await api(`tasks/${taskId}/reply-draft`, { body: {} })).status).toBe(200);
+    expect(await drafts()).toHaveLength(1);
+  });
+
+  it("a draft leaves the list once an email is sent in its thread after it, or its task closes", async () => {
+    const taskId = await chasedWithDraft();
+    await db.update(replyDraftsTable).set({ updatedAt: ago(1) }).where(eq(replyDraftsTable.taskId, taskId));
+
+    // Nothing sent since the draft: it stays.
+    expect(await checkSentDrafts()).toBe(0);
+    expect(await drafts()).toHaveLength(1);
+
+    threads.contract.push({ id: "c3", from: ME, to: "Sam Lee <sam@client.com>", subject: "Re: Contract", at: new Date(), text: "Just checking in on the contract." });
+    expect(await checkSentDrafts()).toBe(1);
+    expect(await drafts()).toHaveLength(0);
+    const [row] = await db.select().from(replyDraftsTable).where(eq(replyDraftsTable.taskId, taskId));
+    expect(row.sentAt).not.toBeNull();
+
+    // A closed task takes its draft off too.
+    expect((await api(`tasks/${taskId}/reply-draft`, { body: {} })).status).toBe(200);
+    expect(await drafts()).toHaveLength(1);
+    await db.update(tasksTable).set({ status: "done" }).where(eq(tasksTable.id, taskId));
+    expect(await drafts()).toHaveLength(0);
   });
 });

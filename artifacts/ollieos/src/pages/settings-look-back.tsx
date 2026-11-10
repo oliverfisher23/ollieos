@@ -180,7 +180,7 @@ export function LookBackPanel() {
               </>
             )}
             {lb.reviewPending > 0 && (
-              <Link href="/review?tab=meetings" className="oo-btn oo-btn-outline" data-testid="link-look-back-review">
+              <Link href="/review" className="oo-btn oo-btn-outline" data-testid="link-look-back-review">
                 Review {n(lb.reviewPending, 'action')}
               </Link>
             )}

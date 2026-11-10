@@ -169,7 +169,8 @@ function runLine(key: string, r: ConnectorRun): string {
     c.noise ? `${c.noise} to Noise` : '',
     c.noise_rule ? `${c.noise_rule} skipped by your noise rules` : '',
     c.left_out ? `${c.left_out} left out (${key === 'gmail' ? 'newsletters, notifications and invites' : 'bots and system messages'})` : '',
-    c.no_reply_found ? `${plural(c.no_reply_found, 'unanswered email')} to Review` : '',
+    c.no_reply_found ? `${plural(c.no_reply_found, 'unanswered email')} to Email, No reply yet` : '',
+    c.drafts_sent ? `${plural(c.drafts_sent, 'draft')} sent, so off your Drafts list` : '',
     c.no_reply_failed ? 'No reply yet could not be updated; the next check tries again' : '',
   ].filter(Boolean);
   const more = c.more ? ' More is waiting; the next check carries on.' : '';

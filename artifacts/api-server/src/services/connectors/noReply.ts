@@ -10,7 +10,7 @@
  * mailing list mail in it, every recipient is an automated address, it is a calendar reply, Ollie
  * only wrote to himself, or his last message is a short thank-you. Haiku then checks each one
  * that is left for whether he asked for something or expected an answer, and why. Found ones wait
- * on the Review page (review_items, kind no_reply) for Chase, Already handled or Dropped.
+ * on the Email page, No reply yet (review_items, kind no_reply) for Chase, Already handled or Dropped.
  */
 import { and, eq, ne, sql } from "drizzle-orm";
 import { appSettingsTable, db, peopleTable, reviewItemsTable, tasksTable } from "@workspace/db";
@@ -102,7 +102,7 @@ export interface NoReplyScanView {
   error: string | null;
   /** The last time a Gmail check brought the list up to date */
   refreshedAt: string | null;
-  /** Unanswered emails waiting on the Review page */
+  /** Unanswered emails waiting on the Email page, No reply yet */
   pending: number;
 }
 
@@ -152,7 +152,7 @@ export function afterWorkingDays(at: Date, days = WAIT_WORKING_DAYS): Date {
 
 /* ---------- Reading Gmail ---------- */
 
-interface MetaMessage {
+export interface MetaMessage {
   id: string;
   at: Date;
   labels: Set<string>;
@@ -176,7 +176,7 @@ interface RawMessage {
 }
 
 /** One thread's messages with just their headers, oldest first, or null when the thread is gone. */
-async function threadMeta(threadId: string): Promise<MetaMessage[] | null> {
+export async function threadMeta(threadId: string): Promise<MetaMessage[] | null> {
   const q = new URLSearchParams({ format: "metadata" });
   for (const h of HEADERS) q.append("metadataHeaders", h);
   const body = await proxyJsonOrNull(CONNECTOR, NAME, `/gmail/v1/users/me/threads/${encodeURIComponent(threadId)}?${q}`);
@@ -350,7 +350,7 @@ async function settle(threadId: string, l: Look, w: Work): Promise<Candidate | n
 const named = (list: Address[], me: Set<string>) =>
   list.filter((a): a is { name: string | null; email: string } => !!a.email && !me.has(a.email));
 
-/** Reads the candidates' threads, has AI check them, and puts the ones that expected an answer on Review. */
+/** Reads the candidates' threads, has AI check them, and puts the ones that expected an answer on No reply yet. */
 async function checkCandidates(cands: Candidate[], w: Work): Promise<void> {
   if (!cands.length) return;
   const ready: { c: Candidate; input: NoReplyCandidate }[] = [];

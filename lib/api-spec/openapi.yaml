@@ -620,6 +620,44 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /tasks/{id}/reply-draft/dismiss:
+    post:
+      operationId: dismissEmailDraft
+      tags: [email]
+      summary: Takes the draft off the Email page's Drafts list. The draft stays on its task.
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: The draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReplyDraft"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: No draft for that task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /email/drafts:
+    get:
+      operationId: listEmailDrafts
+      tags: [email]
+      summary: Reply and chase drafts still to go, newest first
+      responses:
+        "200":
+          description: The drafts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailDraftList"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
   /tasks/{id}/chase-line:
     get:
       operationId: getTaskChaseLine
@@ -3203,9 +3241,38 @@ components:
         label:
           type: string
 
+    EmailDraftList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmailDraftItem"
+    EmailDraftItem:
+      type: object
+      required: [draft, task, chase]
+      properties:
+        draft:
+          $ref: "#/components/schemas/ReplyDraft"
+        task:
+          type: object
+          required: [id, title, status, fromName, fromAddress, sourceSubject, sourceUrl, confidential]
+          properties:
+            id: { type: integer }
+            title: { type: string }
+            status: { $ref: "#/components/schemas/TaskStatus" }
+            fromName: { type: [string, "null"] }
+            fromAddress: { type: [string, "null"] }
+            sourceSubject: { type: [string, "null"] }
+            sourceUrl: { type: [string, "null"] }
+            confidential: { type: boolean }
+        chase:
+          type: boolean
+          description: A follow-up to an email nobody answered, rather than a reply
     ReplyDraft:
       type: object
-      required: [taskId, to, cc, subject, body, canSaveToGmail, savedAt, gmailUrl, updatedAt]
+      required: [taskId, to, cc, subject, body, canSaveToGmail, savedAt, gmailUrl, sentAt, updatedAt]
       properties:
         taskId: { type: integer }
         to: { type: string, description: Comma-separated addresses }
@@ -3222,6 +3289,10 @@ components:
         gmailUrl:
           type: [string, "null"]
           description: Opens the thread in Gmail, with the draft in it
+        sentAt:
+          type: [string, "null"]
+          format: date-time
+          description: When a Gmail check saw an email sent in the thread after this draft
         updatedAt:
           type: string
           format: date-time

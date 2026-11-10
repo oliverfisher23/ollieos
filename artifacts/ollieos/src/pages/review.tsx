@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import { useListReview, type ReviewDecideInputAction, type ReviewItem } from '@workspace/api-client-react';
 import { formatDayMonth, formatLong } from '@workspace/shared';
@@ -6,7 +6,6 @@ import { Skel } from '@/components/bits';
 import { PageProblem } from '@/components/knowledge/parts';
 import { NOBODY, OWN, WaitingPicker } from '@/components/waiting-picker';
 import { n, useReviewDecide } from '@/lib/review';
-import { NoReplyTab } from '@/pages/review-no-reply';
 
 type Action = ReviewDecideInputAction;
 
@@ -41,24 +40,18 @@ const SUGGESTED: Record<string, string> = {
   waiting: 'Looks like you are waiting on someone',
 };
 
-type Tab = 'meetings' | 'no-reply';
-
 /**
- * Review: things kept out of the Inbox so weeks of old items do not flood it. Actions an earlier
- * Granola look back found, and emails Ollie sent that nobody answered. Ollie sorts each one, or
- * several at once.
+ * Review: actions an earlier Granola look back found, kept out of the Inbox so weeks of old items
+ * do not flood it. Ollie sorts each one, or several at once. Unanswered emails moved to the Email page.
  */
 export default function ReviewPage() {
   const q = useListReview();
   const search = useSearch();
   const [, navigate] = useLocation();
-  const asked = new URLSearchParams(search).get('tab');
-  // With nothing from meetings to review, open on No reply yet.
-  const tab: Tab = asked === 'no-reply' || asked === 'meetings' ? asked : q.data && q.data.actions === 0 ? 'no-reply' : 'meetings';
-  const tabs: { id: Tab; label: string; count: number | undefined }[] = [
-    { id: 'meetings', label: 'From meetings', count: q.data?.actions },
-    { id: 'no-reply', label: 'No reply yet', count: q.data?.noReply },
-  ];
+  const movedToEmail = new URLSearchParams(search).get('tab') === 'no-reply';
+  useEffect(() => {
+    if (movedToEmail) navigate('/email?tab=no-reply', { replace: true });
+  }, [movedToEmail, navigate]);
 
   return (
     <main className="oo-panel oo-kmain oo-fade-in" data-testid="page-review">
@@ -66,25 +59,15 @@ export default function ReviewPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
           <h1 className="oo-h1">Review</h1>
           <p className="oo-muted" style={{ margin: 0, fontSize: 14, maxWidth: '64ch', lineHeight: 1.5 }}>
-            Things kept out of your Inbox so they do not flood it: actions from your older Granola notes, and emails you sent that nobody answered.
+            Actions from your older Granola notes, kept out of your Inbox so they do not flood it. Emails nobody answered are on{' '}
+            <Link href="/email?tab=no-reply" className="oo-link">Email</Link>.
           </p>
         </div>
-        <span className="oo-serif" style={{ fontSize: 22 }} data-testid="text-review-count">{q.data ? `${q.data.pending} to review` : '…'}</span>
+        <span className="oo-serif" style={{ fontSize: 22 }} data-testid="text-review-count">{q.data ? `${q.data.actions} to review` : '…'}</span>
       </div>
 
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0" style={{ marginTop: -6 }}>
-        <div role="tablist" aria-label="Review type" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--oo-line)', minWidth: 'max-content' }}>
-          {tabs.map((t) => (
-            <button key={t.id} type="button" role="tab" className="oo-tab" aria-selected={t.id === tab}
-              onClick={() => navigate(`/review?tab=${t.id}`, { replace: true })} data-testid={'tab-review-' + t.id}>
-              {t.label} <span className="oo-count oo-num">{t.count ?? ''}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div role="tabpanel" aria-label={tabs.find((t) => t.id === tab)!.label} style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: -6 }}>
-        {tab === 'meetings' ? <ActionsTab /> : <NoReplyTab />}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <ActionsTab />
       </div>
     </main>
   );
@@ -106,7 +89,7 @@ function ActionsTab() {
   return (
     <>
       <p className="oo-muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-        Actions a look back at your older Granola notes found. Make each one a task, or mark it as already done or dropped. Start a look back from{' '}
+        Make each one a task, or mark it as already done or dropped. Start a look back from{' '}
         <Link href="/settings/connectors" className="oo-link">Settings, Connectors</Link>.
       </p>
       {q.isLoading ? (

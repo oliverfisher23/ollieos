@@ -26,6 +26,8 @@ export interface ReplyDraftView {
   canSaveToGmail: boolean;
   savedAt: Date | null;
   gmailUrl: string | null;
+  /** When a Gmail check saw an email sent in the thread after this draft */
+  sentAt: Date | null;
   updatedAt: Date;
 }
 
@@ -33,7 +35,7 @@ export interface ReplyDraftView {
 const THREAD_MESSAGES = 8;
 const MESSAGE_CHARS = 2500;
 
-function view(r: ReplyDraftRow): ReplyDraftView {
+export function view(r: ReplyDraftRow): ReplyDraftView {
   return {
     taskId: r.taskId,
     to: r.toLine,
@@ -43,6 +45,7 @@ function view(r: ReplyDraftRow): ReplyDraftView {
     canSaveToGmail: !!r.threadId,
     savedAt: r.savedAt,
     gmailUrl: r.threadId && r.gmailDraftId ? gmailThreadUrl(r.account, r.threadId) : null,
+    sentAt: r.sentAt,
     updatedAt: r.updatedAt,
   };
 }
@@ -227,6 +230,9 @@ export async function writeReplyDraft(id: number, actor: string): Promise<ReplyD
     references: env.references,
     account: thread?.account ?? null,
     savedAt: null,
+    // A new draft is back on the Email page's Drafts list.
+    sentAt: null,
+    dismissedAt: null,
   };
   // A rewrite keeps the Gmail draft id, so the next save replaces the same draft.
   const [row] = await db

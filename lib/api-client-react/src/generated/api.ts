@@ -60,6 +60,7 @@ import type {
   DigestListItem,
   DocumentInput,
   DocumentUpdate,
+  EmailDraftList,
   ErrorEnvelope,
   ErrorResponse,
   Fact,
@@ -2318,6 +2319,181 @@ export const useSaveReplyDraftToGmail = <TError = ErrorType<ErrorEnvelope | NotA
       > => {
       return useMutation(getSaveReplyDraftToGmailMutationOptions(options), queryClient);
     }
+
+export const getDismissEmailDraftUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/reply-draft/dismiss`
+}
+
+/**
+ * @summary Takes the draft off the Email page's Drafts list. The draft stays on its task.
+ */
+export const dismissEmailDraft = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ReplyDraft> => {
+
+  return customFetch<ReplyDraft>(getDismissEmailDraftUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDismissEmailDraftMutationKey = () => ['dismissEmailDraft'] as const;
+
+export const getDismissEmailDraftMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissEmailDraft>>, TError,DismissEmailDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissEmailDraft>>, TError,DismissEmailDraftMutationVariables, TContext> => {
+
+const mutationKey = getDismissEmailDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissEmailDraft>>, DismissEmailDraftMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  dismissEmailDraft(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissEmailDraftMutationResult = NonNullable<Awaited<ReturnType<typeof dismissEmailDraft>>>
+
+    export type DismissEmailDraftMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+    export type DismissEmailDraftMutationVariables = {id: number}
+
+    /**
+ * @summary Takes the draft off the Email page's Drafts list. The draft stays on its task.
+ */
+export const useDismissEmailDraft = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissEmailDraft>>, TError,DismissEmailDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof dismissEmailDraft>>,
+        TError,
+        DismissEmailDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDismissEmailDraftMutationOptions(options), queryClient);
+    }
+
+export const getListEmailDraftsUrl = () => {
+
+
+
+
+  return `/api/email/drafts`
+}
+
+/**
+ * @summary Reply and chase drafts still to go, newest first
+ */
+export const listEmailDrafts = async ( options?: Parameters<typeof customFetch>[1]): Promise<EmailDraftList> => {
+
+  return customFetch<EmailDraftList>(getListEmailDraftsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEmailDraftsQueryKey = () => {
+    return [
+    `/api/email/drafts`
+    ] as const;
+    }
+
+
+export const getListEmailDraftsQueryOptions = <TData = Awaited<ReturnType<typeof listEmailDrafts>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailDrafts>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEmailDraftsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEmailDrafts>>> = ({ signal }) => listEmailDrafts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEmailDrafts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListEmailDraftsQueryResult = NonNullable<Awaited<ReturnType<typeof listEmailDrafts>>>
+export type ListEmailDraftsQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListEmailDrafts<TData = Awaited<ReturnType<typeof listEmailDrafts>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailDrafts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listEmailDrafts>>,
+          TError,
+          Awaited<ReturnType<typeof listEmailDrafts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListEmailDrafts<TData = Awaited<ReturnType<typeof listEmailDrafts>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailDrafts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listEmailDrafts>>,
+          TError,
+          Awaited<ReturnType<typeof listEmailDrafts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListEmailDrafts<TData = Awaited<ReturnType<typeof listEmailDrafts>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailDrafts>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Reply and chase drafts still to go, newest first
+ */
+
+export function useListEmailDrafts<TData = Awaited<ReturnType<typeof listEmailDrafts>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listEmailDrafts>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListEmailDraftsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetTaskChaseLineUrl = (id: number,) => {
 
