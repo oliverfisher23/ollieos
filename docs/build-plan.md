@@ -1026,3 +1026,30 @@ Ollie asked for a graph of everything in OllieOS that Claude, ChatGPT and Gemini
   - *ChatGPT and Gemini:* steps on Settings, Connectors under "Connecting ChatGPT or Gemini". OpenAI's help lists custom connectors for Business, Enterprise and Edu, so the ChatGPT steps are written for "if your plan has Developer mode". The Gemini app cannot connect; Gemini CLI can.
   - *Left out:* filtering the map by single relationship types (AI tools can), and reading old email and meetings for relationships.
   - Checked with one real read, which proposed the three relationships a placeholder update stated plainly (supplier, investor, reports to) and nothing else.
+
+### Part H: Strategy and ideas (asked for 10th November 2026)
+
+Ollie asked for a Strategy page for context about his strategy, plus brainstorms and ideas to come back to. Choices made: strategy in sections he names, Claude reads both and can add ideas, ideas come back on Home and in the morning digest.
+
+- **Where:** Strategy in the main menu between Goals and Knowledge (`/strategy`). The phone menu is full, so on a phone it opens from a link on Goals and from Home.
+- **Strategy, in sections:** Ollie adds sections and names them himself (for example "Where we play", "How we win", "What we won't do"). Each holds text edited in place, shows when it was last changed, can be reordered, renamed or deleted (with Undo), and can link to the goals and projects it drives. Starts empty with a short prompt, no example sections.
+- **Ideas and brainstorms:** a quick box to jot one down (a title, and notes that can hold a whole brainstorm). Each idea is:
+  - *New*
+  - *Come back to*, with a date
+  - *Taken forward*, turned into a task or project in one click and linked to it
+  - *Dropped*
+
+  Tabs for each, newest first, searchable, with an optional link to a goal or project. Shows who added it (Ollie, Claude or a Cowork session).
+- **Coming back:** on its date, a "come back to" idea shows on Home ("Ideas to come back to") and in that morning's digest, until Ollie moves it on, picks a new date or drops it.
+- **Claude and other connected AIs:**
+  - New read tool `get_strategy` returns the sections and open ideas. Strategy and ideas are also part of `search`, `fetch` and Ask.
+  - New write tool `add_idea` puts an idea straight onto the list as New, marked "From Claude", like tasks. It is not knowledge, so it does not go through the Knowledge Inbox. Claude cannot edit or delete sections or ideas.
+  - Each section and idea has the usual AI access and confidential switches. Hidden ones, and ideas linked to a hidden project or goal, never reach an AI.
+  - The Cowork instructions mention `add_idea` for ideas that come up in a session.
+- **Not included:** strategy and ideas on the knowledge map; version history of sections; reading email, meetings or documents for ideas.
+- **Checked by:**
+  - A section added, edited and reordered keeps its order and shows its last change.
+  - An idea set to come back today shows on Home and in the digest.
+  - Taking an idea forward creates the task or project and links back to it.
+  - Claude's `add_idea` lands as New, marked From Claude.
+  - A confidential section or idea never reaches Claude.
