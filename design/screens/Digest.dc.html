@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>OllieOS Daily digest</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+body{margin:0;background:#f4f1ea}
+a{color:#1b1d22}a:hover{color:#55524c}
+button:focus-visible,a:focus-visible{outline:2px solid #1b1d22;outline-offset:2px}
+</style>
+</helmet>
+<div style="min-height: 960px; box-sizing: border-box; padding: 24px; font-family: 'Google Sans', 'DM Sans', system-ui, sans-serif; color: #1b1d22; background: #f4f1ea;">
+  <div style="max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;">
+
+    <a href="Main.dc.html" style="font-size: 13px; color: #55524c; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"></path></svg>Home</a>
+
+    <article style="background: #ffffff; border-radius: 22px; padding: 36px 40px; display: flex; flex-direction: column; gap: 26px;">
+      <header style="display: flex; flex-direction: column; gap: 6px;">
+        <p style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 18px; color: #55524c;">Tuesday, 10th November · since 18:00 yesterday</p>
+        <h1 style="margin: 0; font-size: 30px; font-weight: 600; letter-spacing: -0.015em;">What changed</h1>
+        <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #2b2925;">Six new things to triage, PwC is the deadline to watch, and two partners have gone quiet.</p>
+      </header>
+
+      <section aria-labelledby="dg-act" style="display: flex; flex-direction: column; gap: 10px;">
+        <h2 id="dg-act" style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;">Needs you</h2>
+        <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.5;">
+          <li><a href="Main.dc.html">6 new items in Inbox</a> (4 email, 1 meeting, 1 Slack)</li>
+          <li>PwC contract must be in place by Friday 13th November; Ely has not replied on budget</li>
+          <li><a href="KnowledgeInbox.dc.html">5 knowledge suggestions</a> waiting for approval, including 1 conflict</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="dg-mv" style="display: flex; flex-direction: column; gap: 10px;">
+        <h2 id="dg-mv" style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;">Moved</h2>
+        <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.5;">
+          <li>Done: Builder.io credentials rotated</li>
+          <li>Gp Capt Martin Adcock replied to Tony on RAFAC: he will look and come back</li>
+          <li>You offered Melanie Prangnell three dates for the MOD cadets demo: 25th November, 3rd or 8th December</li>
+          <li>New person: Ross Alden, Delivery Partner Manager at the MOD</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="dg-quiet" style="display: flex; flex-direction: column; gap: 10px;">
+        <h2 id="dg-quiet" style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;">Gone quiet</h2>
+        <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.5;">
+          <li><a href="People.dc.html">Dana Stephenson, Riipen</a>: no contact logged since 31st July</li>
+          <li><a href="People.dc.html">Nic Luke, BT</a>: no contact logged since before 15th September</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="dg-today" style="display: flex; flex-direction: column; gap: 10px;">
+        <h2 id="dg-today" style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;">Today</h2>
+        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 15px;">
+          <div style="display: flex; gap: 14px;"><span style="flex: none; width: 48px; font-variant-numeric: tabular-nums; color: #55524c;">13:30</span><span>Weekly Leadership Call</span></div>
+          <div style="display: flex; gap: 14px;"><span style="flex: none; width: 48px; font-variant-numeric: tabular-nums; color: #55524c;">16:30</span><span>ADS Skills Pathway weekly <a href="MeetingBrief.dc.html" style="font-size: 13px;">Brief</a></span></div>
+        </div>
+      </section>
+
+      <footer style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding-top: 18px; border-top: 1px solid #f0ede6;">
+        <span style="font-size: 13px; color: #55524c;">{{deliveryNote}}</span>
+        <button type="button" role="switch" aria-checked="{{emailOn}}" onClick="{{toggleEmail}}" style="font: inherit; font-size: 13px; display: inline-flex; align-items: center; gap: 10px; padding: 6px 6px 6px 12px; border-radius: 999px; border: 1px solid #e3dfd6; background: #ffffff; cursor: pointer;">Email me this at 07:45<span aria-hidden="true" style="width: 40px; height: 24px; border-radius: 999px; position: relative; display: inline-block; {{track}}"><span style="position: absolute; top: 3px; width: 18px; height: 18px; border-radius: 999px; background: #ffffff; {{knob}}"></span></span></button>
+      </footer>
+    </article>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":960}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { email: false }; }
+  renderVals() {
+    const on = this.state.email;
+    return {
+      emailOn: on ? 'true' : 'false',
+      track: on ? 'background: #1b1d22;' : 'background: #d6d2c8;',
+      knob: on ? 'left: 19px;' : 'left: 3px;',
+      deliveryNote: on ? 'Shown on Home and emailed each weekday at 07:45' : 'Shown on Home each morning after the first sweep',
+      toggleEmail: () => this.setState({ email: !on })
+    };
+  }
+}
+</script>
+</body>
+</html>

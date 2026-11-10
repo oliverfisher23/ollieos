@@ -3,10 +3,10 @@
 | | |
 |---|---|
 | Owner | Ollie Fisher |
-| Version | 2.1, 9th November 2026 (adds the Home redesign, Ask, calendar, promises, sweep cursor and phone screens) |
+| Version | 2.2, 9th November 2026 (adds nine features, each with its own PRD in `docs/features/`) |
 | Builder | Replit Agent |
 | Where | Ollie's personal Replit account, not the Springpod workspace |
-| Design | `design/screens/` (9 screens) and `docs/DESIGN.md`. DESIGN.md is the visual source of truth |
+| Design | `design/screens/` (16 screens) and `docs/DESIGN.md`. DESIGN.md is the visual source of truth |
 | Status | Ready for build. Open decisions in section 17 |
 
 ---
@@ -316,6 +316,26 @@ Claude exports Ollie's project areas and people from its memory as JSON matching
 
 ---
 
+## 14a. Feature PRDs
+
+Each feature below has its own PRD in `docs/features/`. Where a feature PRD and this document disagree, the feature PRD wins for that feature.
+
+| # | Feature | Screen | Milestone |
+|---|---|---|---|
+| 01 | Knowledge Inbox: AI proposes facts, Ollie approves | `KnowledgeInbox.dc.html` | 4 |
+| 02 | Stale and conflicting facts | `KnowledgeInbox.dc.html` | 4 |
+| 03 | Meeting briefs | `MeetingBrief.dc.html` | 5 |
+| 04 | Goals | `Goals.dc.html` | 3 |
+| 05 | Relationship cadence | `People.dc.html` | 3 |
+| 06 | Document index | `Library.dc.html` | 3 |
+| 07 | Playbooks | `Library.dc.html` | 3 |
+| 08 | Daily digest | `Digest.dc.html` | 5 |
+| 09 | Voice capture | `PhoneVoice.dc.html` | 6 |
+
+Main navigation becomes: Home, Tasks, People, Goals, Knowledge (with Knowledge Inbox and Library inside), Settings.
+
+---
+
 ## 15. Build order
 
 Work in milestones. At the end of each, show the result and wait for Ollie's approval.
@@ -325,10 +345,10 @@ Work in milestones. At the end of each, show the result and wait for Ollie's app
 | 0 | Plan | Read this PRD and the prototype; write `docs/build-plan.md`. No code |
 | 1 | Foundation | Auth with allowlist, full schema and migrations, app shell, Home layout with real data (Do next, Inbox count, Waiting on, Promises, Done), Tasks screen, task detail panel, quick add with inline syntax |
 | 2 | Triage | Triage mode with four actions, shortcuts and undo, Waiting on with Chase, Done with weekly copy, Noise with restore, snooze |
-| 3 | Knowledge and Ask | Projects, people, organisations, decisions and notes pages, linking, in-place editing, search, Ask OllieOS with citations |
-| 4 | Access control | Confidential and AI access settings, inheritance, approval queue, AI read log |
-| 5 | MCP and ingest | MCP server with OAuth and all tools, ingest API including cursor, sweep runs and calendar, Today strip and status line wired up, noise rules on ingest. Tested by connecting Claude |
-| 6 | Polish and import | Phone Home and Triage to match `PhoneHome.dc.html` and `PhoneTriage.dc.html`, swipe gestures, home screen install, Noise clean-up job, CSV export, imports run, `APP_GUIDE.md` written |
+| 3 | Knowledge and Ask | Projects, people, organisations, decisions and notes pages, linking, in-place editing, search, Ask OllieOS with citations, Goals, relationship cadence, document index, playbooks |
+| 4 | Access control and trust | Confidential and AI access settings, inheritance, approval queue, AI read log, Knowledge Inbox, stale and conflicting facts |
+| 5 | MCP and ingest | MCP server with OAuth and all tools (including the feature PRD tools), ingest API including cursor, sweep runs and calendar, Today strip and status line wired up, noise rules on ingest, meeting briefs, daily digest. Tested by connecting Claude |
+| 6 | Polish and import | Phone Home, Triage and voice capture to match the phone screens, swipe gestures, home screen install, Noise clean-up job, CSV export, imports run (including seed playbooks), `APP_GUIDE.md` written |
 
 ---
 

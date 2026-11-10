@@ -28,6 +28,13 @@ Rebuild each screen as React components using the tokens below. Do not hard-code
 | `Settings.dc.html` | Settings: AI access | 10, 11 |
 | `PhoneHome.dc.html` | Home on phone (390 × 844) | 6 |
 | `PhoneTriage.dc.html` | Triage on phone (390 × 844) | 6.2 |
+| `KnowledgeInbox.dc.html` | Knowledge Inbox: Suggested, Conflicts, Needs a check | features/01, 02 |
+| `MeetingBrief.dc.html` | Meeting brief | features/03 |
+| `Goals.dc.html` | Goals and unlinked work | features/04 |
+| `People.dc.html` | People and contact cadence | features/05 |
+| `Library.dc.html` | Library: Documents and Playbooks tabs | features/06, 07 |
+| `Digest.dc.html` | Daily digest | features/08 |
+| `PhoneVoice.dc.html` | Voice capture on phone (390 × 844) | features/09 |
 
 ## 3. Typography
 

@@ -7,9 +7,10 @@ Everything Replit Agent needs to build OllieOS: Ollie's personal operating syste
 | Path | What it is |
 |---|---|
 | `KICKOFF_PROMPT.md` | The first message to paste into Replit Agent |
-| `docs/PRD.md` | The product requirements (v2.1): scope, data model, confidentiality rules, MCP server, ingest API, build order, acceptance criteria |
+| `docs/PRD.md` | The product requirements (v2.2): scope, data model, confidentiality rules, MCP server, ingest API, build order, acceptance criteria |
+| `docs/features/` | One PRD per feature: Knowledge Inbox, stale and conflicting facts, meeting briefs, goals, relationship cadence, document index, playbooks, daily digest, voice capture |
 | `docs/DESIGN.md` | Visual spec: fonts, colour tokens, shapes, components and how to read the screen files |
-| `design/screens/*.dc.html` | Nine prototype screens (Home, Ask, Tasks, Task detail, Knowledge project, Person, Settings, phone Home, phone Triage) |
+| `design/screens/*.dc.html` | Sixteen prototype screens: the nine core screens plus Knowledge Inbox, Meeting brief, Goals, People, Library, Digest and phone voice capture |
 
 ## How to use it
 

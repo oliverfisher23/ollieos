@@ -8,14 +8,15 @@ You are building OllieOS, a private web app for one user. The full spec is in th
 
 - `docs/PRD.md`: requirements, data model, confidentiality rules, MCP server, ingest API, build order and acceptance criteria
 - `docs/DESIGN.md`: fonts, colour tokens, components and how to read the prototype screens
-- `design/screens/*.dc.html`: nine prototype screens. They are visual and behavioural reference. Rebuild them as React components; do not copy the prototype runtime
+- `docs/features/*.md`: one PRD per feature, built in the milestones listed in PRD section 14a
+- `design/screens/*.dc.html`: sixteen prototype screens. They are visual and behavioural reference. Rebuild them as React components; do not copy the prototype runtime
 
 Do milestone 0 only:
 
-1. Read all three in full, including every screen file and its script block.
+1. Read all of it in full, including every feature PRD, every screen file and its script block.
 2. Write `docs/build-plan.md` covering:
    - file and folder structure
-   - database schema (Drizzle) for every table in PRD section 9
+   - database schema (Drizzle) for every table in PRD section 9 and in the feature PRDs
    - every route and page, mapped to its screen file
    - the MCP tool list with input and output shapes
    - the confidentiality filter: where it sits and how every AI-facing route uses it

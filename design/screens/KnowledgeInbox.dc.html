@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>OllieOS Knowledge Inbox</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+body{margin:0;background:#f4f1ea}
+a{color:#1b1d22}a:hover{color:#55524c}
+button:focus-visible,a:focus-visible{outline:2px solid #1b1d22;outline-offset:2px}
+</style>
+</helmet>
+<div style="min-height: 1100px; box-sizing: border-box; padding: 24px; font-family: 'Google Sans', 'DM Sans', system-ui, sans-serif; color: #1b1d22; background: #f4f1ea;">
+  <div style="max-width: 1220px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;">
+
+    <header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;">
+      <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 10px; text-decoration: none;">
+        <span aria-hidden="true" style="width: 30px; height: 30px; border-radius: 9px; background: #f4c542; color: #1b1d22; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px;">OS</span>
+        <span style="font-weight: 600; font-size: 15px;">OllieOS</span>
+      </a>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 4px;">
+        <a href="Main.dc.html" style="font-size: 13px; padding: 7px 12px; border-radius: 999px; text-decoration: none; color: #55524c;">Home</a>
+        <a href="Tasks.dc.html" style="font-size: 13px; padding: 7px 12px; border-radius: 999px; text-decoration: none; color: #55524c;">Tasks</a>
+        <a href="Knowledge.dc.html" aria-current="page" style="font-size: 13px; padding: 7px 12px; border-radius: 999px; text-decoration: none; background: #1b1d22; color: #ffffff;">Knowledge</a>
+        <a href="Settings.dc.html" style="font-size: 13px; padding: 7px 12px; border-radius: 999px; text-decoration: none; color: #55524c;">Settings</a>
+      </nav>
+    </header>
+
+    <section style="background: #ffffff; border-radius: 22px; padding: 34px 40px 28px; display: flex; flex-direction: column; gap: 20px;">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <h1 style="margin: 0; font-size: 32px; font-weight: 600; letter-spacing: -0.015em;">Knowledge Inbox</h1>
+          <p style="margin: 0; font-size: 14px; color: #55524c; max-width: 64ch;">What AI wants to add or change in your knowledge base. Nothing becomes a fact until you approve it.</p>
+        </div>
+        <span style="font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 22px;">{{openCount}} to review</span>
+      </div>
+
+      <div role="tablist" aria-label="Review type" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #e8e5de;">
+        <sc-for list="{{tabs}}" as="tab" hint-placeholder-count="3">
+          <button type="button" role="tab" aria-selected="{{tab.selected}}" onClick="{{tab.pick}}" style="font: inherit; font-size: 15px; padding: 10px 14px; border: 0; background: transparent; cursor: pointer; margin-bottom: -1px; {{tab.style}}">{{tab.label}} <span style="font-size: 12px; color: #6b6760;">{{tab.count}}</span></button>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <sc-for list="{{items}}" as="it" hint-placeholder-count="3">
+          <article style="border: 1px solid #e8e5de; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; {{it.cardStyle}}">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px;">
+              <span style="padding: 3px 9px; border-radius: 6px; font-weight: 600; {{it.kindStyle}}">{{it.kind}}</span>
+              <span style="color: #55524c;">on</span>
+              <a href="{{it.href}}" style="font-weight: 500;">{{it.target}}</a>
+              <span style="color: #55524c;">· {{it.by}}</span>
+            </div>
+            <sc-if value="{{it.isConflict}}" hint-placeholder-val="{{ false }}">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px;">
+                <div style="padding: 12px 14px; border-radius: 12px; background: #f1efea; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 12px; color: #55524c;">{{it.leftLabel}}</span><span style="font-size: 15px;">{{it.left}}</span></div>
+                <div style="padding: 12px 14px; border-radius: 12px; background: #f1efea; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 12px; color: #55524c;">{{it.rightLabel}}</span><span style="font-size: 15px;">{{it.right}}</span></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{it.notConflict}}" hint-placeholder-val="{{ true }}">
+              <p style="margin: 0; font-size: 16px; line-height: 1.5;">{{it.text}}</p>
+            </sc-if>
+            <p style="margin: 0; font-size: 13px; color: #3d3a35;"><span style="color: #55524c;">Source:</span> {{it.source}}</p>
+            <sc-if value="{{it.open}}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <button type="button" onClick="{{it.approve}}" style="font: inherit; font-size: 13px; font-weight: 600; padding: 9px 14px; border-radius: 10px; border: 0; background: #1b1d22; color: #ffffff; cursor: pointer;">{{it.approveLabel}}</button>
+                <button type="button" style="font: inherit; font-size: 13px; padding: 9px 14px; border-radius: 10px; border: 1px solid #e3dfd6; background: #ffffff; color: #1b1d22; cursor: pointer;">{{it.altLabel}}</button>
+                <button type="button" onClick="{{it.reject}}" style="font: inherit; font-size: 13px; padding: 9px 14px; border-radius: 10px; border: 0; background: transparent; color: #8a2a10; cursor: pointer;">{{it.rejectLabel}}</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{it.closed}}" hint-placeholder-val="{{ false }}">
+              <p role="status" style="margin: 0; font-size: 13px; font-weight: 500; {{it.resultStyle}}">{{it.result}}</p>
+            </sc-if>
+          </article>
+        </sc-for>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      tab: 'suggested',
+      done: {},
+      items: [
+        { id: 'a', group: 'suggested', kind: 'New fact', target: 'Defence Nuclear Enterprise', href: 'Knowledge.dc.html', by: 'Capture sweep, 07:41', text: 'Veronica Wilkinson (DNE STEM Outreach) is exploring the WEX platform for 2027/28 because on-site work experience is hard to run across the Enterprise for security reasons.', source: 'Email from Veronica Wilkinson, 30th October' },
+        { id: 'b', group: 'suggested', kind: 'New person', target: 'Ross Alden', href: 'Person.dc.html', by: 'Capture sweep, 07:41', text: 'Ross Alden, Delivery Partner Manager in Veronica Wilkinson’s team at the MOD. Attending the WEX Platform demo.', source: 'Calendar invite, WEX Platform, 9th November' },
+        { id: 'c', group: 'suggested', kind: 'New fact', target: 'PwC Skills for Tomorrow', href: 'Knowledge.dc.html', by: 'Capture sweep, 13:40', text: 'Hard contracting deadline is 13th November to hit the National Apprenticeship Week kick-off.', source: 'Email thread "PwC x Springpod", 9th November' },
+        { id: 'd', group: 'suggested', kind: 'Proposed decision', target: 'US strategy', href: 'Knowledge.dc.html', by: 'Claude, from chat', text: 'Pause K-12 audience building and focus US effort on the ETS partnership, college students and employers who fund selection.', source: 'Your paper shared with Sam and Andy, 6th November. Not yet agreed by them.' },
+        { id: 'e', group: 'conflicts', kind: 'Conflict', target: 'Your profile', href: 'Person.dc.html', by: 'Weekly check', isConflict: true, leftLabel: 'Claude project instructions', left: 'Co-Founder and Chief Product Officer', rightLabel: 'Claude memory (September)', right: 'Co-Founder and Chief Marketing and Product Officer', source: 'Two sources disagree about your title' },
+        { id: 'f', group: 'stale', kind: 'Stale fact', target: 'BT', href: 'Knowledge.dc.html', by: 'Last confirmed 15th September', text: 'BT decision hinges on the September change board.', source: 'Claude memory, imported. 55 days since anyone confirmed it.' },
+        { id: 'g', group: 'stale', kind: 'Stale fact', target: 'IBM SkillsBuild', href: 'Knowledge.dc.html', by: 'Last confirmed 21st September', text: 'UK pilot on hold because of IBM budget.', source: 'Claude memory, imported. 49 days since anyone confirmed it.' }
+      ]
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const defs = [
+      { id: 'suggested', label: 'Suggested' },
+      { id: 'conflicts', label: 'Conflicts' },
+      { id: 'stale', label: 'Needs a check' }
+    ];
+    const openIn = (g) => s.items.filter((x) => x.group === g && !s.done[x.id]).length;
+    const tabs = defs.map((d) => ({
+      label: d.label,
+      count: String(openIn(d.id)),
+      selected: d.id === s.tab ? 'true' : 'false',
+      style: d.id === s.tab ? 'color: #1b1d22; font-weight: 500; border-bottom: 2px solid #1b1d22;' : 'color: #55524c; border-bottom: 2px solid transparent;',
+      pick: () => this.setState({ tab: d.id })
+    }));
+    const kindStyle = {
+      'New fact': 'background: #d9e2f1; color: #233455;',
+      'New person': 'background: #efe7fb; color: #5b2e9c;',
+      'Proposed decision': 'background: #fdf6e1; color: #5c4a1a;',
+      'Conflict': 'background: #fbe3dc; color: #8a2a10;',
+      'Stale fact': 'background: #ece9e2; color: #3d3a35;'
+    };
+    const set = (id, v) => this.setState({ done: { ...s.done, [id]: v } });
+    const items = s.items.filter((x) => x.group === s.tab).map((x) => {
+      const d = s.done[x.id];
+      const conflict = x.group === 'conflicts';
+      const stale = x.group === 'stale';
+      return {
+        ...x,
+        isConflict: conflict,
+        notConflict: !conflict,
+        kindStyle: kindStyle[x.kind],
+        open: !d,
+        closed: !!d,
+        cardStyle: d ? 'opacity: 0.6;' : '',
+        approveLabel: conflict ? 'Keep project instructions' : (stale ? 'Still true' : 'Approve'),
+        altLabel: conflict ? 'Keep memory' : (stale ? 'Edit' : 'Edit, then approve'),
+        rejectLabel: conflict ? 'Neither, I’ll write it' : (stale ? 'No longer true' : 'Reject'),
+        result: d === 'yes' ? (stale ? 'Confirmed today' : 'Added to knowledge') : (stale ? 'Marked out of date' : 'Rejected'),
+        resultStyle: d === 'yes' ? 'color: #2f5320;' : 'color: #8a2a10;',
+        approve: () => set(x.id, 'yes'),
+        reject: () => set(x.id, 'no')
+      };
+    });
+    return { tabs, items, openCount: s.items.filter((x) => !s.done[x.id]).length };
+  }
+}
+</script>
+</body>
+</html>

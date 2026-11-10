@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>OllieOS Library</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+body{margin:0;background:#f4f1ea}
+a{color:#1b1d22}a:hover{color:#55524c}
+button:focus-visible,a:focus-visible{outline:2px solid #1b1d22;outline-offset:2px}
+</style>
+</helmet>
+<div style="min-height: 960px; box-sizing: border-box; padding: 24px; font-family: 'Google Sans', 'DM Sans', system-ui, sans-serif; color: #1b1d22; background: #f4f1ea;">
+  <div style="max-width: 1220px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;">
+
+    <header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;">
+      <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 10px; text-decoration: none;">
+        <span aria-hidden="true" style="width: 30px; height: 30px; border-radius: 9px; background: #f4c542; color: #1b1d22; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px;">OS</span>
+        <span style="font-weight: 600; font-size: 15px;">OllieOS</span>
+      </a>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 4px;">
+        <a href="Main.dc.html" style="font-size: 13px; padding: 7px 12px; border-radius: 999px; text-decoration: none; color: #55524c;">Home</a>
+        <a href="Tasks.dc.html" style="font-size: 13px; padding: 7px 12px; border-radius: 999px; text-decoration: none; color: #55524c;">Tasks</a>
+        <a href="Knowledge.dc.html" aria-current="page" style="font-size: 13px; padding: 7px 12px; border-radius: 999px; text-decoration: none; background: #1b1d22; color: #ffffff;">Knowledge</a>
+        <a href="Settings.dc.html" style="font-size: 13px; padding: 7px 12px; border-radius: 999px; text-decoration: none; color: #55524c;">Settings</a>
+      </nav>
+    </header>
+
+    <section style="background: #ffffff; border-radius: 22px; padding: 34px 40px 28px; display: flex; flex-direction: column; gap: 20px;">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <h1 style="margin: 0; font-size: 32px; font-weight: 600; letter-spacing: -0.015em;">Library</h1>
+          <p style="margin: 0; font-size: 14px; color: #55524c; max-width: 64ch;">{{intro}}</p>
+        </div>
+        <button type="button" style="font: inherit; font-size: 13px; font-weight: 600; padding: 9px 14px; border-radius: 10px; border: 0; background: #1b1d22; color: #ffffff; cursor: pointer;">{{addLabel}}</button>
+      </div>
+
+      <div role="tablist" aria-label="Library" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #e8e5de;">
+        <sc-for list="{{tabs}}" as="tab" hint-placeholder-count="2">
+          <button type="button" role="tab" aria-selected="{{tab.selected}}" onClick="{{tab.pick}}" style="font: inherit; font-size: 15px; padding: 10px 14px; border: 0; background: transparent; cursor: pointer; margin-bottom: -1px; {{tab.style}}">{{tab.label}} <span style="font-size: 12px; color: #6b6760;">{{tab.count}}</span></button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{showDocs}}" hint-placeholder-val="{{ true }}">
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; min-width: 820px; border-collapse: collapse; font-size: 14px;">
+            <thead><tr>
+              <th scope="col" style="text-align: left; font-weight: 400; font-size: 13px; color: #55524c; padding: 12px 10px 12px 0; border-bottom: 1px solid #e8e5de;">Document</th>
+              <th scope="col" style="text-align: left; font-weight: 400; font-size: 13px; color: #55524c; padding: 12px 10px; border-bottom: 1px solid #e8e5de;">Lives in</th>
+              <th scope="col" style="text-align: left; font-weight: 400; font-size: 13px; color: #55524c; padding: 12px 10px; border-bottom: 1px solid #e8e5de;">Project</th>
+              <th scope="col" style="text-align: left; font-weight: 400; font-size: 13px; color: #55524c; padding: 12px 0 12px 10px; border-bottom: 1px solid #e8e5de;">Updated</th>
+            </tr></thead>
+            <tbody>
+              <sc-for list="{{docs}}" as="d" hint-placeholder-count="6">
+                <tr>
+                  <td style="padding: 14px 10px 14px 0; border-bottom: 1px solid #f0ede6;"><span style="display: flex; flex-direction: column; gap: 3px;"><a href="Library.dc.html" style="font-weight: 500;">{{d.title}}</a><span style="font-size: 12px; color: #55524c;">{{d.summary}}</span></span></td>
+                  <td style="padding: 14px 10px; border-bottom: 1px solid #f0ede6;"><span style="font-size: 12px; padding: 4px 9px; border-radius: 6px; background: #f1efea;">{{d.where}}</span></td>
+                  <td style="padding: 14px 10px; border-bottom: 1px solid #f0ede6; color: #3d3a35;">{{d.project}}</td>
+                  <td style="padding: 14px 0 14px 10px; border-bottom: 1px solid #f0ede6; color: #3d3a35;">{{d.updated}}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+        <p style="margin: 0; font-size: 12px; color: #55524c;">OllieOS stores links and summaries, not the files. Sale process documents are listed only to you and are hidden from AI.</p>
+      </sc-if>
+
+      <sc-if value="{{showPlays}}" hint-placeholder-val="{{ false }}">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px;">
+          <sc-for list="{{plays}}" as="p" hint-placeholder-count="6">
+            <article style="border: 1px solid #e8e5de; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                <h2 style="margin: 0; font-size: 16px; font-weight: 600;">{{p.title}}</h2>
+                <button type="button" role="switch" aria-checked="{{p.on}}" aria-label="{{p.switchLabel}}" onClick="{{p.toggle}}" style="flex: none; width: 40px; height: 24px; border-radius: 999px; border: 0; cursor: pointer; position: relative; {{p.track}}"><span aria-hidden="true" style="position: absolute; top: 3px; width: 18px; height: 18px; border-radius: 999px; background: #ffffff; {{p.knob}}"></span></button>
+              </div>
+              <span style="font-size: 12px; color: #55524c;">Applies when: {{p.when}}</span>
+              <p style="margin: 0; font-size: 14px; line-height: 1.55; color: #2b2925;">{{p.rule}}</p>
+              <span style="font-size: 12px; {{p.stateStyle}}">{{p.state}}</span>
+            </article>
+          </sc-for>
+        </div>
+      </sc-if>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":960}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { tab: 'docs', off: {} }; }
+  renderVals() {
+    const s = this.state;
+    const docs = [
+      { title: 'OllieOS PRD', summary: 'Build brief for OllieOS, version 2.1', where: 'Claude project', project: 'OllieOS', updated: '9th November' },
+      { title: 'RAF KPI briefing', summary: 'RAF programme KPI targets, baseline and audit findings', where: 'Dropbox', project: 'RAF', updated: 'November' },
+      { title: 'MOD partnership room', summary: 'MOD and Springpod partnership room', where: 'Dropbox', project: 'Cadets tri-service', updated: '6th August' },
+      { title: 'Cadet forces on Springpod, September 2026', summary: 'Cadet forces usage and the tri-service opportunity', where: 'Claude project', project: 'Cadets tri-service', updated: 'September' },
+      { title: 'Micro Internships knowledge base', summary: 'What Micro Internships are and how to describe them', where: 'Claude project', project: 'RAF Micro Internship', updated: 'Not recorded' },
+      { title: 'Student messaging 2027', summary: 'Source of truth for student-facing messaging', where: 'Claude project', project: 'Work Readiness Passport', updated: 'Not recorded' }
+    ];
+    const plays = [
+      { id: 'w', title: 'Writing style', when: 'any text written for me or as me', rule: 'British English. No em dashes. Dates as ordinals with the full month. No marketing language or filler.' },
+      { id: 'p', title: 'PwC terminology', when: 'any PwC material', rule: 'Say experience credits, never learner credits.' },
+      { id: 'm', title: 'Micro Internship claims', when: 'describing Micro Internships', rule: 'Describe it as applied work, not a course. Check product claims against the Micro Internships knowledge base before using them.' },
+      { id: 'd', title: 'Defence talks', when: 'defence meetings and decks', rule: 'Never present drafted briefs as live programmes. The Rolls-Royce Unity brief is not a live student programme.' },
+      { id: 'r', title: 'RAF framing', when: 'RAF Micro Internship material', rule: 'Frame it as a way to express interest in Foundation Year and gather feedback, not as driving applications.' },
+      { id: 'b', title: 'Build requests', when: 'Replit or code work', rule: 'Treat improve X requests as audit and plan. Do not start building without an explicit build instruction.' }
+    ];
+    const tabs = [
+      { id: 'docs', label: 'Documents', count: String(docs.length) },
+      { id: 'plays', label: 'Playbooks', count: String(plays.length) }
+    ].map((t) => ({
+      ...t,
+      selected: t.id === s.tab ? 'true' : 'false',
+      style: t.id === s.tab ? 'color: #1b1d22; font-weight: 500; border-bottom: 2px solid #1b1d22;' : 'color: #55524c; border-bottom: 2px solid transparent;',
+      pick: () => this.setState({ tab: t.id })
+    }));
+    const playRows = plays.map((p) => {
+      const on = !s.off[p.id];
+      return {
+        ...p,
+        on: on ? 'true' : 'false',
+        switchLabel: 'Claude follows ' + p.title,
+        track: on ? 'background: #1b1d22;' : 'background: #d6d2c8;',
+        knob: on ? 'left: 19px;' : 'left: 3px;',
+        state: on ? 'Claude reads this before drafting' : 'Paused: Claude ignores this',
+        stateStyle: on ? 'color: #2f5320;' : 'color: #55524c;',
+        toggle: () => this.setState({ off: { ...s.off, [p.id]: on } })
+      };
+    });
+    const docsTab = s.tab === 'docs';
+    return {
+      tabs,
+      docs,
+      plays: playRows,
+      showDocs: docsTab,
+      showPlays: !docsTab,
+      intro: docsTab ? 'Where the detail lives. Each document is linked to its projects so briefs and Ask can point to it.' : 'Your standing rules. Claude reads the ones that apply before drafting anything.',
+      addLabel: docsTab ? 'Add a link' : 'New playbook'
+    };
+  }
+}
+</script>
+</body>
+</html>

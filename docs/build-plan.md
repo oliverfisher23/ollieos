@@ -2,11 +2,13 @@
 
 | | |
 |---|---|
-| Based on | `docs/PRD.md` v2.1, `docs/DESIGN.md`, all nine files in `design/screens/` (markup and script blocks) |
-| Written | Monday 9th November 2026 |
-| Status | Waiting for Ollie's approval. No app code has been written |
+| Based on | `docs/PRD.md` v2.2 (including section 14a), `docs/DESIGN.md`, the nine feature PRDs in `docs/features/`, all sixteen files in `design/screens/` (markup and script blocks) |
+| Written | Monday 9th November 2026; updated Tuesday 10th November 2026 for PRD v2.2 |
+| Status | Milestones 1 to 5 built. The v2.2 additions (sections 10 and 11) are waiting for Ollie's approval. No code has been changed for them |
 
-Section 9 at the end lists everything I found unclear or conflicting, each with a proposed answer. If you are happy with a proposal you can just say "agree with 3, 7, 12" (or "agree with all"), and correct the rest.
+Sections 1 to 9 are the original plan for PRD v2.1 and describe what is built. **Section 10** adds everything new in PRD v2.2 and the feature PRDs: schema, pages, API routes, MCP tools and which milestone each feature lands in. **Section 11** lists the conflicts with what is already built, and the unclear points, as questions 23 to 50, each with a proposal. If you are happy with a proposal you can just say "agree with 23, 27, 31" (or "agree with all"), and correct the rest.
+
+Where a feature PRD and the main PRD disagree, the feature PRD wins for that feature (PRD 14a).
 
 ---
 
@@ -566,7 +568,11 @@ Dates and times always go through `lib/shared/dates.ts`: long form "Friday 13th 
 | 3 | Knowledge pages, linking, in-place editing, facts as rows, search, Ask OllieOS with citations, draft and bundle | Criterion 10 (citations, answers only from OllieOS) |
 | 4 | Access switches live, inheritance, approval queue and Home banner, AI read log, `ai-data` layer and its tests | Criteria 2, 3, 6 (reads), 10 (confidential), 12 |
 | 5 | OAuth, MCP server, all tools and resources, ingest API, cursor, sweep runs, calendar, Today strip and status line, noise rules on ingest | Criteria 2, 4, 5, 7, 12, tested by connecting Claude |
-| 6 | Phone Home and Triage, swipe, home screen install (web manifest and icons), Noise clean-up, CSV export, imports, `APP_GUIDE.md` | Criterion 8 on phone, full acceptance run |
+| ~~6~~ | Moved to milestone 9 (see section 10.1) | |
+| 6 | **Trust:** Knowledge Inbox, stale and conflicting facts (features 01, 02) | Feature 01 criteria 1 to 5, feature 02 criteria 1 to 5 |
+| 7 | **Direction:** goals, relationship cadence, document index, playbooks (features 04 to 07) | Feature 04 to 07 criteria |
+| 8 | **Preparation:** meeting briefs, daily digest (features 03, 08) | Feature 03 and 08 criteria |
+| 9 | Original milestone 6 (phone Home and Triage, swipe, home screen install, CSV export, imports, `APP_GUIDE.md`) plus voice capture (feature 09) | Criterion 8 on phone, feature 09 criteria, full acceptance run of PRD and all feature PRDs |
 
 At each sign-off I will list every relevant criterion as met or not met, with how it was checked.
 
@@ -617,3 +623,272 @@ Each has a proposal. Unless you say otherwise I will go with the proposals.
 20. **Quick add details.** *Proposal:* `due:fri` means the next Friday, or today if today is Friday; `@slug` that matches no project shows a warning chip and the task is created without a project (projects are never created from quick add); tasks added by you go to Now unless `#backlog` is used, and tasks with no `!` marker are Medium.
 21. **Week picker on Tasks.** *Proposal:* weeks run Monday to Sunday in London time. In open tabs it filters by due date (with a "No date" toggle so undated tasks are not lost); in Done by completion date.
 22. **"Bundle into one task" in Ask.** *Proposal:* creates one new task titled from the answer, linked to the same person and project, with the cited tasks listed in its notes; the original tasks move to Done with the note "Bundled into …". Undo is offered in the toast.
+
+---
+
+## 10. PRD v2.2 additions
+
+### 10.1 Which milestone each feature lands in
+
+The feature PRDs place features in milestones 3, 4 and 5, which are already built. Rather than reopen those, I propose four new milestones, in the order that respects their dependencies (question 23):
+
+| Milestone | Features | Why this order |
+|---|---|---|
+| 6 Trust | 01 Knowledge Inbox, 02 Stale and conflicting facts | Claude can already write facts and decisions straight in (built in milestone 5). This changes that to suggestions before Claude is used day to day, which is what PRD 14a intended by placing 01 before the MCP milestone |
+| 7 Direction | 04 Goals, 05 Relationship cadence, 06 Document index, 07 Playbooks | All four are knowledge-side and independent of each other. Briefs and the digest need all of them |
+| 8 Preparation | 03 Meeting briefs, 08 Daily digest | Both read goals, cadence, documents, playbooks and the Knowledge Inbox count |
+| 9 Phone, imports and voice | Original milestone 6, plus 09 Voice capture and the seed playbooks if not seeded earlier (question 45) | Voice needs suggestions (01) and is phone first |
+
+Suggestion kinds for documents, playbooks and cadence (question 25) are added in milestone 7 when those features exist; milestone 6 ships the kinds fact, decision, person, organisation, project and summary_change.
+
+### 10.2 Database schema
+
+New enums and enum values:
+
+```ts
+export const suggestionKind   = pgEnum("suggestion_kind", ["fact", "decision", "person", "organisation",
+                                  "summary_change",
+                                  "project", "document", "playbook", "cadence"]);   // last four: question 25
+export const suggestionStatus = pgEnum("suggestion_status", ["pending", "approved", "rejected"]);
+export const reviewKind       = pgEnum("review_kind", ["stale", "conflict"]);
+export const reviewStatus     = pgEnum("review_status", ["pending", "resolved"]);
+export const cadence          = pgEnum("cadence", ["weekly", "fortnightly", "monthly", "two_monthly",
+                                  "quarterly", "none"]);
+export const projectLifecycle = pgEnum("project_lifecycle", ["active", "paused", "complete"]); // question 38
+export const docLocation      = pgEnum("doc_location", ["dropbox", "gdrive", "claude_project", "other"]);
+export const factAttribute    = pgEnum("fact_attribute", ["job_title", "organisation", "status",
+                                  "next_step", "decision_date"]);                    // question 42
+// task_source gains "voice"
+// entity_type gains "goal", "document", "playbook", "suggestion", "fact_review", "meeting_brief", "digest"
+```
+
+New tables:
+
+```ts
+// knowledge.ts (milestone 6)
+export const suggestions = pgTable("suggestions", {
+  id, kind: suggestionKind().notNull(),
+  entityType: entityType("entity_type"), entityId: integer("entity_id"),   // null for a new person or project
+  payload: jsonb().notNull(),                      // the proposed record, same shape as the MCP input
+  normalisedText: text("normalised_text").notNull(),   // (added) lower-case, trimmed; 30-day duplicate check
+  sourceType: text("source_type"),                 // email, meeting, chat, recording, voice
+  sourceRef: text("source_ref"), sourceUrl: text("source_url"), sourceQuote: text("source_quote"),
+  proposedBy: text("proposed_by").notNull(),       // client name: "Capture sweep", "Claude", "Voice capture"
+  clientId: integer("client_id").references(() => aiClients.id),   // (added) for list_my_suggestions
+  status: suggestionStatus().notNull().default("pending"),
+  resultType: entityType("result_type"), resultId: integer("result_id"),   // (added) what approval created
+  decidedAt: timestamp(...), createdAt: …,
+}, (t) => [index().on(t.status), index().on(t.entityType, t.entityId), index().on(t.normalisedText)]);
+
+export const factReviews = pgTable("fact_reviews", {
+  id, kind: reviewKind().notNull(), factIds: integer("fact_ids").array().notNull(),
+  suggestionId: integer("suggestion_id").references(() => suggestions.id),  // (added) conflict raised by a suggestion
+  status: reviewStatus().notNull().default("pending"),
+  resolution: jsonb(),                             // { action, kept_fact_id?, new_fact_id? }
+  createdAt: …, resolvedAt: timestamp(...),
+});
+
+// goals.ts (milestone 7)
+export const goals = pgTable("goals", {
+  id, parentId: integer("parent_id"),              // sub-goals, one level deep
+  name: text().notNull(), statement: text(), targetText: text("target_text"),
+  periodStart: date("period_start"), periodEnd: date("period_end"),
+  confidential: boolean().notNull().default(false),   // hides target_text from AI (question 36)
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: …, updatedAt: …,
+});
+
+// library.ts (milestone 7)
+export const documents = pgTable("documents", {
+  id, title: text().notNull(), url: text().notNull().unique(), location: docLocation().notNull(),
+  summary: text(),
+  confidential: boolean(),                         // null = inherit from linked projects (question 44)
+  lastConfirmedAt: timestamp(...).notNull().defaultNow(),
+  createdBy: text("created_by").notNull(), createdAt: …, search: tsvector(title, summary),
+});
+// Linked to projects through `links` (document to project).
+
+export const playbooks = pgTable("playbooks", {
+  id, title: text().notNull(), appliesWhen: text("applies_when").notNull(),
+  rule: text().notNull(),                          // check constraint: 400 characters or fewer
+  enabled: boolean().notNull().default(true),
+  createdAt: …, updatedAt: …,
+});
+// Linked to projects and organisations through `links`; no links = global.
+
+// briefs.ts (milestone 8)
+export const meetingBriefs = pgTable("meeting_briefs", {
+  id, calendarEventId: integer("calendar_event_id").notNull().unique()
+        .references(() => calendarEvents.id, { onDelete: "cascade" }),
+  generatedAt: timestamp(...).notNull(),
+  why: jsonb().$type<{ text: string; cited: Ref[] }[]>(),   // null = "Not much on file"
+  questions: jsonb().$type<{ text: string; cited: Ref[] }[]>(),
+  attendeeIds: integer("attendee_ids").array(), projectIds: integer("project_ids").array(),
+  goalIds: integer("goal_ids").array(),             // (added) "Related projects and goals"
+  promiseIds: integer("promise_ids").array(), documentIds: integer("document_ids").array(),
+  playbookIds: integer("playbook_ids").array(), citedIds: text("cited_ids").array(),
+  inputsHash: text("inputs_hash"),                  // (added) skip regeneration when nothing changed
+  usedConfidential: boolean("used_confidential").notNull().default(false),
+  notes: text(), granolaRef: text("granola_ref"), granolaNotes: text("granola_notes"),
+  model: text(),
+});
+
+export const digests = pgTable("digests", {
+  id, forDate: date("for_date").notNull().unique(), windowStart: timestamp(...).notNull(),
+  summary: text(), sections: jsonb().notNull(), emailedAt: timestamp(...), createdAt: …,
+});
+
+// settings.ts (milestone 6) (added) one row per setting, there is no settings table today
+export const appSettings = pgTable("app_settings", {
+  key: text().primaryKey(), value: jsonb().notNull(), updatedAt: …,
+});
+// Keys: shelf_life_days ({ status: 30, next_step: 30, general: 90, job_title: 365, organisation: 365 }),
+// last_stale_check_at, digest_email_enabled, digest_email_time.
+```
+
+Changes to existing tables:
+
+| Table | Change | Milestone |
+|---|---|---|
+| `facts` | `attribute` (fact_attribute, nullable), `last_confirmed_at` (not null, backfilled from `created_at`), `needs_check` (boolean, default false), `approved_at` (backfilled from `created_at`, question 43), `suggestion_id` | 6 |
+| `decisions` | `approved_at` (backfilled), `suggestion_id` | 6 |
+| `people` | `is_self` boolean (question 41), `cadence` (default `none`), `cadence_paused` boolean. `last_contact_at` becomes a cache kept up to date on every activity insert of kind email, meeting or slack | 6 (`is_self`), 7 |
+| `projects` | `goal_id`, `lifecycle` (default `active`, question 38) | 7 |
+| `tasks` | `goal_id` (override), `not_goal_work` boolean | 7 |
+| `calendar_events` | `attendees` becomes `jsonb` of `{ name, email?, response? }` (accepted, tentative, declined, none), existing text values migrated as `{ name }`; `platform` text (Teams, Zoom, Meet, in person), question 29 | 8 |
+
+### 10.3 Frontend pages
+
+| Route | Page | Screen file | Milestone |
+|---|---|---|---|
+| `/knowledge/inbox?tab=suggested\|conflicts\|stale` | Knowledge Inbox | `KnowledgeInbox.dc.html` | 6 |
+| `/settings/knowledge` | Shelf life per attribute (derived from Settings) | Derived | 6 |
+| `/goals` | Goals, unlinked work | `Goals.dc.html` | 7 |
+| `/people?tab=all\|overdue\|due-soon\|on-track` | Relationship cadence (question 39) | `People.dc.html` | 7 |
+| `/knowledge/library?tab=documents\|playbooks` | Library: documents table, playbook cards, Add a link and New playbook forms | `Library.dc.html` | 7 |
+| `/briefs/:eventId`, `/briefs/next` | Meeting brief | `MeetingBrief.dc.html` | 8 |
+| `/digest`, `/digest/:date` | Daily digest (today, or a past day within 30 days) | `Digest.dc.html` | 8 |
+| `/voice` | Voice capture (phone first; desktop opens the same screen centred) | `PhoneVoice.dc.html` | 9 |
+
+Changes to existing pages:
+
+- **Navigation (question 40):** the rail gets Home, Tasks, People, Goals, Knowledge, with Settings at the bottom; light-page top nav the same. Knowledge's sidebar gains Knowledge Inbox (with count) and Library (Documents, Playbooks).
+- **Home:** status line adds "N to review" linking to the Knowledge Inbox (6) and "Today's digest" once it exists (8); "Brief me" goes to the brief (question 28, milestone 8); microphone button in the add box (9).
+- **Project page:** goal picker and lifecycle control (7), Documents and Playbooks blocks (7), facts marked "Needs a check" (6).
+- **Person page:** cadence and status in the details (7).
+- **Tasks:** Do next tie-break by goal link (7); weekly update grouped by goal (question 34).
+- **Ask:** includes enabled playbooks that apply, documents in retrieval, and says when it relied on a `needs_check` fact (6 and 7).
+
+### 10.4 App API (session + allowlist)
+
+| Method and path | Purpose | Milestone |
+|---|---|---|
+| `GET /api/suggestions?tab=` | Cards for one tab, plus the three tab counts | 6 |
+| `POST /api/suggestions/:id/approve` | Optional `{ payload }` for "Edit, then approve"; writes the record, `approved_at`, `suggestion_id`, audit | 6 |
+| `POST /api/suggestions/:id/reject` | Marks rejected, kept 30 days | 6 |
+| `POST /api/fact-reviews/:id/resolve` | `{ action: still_true \| edit \| no_longer_true \| keep, keep_fact_id?, text? }` | 6 |
+| `GET/PATCH /api/settings` | Shelf lives (6), digest email (8) | 6 |
+| `GET /api/goals`, `POST /api/goals`, `PATCH /api/goals/:id` | Goals with counts, sub-goals, linked projects, unlinked work | 7 |
+| `PATCH /api/tasks/:id` | Gains `goalId`, `notGoalWork` | 7 |
+| `PATCH /api/projects/:slug` | Gains `goalId`, `lifecycle` | 7 |
+| `GET /api/people/cadence?tab=` | Cadence table with counts | 7 |
+| `PATCH /api/people/:slug` | Gains `cadence`, `cadencePaused` | 7 |
+| `POST /api/people/:slug/check-in-draft` | Draft built from the person page and project, shown only (question 47) | 7 |
+| `GET/POST /api/documents`, `PATCH /api/documents/:id` | Documents; POST takes a link and fills title and location | 7 |
+| `GET/POST /api/playbooks`, `PATCH /api/playbooks/:id` | Playbooks, including the on/off switch and links | 7 |
+| `GET /api/briefs/:eventId`, `GET /api/briefs/next` | Brief, generated on open if missing or more than 3 hours old | 8 |
+| `PATCH /api/briefs/:id` | Notes for after | 8 |
+| `GET /api/digests/today`, `GET /api/digests/:date` | Digest | 8 |
+| `POST /api/voice/transcribe` | Audio in, transcript out; only used when the browser cannot transcribe (question 46). Audio is held in memory for the request and never written to disk | 9 |
+| `POST /api/voice/parse` | Transcript in, proposed tasks, promises and facts out | 9 |
+| `POST /api/voice/save` | Confirmed items: tasks to Inbox, facts to the Knowledge Inbox | 9 |
+| `GET /api/home` | Gains Knowledge Inbox count, digest link and brief ids for today's events | 6, 8 |
+
+### 10.5 Ingest API
+
+| Route | Notes | Milestone |
+|---|---|---|
+| `POST /api/ingest/suggestions` | Same payload shapes as the MCP writes; max 100. Returns `[{ outcome: "suggested" \| "duplicate" \| "previously_rejected" \| "conflict", suggestion_id? }]`. The 30-day rejected check is done here, server side | 6 |
+| `POST /api/ingest/calendar` | Upsert by `source_ref` instead of delete and reinsert; attendees as objects; unmatched names accepted again (questions 29 and 30) | 8 |
+| `POST /api/ingest/meeting-notes` | `{ calendar_source_ref, granola_ref, notes, decisions?: [...] }`: attaches Granola notes to the brief, decisions become suggestions (question 31) | 8 |
+| `POST /api/ingest/sweep-run` (finish) | Also runs: weekly stale check if due, brief generation, digest build, 30-day clean-ups (question 32) | 6, 8 |
+
+### 10.6 MCP tools and resources
+
+New tools (14 today, 20 after):
+
+| Tool | Input | Output | Milestone |
+|---|---|---|---|
+| `list_my_suggestions` | `{ status?: "pending" \| "rejected" (default pending); limit? }` | `{ suggestions: { id, kind, entity: {ref, name} \| null, text, status, created_at }[] }`, only this client's, only on visible items | 6 |
+| `list_goals` | `{}` | `{ goals: { ref, name, statement, target_text?, sub_goals, projects: {ref, name}[], open_tasks, due_this_week }[] }`. `target_text` omitted when the goal is confidential | 7 |
+| `list_overdue_contacts` | `{ include_due_soon?: boolean; limit? }` | `{ people: { ref, name, organisation, cadence, last_contact_at, days_overdue }[] }` | 7 |
+| `find_documents` | `{ query: string; project?: EntityPick; limit? }` | `{ documents: { ref, title, url, location, summary, projects, updated_at }[] }` | 7 |
+| `get_playbooks` | `{ context?: EntityPick \| "general" }` | `{ playbooks: { ref, title, applies_when, rule }[] }`, enabled only | 7 |
+| `get_meeting_brief` | `{ event: string (calendar event ref) \| "next" }` | `{ event: { title, starts_at, platform }, why, attendees, questions, promises, projects, goals, documents, playbooks }`, filtered for the caller (question 48) | 8 |
+
+Changed tools:
+
+| Tool | Change | Milestone |
+|---|---|---|
+| `add_fact`, `log_decision`, `upsert_person`, `upsert_project` | Return `{ status: "suggested", suggestion_id }` (or `"duplicate"`, `"previously_rejected"`). `add_fact` gains `attribute?`; a clash with a current fact returns `{ status: "conflict", review_id }` (question 24) | 6 |
+| `get_context`, `search` | Each fact carries `needs_check`. `get_context` gains `goal` (projects), `cadence` and `cadence_status` (people), `documents` and `playbooks` | 6, 7 |
+| `search` | `types` gains `document` | 7 |
+| `upsert_calendar` | Same changes as the calendar ingest | 8 |
+
+New resource `ollieos://brief/next` (milestone 8). The server instructions gain: "Before drafting anything on Ollie's behalf, call get_playbooks for the project or person concerned. If a fact is marked needs_check, say so when you rely on it." The no-delete test still runs against the full list.
+
+### 10.7 Confidentiality additions
+
+- **Suggestions:** a suggestion on a hidden item is never returned to any AI client, including the one that proposed it.
+- **Goals:** a goal is always visible as a name, statement and linked visible projects; `target_text` is never sent to AI when the goal is confidential.
+- **Documents:** hidden if `confidential` is true, or null and any linked project is hidden (same as tasks, question 9).
+- **Playbooks:** hidden when every linked item is hidden; global playbooks are always visible when enabled. Paused playbooks are never sent.
+- **Briefs, digest summary, check-in drafts and voice parsing** call the Anthropic API, so they run through `ai-data` as the internal "Ask OllieOS" client and share its grants and "Allow for this question" flow (question 47).
+- New tests per feature: confidential document absent from `find_documents` and `get_context`; confidential goal target absent from `list_goals`; paused playbook absent everywhere; suggestion on a hidden project absent from `list_my_suggestions`.
+
+### 10.8 Theme
+
+Every colour used in the seven new screens is already in `tokens.css` (the purple, red, amber, grey, green and brown pill pairs), except the phone voice screen's dark base `#16171b`, which is added as a token in milestone 9. No new fonts.
+
+---
+
+## 11. Questions for PRD v2.2
+
+Each has a proposal. Unless you say otherwise I will go with the proposals.
+
+**Order and conflicts with what is built**
+
+23. **Milestone order.** The feature PRDs place features in milestones 3 to 5, which are done. *Proposal:* the four new milestones in section 10.1 (trust, direction, preparation, then phone, imports and voice). Your "start milestone 6" would then mean the Knowledge Inbox and stale facts. The alternative is the feature PRDs' order (goals, cadence, documents and playbooks first, then the Knowledge Inbox), which means Claude keeps writing facts straight in for longer.
+24. **MCP writes change behaviour.** In milestone 5, `add_fact`, `log_decision`, `upsert_person` and `upsert_project` write directly, and the milestone 5 tests check that. *Proposal:* they return `{ status: "suggested" }` from milestone 6 and I rewrite those tests; tasks, promises, activity and calendar still go straight in, as feature 01 says.
+25. **Suggestion kinds.** Feature 01 lists fact, decision, person, organisation, summary_change, but `upsert_project`, document proposals (06), playbook proposals (07) and suggested cadence (05) also need kinds. *Proposal:* add project, document, playbook and cadence.
+26. **Notes and edits to existing records.** Feature 01 doesn't mention `add_note`, or an AI changing an existing person's role or a project's status. *Proposal:* notes stay direct (like activity, they are clearly labelled as written by the AI); any AI change to an existing project, person or organisation becomes a "Changed summary" suggestion (shown as "Changed details" when it isn't the summary).
+27. **Who is "Your profile"?** The conflict example is about your own job title, but there is no person record for you. *Proposal:* add `people.is_self`, create your record in milestone 6 (name and email only), and keep it out of the cadence page.
+28. **"Brief me" link.** Milestone 5 made "Brief me" open the linked project or person page. *Proposal:* from milestone 8 it opens the brief; events with no brief (personal, or nobody known) keep no link.
+29. **Calendar sync breaks briefs.** Each calendar post deletes every event in the 8-day window and reinserts, so event ids change twice a day and past events vanish, which would orphan briefs and Granola notes. Attendees are plain names, but briefs need email and accepted status. *Proposal:* upsert by `source_ref` (ids stay stable), remove only future events no longer in the feed, keep past events for 30 days, and store attendees as `{ name, email, response }` while still accepting plain names.
+30. **Calendar rule added by the security fix.** The dependency-fix task (merged this morning) also changed calendar handling in two ways I didn't plan: (a) if any `people` or `project` hint on any event doesn't match a visible record, the whole calendar post is rejected, and (b) AI tools no longer see any event whose title, location or attendees contains the name, slug or email of any hidden item, matched as a substring. (a) will make the sweep fail whenever a new contact is invited, and briefs need unknown attendees ("No previous contact"). (b) can hide unrelated events (a hidden person called "Sam" hides "Samsung review"). *Proposal:* revert (a) to "store the event, report unmatched names", and change (b) to whole-word matches on full names and emails only, keeping the protection it was meant to add. Tests updated to match.
+31. **Granola actions.** Feature 03 says the brief "offers" Granola actions as Inbox items, but the sweep already turns Granola actions into Inbox tasks (PRD 18). Doing both would create duplicates. *Proposal:* the sweep keeps sending actions to Inbox as now; the brief shows "3 actions went to your Inbox" with links, and decisions become Knowledge Inbox suggestions.
+32. **Scheduled jobs on Autoscale.** There is no timer for the Sunday stale check, the 30-minute brief, the 07:45 email or the 30-day clean-ups. *Proposal:* all run when a sweep finishes (07:40 and 13:40 weekdays): the stale check runs on the first sweep finish after Sunday 18:00; briefs for today's and tomorrow's work meetings are built at each sweep (so a 9:00 meeting has its brief by 07:45) and refreshed on open after 3 hours; the digest is built on the first sweep of the day; clean-ups run every time.
+33. **Digest email.** Sending needs an email service, a key and a timer. *Proposal:* no email in phase 1 (the feature PRD allows this). The footer switch is left out until email is added, rather than shown and not working.
+34. **Weekly update grouping.** Built in milestone 2 grouped by project; feature 04 says by goal. *Proposal:* group by goal, with projects as sub-headings, then "Not linked to a goal" last.
+35. **Digest window.** "Since 18:00 yesterday" doesn't fit Mondays. *Proposal:* since 18:00 on the previous working day (Friday for Monday), weekdays only.
+
+**Goals and cadence**
+
+36. **Goal data and confidentiality.** *Proposal:* create the three goals named in feature 04 (Growth, Efficiency, Product and market expansion) with blank targets for you to fill in, and no project links until you add them. The statement is visible to AI; the target text is not when the goal is confidential, so numbers belong in the target, not the statement.
+37. **Editing goals.** The screen shows goals but no way to add or edit them, or to link a project. *Proposal:* in-place editing on the Goals page (like knowledge pages), a goal picker on each project page, and projects can link to a goal or a sub-goal (counts roll up to the parent).
+38. **Paused and complete projects.** Cadence pauses when a project is paused or complete, but `projects.status` is free text ("Proposal sent"). *Proposal:* add a separate `lifecycle` (active, paused, complete) set on the project page; the status pill is unchanged. A person's cadence is paused when all their linked projects are paused or complete, or when you pause it yourself.
+39. **Two People lists.** `/people` currently redirects to the full list at `/knowledge/people`; the new People page shows only people with a cadence. *Proposal:* `/people` becomes the cadence page; the full list stays at `/knowledge/people`, reached from Knowledge; person pages keep their addresses.
+40. **Navigation on phone.** The nav now has six items, but the phone tab bar has four slots around the add button. *Proposal:* phone bar is Home, Tasks, add, People, Knowledge; Goals and Settings are links at the top of Knowledge on phone. Long press on add opens voice capture.
+41. **"N of M open tasks support a goal this week".** *Proposal:* M is open tasks in Now plus any open task due this week; N is those with a goal, directly or through their project.
+
+**Knowledge, documents and playbooks**
+
+42. **Fact attributes.** *Proposal:* a fixed list (job_title, organisation, status, next_step, decision_date), blank for general facts. When you add a fact in the app with the same attribute as a current one, yours supersedes it straight away (your edits apply immediately) instead of raising a conflict.
+43. **Existing facts and decisions.** *Proposal:* rows already in the database are treated as approved (`approved_at` = when they were created) and their `last_confirmed_at` is their creation date.
+44. **Document confidentiality.** Feature 06 has a plain flag but also says a document linked to a confidential project is confidential. *Proposal:* nullable like tasks: blank inherits from linked projects, on is always hidden. Title from a pasted link uses the file name in the URL, since OllieOS can't open private Dropbox or Drive files; you can edit it.
+45. **Seed playbooks.** Feature 07 names six seed playbooks, and the Library screen has wording for each. *Proposal:* create those six with the screen's wording in milestone 7, so they are useful straight away, and you edit them. If you'd rather write them from your Claude memory export, they move to the milestone 9 import.
+46. **Voice transcription.** *Proposal:* the browser's own speech recognition where it exists (Safari on iPhone, Chrome), falling back to OpenAI speech-to-text through Replit's built-in connection (no key of your own, billed to Replit credits). Parsing sends only your transcript to Anthropic; matching names to projects and people happens in OllieOS afterwards, so no OllieOS data goes to the model.
+47. **Which AI client runs briefs, the digest summary and check-in drafts.** *Proposal:* all run as "Ask OllieOS", so they share one set of grants and the same "Allow for this question" button when confidential items would help.
+48. **Claude reading a brief.** A brief built with an approved grant may mention items Claude can't see. *Proposal:* `get_meeting_brief` drops any sentence or question whose citations include an item hidden from the caller, and any hidden attendee, promise, project or document.
+49. **Cadence suggestions from the sweep.** *Proposal:* the sweep may suggest a cadence only for people it has just suggested or who have no cadence; it never changes one you set.
+50. **30-day retention.** Rejected suggestions and digests are kept 30 days. *Proposal:* both are cleaned up when a sweep finishes, alongside the Noise clean-up. Briefs are kept as long as their calendar event (30 days, question 29).

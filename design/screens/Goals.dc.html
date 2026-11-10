@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>OllieOS Goals</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+body{margin:0;background:#f4f1ea}
+a{color:#1b1d22}a:hover{color:#55524c}
+button:focus-visible,a:focus-visible{outline:2px solid #1b1d22;outline-offset:2px}
+</style>
+</helmet>
+<div style="min-height: 980px; box-sizing: border-box; padding: 24px; font-family: 'Google Sans', 'DM Sans', system-ui, sans-serif; color: #1b1d22; background: #f4f1ea;">
+  <div style="max-width: 1220px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;">
+
+    <header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;">
+      <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 10px; text-decoration: none;">
+        <span aria-hidden="true" style="width: 30px; height: 30px; border-radius: 9px; background: #f4c542; color: #1b1d22; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px;">OS</span>
+        <span style="font-weight: 600; font-size: 15px;">OllieOS</span>
+      </a>
+      <nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 4px;">
+        <a href="Main.dc.html" style="font-size: 13px; padding: 7px 12px; border-radius: 999px; text-decoration: none; color: #55524c;">Home</a>
+        <a href="Tasks.dc.html" style="font-size: 13px; padding: 7px 12px; border-radius: 999px; text-decoration: none; color: #55524c;">Tasks</a>
+        <a href="Goals.dc.html" aria-current="page" style="font-size: 13px; padding: 7px 12px; border-radius: 999px; text-decoration: none; background: #1b1d22; color: #ffffff;">Goals</a>
+        <a href="Knowledge.dc.html" style="font-size: 13px; padding: 7px 12px; border-radius: 999px; text-decoration: none; color: #55524c;">Knowledge</a>
+        <a href="Settings.dc.html" style="font-size: 13px; padding: 7px 12px; border-radius: 999px; text-decoration: none; color: #55524c;">Settings</a>
+      </nav>
+    </header>
+
+    <section style="background: #ffffff; border-radius: 22px; padding: 34px 40px; display: flex; flex-direction: column; gap: 22px;">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <p style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 18px; color: #55524c;">Next 12 months</p>
+          <h1 style="margin: 0; font-size: 32px; font-weight: 600; letter-spacing: -0.015em;">Goals</h1>
+        </div>
+        <span style="font-size: 13px; color: #55524c;">{{linkedPct}} of open tasks support a goal this week</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px;">
+        <article style="border: 1px solid #e8e5de; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;">1 · Growth</span>
+            <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #8a2a10;"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Confidential</span>
+          </div>
+          <h2 style="margin: 0; font-size: 18px; font-weight: 600; line-height: 1.35;">Grow ARR to [TARGET], with GRR at [TARGET] and NRR lifted by international expansion</h2>
+          <p style="margin: 0; font-size: 13px; color: #55524c;">Targets are hidden from AI. Projects and tasks linked here are still visible.</p>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <a href="Knowledge.dc.html" style="font-size: 12px; padding: 4px 9px; border-radius: 999px; background: #f1efea; text-decoration: none;">PwC Skills for Tomorrow</a>
+            <a href="Knowledge.dc.html" style="font-size: 12px; padding: 4px 9px; border-radius: 999px; background: #f1efea; text-decoration: none;">RAF Micro Internship</a>
+          </div>
+          <span style="font-size: 13px;"><b style="font-weight: 600;">3</b> open tasks · <b style="font-weight: 600;">3</b> due this week</span>
+        </article>
+
+        <article style="border: 1px solid #e8e5de; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;">2 · Efficiency</span>
+            <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #8a2a10;"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Confidential</span>
+          </div>
+          <h2 style="margin: 0; font-size: 18px; font-weight: 600; line-height: 1.35;">Gross margin to [TARGET] and profitability by [DATE]</h2>
+          <p style="margin: 0; font-size: 13px; color: #55524c;">No projects linked yet.</p>
+          <span style="font-size: 13px; color: #8a2a10; font-weight: 500;">0 open tasks: nothing you're doing this week moves this goal</span>
+        </article>
+
+        <article style="border: 1px solid #e8e5de; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;">3 · Product and market expansion</span>
+          </div>
+          <h2 style="margin: 0; font-size: 18px; font-weight: 600; line-height: 1.35;">New territories, partnership types, industries, products and buyers</h2>
+          <div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; background: #f1efea;">
+            <span style="font-size: 12px; color: #55524c;">Sub-goal</span>
+            <span style="font-size: 14px; font-weight: 500;">More defence organisations as employer partners</span>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <a href="Knowledge.dc.html" style="font-size: 12px; padding: 4px 9px; border-radius: 999px; background: #f1efea; text-decoration: none;">Defence Nuclear Enterprise</a>
+            <a href="Knowledge.dc.html" style="font-size: 12px; padding: 4px 9px; border-radius: 999px; background: #f1efea; text-decoration: none;">US strategy</a>
+            <a href="Knowledge.dc.html" style="font-size: 12px; padding: 4px 9px; border-radius: 999px; background: #f1efea; text-decoration: none;">Work Readiness Passport</a>
+          </div>
+          <span style="font-size: 13px;"><b style="font-weight: 600;">3</b> open tasks · <b style="font-weight: 600;">2</b> due this week</span>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="g-unlinked" style="background: #ffffff; border-radius: 22px; padding: 26px 40px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px;">
+        <h2 id="g-unlinked" style="margin: 0; font-size: 16px; font-weight: 600;">Work not linked to a goal</h2>
+        <span style="font-size: 13px; color: #55524c;">Link it, or ask whether it should be on your list</span>
+      </div>
+      <sc-for list="{{unlinked}}" as="u" hint-placeholder-count="3">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0; border-bottom: 1px solid #f0ede6;">
+          <span style="font-size: 14px; min-width: 0; flex: 1 1 280px;">{{u.title}}</span>
+          <sc-if value="{{u.open}}" hint-placeholder-val="{{ true }}">
+            <span style="display: flex; flex-wrap: wrap; gap: 6px;">
+              <button type="button" onClick="{{u.g1}}" style="font: inherit; font-size: 12px; padding: 6px 10px; border-radius: 8px; border: 1px solid #e3dfd6; background: #ffffff; cursor: pointer;">Growth</button>
+              <button type="button" onClick="{{u.g2}}" style="font: inherit; font-size: 12px; padding: 6px 10px; border-radius: 8px; border: 1px solid #e3dfd6; background: #ffffff; cursor: pointer;">Efficiency</button>
+              <button type="button" onClick="{{u.g3}}" style="font: inherit; font-size: 12px; padding: 6px 10px; border-radius: 8px; border: 1px solid #e3dfd6; background: #ffffff; cursor: pointer;">Expansion</button>
+              <button type="button" onClick="{{u.none}}" style="font: inherit; font-size: 12px; padding: 6px 10px; border-radius: 8px; border: 0; background: transparent; color: #55524c; cursor: pointer;">Not goal work</button>
+            </span>
+          </sc-if>
+          <sc-if value="{{u.closed}}" hint-placeholder-val="{{ false }}">
+            <span style="font-size: 12px; padding: 4px 9px; border-radius: 6px; background: #dfeed7; color: #2f5320;">{{u.result}}</span>
+          </sc-if>
+        </div>
+      </sc-for>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":980}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { linked: {} }; }
+  renderVals() {
+    const s = this.state;
+    const list = ['Build the ADS demo', 'Get Prezzee API set up for student voucher payouts', 'Finish the student MVP website pages and hand over to Ihor'];
+    const set = (t, v) => this.setState({ linked: { ...s.linked, [t]: v } });
+    const unlinked = list.map((t) => ({
+      title: t,
+      open: !s.linked[t],
+      closed: !!s.linked[t],
+      result: s.linked[t] || '',
+      g1: () => set(t, 'Linked to Growth'),
+      g2: () => set(t, 'Linked to Efficiency'),
+      g3: () => set(t, 'Linked to Expansion'),
+      none: () => set(t, 'Marked as not goal work')
+    }));
+    const linkedCount = 6 + Object.values(s.linked).filter((v) => v.indexOf('Linked') === 0).length;
+    return { unlinked, linkedPct: linkedCount + ' of 9' };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>OllieOS Phone voice capture</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+body{margin:0;background:#16171b}
+a{color:#ffffff}a:hover{color:#e9e4da}
+button:focus-visible,a:focus-visible{outline:2px solid #ffffff;outline-offset:2px}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; overflow: hidden; font-family: 'Google Sans', 'DM Sans', system-ui, sans-serif; color: #ffffff; background: radial-gradient(140% 60% at 90% 110%, rgba(181,68,26,0.55) 0%, rgba(181,68,26,0) 55%), radial-gradient(110% 50% at 10% 0%, rgba(57,80,122,0.7) 0%, rgba(57,80,122,0) 60%), #16171b; display: flex; flex-direction: column; padding: 56px 16px 28px; gap: 16px;">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+    <a href="PhoneHome.dc.html" style="font-size: 15px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; min-height: 44px;"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"></path></svg>Home</a>
+    <span style="font-size: 14px; color: rgba(255,255,255,0.82);">Voice capture</span>
+  </div>
+
+  <sc-if value="{{isIdle}}" hint-placeholder-val="{{ false }}">
+    <div style="flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center;">
+      <p style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 30px; line-height: 1.2;">Say a task, a note,<br>or what just happened.</p>
+      <p style="margin: 0; font-size: 14px; color: rgba(255,255,255,0.8); max-width: 30ch;">OllieOS splits it into tasks and knowledge. Nothing is saved until you check it.</p>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isRecording}}" hint-placeholder-val="{{ false }}">
+    <div style="flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: 18px;">
+      <div aria-hidden="true" style="display: flex; align-items: center; justify-content: center; gap: 5px; height: 64px;">
+        <span style="width: 5px; height: 20px; border-radius: 3px; background: #f4c542;"></span><span style="width: 5px; height: 44px; border-radius: 3px; background: #f4c542;"></span><span style="width: 5px; height: 30px; border-radius: 3px; background: #f4c542;"></span><span style="width: 5px; height: 58px; border-radius: 3px; background: #f4c542;"></span><span style="width: 5px; height: 36px; border-radius: 3px; background: #f4c542;"></span><span style="width: 5px; height: 48px; border-radius: 3px; background: #f4c542;"></span><span style="width: 5px; height: 24px; border-radius: 3px; background: #f4c542;"></span><span style="width: 5px; height: 40px; border-radius: 3px; background: #f4c542;"></span><span style="width: 5px; height: 16px; border-radius: 3px; background: #f4c542;"></span>
+      </div>
+      <p role="status" style="margin: 0; font-size: 18px; line-height: 1.5; text-align: center;">"Chase Emma on the PwC sign-off on Wednesday, and note that Veronica wants costs for 2027 to 28…"</p>
+      <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.75); text-align: center;">Example recording · 0:09</p>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isReview}}" hint-placeholder-val="{{ true }}">
+    <div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+      <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.8);">From your recording, 0:09</p>
+      <section style="padding: 16px; border-radius: 20px; background: #ffffff; color: #1b1d22; display: flex; flex-direction: column; gap: 8px;">
+        <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #55524c;">Task · to Inbox</span>
+        <span style="font-size: 17px; font-weight: 500; line-height: 1.35;">Chase Emma Duck on PwC budget sign-off</span>
+        <span style="display: flex; flex-wrap: wrap; gap: 6px;"><span style="font-size: 12px; padding: 3px 8px; border-radius: 6px; background: #f1efea;">Due Wednesday 11th</span><span style="font-size: 12px; padding: 3px 8px; border-radius: 6px; background: #f1efea;">PwC Skills for Tomorrow</span><span style="font-size: 12px; padding: 3px 8px; border-radius: 6px; background: #f1efea;">Emma Duck</span></span>
+      </section>
+      <section style="padding: 16px; border-radius: 20px; background: #ffffff; color: #1b1d22; display: flex; flex-direction: column; gap: 8px;">
+        <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #55524c;">Fact · to Knowledge Inbox</span>
+        <span style="font-size: 17px; font-weight: 500; line-height: 1.35;">Veronica Wilkinson wants costs for 2027/28</span>
+        <span style="display: flex; flex-wrap: wrap; gap: 6px;"><span style="font-size: 12px; padding: 3px 8px; border-radius: 6px; background: #f1efea;">Defence Nuclear Enterprise</span></span>
+      </section>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isSaved}}" hint-placeholder-val="{{ false }}">
+    <div style="flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center;">
+      <p style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 32px;">Saved.</p>
+      <p style="margin: 0; font-size: 14px; color: rgba(255,255,255,0.82);">1 task in Inbox, 1 suggestion in Knowledge Inbox.</p>
+    </div>
+  </sc-if>
+
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+    <sc-if value="{{isReview}}" hint-placeholder-val="{{ true }}">
+      <div style="width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+        <button type="button" onClick="{{reset}}" style="font: inherit; font-size: 16px; min-height: 52px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: #ffffff; cursor: pointer;">Discard</button>
+        <button type="button" onClick="{{save}}" style="font: inherit; font-size: 16px; font-weight: 600; min-height: 52px; border-radius: 16px; border: 0; background: #ffffff; color: #1b1d22; cursor: pointer;">Save both</button>
+      </div>
+    </sc-if>
+    <sc-if value="{{showMic}}" hint-placeholder-val="{{ false }}">
+      <button type="button" onClick="{{mic}}" aria-label="{{micLabel}}" style="width: 84px; height: 84px; border-radius: 999px; border: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; {{micStyle}}"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg></button>
+      <span style="font-size: 13px; color: rgba(255,255,255,0.8);">{{micHint}}</span>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { step: 'review' }; }
+  renderVals() {
+    const st = this.state.step;
+    const rec = st === 'recording';
+    return {
+      isIdle: st === 'idle',
+      isRecording: rec,
+      isReview: st === 'review',
+      isSaved: st === 'saved',
+      showMic: st !== 'review',
+      micLabel: rec ? 'Stop recording' : 'Start recording',
+      micHint: rec ? 'Tap to stop' : 'Tap to talk',
+      micStyle: rec ? 'background: #8a2a10; color: #ffffff;' : 'background: #f4c542; color: #1b1d22;',
+      mic: () => this.setState({ step: rec ? 'review' : 'recording' }),
+      save: () => this.setState({ step: 'saved' }),
+      reset: () => this.setState({ step: 'idle' })
+    };
+  }
+}
+</script>
+</body>
+</html>
