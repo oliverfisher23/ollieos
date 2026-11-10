@@ -629,7 +629,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     "upsert_calendar",
     {
       description: describe(
-        "Updates Ollie's calendar from today to seven days ahead (London time) with the events given. Events are matched on source_ref. Send the whole window each time: events that have not started and are not in the list drop off the calendar, and past events are kept.",
+        "Updates Ollie's calendar from today to seven days ahead (London time) with the events given. Events are matched on source_ref. Send the whole window each time: events that have not started and are not in the list drop off the calendar, and past events are kept. Use the Google Calendar event id as source_ref. When OllieOS reads Google Calendar itself, the call changes nothing and says so.",
       ),
       inputSchema: {
         events: z
@@ -653,6 +653,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     async (a) =>
       guard(async () => {
         const r = await syncCalendarFeed(scope, writer, a.events);
+        if (r.ignored) return ok({ replaced: 0, removed: 0, ignored: true, message: r.ignored });
         return ok({
           replaced: r.replaced,
           removed: r.removed,

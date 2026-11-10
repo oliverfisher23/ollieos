@@ -77,7 +77,7 @@ function Router() {
         <Route path="/goals" component={GoalsPage} />
         <Route path="/people" component={PeopleCadencePage} />
         <Route path="/people/:slug">{(p) => <Redirect to={'/knowledge/people/' + p.slug} replace />}</Route>
-        <Route path="/settings">{() => <Redirect to="/settings/noise-rules" replace />}</Route>
+        <Route path="/settings">{() => <Redirect to="/settings/connectors" replace />}</Route>
         <Route path="/settings/:section" component={SettingsPage} />
         <Route path="/oauth/consent" component={OAuthConsentPage} />
         <Route component={NotFound} />

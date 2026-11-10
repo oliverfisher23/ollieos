@@ -7,6 +7,11 @@ import { z } from "zod";
 import { resolvePick } from "../lib/ai-data/context";
 import type { AiScope } from "../lib/ai-data/scope";
 import { normaliseAttendees, platformFor, replaceCalendar, type AttendeeInput, type CalendarInput, type Writer } from "./aiWrites";
+import { refusesClaudeFeed } from "./connectors";
+
+/** Said to Claude when it sends a calendar OllieOS now reads itself. */
+export const CALENDAR_READ_DIRECT =
+  "OllieOS reads Google Calendar itself now, so this calendar was not used and nothing changed. You can stop sending the calendar.";
 
 export const AttendeeSchema = z.union([
   z.string().max(320),
@@ -32,6 +37,7 @@ export interface FeedEvent {
 }
 
 export async function syncCalendarFeed(scope: AiScope, writer: Writer, feed: FeedEvent[]) {
+  if (await refusesClaudeFeed("calendar")) return { replaced: 0, removed: 0, outsideWindow: 0, unmatched: [] as string[], ignored: CALENDAR_READ_DIRECT };
   const unmatched = new Set<string>();
   const events: CalendarInput[] = [];
   for (const e of feed) {
@@ -61,5 +67,5 @@ export async function syncCalendarFeed(scope: AiScope, writer: Writer, feed: Fee
     });
   }
   const r = await replaceCalendar(writer, events);
-  return { ...r, unmatched: [...unmatched] };
+  return { ...r, unmatched: [...unmatched], ignored: null };
 }

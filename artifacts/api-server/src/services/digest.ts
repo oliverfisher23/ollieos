@@ -7,6 +7,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, lt, ne, or, sql } from "dr
 import {
   activityTable,
   calendarEventsTable,
+  connectorRunsTable,
   db,
   digestsTable,
   linksTable,
@@ -260,14 +261,22 @@ export async function clearOldDigests(now = new Date()): Promise<number> {
   return rows.length;
 }
 
+/** Fresh data arrived today: a Claude sweep finished, or OllieOS read a service itself after 07:40. */
 async function sweepFinishedToday(now: Date): Promise<boolean> {
-  const day = londonRange(todayLondon(now), 1);
+  const today = todayLondon(now);
+  const day = londonRange(today, 1);
   const [row] = await db
     .select({ id: sweepRunsTable.id })
     .from(sweepRunsTable)
     .where(and(gte(sweepRunsTable.finishedAt, day.start), lt(sweepRunsTable.finishedAt, day.end)))
     .limit(1);
-  return !!row;
+  if (row) return true;
+  const [own] = await db
+    .select({ id: connectorRunsTable.id })
+    .from(connectorRunsTable)
+    .where(and(eq(connectorRunsTable.ok, true), gte(connectorRunsTable.startedAt, londonWallTimeToInstant(today, 7, 40)), lt(connectorRunsTable.startedAt, day.end)))
+    .limit(1);
+  return !!own;
 }
 
 export interface DigestView {
@@ -291,7 +300,7 @@ export async function getDigest(dateOrToday: string, now = new Date()): Promise<
   const [row] = await db.select().from(digestsTable).where(eq(digestsTable.forDate, date));
   if (row) return toView(row);
   if (date === today && isWeekday(date) && (await sweepFinishedToday(now))) return toView(await buildDigest(date, now));
-  throw new NotFoundError(date === today ? "Today's digest is written after the first sweep on a weekday morning" : "There is no digest for that day");
+  throw new NotFoundError(date === today ? "Today's digest is written after the first check from 07:40 on a weekday morning" : "There is no digest for that day");
 }
 
 /** Dates with a digest, newest first, for the list of past digests. */

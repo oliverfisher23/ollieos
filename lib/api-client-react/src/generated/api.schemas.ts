@@ -1737,6 +1737,125 @@ export interface SweepStatus {
   runs: SweepRun[];
 }
 
+export type ConnectorKey = typeof ConnectorKey[keyof typeof ConnectorKey];
+
+
+export const ConnectorKey = {
+  calendar: 'calendar',
+  gmail: 'gmail',
+  slack: 'slack',
+  drive: 'drive',
+  granola: 'granola',
+} as const;
+
+export type ConnectorReadBy = typeof ConnectorReadBy[keyof typeof ConnectorReadBy];
+
+
+export const ConnectorReadBy = {
+  ollieos: 'ollieos',
+  claude: 'claude',
+} as const;
+
+export type ConnectorRunTrigger = typeof ConnectorRunTrigger[keyof typeof ConnectorRunTrigger];
+
+
+export const ConnectorRunTrigger = {
+  timer: 'timer',
+  manual: 'manual',
+} as const;
+
+export type ConnectorRunCounts = {[key: string]: number};
+
+export interface ConnectorRun {
+  id: number;
+  trigger: ConnectorRunTrigger;
+  startedAt: string;
+  /** @nullable */
+  finishedAt: string | null;
+  ok: boolean;
+  found: number;
+  counts: ConnectorRunCounts;
+  /** @nullable */
+  error: string | null;
+}
+
+export interface ConnectorService {
+  key: ConnectorKey;
+  name: string;
+  readBy: ConnectorReadBy;
+  /** True when Ollie chose who reads it */
+  chosen: boolean;
+  /** True when OllieOS can read this service itself */
+  canReadDirect: boolean;
+  /** @nullable */
+  account: string | null;
+  /** @nullable */
+  lastGoodAt: string | null;
+  /** @nullable */
+  lastFromClaudeAt: string | null;
+  runs: ConnectorRun[];
+}
+
+export type ConnectorScheduleEveryMinutes = typeof ConnectorScheduleEveryMinutes[keyof typeof ConnectorScheduleEveryMinutes];
+
+
+export const ConnectorScheduleEveryMinutes = {
+  NUMBER_30: 30,
+  NUMBER_60: 60,
+} as const;
+
+export interface ConnectorSchedule {
+  enabled: boolean;
+  everyMinutes: ConnectorScheduleEveryMinutes;
+  /** HH:MM, London time */
+  start: string;
+  /** HH:MM, London time */
+  end: string;
+  /** @nullable */
+  lastRunAt: string | null;
+  /** @nullable */
+  nextRunAt: string | null;
+}
+
+export interface Connectors {
+  schedule: ConnectorSchedule;
+  services: ConnectorService[];
+}
+
+export type ConnectorScheduleInputEveryMinutes = typeof ConnectorScheduleInputEveryMinutes[keyof typeof ConnectorScheduleInputEveryMinutes];
+
+
+export const ConnectorScheduleInputEveryMinutes = {
+  NUMBER_30: 30,
+  NUMBER_60: 60,
+} as const;
+
+export interface ConnectorScheduleInput {
+  enabled?: boolean;
+  everyMinutes?: ConnectorScheduleInputEveryMinutes;
+  /** @maxLength 5 */
+  start?: string;
+  /** @maxLength 5 */
+  end?: string;
+}
+
+export interface ConnectorReadByInput {
+  readBy: ConnectorReadBy;
+}
+
+export type ConnectorCheckResultCounts = {[key: string]: number};
+
+export interface ConnectorCheckResult {
+  ok: boolean;
+  found: number;
+  counts: ConnectorCheckResultCounts;
+  /** @nullable */
+  account: string | null;
+  /** @nullable */
+  error: string | null;
+  needsReconnect: boolean;
+}
+
 export interface OAuthConsent {
   clientName: string;
   redirectHost: string;

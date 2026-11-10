@@ -88,7 +88,7 @@ export default function KnowledgeSettings() {
         <h1 id="ks-h" style={H1}>Knowledge</h1>
         <p className="oo-soft" style={{ margin: 0, fontSize: 14, maxWidth: '64ch', lineHeight: 1.6 }}>
           Facts go stale. Once a fact has gone this long without anyone confirming it, it moves to Needs a check in the{' '}
-          <Link href="/knowledge/inbox">Knowledge Inbox</Link>. The check runs once a week, after the first sweep after Sunday 18:00.
+          <Link href="/knowledge/inbox">Knowledge Inbox</Link>. The check runs once a week, after the first check by OllieOS or the Claude sweep after Sunday 18:00.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginTop: 12 }}>
           <button type="button" className="oo-btn oo-btn-outline" disabled={checking} onClick={check} data-testid="button-run-fact-check">

@@ -55,14 +55,14 @@ function AccessStatus({ access }: { access: HomeSummary['access'] }) {
             Allow 1 hour
           </button>
         ) : (
-          <Link href="/settings/ai-access" className="oo-req-btn" data-tone="accent" data-testid={'link-home-review-' + req.id}>Choose item</Link>
+          <Link href="/settings/connectors#access-requests" className="oo-req-btn" data-tone="accent" data-testid={'link-home-review-' + req.id}>Choose item</Link>
         )}
         <button type="button" className="oo-req-btn" disabled={busy}
           onClick={() => act(() => actions.decline(req), 'Request declined')} data-testid={'button-home-decline-' + req.id}>
           Decline
         </button>
         {more > 0 && (
-          <Link href="/settings/ai-access" className="oo-t2" style={{ fontSize: 12 }} data-testid="link-home-more-requests">
+          <Link href="/settings/connectors#access-requests" className="oo-t2" style={{ fontSize: 12 }} data-testid="link-home-more-requests">
             {more === 1 ? '1 more request' : `${more} more requests`}
           </Link>
         )}
@@ -70,7 +70,7 @@ function AccessStatus({ access }: { access: HomeSummary['access'] }) {
     );
   } else if (open) {
     content = (
-      <Link href="/settings/ai-access" style={{ color: 'inherit' }} data-testid="text-home-open-access">
+      <Link href="/settings/connectors#access-requests" style={{ color: 'inherit' }} data-testid="text-home-open-access">
         {requestItemName(open)} open to {open.client.name} until {formatTime(open.expiresAt!)}
         {access.open.length > 1 ? ` · ${access.open.length - 1} more` : ''}
       </Link>

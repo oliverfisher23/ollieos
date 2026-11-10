@@ -1742,6 +1742,81 @@ paths:
               schema: { $ref: "#/components/schemas/SweepStatus" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /connectors:
+    get:
+      operationId: getConnectors
+      tags: [access]
+      summary: Which services OllieOS reads itself, the check schedule and recent checks
+      responses:
+        "200":
+          description: Connectors
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connectors" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /connectors/schedule:
+    patch:
+      operationId: updateConnectorSchedule
+      tags: [access]
+      summary: Turn timed checks on or off, or change how often and when they run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectorScheduleInput" }
+      responses:
+        "200":
+          description: Connectors after the change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connectors" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /connectors/{key}:
+    patch:
+      operationId: setConnectorReadBy
+      tags: [access]
+      summary: Choose whether OllieOS or Claude reads a service
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/ConnectorKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConnectorReadByInput" }
+      responses:
+        "200":
+          description: Connectors after the change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Connectors" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /connectors/{key}/check:
+    post:
+      operationId: checkConnector
+      tags: [access]
+      summary: Read a service now, then refresh briefs
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/ConnectorKey" }
+      responses:
+        "200":
+          description: How the check went
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConnectorCheckResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /oauth/consent:
     get:
       operationId: getOAuthConsent
@@ -3427,6 +3502,90 @@ components:
             revokedAt: { type: [string, "null"], format: date-time }
         cursor: { type: [string, "null"], format: date-time }
         runs: { type: array, items: { $ref: "#/components/schemas/SweepRun" } }
+
+    ConnectorKey:
+      type: string
+      enum: [calendar, gmail, slack, drive, granola]
+
+    ConnectorReadBy:
+      type: string
+      enum: [ollieos, claude]
+
+    ConnectorRun:
+      type: object
+      required: [id, trigger, startedAt, finishedAt, ok, found, counts, error]
+      properties:
+        id: { type: integer }
+        trigger: { type: string, enum: [timer, manual] }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: [string, "null"], format: date-time }
+        ok: { type: boolean }
+        found: { type: integer }
+        counts:
+          type: object
+          additionalProperties: { type: integer }
+        error: { type: [string, "null"] }
+
+    ConnectorService:
+      type: object
+      required: [key, name, readBy, chosen, canReadDirect, account, lastGoodAt, lastFromClaudeAt, runs]
+      properties:
+        key: { $ref: "#/components/schemas/ConnectorKey" }
+        name: { type: string }
+        readBy: { $ref: "#/components/schemas/ConnectorReadBy" }
+        chosen: { type: boolean, description: "True when Ollie chose who reads it" }
+        canReadDirect: { type: boolean, description: "True when OllieOS can read this service itself" }
+        account: { type: [string, "null"] }
+        lastGoodAt: { type: [string, "null"], format: date-time }
+        lastFromClaudeAt: { type: [string, "null"], format: date-time }
+        runs: { type: array, items: { $ref: "#/components/schemas/ConnectorRun" } }
+
+    ConnectorSchedule:
+      type: object
+      required: [enabled, everyMinutes, start, end, lastRunAt, nextRunAt]
+      properties:
+        enabled: { type: boolean }
+        everyMinutes: { type: integer, enum: [30, 60] }
+        start: { type: string, description: "HH:MM, London time" }
+        end: { type: string, description: "HH:MM, London time" }
+        lastRunAt: { type: [string, "null"], format: date-time }
+        nextRunAt: { type: [string, "null"], format: date-time }
+
+    Connectors:
+      type: object
+      required: [schedule, services]
+      properties:
+        schedule: { $ref: "#/components/schemas/ConnectorSchedule" }
+        services: { type: array, items: { $ref: "#/components/schemas/ConnectorService" } }
+
+    ConnectorScheduleInput:
+      type: object
+      additionalProperties: false
+      properties:
+        enabled: { type: boolean }
+        everyMinutes: { type: integer, enum: [30, 60] }
+        start: { type: string, maxLength: 5 }
+        end: { type: string, maxLength: 5 }
+
+    ConnectorReadByInput:
+      type: object
+      required: [readBy]
+      additionalProperties: false
+      properties:
+        readBy: { $ref: "#/components/schemas/ConnectorReadBy" }
+
+    ConnectorCheckResult:
+      type: object
+      required: [ok, found, counts, account, error, needsReconnect]
+      properties:
+        ok: { type: boolean }
+        found: { type: integer }
+        counts:
+          type: object
+          additionalProperties: { type: integer }
+        account: { type: [string, "null"] }
+        error: { type: [string, "null"] }
+        needsReconnect: { type: boolean }
 
     OAuthConsent:
       type: object

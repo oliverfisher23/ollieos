@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'wouter';
+import { Link, Redirect, useParams } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { getListNoiseRulesQueryKey, useListNoiseRules, updateNoiseRule, type NoiseRule } from '@workspace/api-client-react';
 import { SOURCE_LABELS, formatShort } from '@workspace/shared';
@@ -7,13 +7,14 @@ import { Skel } from '@/components/bits';
 import { useInvalidateTasks } from '@/lib/task-cache';
 import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
-import AiAccessSettings from './settings-ai-access';
-import SweepSettings from './settings-sweep';
+import ConnectorsSettings from './settings-connectors';
 import KnowledgeSettings from './settings-knowledge';
 
+/** Sections that moved into Connectors. */
+const MOVED: Record<string, string> = { 'ai-access': 'connectors', sweep: 'connectors' };
+
 const SECTIONS = [
-  { slug: 'ai-access', label: 'AI access', milestone: 4, line: 'Which AI tools can read and write OllieOS, what they have looked at, and what they are asking to see.' },
-  { slug: 'sweep', label: 'Capture sweep', milestone: 5, line: 'When the sweep runs, what it reads, and how its last few runs went.' },
+  { slug: 'connectors', label: 'Connectors', milestone: 8, line: '' },
   { slug: 'knowledge', label: 'Knowledge', milestone: 6, line: '' },
   { slug: 'noise-rules', label: 'Noise rules', milestone: 2, line: '' },
   { slug: 'imports', label: 'Imports', milestone: 9, line: 'Import status for your tasks, Knowledge and memory, one line per kind.' },
@@ -23,6 +24,7 @@ const SECTIONS = [
 export default function SettingsPage() {
   const { section } = useParams<{ section: string }>();
   const current = SECTIONS.find((s) => s.slug === section);
+  if (MOVED[section]) return <Redirect to={'/settings/' + MOVED[section]} replace />;
 
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }} className="oo-fade-in">
@@ -41,10 +43,8 @@ export default function SettingsPage() {
           </section>
         ) : current.slug === 'noise-rules' ? (
           <NoiseRules />
-        ) : current.slug === 'ai-access' ? (
-          <AiAccessSettings />
-        ) : current.slug === 'sweep' ? (
-          <SweepSettings />
+        ) : current.slug === 'connectors' ? (
+          <ConnectorsSettings />
         ) : current.slug === 'knowledge' ? (
           <KnowledgeSettings />
         ) : (

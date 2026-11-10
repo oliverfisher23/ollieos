@@ -4452,6 +4452,149 @@ export const GetSweepStatusResponse = zod.object({
 
 
 /**
+ * @summary Which services OllieOS reads itself, the check schedule and recent checks
+ */
+export const GetConnectorsResponse = zod.object({
+  "schedule": zod.object({
+  "enabled": zod.boolean(),
+  "everyMinutes": zod.union([zod.literal(30),zod.literal(60)]),
+  "start": zod.string().describe('HH:MM, London time'),
+  "end": zod.string().describe('HH:MM, London time'),
+  "lastRunAt": zod.coerce.date().nullable(),
+  "nextRunAt": zod.coerce.date().nullable()
+}),
+  "services": zod.array(zod.object({
+  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola']),
+  "name": zod.string(),
+  "readBy": zod.enum(['ollieos', 'claude']),
+  "chosen": zod.boolean().describe('True when Ollie chose who reads it'),
+  "canReadDirect": zod.boolean().describe('True when OllieOS can read this service itself'),
+  "account": zod.string().nullable(),
+  "lastGoodAt": zod.coerce.date().nullable(),
+  "lastFromClaudeAt": zod.coerce.date().nullable(),
+  "runs": zod.array(zod.object({
+  "id": zod.int(),
+  "trigger": zod.enum(['timer', 'manual']),
+  "startedAt": zod.coerce.date(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "ok": zod.boolean(),
+  "found": zod.int(),
+  "counts": zod.record(zod.string(), zod.int()),
+  "error": zod.string().nullable()
+}))
+}))
+})
+
+
+/**
+ * @summary Turn timed checks on or off, or change how often and when they run
+ */
+export const updateConnectorScheduleBodyStartMax = 5;
+
+export const updateConnectorScheduleBodyEndMax = 5;
+
+
+
+export const UpdateConnectorScheduleBody = zod.object({
+  "enabled": zod.boolean().optional(),
+  "everyMinutes": zod.union([zod.literal(30),zod.literal(60)]).optional(),
+  "start": zod.string().max(updateConnectorScheduleBodyStartMax).optional(),
+  "end": zod.string().max(updateConnectorScheduleBodyEndMax).optional()
+})
+
+export const UpdateConnectorScheduleResponse = zod.object({
+  "schedule": zod.object({
+  "enabled": zod.boolean(),
+  "everyMinutes": zod.union([zod.literal(30),zod.literal(60)]),
+  "start": zod.string().describe('HH:MM, London time'),
+  "end": zod.string().describe('HH:MM, London time'),
+  "lastRunAt": zod.coerce.date().nullable(),
+  "nextRunAt": zod.coerce.date().nullable()
+}),
+  "services": zod.array(zod.object({
+  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola']),
+  "name": zod.string(),
+  "readBy": zod.enum(['ollieos', 'claude']),
+  "chosen": zod.boolean().describe('True when Ollie chose who reads it'),
+  "canReadDirect": zod.boolean().describe('True when OllieOS can read this service itself'),
+  "account": zod.string().nullable(),
+  "lastGoodAt": zod.coerce.date().nullable(),
+  "lastFromClaudeAt": zod.coerce.date().nullable(),
+  "runs": zod.array(zod.object({
+  "id": zod.int(),
+  "trigger": zod.enum(['timer', 'manual']),
+  "startedAt": zod.coerce.date(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "ok": zod.boolean(),
+  "found": zod.int(),
+  "counts": zod.record(zod.string(), zod.int()),
+  "error": zod.string().nullable()
+}))
+}))
+})
+
+
+/**
+ * @summary Choose whether OllieOS or Claude reads a service
+ */
+export const SetConnectorReadByParams = zod.object({
+  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola'])
+})
+
+export const SetConnectorReadByBody = zod.object({
+  "readBy": zod.enum(['ollieos', 'claude'])
+})
+
+export const SetConnectorReadByResponse = zod.object({
+  "schedule": zod.object({
+  "enabled": zod.boolean(),
+  "everyMinutes": zod.union([zod.literal(30),zod.literal(60)]),
+  "start": zod.string().describe('HH:MM, London time'),
+  "end": zod.string().describe('HH:MM, London time'),
+  "lastRunAt": zod.coerce.date().nullable(),
+  "nextRunAt": zod.coerce.date().nullable()
+}),
+  "services": zod.array(zod.object({
+  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola']),
+  "name": zod.string(),
+  "readBy": zod.enum(['ollieos', 'claude']),
+  "chosen": zod.boolean().describe('True when Ollie chose who reads it'),
+  "canReadDirect": zod.boolean().describe('True when OllieOS can read this service itself'),
+  "account": zod.string().nullable(),
+  "lastGoodAt": zod.coerce.date().nullable(),
+  "lastFromClaudeAt": zod.coerce.date().nullable(),
+  "runs": zod.array(zod.object({
+  "id": zod.int(),
+  "trigger": zod.enum(['timer', 'manual']),
+  "startedAt": zod.coerce.date(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "ok": zod.boolean(),
+  "found": zod.int(),
+  "counts": zod.record(zod.string(), zod.int()),
+  "error": zod.string().nullable()
+}))
+}))
+})
+
+
+/**
+ * @summary Read a service now, then refresh briefs
+ */
+export const CheckConnectorParams = zod.object({
+  "key": zod.enum(['calendar', 'gmail', 'slack', 'drive', 'granola'])
+})
+
+export const CheckConnectorResponse = zod.object({
+  "ok": zod.boolean(),
+  "found": zod.int(),
+  "counts": zod.record(zod.string(), zod.int()),
+  "account": zod.string().nullable(),
+  "error": zod.string().nullable(),
+  "needsReconnect": zod.boolean()
+})
+
+
+/**
  * @summary What a tool asking to connect wants, for the consent screen
  */
 export const GetOAuthConsentQueryParams = zod.object({

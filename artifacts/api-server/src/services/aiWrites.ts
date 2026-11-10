@@ -338,7 +338,7 @@ export function platformFor(given: string | null | undefined, location: string |
  * have started are kept, and cleared 30 days after they end (build plan 29).
  */
 export async function replaceCalendar(
-  w: Writer,
+  w: { actor: string; clientId: number | null },
   events: CalendarInput[],
   now = new Date(),
 ): Promise<{ replaced: number; removed: number; outsideWindow: number }> {

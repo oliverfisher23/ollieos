@@ -867,7 +867,7 @@ Each has a proposal. Unless you say otherwise I will go with the proposals.
 29. **Calendar sync breaks briefs.** Each calendar post deletes every event in the 8-day window and reinserts, so event ids change twice a day and past events vanish, which would orphan briefs and Granola notes. Attendees are plain names, but briefs need email and accepted status. *Proposal:* upsert by `source_ref` (ids stay stable), remove only future events no longer in the feed, keep past events for 30 days, and store attendees as `{ name, email, response }` while still accepting plain names.
 30. **Calendar rule added by the security fix.** The dependency-fix task (merged this morning) also changed calendar handling in two ways I didn't plan: (a) if any `people` or `project` hint on any event doesn't match a visible record, the whole calendar post is rejected, and (b) AI tools no longer see any event whose title, location or attendees contains the name, slug or email of any hidden item, matched as a substring. (a) will make the sweep fail whenever a new contact is invited, and briefs need unknown attendees ("No previous contact"). (b) can hide unrelated events (a hidden person called "Sam" hides "Samsung review"). *Proposal:* revert (a) to "store the event, report unmatched names", and change (b) to whole-word matches on full names and emails only, keeping the protection it was meant to add. Tests updated to match.
 31. **Granola actions.** Feature 03 says the brief "offers" Granola actions as Inbox items, but the sweep already turns Granola actions into Inbox tasks (PRD 18). Doing both would create duplicates. *Proposal:* the sweep keeps sending actions to Inbox as now; the brief shows "3 actions went to your Inbox" with links, and decisions become Knowledge Inbox suggestions.
-32. **Scheduled jobs on Autoscale.** There is no timer for the Sunday stale check, the 30-minute brief, the 07:45 email or the 30-day clean-ups. *Proposal:* all run when a sweep finishes (07:40 and 13:40 weekdays): the stale check runs on the first sweep finish after Sunday 18:00; briefs for today's and tomorrow's work meetings are built at each sweep (so a 9:00 meeting has its brief by 07:45) and refreshed on open after 3 hours; the digest is built on the first sweep of the day; clean-ups run every time.
+32. **Scheduled jobs on Autoscale.** *Replaced on 10th November 2026 by the connector timer (section 12): scheduled work now also runs after each OllieOS check, and the app moves to an always-on Reserved VM.* There is no timer for the Sunday stale check, the 30-minute brief, the 07:45 email or the 30-day clean-ups. *Proposal:* all run when a sweep finishes (07:40 and 13:40 weekdays): the stale check runs on the first sweep finish after Sunday 18:00; briefs for today's and tomorrow's work meetings are built at each sweep (so a 9:00 meeting has its brief by 07:45) and refreshed on open after 3 hours; the digest is built on the first sweep of the day; clean-ups run every time.
 33. **Digest email.** Sending needs an email service, a key and a timer. *Proposal:* no email in phase 1 (the feature PRD allows this). The footer switch is left out until email is added, rather than shown and not working.
 34. **Weekly update grouping.** Built in milestone 2 grouped by project; feature 04 says by goal. *Proposal:* group by goal, with projects as sub-headings, then "Not linked to a goal" last.
 35. **Digest window.** "Since 18:00 yesterday" doesn't fit Mondays. *Proposal:* since 18:00 on the previous working day (Friday for Monday), weekdays only.
@@ -892,3 +892,21 @@ Each has a proposal. Unless you say otherwise I will go with the proposals.
 48. **Claude reading a brief.** A brief built with an approved grant may mention items Claude can't see. *Proposal:* `get_meeting_brief` drops any sentence or question whose citations include an item hidden from the caller, and any hidden attendee, promise, project or document.
 49. **Cadence suggestions from the sweep.** *Proposal:* the sweep may suggest a cadence only for people it has just suggested or who have no cadence; it never changes one you set.
 50. **30-day retention.** Rejected suggestions and digests are kept 30 days. *Proposal:* both are cleaned up when a sweep finishes, alongside the Noise clean-up. Briefs are kept as long as their calendar event (30 days, question 29).
+
+## 12. Connectors (milestone 8 follow-on, agreed 10th November 2026)
+
+Goal: OllieOS reads Ollie's services itself and stops relying on the Claude sweep. Each part is its own milestone with sign-off.
+
+| Part | Services | How |
+|---|---|---|
+| A (built) | Google Calendar | Replit Google Calendar integration, read with `@replit/connectors-sdk`. No AI |
+| B | Gmail, Slack | Replit integrations; AI sorting on a cheaper model billed to Replit credits |
+| C | Google Drive, Granola | Replit Drive integration; Granola Enterprise API with a key in Replit secrets |
+
+- **Data:** `connector_runs` (one row per check, kept 30 days); app_settings `connectors` holds the schedule and who reads each service.
+- **Who reads a service:** Ollie's choice wins. A service OllieOS can read moves to OllieOS automatically after its first good check. While OllieOS reads it, the matching ingest route and MCP tool answer `{ignored: true}`.
+- **Timer:** checked every minute in the API server; runs at the chosen interval (30 or 60 minutes) on weekdays inside the window (default 07:00 to 19:00 London). Each run is claimed in the database first so two instances never double-run. After the checks, `scheduledWork` builds briefs, the digest (from 07:40) and clean-ups.
+- **API:** `GET /api/connectors`, `PATCH /api/connectors/schedule`, `PATCH /api/connectors/:key` (`{readBy}`), `POST /api/connectors/:key/check`.
+- **Page:** Settings → Connectors, first in the list. `/settings/ai-access` and `/settings/sweep` redirect there.
+- **Publishing:** deployment must be a Reserved VM so the timer keeps running; connections must also be set for the published app in Publishing settings.
+

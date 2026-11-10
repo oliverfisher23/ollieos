@@ -60,7 +60,7 @@ export default function OAuthConsentPage() {
               </ul>
               <p className="oo-soft" style={{ margin: 0, display: 'flex', gap: 6, alignItems: 'flex-start', lineHeight: 1.5 }}>
                 <IconLock size={16} style={{ flex: 'none', marginTop: 2 }} />
-                <span>Confidential items stay hidden. It can never delete anything, and every read and write is logged under AI access.</span>
+                <span>Confidential items stay hidden. It can never delete anything, and every read and write is logged under Connectors in Settings.</span>
               </p>
             </div>
             <p className="oo-muted" style={{ margin: 0, fontSize: 13 }} data-testid="text-consent-host">

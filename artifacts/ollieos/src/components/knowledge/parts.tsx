@@ -52,7 +52,7 @@ export function OpenGrantsNote({ itemRef }: { itemRef: string }) {
   return (
     <span style={{ fontSize: 12 }} className="oo-soft" data-testid="text-open-grants">
       {open.map((r) => `Open to ${r.client.name} until ${formatTime(r.expiresAt!)}`).join('. ')}.{' '}
-      <Link href="/settings/ai-access">Manage</Link>
+      <Link href="/settings/connectors#access-requests">Manage</Link>
     </span>
   );
 }

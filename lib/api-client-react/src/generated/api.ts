@@ -45,6 +45,11 @@ import type {
   CadencePage,
   CheckInDraft,
   ClipboardText,
+  ConnectorCheckResult,
+  ConnectorKey,
+  ConnectorReadByInput,
+  ConnectorScheduleInput,
+  Connectors,
   DecideOAuthConsent200,
   Decision,
   DecisionInput,
@@ -8393,6 +8398,358 @@ export function useGetSweepStatus<TData = Awaited<ReturnType<typeof getSweepStat
 
 
 
+
+export const getGetConnectorsUrl = () => {
+
+
+
+
+  return `/api/connectors`
+}
+
+/**
+ * @summary Which services OllieOS reads itself, the check schedule and recent checks
+ */
+export const getConnectors = async ( options?: Parameters<typeof customFetch>[1]): Promise<Connectors> => {
+
+  return customFetch<Connectors>(getGetConnectorsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetConnectorsQueryKey = () => {
+    return [
+    `/api/connectors`
+    ] as const;
+    }
+
+
+export const getGetConnectorsQueryOptions = <TData = Awaited<ReturnType<typeof getConnectors>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getConnectors>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetConnectorsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getConnectors>>> = ({ signal }) => getConnectors({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getConnectors>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetConnectorsQueryResult = NonNullable<Awaited<ReturnType<typeof getConnectors>>>
+export type GetConnectorsQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetConnectors<TData = Awaited<ReturnType<typeof getConnectors>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getConnectors>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getConnectors>>,
+          TError,
+          Awaited<ReturnType<typeof getConnectors>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetConnectors<TData = Awaited<ReturnType<typeof getConnectors>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getConnectors>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getConnectors>>,
+          TError,
+          Awaited<ReturnType<typeof getConnectors>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetConnectors<TData = Awaited<ReturnType<typeof getConnectors>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getConnectors>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Which services OllieOS reads itself, the check schedule and recent checks
+ */
+
+export function useGetConnectors<TData = Awaited<ReturnType<typeof getConnectors>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getConnectors>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetConnectorsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateConnectorScheduleUrl = () => {
+
+
+
+
+  return `/api/connectors/schedule`
+}
+
+/**
+ * @summary Turn timed checks on or off, or change how often and when they run
+ */
+export const updateConnectorSchedule = async (connectorScheduleInput: ConnectorScheduleInput, options?: Parameters<typeof customFetch>[1]): Promise<Connectors> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Connectors>(getUpdateConnectorScheduleUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(connectorScheduleInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateConnectorScheduleMutationKey = () => ['updateConnectorSchedule'] as const;
+
+export const getUpdateConnectorScheduleMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateConnectorSchedule>>, TError,UpdateConnectorScheduleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateConnectorSchedule>>, TError,UpdateConnectorScheduleMutationVariables, TContext> => {
+
+const mutationKey = getUpdateConnectorScheduleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateConnectorSchedule>>, UpdateConnectorScheduleMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateConnectorSchedule(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateConnectorScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof updateConnectorSchedule>>>
+    export type UpdateConnectorScheduleMutationBody = BodyType<ConnectorScheduleInput>
+    export type UpdateConnectorScheduleMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type UpdateConnectorScheduleMutationVariables = {data: BodyType<ConnectorScheduleInput>}
+
+    /**
+ * @summary Turn timed checks on or off, or change how often and when they run
+ */
+export const useUpdateConnectorSchedule = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateConnectorSchedule>>, TError,UpdateConnectorScheduleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateConnectorSchedule>>,
+        TError,
+        UpdateConnectorScheduleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateConnectorScheduleMutationOptions(options), queryClient);
+    }
+
+export const getSetConnectorReadByUrl = (key: ConnectorKey,) => {
+
+
+
+
+  return `/api/connectors/${key}`
+}
+
+/**
+ * @summary Choose whether OllieOS or Claude reads a service
+ */
+export const setConnectorReadBy = async (key: ConnectorKey,
+    connectorReadByInput: ConnectorReadByInput, options?: Parameters<typeof customFetch>[1]): Promise<Connectors> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Connectors>(getSetConnectorReadByUrl(key),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(connectorReadByInput)
+  }
+);}
+
+
+
+
+
+export const getSetConnectorReadByMutationKey = () => ['setConnectorReadBy'] as const;
+
+export const getSetConnectorReadByMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setConnectorReadBy>>, TError,SetConnectorReadByMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setConnectorReadBy>>, TError,SetConnectorReadByMutationVariables, TContext> => {
+
+const mutationKey = getSetConnectorReadByMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setConnectorReadBy>>, SetConnectorReadByMutationVariables> = (props) => {
+          const {key,data} = props ?? {};
+
+          return  setConnectorReadBy(key,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetConnectorReadByMutationResult = NonNullable<Awaited<ReturnType<typeof setConnectorReadBy>>>
+    export type SetConnectorReadByMutationBody = BodyType<ConnectorReadByInput>
+    export type SetConnectorReadByMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SetConnectorReadByMutationVariables = {key: ConnectorKey;data: BodyType<ConnectorReadByInput>}
+
+    /**
+ * @summary Choose whether OllieOS or Claude reads a service
+ */
+export const useSetConnectorReadBy = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setConnectorReadBy>>, TError,SetConnectorReadByMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setConnectorReadBy>>,
+        TError,
+        SetConnectorReadByMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetConnectorReadByMutationOptions(options), queryClient);
+    }
+
+export const getCheckConnectorUrl = (key: ConnectorKey,) => {
+
+
+
+
+  return `/api/connectors/${key}/check`
+}
+
+/**
+ * @summary Read a service now, then refresh briefs
+ */
+export const checkConnector = async (key: ConnectorKey, options?: Parameters<typeof customFetch>[1]): Promise<ConnectorCheckResult> => {
+
+  return customFetch<ConnectorCheckResult>(getCheckConnectorUrl(key),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckConnectorMutationKey = () => ['checkConnector'] as const;
+
+export const getCheckConnectorMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkConnector>>, TError,CheckConnectorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkConnector>>, TError,CheckConnectorMutationVariables, TContext> => {
+
+const mutationKey = getCheckConnectorMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkConnector>>, CheckConnectorMutationVariables> = (props) => {
+          const {key} = props ?? {};
+
+          return  checkConnector(key,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckConnectorMutationResult = NonNullable<Awaited<ReturnType<typeof checkConnector>>>
+
+    export type CheckConnectorMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type CheckConnectorMutationVariables = {key: ConnectorKey}
+
+    /**
+ * @summary Read a service now, then refresh briefs
+ */
+export const useCheckConnector = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkConnector>>, TError,CheckConnectorMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof checkConnector>>,
+        TError,
+        CheckConnectorMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCheckConnectorMutationOptions(options), queryClient);
+    }
 
 export const getGetOAuthConsentUrl = (params: GetOAuthConsentParams,) => {
   const normalizedParams = new URLSearchParams();

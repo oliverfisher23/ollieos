@@ -27,10 +27,10 @@ import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
 import { CopyField } from '@/components/copy-field';
 
-const H1 = { margin: 0, fontSize: 30, fontWeight: 600, letterSpacing: '-0.015em' } as const;
 const H2 = { margin: 0, fontSize: 16, fontWeight: 600 } as const;
 
-export default function AiAccessSettings() {
+/** Claude's side of the Connectors page: what AI can see, in four numbers. */
+export function ClaudeOverview() {
   const summary = useGetAiAccessSummary();
   const s = summary.data;
   const stats: [string, string | number | undefined, string][] = [
@@ -40,39 +40,34 @@ export default function AiAccessSettings() {
     ['Hidden from AI', s ? hiddenSummary(s.hidden) : undefined, 'hidden'],
   ];
   return (
-    <>
-      <section className="oo-panel flex flex-col gap-1.5 px-5 py-7 sm:px-8 sm:py-8" aria-labelledby="ai-h" data-testid="page-settings-ai-access">
-        <h1 id="ai-h" style={H1}>AI access</h1>
-        <p className="oo-soft" style={{ margin: 0, fontSize: 14, maxWidth: '64ch', lineHeight: 1.6 }}>
-          Which AI tools can read and write OllieOS, what they have looked at, and what they are asking to see. Confidential items are never shared without your approval.
-        </p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" style={{ marginTop: 14 }}>
-          {stats.map(([label, value, id]) => (
-            <div key={id} className="oo-stat" style={{ alignItems: 'flex-start', padding: 18, gap: 8 }} data-testid={'stat-ai-' + id}>
-              <span style={{ fontSize: 13 }}>{label}</span>
-              {value === undefined ? (
-                <Skel h={32} w={56} />
-              ) : (
-                <span className="oo-num" style={{ fontSize: typeof value === 'number' ? 32 : 20, fontWeight: 500, lineHeight: typeof value === 'number' ? undefined : '38px' }}>{value}</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
-      <Requests />
-      <Tools />
-      <Activity />
-    </>
+    <section className="oo-panel flex flex-col gap-1.5 px-5 py-6 sm:px-8" aria-labelledby="ai-h" data-testid="panel-claude">
+      <h2 id="ai-h" style={{ margin: 0, fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em' }}>Claude</h2>
+      <p className="oo-soft" style={{ margin: 0, fontSize: 14, maxWidth: '64ch', lineHeight: 1.6 }}>
+        Claude reads the services OllieOS cannot read yet, and can look things up in OllieOS when you ask it. Confidential items are never shared without your approval.
+      </p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" style={{ marginTop: 10 }}>
+        {stats.map(([label, value, id]) => (
+          <div key={id} className="oo-stat" style={{ alignItems: 'flex-start', padding: 18, gap: 8 }} data-testid={'stat-ai-' + id}>
+            <span style={{ fontSize: 13 }}>{label}</span>
+            {value === undefined ? (
+              <Skel h={32} w={56} />
+            ) : (
+              <span className="oo-num" style={{ fontSize: typeof value === 'number' ? 32 : 20, fontWeight: 500, lineHeight: typeof value === 'number' ? undefined : '38px' }}>{value}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
 /* ---------- Requests ---------- */
 
-function Requests() {
+export function Requests() {
   const list = useListAccessRequests();
   const d = list.data;
   return (
-    <section className="oo-panel flex flex-col gap-3 px-5 py-6 sm:px-8" aria-labelledby="req-h">
+    <section id="access-requests" className="oo-panel flex flex-col gap-3 px-5 py-6 sm:px-8" aria-labelledby="req-h" style={{ scrollMarginTop: 16 }}>
       <h2 id="req-h" style={H2}>Access requests</h2>
       {list.isLoading ? (
         <Skel h={64} />
@@ -208,7 +203,7 @@ function mcpAddress(): string {
   return window.location.origin + '/mcp';
 }
 
-function Tools() {
+export function Tools() {
   const clients = useListAiClients();
   const list = clients.data ?? [];
   return (
@@ -332,7 +327,7 @@ function ActivityItems({ a }: { a: AiActivity }) {
   );
 }
 
-function Activity() {
+export function Activity() {
   const log = useListAiActivity({ limit: 100 });
   const list = log.data ?? [];
   return (

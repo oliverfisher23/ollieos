@@ -274,6 +274,16 @@ Rules:
 
 ---
 
+## 11a. Connectors (added 10th November 2026)
+
+OllieOS reads Ollie's services itself through Replit integrations, so it no longer depends on the Claude sweep. Settings has a Connectors page (replacing "AI access" and "Capture sweep") with one card per service: Google Calendar, Gmail, Slack, Google Drive and Granola. Each card shows its status, last check and what was found, with Check now and a switch for whether OllieOS or Claude reads it. The same page holds the Claude tools, access requests, the Claude sweep and "What AI looked at".
+
+- **Part A (built):** Google Calendar, read directly. Once OllieOS has read it, the sweep's calendar is ignored.
+- **Part B:** Gmail and Slack, with AI sorting on a cheaper model billed to Replit credits.
+- **Part C:** Google Drive, and Granola through its Enterprise API (key entered in Replit's secure form).
+
+OllieOS checks on its own timer: every 30 minutes on weekdays, 07:00 to 19:00 London time, changeable on the page. This replaces build plan question 32 (no timers). Timed checks need the published app to stay always on (Reserved VM).
+
 ## 12. Ingest API
 
 For the scheduled Claude sweep and any script. All routes need `Authorization: Bearer <INBOX_API_KEY>`.
@@ -377,7 +387,7 @@ Work in milestones. At the end of each, show the result and wait for Ollie's app
 | "Ask Claude" buttons | Copy a prepared prompt to the clipboard in phase 1; a deep link later if Claude supports one |
 | Custom domain | Stay on `.replit.app` for now |
 | Default view on open | Home |
-| How often the sweep runs | Weekdays about 07:40 and 13:40 |
+| How often the sweep runs | Weekdays about 07:40 and 13:40. OllieOS's own checks run every 30 minutes, 07:00 to 19:00 on weekdays (section 11a) |
 | Ask OllieOS model | A current Claude model via the Anthropic API; confirm the model name at milestone 3 |
 | Fonts | Google Sans if Ollie has a licence route, otherwise DM Sans |
 

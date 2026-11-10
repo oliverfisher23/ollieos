@@ -18,15 +18,13 @@ import {
   type PickType,
 } from "../../lib/ai-data/context";
 import { buildScope, type AiScope } from "../../lib/ai-data/scope";
-import { captureTask, clearOldCalendar, enabledRules, finishSweep, logActivity, startSweep, type Writer } from "../../services/aiWrites";
-import { attachMeetingNotes, buildUpcomingBriefs, findEventBySourceRef } from "../../services/briefs";
-import { buildDigestIfDue, clearOldDigests } from "../../services/digest";
+import { captureTask, enabledRules, finishSweep, logActivity, startSweep, type Writer } from "../../services/aiWrites";
+import { attachMeetingNotes, findEventBySourceRef } from "../../services/briefs";
+import { scheduledWork } from "../../services/scheduledWork";
 import { AttendeeSchema, syncCalendarFeed } from "../../services/calendarSync";
 import { captureSweepClient, ingestKeyConfigured, ingestKeyMatches, touchClient } from "../../services/clients";
 import { proposalReply, proposeOrganisation, proposePerson, proposeProject, type AiProposeResult } from "../../services/aiPropose";
-import { onSweepFinished } from "../../services/factReviews";
 import { FACT_ATTRIBUTES, SUGGESTION_SOURCES, propose, type ProposeMeta } from "../../services/suggestions";
-import { logger } from "../../lib/logger";
 import { ConflictError, NotFoundError, ValidationError } from "../../services/tasks";
 import { parseLink, titleFromUrl } from "../../services/library";
 
@@ -184,33 +182,6 @@ const SweepRunBody = z
   .strict();
 
 /**
- * Work that runs when a sweep finishes (build plan 32 and 50): the weekly fact check after
- * Sunday 18:00, clearing old rejected suggestions, briefs for today's and tomorrow's meetings,
- * the morning digest and the 30-day clean-ups. Each part runs on its own, and a failure here
- * never fails the sweep.
- */
-async function scheduledWork() {
-  const now = new Date();
-  const out: Record<string, unknown> = {};
-  const part = async (name: string, fn: () => Promise<unknown>) => {
-    try {
-      out[name] = await fn();
-    } catch (err) {
-      logger.error({ err, part: name }, "Scheduled work after the sweep failed");
-      out[name] = { error: "Did not run. It will try again after the next sweep." };
-    }
-  };
-  await part("knowledge", async () => {
-    const r = await onSweepFinished(now);
-    return { rejected_cleared: r.cleared, fact_check: r.check };
-  });
-  await part("briefs", () => buildUpcomingBriefs(now));
-  await part("digest", () => buildDigestIfDue(now));
-  await part("cleared", async () => ({ digests: await clearOldDigests(now), calendar_events: await clearOldCalendar(now) }));
-  return out;
-}
-
-/**
  * POST /api/ingest/sweep-run. Without an id it starts a run and returns the id. With an id it
  * finishes that run. Without an id but with finished_at, it records a whole run in one call.
  */
@@ -229,7 +200,7 @@ router.post(
     if (b.id == null) {
       const id = await startSweep(writer, b.started_at ? new Date(b.started_at) : new Date());
       if (b.finished_at) await finishSweep(writer, id, new Date(b.finished_at), counts);
-      res.status(201).json({ id, finished: !!b.finished_at, ...(b.finished_at ? { scheduled: await scheduledWork() } : {}) });
+      res.status(201).json({ id, finished: !!b.finished_at, ...(b.finished_at ? { scheduled: await scheduledWork("sweep") } : {}) });
       return;
     }
     const done = await finishSweep(writer, b.id, b.finished_at ? new Date(b.finished_at) : new Date(), counts);
@@ -237,7 +208,7 @@ router.post(
       res.status(409).json({ error: "That sweep run does not exist or is already finished" });
       return;
     }
-    res.json({ id: b.id, finished: true, scheduled: await scheduledWork() });
+    res.json({ id: b.id, finished: true, scheduled: await scheduledWork("sweep") });
   }),
 );
 
@@ -266,6 +237,10 @@ router.post(
     const { scope, writer } = req.ingest!;
     const body = CalendarBody.parse(Array.isArray(req.body) ? { events: req.body } : (req.body ?? {}));
     const r = await syncCalendarFeed(scope, writer, body.events);
+    if (r.ignored) {
+      res.json({ replaced: 0, removed: 0, ignored: true, message: r.ignored });
+      return;
+    }
     res.json({ replaced: r.replaced, removed: r.removed, skipped_outside_window: r.outsideWindow, unmatched: r.unmatched });
   }),
 );

@@ -9,3 +9,4 @@ export * from "./review";
 export * from "./goals";
 export * from "./library";
 export * from "./briefs";
+export * from "./connectors";

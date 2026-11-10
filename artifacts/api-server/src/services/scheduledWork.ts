@@ -1,0 +1,40 @@
+/**
+ * Work that runs after OllieOS has fresh data: when the Claude sweep finishes, and after each of
+ * OllieOS's own checks. The weekly fact check after Sunday 18:00, clearing old rejected
+ * suggestions, briefs for today's and tomorrow's meetings, the morning digest and the 30-day
+ * clean-ups. Each part runs on its own, and a failure in one never stops the others.
+ */
+import { londonParts } from "@workspace/shared";
+import { logger } from "../lib/logger";
+import { clearOldCalendar } from "./aiWrites";
+import { buildUpcomingBriefs } from "./briefs";
+import { buildDigestIfDue, clearOldDigests } from "./digest";
+import { onSweepFinished } from "./factReviews";
+
+/** OllieOS's own checks start at 07:00, so they wait for 07:40 (when the morning sweep ran) before building the digest. */
+export const DIGEST_NOT_BEFORE = { hour: 7, minute: 40 };
+
+export function digestTimeReached(now: Date): boolean {
+  const p = londonParts(now);
+  return p.hour * 60 + p.minute >= DIGEST_NOT_BEFORE.hour * 60 + DIGEST_NOT_BEFORE.minute;
+}
+
+export async function scheduledWork(from: "sweep" | "connectors", now = new Date()): Promise<Record<string, unknown>> {
+  const out: Record<string, unknown> = {};
+  const part = async (name: string, fn: () => Promise<unknown>) => {
+    try {
+      out[name] = await fn();
+    } catch (err) {
+      logger.error({ err, part: name, from }, "Scheduled work failed");
+      out[name] = { error: "Did not run. It will try again after the next check." };
+    }
+  };
+  await part("knowledge", async () => {
+    const r = await onSweepFinished(now);
+    return { rejected_cleared: r.cleared, fact_check: r.check };
+  });
+  await part("briefs", () => buildUpcomingBriefs(now));
+  if (from === "sweep" || digestTimeReached(now)) await part("digest", () => buildDigestIfDue(now));
+  await part("cleared", async () => ({ digests: await clearOldDigests(now), calendar_events: await clearOldCalendar(now) }));
+  return out;
+}

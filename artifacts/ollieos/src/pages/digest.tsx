@@ -28,7 +28,7 @@ export default function DigestPage({ date }: { date?: string }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} data-testid="state-no-digest">
               <p className="oo-serif" style={{ margin: 0, fontSize: 22 }}>{key === 'today' ? 'No digest yet today' : 'No digest for that day'}</p>
               <p className="oo-muted" style={{ margin: 0, fontSize: 14, maxWidth: '64ch' }}>
-                The digest is written after the first sweep of each weekday morning. It covers what changed since 18:00 the working day before.
+                The digest is written each weekday morning, after the first check from 07:40 by OllieOS or the Claude sweep. It covers what changed since 18:00 the working day before.
               </p>
             </div>
           ) : (
@@ -131,7 +131,7 @@ function Earlier({ current }: { current: string | null }) {
   const others = (list.data ?? []).filter((d) => d.date !== current).slice(0, 10);
   return (
     <footer style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 18, borderTop: '1px solid var(--oo-line-soft)' }} data-testid="footer-digest">
-      <span className="oo-muted" style={{ fontSize: 13 }}>Shown on Home each morning after the first sweep. Kept for 30 days.</span>
+      <span className="oo-muted" style={{ fontSize: 13 }}>Shown on Home each weekday morning from 07:40. Kept for 30 days.</span>
       {others.length > 0 && (
         <nav aria-label="Earlier digests" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', fontSize: 13 }}>
           <span className="oo-muted">Earlier:</span>
