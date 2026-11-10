@@ -173,29 +173,8 @@ function ScanPanel() {
   );
 }
 
-interface Group {
-  key: string;
-  name: string;
-  email: string | null;
-  slug: string | null;
-  items: ReviewItem[];
-}
-
-/** One group per person, the person kept waiting longest first; within a person, oldest first. */
-function groupByPerson(items: ReviewItem[]): Group[] {
-  const groups = new Map<string, Group>();
-  const oldestFirst = [...items].sort((a, b) => new Date(a.meetingAt).getTime() - new Date(b.meetingAt).getTime());
-  for (const it of oldestFirst) {
-    const key = it.person ? 'p' + it.person.id : 'e' + (it.email ?? it.owner);
-    let g = groups.get(key);
-    if (!g) {
-      g = { key, name: it.person?.name ?? it.owner, email: it.email, slug: it.person?.slug ?? null, items: [] };
-      groups.set(key, g);
-    }
-    g.items.push(it);
-  }
-  return [...groups.values()];
-}
+/** Newest sent first. */
+const newestFirst = (items: ReviewItem[]) => [...items].sort((a, b) => new Date(b.meetingAt).getTime() - new Date(a.meetingAt).getTime());
 
 interface Chased {
   taskId: number;
@@ -284,8 +263,7 @@ function ChangeDate({ it }: { it: ReviewItem }) {
 /** Waiting for a reply: emails Ollie sent that asked for something and nobody has answered yet. */
 export function NoReplyTab() {
   const q = useListReview();
-  const items = useMemo(() => (q.data?.items ?? []).filter((i) => i.kind === 'no_reply'), [q.data]);
-  const groups = useMemo(() => groupByPerson(items), [items]);
+  const items = useMemo(() => newestFirst((q.data?.items ?? []).filter((i) => i.kind === 'no_reply')), [q.data]);
   const { selected, setSelected, waitingFor: open, setWaitingFor: setOpen, busy, toggle, decide } = useReviewDecide((c) => (c === 1 ? 'email' : 'emails'), doneLine);
   const [writeEmail, setWriteEmail] = useState(false);
   const [chased, setChased] = useState<Chased[]>([]);
@@ -367,34 +345,23 @@ export function NoReplyTab() {
             )}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
-            {groups.map((g) => (
-              <section key={g.key} aria-labelledby={'nr-group-' + g.key} data-testid={'group-no-reply-' + g.key}>
-                <h2 id={'nr-group-' + g.key} style={{ margin: 0, fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-                  {g.slug ? <Link href={'/knowledge/people/' + g.slug} className="oo-link">{g.name}</Link> : g.name}
-                  {g.email && g.email !== g.name && <span className="oo-muted" style={{ fontSize: 13, fontWeight: 400 }}>{g.email}</span>}
-                  <span className="oo-count oo-num">{g.items.length}</span>
-                </h2>
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }}>
-                  {g.items.map((it) => (
-                    <Row
-                      key={it.id}
-                      it={it}
-                      busy={busy}
-                      checked={selected.has(it.id)}
-                      onToggle={() => toggle(it.id)}
-                      chaseOpen={open === it.id}
-                      onChoose={(a) => choose([it.id], a, it.id)}
-                      onChase={(v) => void chase(it, v)}
-                      onCancelChase={() => setOpen(null)}
-                      writeEmail={writeEmail}
-                      onWriteEmail={setWriteEmail}
-                    />
-                  ))}
-                </ul>
-              </section>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }} aria-label="Emails waiting for a reply">
+            {items.map((it) => (
+              <Row
+                key={it.id}
+                it={it}
+                busy={busy}
+                checked={selected.has(it.id)}
+                onToggle={() => toggle(it.id)}
+                chaseOpen={open === it.id}
+                onChoose={(a) => choose([it.id], a, it.id)}
+                onChase={(v) => void chase(it, v)}
+                onCancelChase={() => setOpen(null)}
+                writeEmail={writeEmail}
+                onWriteEmail={setWriteEmail}
+              />
             ))}
-          </div>
+          </ul>
         </>
       )}
     </>
@@ -414,10 +381,15 @@ function Row({ it, busy, checked, onToggle, chaseOpen, onChoose, onChase, onCanc
   onWriteEmail: (v: boolean) => void;
 }) {
   const titleId = 'nr-title-' + it.id;
+  const name = it.person?.name ?? it.owner;
   return (
     <li className="oo-rv-row" data-selected={checked ? 'true' : 'false'} aria-labelledby={titleId} data-testid={'row-no-reply-' + it.id}>
       <input type="checkbox" className="oo-rv-select" checked={checked} onChange={onToggle} aria-labelledby={titleId} data-testid={'checkbox-no-reply-' + it.id} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, flex: 1 }}>
+        <span style={{ fontSize: 13, display: 'flex', flexWrap: 'wrap', gap: '2px 8px', alignItems: 'baseline' }} data-testid={'text-no-reply-person-' + it.id}>
+          <span style={{ fontWeight: 600 }}>{it.person?.slug ? <Link href={'/knowledge/people/' + it.person.slug} className="oo-link">{name}</Link> : name}</span>
+          {it.email && it.email !== name && <span className="oo-muted">{it.email}</span>}
+        </span>
         <span id={titleId} style={{ fontSize: 15, fontWeight: 600, overflowWrap: 'anywhere' }} data-testid={'text-no-reply-ask-' + it.id}>{it.text}</span>
         <span className="oo-muted" style={{ fontSize: 13, display: 'flex', flexWrap: 'wrap', gap: '4px 10px' }}>
           <span data-testid={'text-no-reply-subject-' + it.id}>
