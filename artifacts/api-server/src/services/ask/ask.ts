@@ -3,6 +3,7 @@ import {
   askThreadsTable,
   db,
   decisionsTable,
+  coworkSessionsTable,
   documentsTable,
   factsTable,
   goalsTable,
@@ -113,6 +114,7 @@ function entityPath(type: string, slug: string | null, id: number): string | nul
   if (type === "task") return `/tasks?task=${id}`;
   if (type === "goal") return `/goals`;
   if (type === "document") return `/knowledge/library?document=${id}`;
+  if (type === "session") return `/knowledge/sessions?session=${id}`;
   return null;
 }
 
@@ -122,7 +124,7 @@ const clip = (s: string, n = 48) => (s.length > n ? s.slice(0, n - 1).trimEnd() 
 async function resolveChips(refs: string[]) {
   const parsed = refs.map(parseRef).filter((r): r is NonNullable<typeof r> => !!r);
   const ids = (t: string) => [...new Set(parsed.filter((r) => r.type === t).map((r) => r.id))];
-  const [tasks, decisions, notes, facts, goals, documents] = await Promise.all([
+  const [tasks, decisions, notes, facts, goals, documents, sessions] = await Promise.all([
     ids("task").length ? db.select().from(tasksTable).where(inArray(tasksTable.id, ids("task"))) : [],
     ids("decision").length ? db.select().from(decisionsTable).where(inArray(decisionsTable.id, ids("decision"))) : [],
     ids("note").length ? db.select().from(notesTable).where(inArray(notesTable.id, ids("note"))) : [],
@@ -130,6 +132,12 @@ async function resolveChips(refs: string[]) {
     ids("goal").length ? db.select({ id: goalsTable.id, name: goalsTable.name, confidential: goalsTable.confidential }).from(goalsTable).where(inArray(goalsTable.id, ids("goal"))) : [],
     ids("document").length
       ? db.select({ id: documentsTable.id, title: documentsTable.title, confidential: documentsTable.confidential }).from(documentsTable).where(inArray(documentsTable.id, ids("document")))
+      : [],
+    ids("session").length
+      ? db
+          .select({ id: coworkSessionsTable.id, title: coworkSessionsTable.title, happenedAt: coworkSessionsTable.happenedAt, confidential: coworkSessionsTable.confidential })
+          .from(coworkSessionsTable)
+          .where(inArray(coworkSessionsTable.id, ids("session")))
       : [],
   ]);
   const parents = [
@@ -201,6 +209,15 @@ async function resolveChips(refs: string[]) {
       label: `Document · ${clip(d.title, 36)}`,
       path: entityPath("document", null, d.id),
       confidential: d.confidential === true,
+    });
+  }
+  for (const s of sessions) {
+    chips.set(toRef("session", s.id), {
+      ref: toRef("session", s.id),
+      type: "session",
+      label: `Cowork · ${clip(s.title, 32)} · ${formatDayMonthShort(s.happenedAt)}`,
+      path: entityPath("session", null, s.id),
+      confidential: s.confidential === true,
     });
   }
   return { chips, taskById };

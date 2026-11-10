@@ -34,6 +34,7 @@ import {
 import { NotFoundError, updateTask, ValidationError, type TaskUpdateInput } from "../services/tasks";
 import { AttendeeSchema, syncCalendarFeed } from "../services/calendarSync";
 import { briefForAi, resolveEventForAi } from "../services/briefs";
+import { saveSession, SESSION_LIMITS, type SessionAction } from "../services/sessions";
 
 export const SOURCE_OF_TRUTH =
   "OllieOS is the source of truth for Ollie's work: tasks, projects, people and decisions. Check it before asking Ollie for context.";
@@ -44,11 +45,12 @@ export const SERVER_INSTRUCTIONS = [
   'A fact marked "needs_check": true may be out of date. If you rely on one, tell Ollie it may be out of date.',
   "Facts, decisions, new people, organisations and projects, and changes to existing records, are suggestions until Ollie approves them in his Knowledge Inbox. Use list_my_suggestions to avoid proposing the same thing twice. Tasks, promises, notes and activity go in directly.",
   "Before drafting anything on Ollie's behalf, call get_playbooks for the project or person concerned and follow every rule it returns.",
+  "In a Cowork session, call get_context for the project or person it is about before you start, and call save_session once at the end with what was done.",
 ].join(" ");
 
 const STATUSES = ["inbox", "now", "backlog", "waiting", "done", "noise", "dropped"] as const;
 const PRIORITIES = ["high", "medium", "low"] as const;
-const SOURCES = ["email", "slack", "meeting", "quarterly", "manual"] as const;
+const SOURCES = ["email", "slack", "meeting", "quarterly", "manual", "session"] as const;
 const ENTITY_TYPES = ["project", "person", "organisation"] as const;
 
 const Pick = z
@@ -122,7 +124,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
   server.registerTool(
     "search",
     {
-      description: describe("Full-text search across tasks, projects, people, organisations, decisions, notes, facts and documents."),
+      description: describe("Full-text search across tasks, projects, people, organisations, decisions, notes, facts, documents and Cowork sessions."),
       inputSchema: {
         query: z.string().min(1).max(500),
         types: z.array(z.enum(SEARCH_TYPES)).optional(),
@@ -136,7 +138,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     "get_context",
     {
       description: describe(
-        "Everything about one project, person or organisation: summary, current facts, decisions, open tasks, promises, what they owe Ollie, people, notes, the last 20 touchpoints and the playbooks that apply. For a project, also its goal and its documents.",
+        "Everything about one project, person or organisation: summary, current facts, decisions, open tasks, promises, what they owe Ollie, people, notes, the last 20 touchpoints and the playbooks that apply. For a project, also its goal and its documents. Recent Cowork sessions about it are included, so a new session can pick up where the last one left off.",
       ),
       inputSchema: Pick.shape,
     },
@@ -646,6 +648,105 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
           },
         });
         return ok(proposalReply(r));
+      }),
+  );
+
+  server.registerTool(
+    "save_session",
+    {
+      description: describe(
+        "Saves a record of this Cowork session at its end, so Ollie can look back on it and future sessions can build on it. Call it once, after the work is done. Its actions go straight to Ollie's Inbox as tasks or promises; documents in artifacts are proposed for his Library; and OllieOS reads the session for facts and decisions, which wait in his Knowledge Inbox. Do not also call create_task or log_promise for the same actions. Give session_id if you have one, so saving again updates the same session.",
+      ),
+      inputSchema: {
+        title: z.string().min(1).max(200).describe("A short title for what the session was about"),
+        summary: z.string().min(1).max(3000).describe("What the session set out to do and where it ended up, in a few sentences"),
+        outcomes: z.array(z.string().min(1).max(500)).max(SESSION_LIMITS.outcomes).optional().describe("What was done, one line each, including any decisions Ollie made"),
+        transcript: z.string().max(200_000).optional().describe("The transcript, or its key parts"),
+        happened_at: isoDateTime.optional().describe("When the session started, if not now"),
+        session_id: z.string().max(200).optional().describe("Your own id for this session"),
+        projects: z.array(z.string().max(200)).max(20).optional().describe("Projects it was about: names, slugs or refs"),
+        people: z.array(z.string().max(200)).max(30).optional().describe("People it was about: names, emails or refs"),
+        task_refs: z.array(z.string().max(40)).max(50).optional().describe("Tasks you already created or updated in this session, such as task:42"),
+        actions: z
+          .array(
+            z.object({
+              title: z.string().min(1).max(300),
+              kind: z.enum(["task", "promise"]).optional().describe("promise when Ollie said he would do something for someone"),
+              person: z.string().max(200).optional().describe("Who it is for: name, email or ref"),
+              project: z.string().max(200).optional(),
+              due_date: isoDate.optional(),
+              quote: z.string().max(1000).optional().describe("The words it came from"),
+            }),
+          )
+          .max(SESSION_LIMITS.actions)
+          .optional()
+          .describe("Follow-ups still to do after the session"),
+        artifacts: z
+          .array(
+            z.object({
+              title: z.string().min(1).max(300),
+              content: z.string().min(1).max(200_000).describe("The full text, Markdown is fine"),
+              kind: z.string().max(60).optional().describe('What it is, e.g. "plan", "brief", "analysis"'),
+              summary: z.string().max(1000).optional(),
+            }),
+          )
+          .max(SESSION_LIMITS.artifacts)
+          .optional()
+          .describe("Documents produced in the session worth keeping in the Library"),
+        confidential: z.boolean().optional().describe("true when the session was about something sensitive, such as the company sale, the board, pay or HR"),
+      },
+    },
+    async (a) =>
+      guard(async () => {
+        const [projects, people] = await Promise.all([resolveNames(scope, a.projects, "project"), resolveNames(scope, a.people, "person")]);
+        const taskIds: number[] = [];
+        const unmatchedTasks: string[] = [];
+        for (const ref of a.task_refs ?? []) {
+          const id = await visibleTaskId(scope, ref);
+          if (id != null) taskIds.push(id);
+          else unmatchedTasks.push(ref);
+        }
+        const actions: SessionAction[] = [];
+        const unmatched = [...projects.unmatched, ...people.unmatched];
+        for (const x of a.actions ?? []) {
+          const [person, project] = await Promise.all([pickOrNull(scope, x.person, ["person"]), pickOrNull(scope, x.project, ["project"])]);
+          if (x.person && !person) unmatched.push(x.person);
+          if (x.project && !project) unmatched.push(x.project);
+          actions.push({
+            title: x.title,
+            kind: x.kind ?? "task",
+            personId: person?.id ?? null,
+            projectId: project?.id ?? null,
+            dueDate: x.due_date ?? null,
+            quote: x.quote ?? null,
+          });
+        }
+        const r = await saveSession(writer, {
+          title: a.title,
+          summary: a.summary,
+          outcomes: a.outcomes ?? [],
+          transcript: a.transcript ?? null,
+          happenedAt: a.happened_at ? new Date(a.happened_at) : null,
+          externalRef: a.session_id ?? null,
+          projectIds: projects.ids,
+          personIds: people.ids,
+          taskIds,
+          confidential: a.confidential ?? null,
+          actions,
+          artifacts: (a.artifacts ?? []).map((x) => ({ title: x.title, content: x.content, kind: x.kind ?? null, summary: x.summary ?? null })),
+        });
+        return ok({
+          saved: true,
+          session: r.visible ? `session:${r.id}` : undefined,
+          updated: r.updated,
+          tasks: r.tasks.map((t) => ({ ...(t.id != null && r.visible ? { ref: `task:${t.id}` } : {}), outcome: t.outcome })),
+          artifacts: r.artifacts.map((x) => proposalReply(x)),
+          message: r.visible
+            ? "Saved. OllieOS will read it for facts and decisions and put them in Ollie's Knowledge Inbox."
+            : "Saved. It is hidden from AI, so OllieOS will not read it for knowledge.",
+          ...([...new Set(unmatched)].length ? { unmatched: [...new Set(unmatched)] } : {}),
+          ...(unmatchedTasks.length ? { unmatched_tasks: unmatchedTasks } : {}),
+        });
       }),
   );
 

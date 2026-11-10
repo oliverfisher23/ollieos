@@ -53,7 +53,7 @@ function section(items: DigestItem[], moreHref: string | null, max = SECTION_MAX
   return { items: items.slice(0, max), more: Math.max(0, items.length - max), moreHref };
 }
 
-const SOURCE_WORDS: Record<string, string> = { email: "email", slack: "Slack", meeting: "meeting", quarterly: "quarterly", manual: "added by you" };
+const SOURCE_WORDS: Record<string, string> = { email: "email", slack: "Slack", meeting: "meeting", quarterly: "quarterly", manual: "added by you", session: "Cowork" };
 
 /** Everything the sections need, read straight from the database (Ollie's view). */
 async function gather(date: string, since: Date, now: Date) {

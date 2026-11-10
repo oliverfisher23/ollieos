@@ -1286,6 +1286,86 @@ paths:
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
+  /sessions:
+    get:
+      operationId: listSessions
+      tags: [knowledge]
+      summary: Cowork sessions Claude saved, newest first
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Words to look for in the title, summary, outcomes and transcript
+          schema: { type: string }
+      responses:
+        "200":
+          description: Sessions
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/SessionListItem" } }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /sessions/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      operationId: getSession
+      tags: [knowledge]
+      summary: One Cowork session with what came from it
+      responses:
+        "200":
+          description: The session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionDetail" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      operationId: updateSession
+      tags: [knowledge]
+      summary: Change whether AI tools can see a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SessionUpdate" }
+      responses:
+        "200":
+          description: The session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionDetail" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteSession
+      tags: [knowledge]
+      summary: Delete a session; tasks, decisions and documents from it stay
+      responses:
+        "204":
+          description: Deleted
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /sessions/{id}/knowledge:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: readSessionKnowledge
+      tags: [knowledge]
+      summary: Read a session for knowledge again; what it finds goes to the Knowledge Inbox
+      responses:
+        "200":
+          description: The session, now waiting to be read
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionDetail" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /documents/{id}:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -1799,7 +1879,7 @@ paths:
         - name: types
           in: query
           required: false
-          description: Comma-separated list of task, project, person, organisation, decision, note, fact
+          description: Comma-separated list of task, project, person, organisation, decision, note, fact, document, session
           schema: { type: string }
       responses:
         "200":
@@ -2574,7 +2654,7 @@ components:
       enum: [high, medium, low]
     TaskSource:
       type: string
-      enum: [email, slack, meeting, quarterly, manual]
+      enum: [email, slack, meeting, quarterly, manual, session]
     TaskTab:
       type: string
       enum: [inbox, open, now, backlog, waiting, done, noise, dropped]
@@ -4275,7 +4355,7 @@ components:
       type: object
       required: [type, id, title, snippet, slug, status, hiddenFromAi, parent]
       properties:
-        type: { type: string, enum: [task, project, person, organisation, decision, note, fact, document] }
+        type: { type: string, enum: [task, project, person, organisation, decision, note, fact, document, session] }
         id: { type: integer }
         title: { type: string }
         snippet: { type: [string, "null"] }
@@ -4979,6 +5059,83 @@ components:
         skipped: { type: integer, description: Files OllieOS cannot read }
         queued: { type: integer }
         documents: { type: array, items: { $ref: "#/components/schemas/LibraryDocument" } }
+
+    SessionLink:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+
+    SessionListItem:
+      type: object
+      required: [id, title, summary, outcomes, happenedAt, archived, confidential, hiddenFromAi, projects, people, taskCount, decisionCount, documentCount, waitingCount]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        summary: { type: string }
+        outcomes: { type: array, items: { type: string }, description: What was done }
+        happenedAt: { type: string, format: date-time }
+        archived: { type: boolean, description: Older than 90 days with nothing from it still open; left out of briefs }
+        confidential: { type: [boolean, "null"], description: null means it follows the projects and people it touched }
+        hiddenFromAi: { type: boolean }
+        projects: { type: array, items: { $ref: "#/components/schemas/SessionLink" } }
+        people: { type: array, items: { $ref: "#/components/schemas/SessionLink" } }
+        taskCount: { type: integer }
+        decisionCount: { type: integer, description: Decisions from it Ollie approved }
+        documentCount: { type: integer, description: Documents from it Ollie added to the Library }
+        waitingCount: { type: integer, description: Suggestions from it still in the Knowledge Inbox }
+
+    SessionTask:
+      type: object
+      required: [id, title, kind, status]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        kind: { type: string }
+        status: { type: string }
+
+    SessionDecision:
+      type: object
+      required: [id, text]
+      properties:
+        id: { type: integer }
+        text: { type: string }
+
+    SessionDocument:
+      type: object
+      required: [id, title]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+
+    SessionKnowledge:
+      type: object
+      required: [state, lastReadAt, found, error]
+      properties:
+        state: { type: string, enum: [none, waiting, reading, read, failed] }
+        lastReadAt: { type: [string, "null"], format: date-time }
+        found: { type: [string, "null"], description: What the last read proposed, in words }
+        error: { type: [string, "null"] }
+
+    SessionDetail:
+      allOf:
+        - $ref: "#/components/schemas/SessionListItem"
+        - type: object
+          required: [transcript, createdBy, tasks, decisions, documents, knowledge]
+          properties:
+            transcript: { type: [string, "null"] }
+            createdBy: { type: string }
+            tasks: { type: array, items: { $ref: "#/components/schemas/SessionTask" } }
+            decisions: { type: array, items: { $ref: "#/components/schemas/SessionDecision" } }
+            documents: { type: array, items: { $ref: "#/components/schemas/SessionDocument" } }
+            knowledge: { $ref: "#/components/schemas/SessionKnowledge" }
+
+    SessionUpdate:
+      type: object
+      properties:
+        confidential: { type: [boolean, "null"] }
 
     DocumentUpdate:
       type: object

@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   activityTable,
+  coworkSessionsTable,
   db,
   decisionsTable,
   documentContentsTable,
@@ -26,6 +27,8 @@ import {
   personVisible,
   playbookVisible,
   projectVisible,
+  sessionArchived,
+  sessionVisible,
   taskVisible,
   type Grants,
 } from "./visibility";
@@ -58,6 +61,7 @@ function filters(g: Grants) {
     document: sql.raw(documentVisible("documents", g)),
     playbook: sql.raw(playbookVisible("playbooks", g)),
     activity: sql.raw(activityVisible("activity", g)),
+    session: sql.raw(sessionVisible("cowork_sessions", g)),
   };
 }
 
@@ -108,7 +112,7 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
   const refs = refList.map(parseRef).filter((r): r is NonNullable<typeof r> => !!r);
   const ids = (t: RefType) => [...new Set(refs.filter((r) => r.type === t).map((r) => r.id))];
 
-  const [tasks, projects, people, orgs, decisions, notes, facts, goals, documents, playbooks, activity] = await Promise.all([
+  const [tasks, projects, people, orgs, decisions, notes, facts, goals, documents, playbooks, activity, sessions] = await Promise.all([
     ids("task").length ? db.select().from(tasksTable).where(and(inArray(tasksTable.id, ids("task")), v.task)) : [],
     ids("project").length ? db.select().from(projectsTable).where(and(inArray(projectsTable.id, ids("project")), v.project)) : [],
     ids("person").length ? db.select().from(peopleTable).where(and(inArray(peopleTable.id, ids("person")), v.person)) : [],
@@ -140,6 +144,7 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
       : [],
     ids("playbook").length ? db.select().from(playbooksTable).where(and(inArray(playbooksTable.id, ids("playbook")), v.playbook)) : [],
     ids("activity").length ? db.select().from(activityTable).where(and(inArray(activityTable.id, ids("activity")), v.activity)) : [],
+    ids("session").length ? db.select().from(coworkSessionsTable).where(and(inArray(coworkSessionsTable.id, ids("session")), v.session)) : [],
   ]);
 
   const nameRefs: { type: RefType; id: number }[] = [];
@@ -150,6 +155,10 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
   }
   for (const p of people) if (p.organisationId) nameRefs.push({ type: "organisation", id: p.organisationId });
   for (const d of decisions) if (d.projectId != null) nameRefs.push({ type: "project", id: d.projectId });
+  for (const s of sessions) {
+    for (const id of s.projectIds) nameRefs.push({ type: "project", id });
+    for (const id of s.personIds) nameRefs.push({ type: "person", id });
+  }
   for (const n of [...notes, ...facts, ...activity]) {
     const r = parseRef(`${n.entityType}:${n.entityId}`);
     if (r) nameRefs.push(r);
@@ -268,6 +277,24 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
     });
   }
 
+  for (const s of sessions) {
+    const ref = toRef("session", s.id);
+    const touched = [...s.projectIds.map((id) => name("project", id)), ...s.personIds.map((id) => name("person", id))].filter(Boolean);
+    docs.push({
+      ref,
+      type: "session",
+      id: s.id,
+      text: [
+        `[${ref}] Cowork session with Claude, ${day(s.happenedAt)}: ${s.title}`,
+        touched.length && `About: ${touched.join(", ")}`,
+        `Summary: ${clip(s.summary, 800)}`,
+        s.outcomes.length && `What was done:\n${s.outcomes.slice(0, 12).map((o) => `- ${clip(o, 200)}`).join("\n")}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
+  }
+
   const parentNames = new Map(goals.map((g) => [g.id, g.name]));
   const missingParents = goals.map((g) => g.parentId).filter((p): p is number => p != null && !parentNames.has(p));
   if (missingParents.length) {
@@ -316,6 +343,17 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
   return docs.sort((a, b) => (order.get(a.ref) ?? 0) - (order.get(b.ref) ?? 0));
 }
 
+/** The latest sessions that touched a project or person, not archived. Visibility is applied when loading. */
+async function recentSessions(type: "project" | "person", id: number, limit = 3): Promise<string[]> {
+  const rows = await db
+    .select({ id: coworkSessionsTable.id })
+    .from(coworkSessionsTable)
+    .where(and(sql`${id} = any(${type === "project" ? coworkSessionsTable.projectIds : coworkSessionsTable.personIds})`, sql.raw(`not ${sessionArchived("cowork_sessions")}`)))
+    .orderBy(desc(coworkSessionsTable.happenedAt))
+    .limit(limit);
+  return rows.map((r) => toRef("session", r.id));
+}
+
 /** Refs of everything that hangs off a project, person or organisation, newest first. Visibility is applied when loading. */
 async function expandEntity(type: SearchType, id: number): Promise<string[]> {
   const since = new Date(Date.now() - RECENT_DONE_DAYS * 24 * 60 * 60 * 1000);
@@ -353,7 +391,7 @@ async function expandEntity(type: SearchType, id: number): Promise<string[]> {
       db.select({ id: tasksTable.id }).from(tasksTable).where(and(eq(tasksTable.projectId, id), openOrRecent)).orderBy(desc(tasksTable.updatedAt)).limit(20),
       db.select({ id: decisionsTable.id }).from(decisionsTable).where(eq(decisionsTable.projectId, id)).orderBy(desc(decisionsTable.decidedAt)).limit(10),
     ]);
-    out.push(...tasks.map((t) => toRef("task", t.id)), ...decisions.map((d) => toRef("decision", d.id)));
+    out.push(...tasks.map((t) => toRef("task", t.id)), ...decisions.map((d) => toRef("decision", d.id)), ...(await recentSessions("project", id)));
     await entityItems("project");
   } else if (type === "person") {
     const tasks = await db
@@ -362,7 +400,7 @@ async function expandEntity(type: SearchType, id: number): Promise<string[]> {
       .where(and(or(eq(tasksTable.personId, id), eq(tasksTable.waitingOnPersonId, id)), openOrRecent))
       .orderBy(desc(tasksTable.updatedAt))
       .limit(20);
-    out.push(...tasks.map((t) => toRef("task", t.id)));
+    out.push(...tasks.map((t) => toRef("task", t.id)), ...(await recentSessions("person", id)));
     const [p] = await db.select({ org: peopleTable.organisationId }).from(peopleTable).where(eq(peopleTable.id, id));
     if (p?.org) out.push(toRef("organisation", p.org));
     await entityItems("person");
@@ -387,8 +425,8 @@ export interface Retrieval {
 
 /** The ref a grant would name to unlock a hidden search hit. Facts have no flag of their own, so their entity is granted. */
 function grantRefFor(h: SearchHit): string | null {
-  // Documents have no grants of their own; they unlock through their project.
-  if (h.type === "document") return null;
+  // Documents and sessions have no grants of their own; they unlock through their project.
+  if (h.type === "document" || h.type === "session") return null;
   if (h.type === "fact") {
     return h.entityType && h.entityId != null && ["project", "person", "organisation", "task", "decision"].includes(h.entityType)
       ? `${h.entityType}:${h.entityId}`

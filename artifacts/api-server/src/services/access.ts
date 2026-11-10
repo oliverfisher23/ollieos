@@ -4,6 +4,7 @@ import {
   activityTable,
   aiClientsTable,
   auditEventsTable,
+  coworkSessionsTable,
   db,
   factsTable,
   notesTable,
@@ -42,6 +43,7 @@ function pathFor(type: string, slug: string | null, id: number): string | null {
   if (type === "decision") return `/knowledge/decisions/${id}`;
   if (type === "note") return `/knowledge/notes/${id}`;
   if (type === "task") return `/tasks?task=${id}`;
+  if (type === "session") return `/knowledge/sessions?session=${id}`;
   return null;
 }
 
@@ -51,11 +53,14 @@ const clip = (s: string, n = 60) => (s.length > n ? s.slice(0, n - 1).trimEnd() 
 export async function describeRefs(refList: readonly string[]): Promise<Map<string, ItemView>> {
   const refs = refList.map(parseRef).filter((r): r is NonNullable<typeof r> => !!r);
   const ids = (t: string) => [...new Set(refs.filter((r) => r.type === t).map((r) => r.id))];
-  const [notes, facts, acts, conf] = await Promise.all([
+  const [notes, facts, acts, conf, sessions] = await Promise.all([
     ids("note").length ? db.select().from(notesTable).where(inArray(notesTable.id, ids("note"))) : [],
     ids("fact").length ? db.select().from(factsTable).where(inArray(factsTable.id, ids("fact"))) : [],
     ids("activity").length ? db.select().from(activityTable).where(inArray(activityTable.id, ids("activity"))) : [],
     ownConfidential(refs),
+    ids("session").length
+      ? db.select({ id: coworkSessionsTable.id, title: coworkSessionsTable.title, confidential: coworkSessionsTable.confidential }).from(coworkSessionsTable).where(inArray(coworkSessionsTable.id, ids("session")))
+      : [],
   ]);
   const entities = await resolveEntities([
     ...refs.filter((r) => ["project", "person", "organisation", "task", "decision"].includes(r.type)),
@@ -85,6 +90,10 @@ export async function describeRefs(refList: readonly string[]): Promise<Map<stri
   for (const a of acts) {
     const ref = `activity:${a.id}`;
     out.set(ref, { ref, type: "activity", id: a.id, name: clip(a.summary), path: null, confidential: false });
+  }
+  for (const s of sessions) {
+    const ref = `session:${s.id}`;
+    out.set(ref, { ref, type: "session", id: s.id, name: clip(`Cowork session: ${s.title}`), path: pathFor("session", null, s.id), confidential: s.confidential === true });
   }
   return out;
 }

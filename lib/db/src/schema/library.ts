@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, check, index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { docLocationEnum, tsvector } from "./enums";
+import { coworkSessionsTable } from "./coworkSessions";
 
 /**
  * Document index (feature 06): a link, a summary and project links. OllieOS never stores the file
@@ -59,8 +60,8 @@ export const documentContentsTable = pgTable(
 export type DocumentContent = typeof documentContentsTable.$inferSelect;
 
 /**
- * The knowledge step (build plan 13, Part E): one row per thing read for knowledge, either a Library
- * document or a file in Claude's Dropbox folder. Keeps the text as it was last read, so a changed
+ * The knowledge step (build plan 13, Part E): one row per thing read for knowledge: a Library
+ * document, a file in Claude's Dropbox folder, or a saved Cowork session (Part F). Keeps the text as it was last read, so a changed
  * file is only read for what changed, and works as the queue the background reader takes from.
  * Dropbox files stay here and never join the Library. OllieOS never writes to Dropbox.
  */
@@ -68,10 +69,12 @@ export const knowledgeSourcesTable = pgTable(
   "knowledge_sources",
   {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-    kind: text("kind", { enum: ["document", "dropbox"] }).notNull(),
-    /** "document:<id>" or "dropbox:<lower-case path>" */
+    kind: text("kind", { enum: ["document", "dropbox", "session"] }).notNull(),
+    /** "document:<id>", "dropbox:<lower-case path>" or "session:<id>" */
     key: text("key").notNull().unique(),
     documentId: integer("document_id").references(() => documentsTable.id, { onDelete: "cascade" }),
+    /** A Cowork session (Part F) */
+    sessionId: integer("session_id").references(() => coworkSessionsTable.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     /** Dropbox path as shown, for Dropbox files */
     path: text("path"),

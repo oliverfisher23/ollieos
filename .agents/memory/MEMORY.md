@@ -8,3 +8,4 @@
 - [Drive and Granola reading](drive-granola-reading.md) — Granola takeover needs one of Ollie's own meetings; proxy 404 can mean "no connection"
 - [Research agent quirks and cost](research-agent.md) — parse JSON from the first {"name"; real cost ~25p to 45p a company, driven by search results
 - [Documents and Dropbox reading](document-knowledge.md) — Sonnet refuses thinking "disabled"; ~2p a file; full Springpod read belongs in production
+- [Running one-off server code](one-off-scripts.md) — no tsx: esbuild bundle with a __dirname banner; poll the queue, not readWaiting

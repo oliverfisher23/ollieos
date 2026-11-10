@@ -229,6 +229,7 @@ function contextRefs(c: ContextOut): string[] {
     ...c.open_tasks.slice(0, 10).map((x) => x.ref),
     ...c.notes.slice(0, 6).map((x) => x.ref),
     ...c.recent_activity.slice(0, 8).map((x) => x.ref),
+    ...c.sessions.slice(0, 3).map((x) => x.ref),
   ];
 }
 
@@ -523,6 +524,7 @@ const TYPE_WORDS: Record<string, [string, string]> = {
   meeting: ["meeting", "meetings"],
   slack: ["Slack message", "Slack messages"],
   activity: ["update", "updates"],
+  session: ["Cowork session", "Cowork sessions"],
 };
 
 function listWords(parts: string[]): string {
@@ -585,6 +587,8 @@ async function sourcesFor(refs: string[]): Promise<Map<string, BriefSource>> {
     } else if (p.type === "document") {
       const d = docs.find((x) => x.id === pid);
       if (d) out.set(r, { ref: r, label: d.title, href: d.url, external: true });
+    } else if (p.type === "session" && l) {
+      out.set(r, { ref: r, label: l.name, href: l.path, external: false });
     } else if (p.type === "goal") {
       const g = goals.find((x) => x.id === pid);
       if (g) out.set(r, { ref: r, label: g.name, href: "/goals", external: false });

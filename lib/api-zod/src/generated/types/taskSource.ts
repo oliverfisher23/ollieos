@@ -15,4 +15,5 @@ export const TaskSource = {
   meeting: 'meeting',
   quarterly: 'quarterly',
   manual: 'manual',
+  session: 'session',
 } as const;

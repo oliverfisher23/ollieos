@@ -130,7 +130,7 @@ export const GetHomeResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -188,7 +188,7 @@ export const GetHomeResponse = zod.object({
   "inbox": zod.object({
   "count": zod.int(),
   "bySource": zod.array(zod.object({
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "count": zod.int()
 }))
 }),
@@ -201,7 +201,7 @@ export const GetHomeResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -264,7 +264,7 @@ export const GetHomeResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -327,7 +327,7 @@ export const GetHomeResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -445,7 +445,7 @@ export const GetHomeResponse = zod.object({
  */
 export const ListTasksQueryParams = zod.object({
   "tab": zod.enum(['inbox', 'open', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped']).optional(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']).optional(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']).optional(),
   "weekStart": zod.date().optional().describe('Monday of the week (YYYY-MM-DD, London). Open tabs filter by due date, Done by completion date.'),
   "includeUndated": zod.coerce.boolean().optional().describe('With weekStart on open tabs, also include tasks with no due date.'),
   "q": zod.coerce.string().optional()
@@ -459,7 +459,7 @@ export const ListTasksResponseItem = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -561,7 +561,7 @@ export const QuickAddTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -634,7 +634,7 @@ export const GetTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -730,7 +730,7 @@ export const UpdateTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -800,7 +800,7 @@ export const SnoozeTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -909,7 +909,7 @@ export const TriageTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -967,7 +967,7 @@ export const TriageTaskResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string(),
-  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),zod.null()]),
+  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),zod.null()]),
   "enabled": zod.boolean(),
   "hitCount": zod.int(),
   "lastHitAt": zod.coerce.date().nullable(),
@@ -992,7 +992,7 @@ export const UndoTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1062,7 +1062,7 @@ export const RestoreTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1132,7 +1132,7 @@ export const KeepTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1391,7 +1391,7 @@ export const ListNoiseRulesResponseItem = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string(),
-  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),zod.null()]),
+  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),zod.null()]),
   "enabled": zod.boolean(),
   "hitCount": zod.int(),
   "lastHitAt": zod.coerce.date().nullable(),
@@ -1417,7 +1417,7 @@ export const UpdateNoiseRuleResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string(),
-  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),zod.null()]),
+  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),zod.null()]),
   "enabled": zod.boolean(),
   "hitCount": zod.int(),
   "lastHitAt": zod.coerce.date().nullable(),
@@ -1598,7 +1598,7 @@ export const GetProjectResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1847,7 +1847,7 @@ export const GetPersonResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1908,7 +1908,7 @@ export const GetPersonResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -3413,6 +3413,222 @@ export const BuildDocumentKnowledgeResponse = zod.object({
 
 
 /**
+ * @summary Cowork sessions Claude saved, newest first
+ */
+export const ListSessionsQueryParams = zod.object({
+  "q": zod.coerce.string().optional().describe('Words to look for in the title, summary, outcomes and transcript')
+})
+
+export const ListSessionsResponseItem = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "summary": zod.string(),
+  "outcomes": zod.array(zod.string()).describe('What was done'),
+  "happenedAt": zod.coerce.date(),
+  "archived": zod.boolean().describe('Older than 90 days with nothing from it still open; left out of briefs'),
+  "confidential": zod.boolean().nullable().describe('null means it follows the projects and people it touched'),
+  "hiddenFromAi": zod.boolean(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "people": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "taskCount": zod.int(),
+  "decisionCount": zod.int().describe('Decisions from it Ollie approved'),
+  "documentCount": zod.int().describe('Documents from it Ollie added to the Library'),
+  "waitingCount": zod.int().describe('Suggestions from it still in the Knowledge Inbox')
+})
+export const ListSessionsResponse = zod.array(ListSessionsResponseItem)
+
+
+/**
+ * @summary One Cowork session with what came from it
+ */
+export const GetSessionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetSessionResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "summary": zod.string(),
+  "outcomes": zod.array(zod.string()).describe('What was done'),
+  "happenedAt": zod.coerce.date(),
+  "archived": zod.boolean().describe('Older than 90 days with nothing from it still open; left out of briefs'),
+  "confidential": zod.boolean().nullable().describe('null means it follows the projects and people it touched'),
+  "hiddenFromAi": zod.boolean(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "people": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "taskCount": zod.int(),
+  "decisionCount": zod.int().describe('Decisions from it Ollie approved'),
+  "documentCount": zod.int().describe('Documents from it Ollie added to the Library'),
+  "waitingCount": zod.int().describe('Suggestions from it still in the Knowledge Inbox')
+}).and(zod.object({
+  "transcript": zod.string().nullable(),
+  "createdBy": zod.string(),
+  "tasks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.string(),
+  "status": zod.string()
+})),
+  "decisions": zod.array(zod.object({
+  "id": zod.int(),
+  "text": zod.string()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+})),
+  "knowledge": zod.object({
+  "state": zod.enum(['none', 'waiting', 'reading', 'read', 'failed']),
+  "lastReadAt": zod.coerce.date().nullable(),
+  "found": zod.string().nullable().describe('What the last read proposed'),
+  "error": zod.string().nullable()
+})
+}))
+
+
+/**
+ * @summary Change whether AI tools can see a session
+ */
+export const UpdateSessionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UpdateSessionBody = zod.object({
+  "confidential": zod.boolean().nullish()
+})
+
+export const UpdateSessionResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "summary": zod.string(),
+  "outcomes": zod.array(zod.string()).describe('What was done'),
+  "happenedAt": zod.coerce.date(),
+  "archived": zod.boolean().describe('Older than 90 days with nothing from it still open; left out of briefs'),
+  "confidential": zod.boolean().nullable().describe('null means it follows the projects and people it touched'),
+  "hiddenFromAi": zod.boolean(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "people": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "taskCount": zod.int(),
+  "decisionCount": zod.int().describe('Decisions from it Ollie approved'),
+  "documentCount": zod.int().describe('Documents from it Ollie added to the Library'),
+  "waitingCount": zod.int().describe('Suggestions from it still in the Knowledge Inbox')
+}).and(zod.object({
+  "transcript": zod.string().nullable(),
+  "createdBy": zod.string(),
+  "tasks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.string(),
+  "status": zod.string()
+})),
+  "decisions": zod.array(zod.object({
+  "id": zod.int(),
+  "text": zod.string()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+})),
+  "knowledge": zod.object({
+  "state": zod.enum(['none', 'waiting', 'reading', 'read', 'failed']),
+  "lastReadAt": zod.coerce.date().nullable(),
+  "found": zod.string().nullable().describe('What the last read proposed'),
+  "error": zod.string().nullable()
+})
+}))
+
+
+/**
+ * @summary Delete a session; tasks, decisions and documents from it stay
+ */
+export const DeleteSessionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteSessionResponse = zod.void()
+
+
+/**
+ * @summary Read a session for knowledge again; what it finds goes to the Knowledge Inbox
+ */
+export const ReadSessionKnowledgeParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ReadSessionKnowledgeResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "summary": zod.string(),
+  "outcomes": zod.array(zod.string()).describe('What was done'),
+  "happenedAt": zod.coerce.date(),
+  "archived": zod.boolean().describe('Older than 90 days with nothing from it still open; left out of briefs'),
+  "confidential": zod.boolean().nullable().describe('null means it follows the projects and people it touched'),
+  "hiddenFromAi": zod.boolean(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "people": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "taskCount": zod.int(),
+  "decisionCount": zod.int().describe('Decisions from it Ollie approved'),
+  "documentCount": zod.int().describe('Documents from it Ollie added to the Library'),
+  "waitingCount": zod.int().describe('Suggestions from it still in the Knowledge Inbox')
+}).and(zod.object({
+  "transcript": zod.string().nullable(),
+  "createdBy": zod.string(),
+  "tasks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.string(),
+  "status": zod.string()
+})),
+  "decisions": zod.array(zod.object({
+  "id": zod.int(),
+  "text": zod.string()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+})),
+  "knowledge": zod.object({
+  "state": zod.enum(['none', 'waiting', 'reading', 'read', 'failed']),
+  "lastReadAt": zod.coerce.date().nullable(),
+  "found": zod.string().nullable().describe('What the last read proposed'),
+  "error": zod.string().nullable()
+})
+}))
+
+
+/**
  * @summary Edit a document, or confirm it is still current
  */
 export const UpdateDocumentParams = zod.object({
@@ -4373,13 +4589,13 @@ export const RemoveLinkResponse = zod.object({
  */
 export const SearchKnowledgeQueryParams = zod.object({
   "q": zod.coerce.string(),
-  "types": zod.coerce.string().optional().describe('Comma-separated list of task, project, person, organisation, decision, note, fact')
+  "types": zod.coerce.string().optional().describe('Comma-separated list of task, project, person, organisation, decision, note, fact, document, session')
 })
 
 export const SearchKnowledgeResponse = zod.object({
   "q": zod.string(),
   "hits": zod.array(zod.object({
-  "type": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note', 'fact', 'document']),
+  "type": zod.enum(['task', 'project', 'person', 'organisation', 'decision', 'note', 'fact', 'document', 'session']),
   "id": zod.int(),
   "title": zod.string(),
   "snippet": zod.string().nullable(),
@@ -4477,7 +4693,7 @@ export const AskOllieOSResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -4602,7 +4818,7 @@ export const GetAskThreadResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -4727,7 +4943,7 @@ export const DraftAskReplyResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -4852,7 +5068,7 @@ export const AllowAskTurnResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -4986,7 +5202,7 @@ export const BundleAskTasksResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -5111,7 +5327,7 @@ export const UndoAskBundleResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),

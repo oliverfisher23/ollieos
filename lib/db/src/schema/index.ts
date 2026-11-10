@@ -12,3 +12,4 @@ export * from "./briefs";
 export * from "./connectors";
 export * from "./reviewItems";
 export * from "./research";
+export * from "./coworkSessions";

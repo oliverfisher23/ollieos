@@ -148,6 +148,33 @@ export function documentVisible(alias: string, g: Grants = NO_GRANTS): string {
   end)`;
 }
 
+/**
+ * A Cowork session (Part F): its own flag wins; otherwise it is hidden when any project or person
+ * it touched is hidden. A grant on that project or person unlocks an inherited one.
+ */
+export function sessionVisible(alias: string, g: Grants = NO_GRANTS): string {
+  const s = alias;
+  return `(case
+    when ${s}.confidential is true then false
+    when ${s}.confidential is false then true
+    else not exists (select 1 from projects x where x.id = any(${s}.project_ids) and ${ownHidden("x", "project", g)})
+      and not exists (select 1 from people x where x.id = any(${s}.person_ids) and ${ownHidden("x", "person", g)})
+  end)`;
+}
+
+/** A session older than this with nothing from it still open is archived (Part F). */
+export const SESSION_ARCHIVE_DAYS = 90;
+
+/**
+ * True when a session is archived: older than 90 days and no task or promise from it is still open.
+ * Archived sessions stay searchable but are left out of get_context and meeting briefs.
+ */
+export function sessionArchived(alias: string, now = new Date()): string {
+  const cutoff = new Date(now.getTime() - SESSION_ARCHIVE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  return `(${alias}.happened_at < '${cutoff}'::timestamptz and not exists (
+    select 1 from tasks t where t.id = any(${alias}.task_ids) and t.status in ('inbox', 'now', 'backlog', 'waiting')))`;
+}
+
 /** Links between a playbook and a project or organisation, either way round. */
 function playbookLinks(p: string, other: "project" | "organisation", otherId: string): string {
   return `((l.from_type = 'playbook' and l.from_id = ${p}.id and l.to_type = '${other}' and l.to_id = ${otherId})

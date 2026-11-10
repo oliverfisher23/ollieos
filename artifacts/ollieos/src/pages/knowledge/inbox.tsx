@@ -211,7 +211,7 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
         <Target it={it} />
         <span>· {byLine(it)}</span>
         {it.lookBack && <span className="oo-pill" data-testid={'pill-look-back-' + testKey}>From look back</span>}
-        {it.fromDocument && <span className="oo-pill" data-testid={'pill-document-' + testKey}>From a document</span>}
+        {it.fromDocument && <span className="oo-pill" data-testid={'pill-document-' + testKey}>{it.fromDocument.startsWith('session:') ? 'From a Cowork session' : 'From a document'}</span>}
         {it.attribute && it.group !== 'conflicts' && <span className="oo-pill">{it.attribute}</span>}
       </div>
 
@@ -428,10 +428,11 @@ function RejectFromSource({ sourceRef, testKey }: { sourceRef: string; testKey: 
   const write = useKnowledgeWrite();
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
+  const what = sourceRef.startsWith('session:') ? 'session' : 'document';
   if (!asking) {
     return (
       <div>
-        <button type="button" className="oo-textbtn" onClick={() => setAsking(true)} data-testid={'button-reject-source-' + testKey}>Reject everything from this document</button>
+        <button type="button" className="oo-textbtn" onClick={() => setAsking(true)} data-testid={'button-reject-source-' + testKey}>Reject everything from this {what}</button>
       </div>
     );
   }
@@ -440,11 +441,11 @@ function RejectFromSource({ sourceRef, testKey }: { sourceRef: string; testKey: 
     const r = await write(() => rejectSuggestionsFromSource({ sourceRef }), { fail: 'Could not reject them' });
     setBusy(false);
     setAsking(false);
-    if (r) notify(r.rejected === 1 ? 'Rejected 1 suggestion' : `Rejected ${r.rejected} suggestions`, 'Conflicts from this document stay on the Conflicts tab.');
+    if (r) notify(r.rejected === 1 ? 'Rejected 1 suggestion' : `Rejected ${r.rejected} suggestions`, `Conflicts from this ${what} stay on the Conflicts tab.`);
   };
   return (
-    <div role="group" aria-label="Reject everything from this document" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', fontSize: 13 }}>
-      <span>Reject every suggestion still waiting from this document?</span>
+    <div role="group" aria-label={`Reject everything from this ${what}`} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', fontSize: 13 }}>
+      <span>Reject every suggestion still waiting from this {what}?</span>
       <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" disabled={busy} onClick={go} data-testid={'button-reject-source-yes-' + testKey}>{busy ? 'Rejecting…' : 'Reject them all'}</button>
       <button type="button" className="oo-btn oo-btn-quiet oo-btn-sm" disabled={busy} onClick={() => setAsking(false)}>Keep them</button>
     </div>

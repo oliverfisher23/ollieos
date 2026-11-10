@@ -8,12 +8,13 @@ import {
   organisationVisible,
   personVisible,
   projectVisible,
+  sessionVisible,
   taskVisible,
   NO_GRANTS,
 } from "./visibility";
 import type { AiScope } from "./scope";
 
-export const SEARCH_TYPES = ["task", "project", "person", "organisation", "decision", "note", "fact", "document"] as const;
+export const SEARCH_TYPES = ["task", "project", "person", "organisation", "decision", "note", "fact", "document", "session"] as const;
 export type SearchType = (typeof SEARCH_TYPES)[number];
 
 export interface SearchHit {
@@ -160,6 +161,15 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
         where (${textMatch(sql.raw("dc.search"), tsq, sql.raw("concat_ws(' ', dc.title, dc.summary)"), q, mode)}
           ${tsq ? sql`or dcc.search @@ to_tsquery('english', ${tsq})` : sql``})${v.where}
         order by rank desc, dc.last_confirmed_at desc limit ${limit}`;
+    }
+    case "session": {
+      const v = vis(sessionVisible("cs", g), visibleOnly);
+      return sql`select 'session' as type, cs.id, cs.title, cs.summary as snippet, null as slug,
+          null as entity_type, null::int as entity_id, ${rankExpr(sql.raw("cs.search"), tsq)} as rank,
+          ${v.hidden} as hidden_from_ai, cs.confidential, to_char(cs.happened_at at time zone 'Europe/London', 'YYYY-MM-DD') as status, null::boolean as needs_check
+        from cowork_sessions cs
+        where (${textMatch(sql.raw("cs.search"), tsq, sql.raw("cs.title"), q, mode)})${v.where}
+        order by rank desc, cs.happened_at desc limit ${limit}`;
     }
   }
 }

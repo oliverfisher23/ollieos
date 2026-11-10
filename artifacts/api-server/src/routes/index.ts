@@ -15,6 +15,7 @@ import connectorsRouter from "./connectors";
 import reviewRouter from "./review";
 import emailRouter from "./email";
 import researchRouter from "./research";
+import sessionsRouter from "./sessions";
 import ingestRouter from "./ingest";
 import { oauthConsentRouter, oauthPublicRouter } from "../oauth/routes";
 import { requireOllie } from "../middlewares/requireOllie";
@@ -45,6 +46,7 @@ router.use(connectorsRouter);
 router.use(reviewRouter);
 router.use(emailRouter);
 router.use(researchRouter);
+router.use(sessionsRouter);
 router.use(oauthConsentRouter);
 
 export default router;

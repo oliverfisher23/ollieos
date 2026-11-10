@@ -4,7 +4,7 @@ import { useInvalidateTasks } from '@/lib/task-cache';
 import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
 
-const KNOWLEDGE_PREFIXES = ['/api/projects', '/api/people', '/api/organisations', '/api/decisions', '/api/notes', '/api/search', '/api/suggestions', '/api/goals', '/api/documents', '/api/playbooks', '/api/home'];
+const KNOWLEDGE_PREFIXES = ['/api/projects', '/api/people', '/api/organisations', '/api/decisions', '/api/notes', '/api/search', '/api/suggestions', '/api/goals', '/api/documents', '/api/playbooks', '/api/home', '/api/sessions'];
 
 /** Invalidates every Knowledge query, plus the task caches that show project and person names. */
 export function useInvalidateKnowledge() {
@@ -54,6 +54,7 @@ export function entityPath(type: string, slug: string | null | undefined, id: nu
   if (type === 'decision') return `/knowledge/decisions/${id}`;
   if (type === 'note') return `/knowledge/notes/${id}`;
   if (type === 'task') return `/tasks?task=${id}`;
+  if (type === 'session') return `/knowledge/sessions?session=${id}`;
   return null;
 }
 
@@ -66,6 +67,7 @@ export function refPath(ref: string | null): string | null {
   if (type === 'task') return `/tasks?task=${id}`;
   if (type === 'decision') return `/knowledge/decisions/${id}`;
   if (type === 'note') return `/knowledge/notes/${id}`;
+  if (type === 'session') return `/knowledge/sessions?session=${id}`;
   return null;
 }
 
@@ -78,6 +80,7 @@ export const TYPE_LABELS: Record<string, string> = {
   note: 'Note',
   fact: 'Fact',
   document: 'Document',
+  session: 'Cowork session',
 };
 
 export function firstName(name: string): string {

@@ -90,6 +90,7 @@ export const TaskSource = {
   meeting: 'meeting',
   quarterly: 'quarterly',
   manual: 'manual',
+  session: 'session',
 } as const;
 
 export type TaskTab = typeof TaskTab[keyof typeof TaskTab];
@@ -2226,6 +2227,7 @@ export const SearchHitType = {
   note: 'note',
   fact: 'fact',
   document: 'document',
+  session: 'session',
 } as const;
 
 export interface SearchHit {
@@ -2970,6 +2972,94 @@ export interface DriveImport {
   documents: LibraryDocument[];
 }
 
+export interface SessionLink {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export interface SessionListItem {
+  id: number;
+  title: string;
+  summary: string;
+  /** What was done */
+  outcomes: string[];
+  happenedAt: string;
+  /** Older than 90 days with nothing from it still open; left out of briefs */
+  archived: boolean;
+  /**
+     * null means it follows the projects and people it touched
+     * @nullable
+     */
+  confidential: boolean | null;
+  hiddenFromAi: boolean;
+  projects: SessionLink[];
+  people: SessionLink[];
+  taskCount: number;
+  /** Decisions from it Ollie approved */
+  decisionCount: number;
+  /** Documents from it Ollie added to the Library */
+  documentCount: number;
+  /** Suggestions from it still in the Knowledge Inbox */
+  waitingCount: number;
+}
+
+export interface SessionTask {
+  id: number;
+  title: string;
+  kind: string;
+  status: string;
+}
+
+export interface SessionDecision {
+  id: number;
+  text: string;
+}
+
+export interface SessionDocument {
+  id: number;
+  title: string;
+}
+
+export type SessionKnowledgeState = typeof SessionKnowledgeState[keyof typeof SessionKnowledgeState];
+
+
+export const SessionKnowledgeState = {
+  none: 'none',
+  waiting: 'waiting',
+  reading: 'reading',
+  read: 'read',
+  failed: 'failed',
+} as const;
+
+export interface SessionKnowledge {
+  state: SessionKnowledgeState;
+  /** @nullable */
+  lastReadAt: string | null;
+  /**
+     * What the last read proposed
+     * @nullable
+     */
+  found: string | null;
+  /** @nullable */
+  error: string | null;
+}
+
+export type SessionDetail = SessionListItem & ({
+  /** @nullable */
+  transcript: string | null;
+  createdBy: string;
+  tasks: SessionTask[];
+  decisions: SessionDecision[];
+  documents: SessionDocument[];
+  knowledge: SessionKnowledge;
+});
+
+export interface SessionUpdate {
+  /** @nullable */
+  confidential?: boolean | null;
+}
+
 export interface DocumentUpdate {
   /**
      * @minLength 1
@@ -3113,6 +3203,13 @@ export type ListDocumentsParams = {
 projectId?: number;
 };
 
+export type ListSessionsParams = {
+/**
+ * Words to look for in the title, summary, outcomes and transcript
+ */
+q?: string;
+};
+
 export type ListKnowledgeInboxParams = {
 tab?: ListKnowledgeInboxTab;
 /**
@@ -3146,7 +3243,7 @@ export type RejectSuggestionsFromSource200 = {
 export type SearchKnowledgeParams = {
 q: string;
 /**
- * Comma-separated list of task, project, person, organisation, decision, note, fact
+ * Comma-separated list of task, project, person, organisation, decision, note, fact, document, session
  */
 types?: string;
 };

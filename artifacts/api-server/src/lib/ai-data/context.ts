@@ -7,6 +7,7 @@ import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from 
 import {
   activityTable,
   calendarEventsTable,
+  coworkSessionsTable,
   db,
   decisionsTable,
   factsTable,
@@ -30,6 +31,8 @@ import {
   organisationVisible,
   personVisible,
   projectVisible,
+  sessionArchived,
+  sessionVisible,
   taskVisible,
   type Grants,
 } from "./visibility";
@@ -333,6 +336,8 @@ export interface ContextOut {
   projects: NamedRef[];
   notes: { ref: string; title: string | null; body: string; created_at: string }[];
   recent_activity: { ref: string; kind: string; summary: string; occurred_at: string; source_url: string | null }[];
+  /** Projects and people: the latest Cowork sessions about it (not archived), so earlier work is not repeated */
+  sessions: { ref: string; title: string; summary: string; outcomes: string[]; happened_at: string }[];
   /** Projects only: documents in the Library for it */
   documents?: DocumentOut[];
   /** Rules Ollie wants followed when drafting anything about this item */
@@ -403,7 +408,7 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
             linkedTasks.length ? inArray(tasksTable.id, linkedTasks) : sql`false`,
           );
 
-  const [factRows, decisionRows, taskRows, peopleRows, projectRows, noteRows, activityRows] = await Promise.all([
+  const [factRows, decisionRows, taskRows, peopleRows, projectRows, noteRows, activityRows, sessionRows] = await Promise.all([
     db
       .select()
       .from(factsTable)
@@ -452,6 +457,20 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
       )
       .orderBy(desc(activityTable.occurredAt))
       .limit(20),
+    type === "organisation"
+      ? []
+      : db
+          .select()
+          .from(coworkSessionsTable)
+          .where(
+            and(
+              sql`${id} = any(${type === "project" ? coworkSessionsTable.projectIds : coworkSessionsTable.personIds})`,
+              sql.raw(`not ${sessionArchived("cowork_sessions")}`),
+              sql.raw(sessionVisible("cowork_sessions", g)),
+            ),
+          )
+          .orderBy(desc(coworkSessionsTable.happenedAt))
+          .limit(5),
   ]);
 
   const orgIds = [...new Set(peopleRows.map((p) => p.organisationId).filter((x): x is number => x != null))];
@@ -504,6 +523,7 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
       occurred_at: a.occurredAt.toISOString(),
       source_url: a.sourceUrl,
     })),
+    sessions: sessionRows.map((s) => ({ ref: toRef("session", s.id), title: s.title, summary: s.summary, outcomes: s.outcomes, happened_at: s.happenedAt.toISOString() })),
     ...(documents ? { documents } : {}),
     playbooks,
   };
@@ -521,6 +541,7 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
   out.projects = keep(out.projects);
   out.notes = keep(out.notes);
   out.recent_activity = keep(out.recent_activity);
+  out.sessions = keep(out.sessions);
   if (out.documents) out.documents = keep(out.documents);
   out.playbooks = keep(out.playbooks);
   if (out.entity.organisation && !ok.has(out.entity.organisation.ref)) out.entity.organisation = null;
@@ -542,6 +563,7 @@ function contextRefs(c: ContextOut): string[] {
     ...c.projects.map((x) => x.ref),
     ...c.notes.map((x) => x.ref),
     ...c.recent_activity.map((x) => x.ref),
+    ...c.sessions.map((x) => x.ref),
     ...(c.documents ?? []).map((x) => x.ref),
     ...c.playbooks.map((x) => x.ref),
   ];

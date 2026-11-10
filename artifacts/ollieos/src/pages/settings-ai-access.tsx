@@ -26,6 +26,7 @@ import { hiddenSummary, requestItemName, useAccessActions, whenLabel } from '@/l
 import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
 import { CopyField } from '@/components/copy-field';
+import { copyText } from '@/lib/knowledge';
 import { Dropdown } from '@/components/dropdown';
 import { personOptions, projectOptions } from '@/components/dropdown-options';
 
@@ -223,6 +224,7 @@ export function Tools() {
         To connect Claude, add a custom connector in Claude's settings with this address, then approve it here when asked. Revoke cuts a tool off at once.
       </p>
       <CopyField value={mcpAddress()} label="Connector address" testId="mcp-address" />
+      <CoworkInstructions />
       {clients.isLoading ? (
         <Skel h={40} />
       ) : clients.error ? (
@@ -383,6 +385,45 @@ function Problem({ what, onRetry }: { what: string; onRetry: () => void }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
       <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>Could not load {what}.</p>
       <button type="button" className="oo-btn oo-btn-outline" onClick={onRetry}>Try again</button>
+    </div>
+  );
+}
+
+/** Pasted into Cowork's instructions so each session starts with OllieOS context and ends saved. */
+export const COWORK_INSTRUCTIONS = `At the start of every session, call the OllieOS get_context tool for the project or person the session is about, and get_playbooks before drafting anything for me.
+At the end of every session, call the OllieOS save_session tool once with a short title, a summary, what was done (including any decisions I made), the projects and people it touched, any follow-ups as actions (promises when I said I would do something for someone), and any documents worth keeping as artifacts.
+Mark the session confidential if it was about the company sale, the board, pay or HR.`;
+
+function CoworkInstructions() {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    if (await copyText(COWORK_INSTRUCTIONS)) {
+      setCopied(true);
+      notify('Copied', 'Paste it into Cowork\'s instructions.');
+      setTimeout(() => setCopied(false), 2000);
+    } else {
+      notify('Could not copy', 'Your browser blocked the clipboard.');
+    }
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 640, marginTop: 6 }} data-testid="block-cowork-instructions">
+      <span style={{ fontSize: 13, fontWeight: 600 }} id="cowork-ins-label">Instructions for Cowork</span>
+      <span className="oo-soft" style={{ fontSize: 13, lineHeight: 1.6 }}>
+        Paste this into Cowork's instructions so Claude starts each session with what OllieOS knows and saves it to <Link href="/knowledge/sessions" className="oo-link">Sessions</Link> at the end.
+      </span>
+      <textarea
+        className="oo-input"
+        readOnly
+        rows={8}
+        value={COWORK_INSTRUCTIONS}
+        aria-labelledby="cowork-ins-label"
+        onFocus={(e) => e.currentTarget.select()}
+        style={{ resize: 'vertical', fontSize: 13, lineHeight: 1.5 }}
+        data-testid="input-cowork-instructions"
+      />
+      <div>
+        <button type="button" className="oo-btn oo-btn-outline" onClick={copy} data-testid="button-copy-cowork-instructions">{copied ? 'Copied' : 'Copy'}</button>
+      </div>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import {
   accessRequestsTable,
   activityTable,
   aiClientsTable,
+  coworkSessionsTable,
   auditEventsTable,
   db,
   decisionsTable,
@@ -28,6 +29,7 @@ import {
   organisationVisible,
   personVisible,
   playbookVisible,
+  sessionVisible,
   projectVisible,
   taskVisible,
   type GrantType,
@@ -123,6 +125,9 @@ export async function visibleRefs(scope: AiScope, refList: readonly string[]): P
     q("goal", (i) => db.select({ id: goalsTable.id }).from(goalsTable).where(inArray(goalsTable.id, i))),
     q("document", (i) => db.select({ id: documentsTable.id }).from(documentsTable).where(and(inArray(documentsTable.id, i), sql.raw(documentVisible("documents", g))))),
     q("playbook", (i) => db.select({ id: playbooksTable.id }).from(playbooksTable).where(and(inArray(playbooksTable.id, i), sql.raw(playbookVisible("playbooks", g))))),
+    q("session", (i) =>
+      db.select({ id: coworkSessionsTable.id }).from(coworkSessionsTable).where(and(inArray(coworkSessionsTable.id, i), sql.raw(sessionVisible("cowork_sessions", g)))),
+    ),
   ]);
   return new Set(parts.flat());
 }

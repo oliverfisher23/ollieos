@@ -20,6 +20,7 @@ import SettingsPage from '@/pages/settings';
 import GoalsPage from '@/pages/goals';
 import PeopleCadencePage from '@/pages/people-cadence';
 import LibraryPage from '@/pages/knowledge/library';
+import SessionsPage from '@/pages/knowledge/sessions';
 import { BriefPage, NextBriefPage } from '@/pages/brief';
 import MeetingsPage from '@/pages/meetings';
 import ReviewPage from '@/pages/review';
@@ -75,6 +76,7 @@ function Router() {
         <Route path="/knowledge/notes" component={NotesListPage} />
         <Route path="/knowledge/notes/:id" component={NotePage} />
         <Route path="/knowledge/library" component={LibraryPage} />
+        <Route path="/knowledge/sessions" component={SessionsPage} />
         <Route path="/meetings" component={MeetingsPage} />
         <Route path="/briefs/next" component={NextBriefPage} />
         <Route path="/briefs/:eventId">{(p) => <BriefPage key={p.eventId} eventId={p.eventId} />}</Route>

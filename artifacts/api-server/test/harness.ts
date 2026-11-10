@@ -148,5 +148,6 @@ export async function api(path: string, init: { method?: string; body?: unknown 
     headers: { "content-type": "application/json", authorization: `Bearer ${sid}` },
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
-  return { status: res.status, body: (await res.json()) as Record<string, any> };
+  const raw = await res.text();
+  return { status: res.status, body: (raw ? JSON.parse(raw) : null) as Record<string, any> };
 }

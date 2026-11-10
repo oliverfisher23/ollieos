@@ -792,6 +792,7 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-mail-row[aria-current="true"] { background: var(--oo-line-soft); border-left-color: var(--oo-ink); }
 .oo-mail-row:focus-visible { outline: 2px solid var(--oo-ink); outline-offset: -2px; }
 .oo-mail-clamp { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.oo-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .oo-mail-msg { border: 1px solid var(--oo-line); border-radius: var(--oo-r-card-sm); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .oo-mail-msg > button { all: unset; cursor: pointer; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .oo-mail-msg > button:focus-visible { outline: 2px solid var(--oo-ink); outline-offset: 4px; border-radius: 4px; }

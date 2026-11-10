@@ -10,6 +10,7 @@ import { TYPE_LABELS, entityPath } from '@/lib/knowledge';
 const LIBRARY = [
   { href: '/knowledge/library', label: 'Documents' },
   { href: '/knowledge/library?tab=playbooks', label: 'Playbooks' },
+  { href: '/knowledge/sessions', label: 'Sessions' },
   { href: '/knowledge/people', label: 'People' },
   { href: '/knowledge/organisations', label: 'Organisations' },
   { href: '/knowledge/decisions', label: 'Decisions' },
