@@ -30,6 +30,14 @@ const stageOf = (d: EmailDraftItem['draft']): DraftStage => (d.state === 'ready'
 
 const WIDE = '(min-width: 1024px)';
 
+/** To answer in two groups: emails not read yet, or not read by AI, count as needing a reply. */
+type AnswerGroup = 'reply' | 'info';
+const ANSWER_GROUPS: { id: AnswerGroup; label: string }[] = [
+  { id: 'reply', label: 'Needs a reply' },
+  { id: 'info', label: 'For your information' },
+];
+const groupOf = (e: EmailInboxItem): AnswerGroup => (e.needs === 'info' ? 'info' : 'reply');
+
 /** Today's emails show the time, older ones the date. */
 function when(at: string): string {
   return londonDate(at) === todayLondon() ? formatTime(at) : formatShort(at);
@@ -60,8 +68,11 @@ export default function EmailPage() {
   const pickedThread = params.get('thread') || null;
   const wide = useMedia(WIDE);
 
-  // The inbox is read from Gmail: look again every two minutes while the page is open.
-  const inbox = useListEmailInbox({ query: { queryKey: getListEmailInboxQueryKey(), refetchInterval: 120_000, staleTime: 30_000, retry: false } });
+  // The inbox opens from the last look at Gmail; while it is being looked at again or new emails
+  // are being read, ask every few seconds, otherwise every minute.
+  const inbox = useListEmailInbox({
+    query: { queryKey: getListEmailInboxQueryKey(), refetchInterval: (q) => (q.state.data?.updating ? 4_000 : 60_000), staleTime: 20_000, retry: false },
+  });
   // While a draft is being written, look again every few seconds.
   const drafts = useListEmailDrafts({
     query: { queryKey: getListEmailDraftsQueryKey(), refetchInterval: (q) => (q.state.data?.items.some((d) => d.draft.state === 'writing') ? 3_000 : false) },
@@ -73,10 +84,12 @@ export default function EmailPage() {
   }, [drafts.data]);
   // An email with a draft on Drafts is not also To answer, unless it is the one open now.
   const drafted = useMemo(() => new Set(draftItems.map((d) => d.task.id)), [draftItems]);
-  const toAnswer = useMemo(
-    () => (inbox.data?.items ?? []).filter((e) => e.taskId == null || !drafted.has(e.taskId) || (tab === 'to-answer' && e.threadId === pickedThread)),
-    [inbox.data, drafted, tab, pickedThread],
-  );
+  // Needs a reply first (with any not read yet), then for information; newest first in each.
+  const toAnswer = useMemo(() => {
+    const items = (inbox.data?.items ?? []).filter((e) => e.taskId == null || !drafted.has(e.taskId) || (tab === 'to-answer' && e.threadId === pickedThread));
+    return ANSWER_GROUPS.flatMap((g) => items.filter((e) => groupOf(e) === g.id));
+  }, [inbox.data, drafted, tab, pickedThread]);
+  const needsReply = toAnswer.filter((e) => groupOf(e) === 'reply').length;
   // The email open now, kept after it leaves the list (Done, Noise) so Undo and noise rules still show.
   const [kept, setKept] = useState<EmailInboxItem | null>(null);
   const openEmail = toAnswer.find((e) => e.threadId === pickedThread) ?? (kept?.threadId === pickedThread ? kept : null);
@@ -92,7 +105,7 @@ export default function EmailPage() {
   const pickDraft = useCallback((id: string) => go('drafts', id), [go]);
 
   const tabs: { id: Tab; label: string; count: number | undefined }[] = [
-    { id: 'to-answer', label: 'To answer', count: inbox.data ? toAnswer.length : undefined },
+    { id: 'to-answer', label: 'To answer', count: inbox.data ? needsReply : undefined },
     { id: 'drafts', label: 'Drafts', count: drafts.data?.items.length },
     { id: 'waiting', label: 'Waiting for a reply', count: review.data?.noReplyDue || undefined },
   ];
@@ -133,7 +146,19 @@ export default function EmailPage() {
               onPick={pickAnswer}
               row={(id, current) => {
                 const e = toAnswer.find((x) => x.threadId === id)!;
-                return <AnswerRow e={e} hasDraft={e.taskId != null && drafted.has(e.taskId)} current={current} onPick={() => go('to-answer', id)} />;
+                const at = toAnswer.indexOf(e);
+                const group = groupOf(e);
+                const heading = at === 0 || groupOf(toAnswer[at - 1]) !== group ? ANSWER_GROUPS.find((g) => g.id === group)! : null;
+                return (
+                  <>
+                    {heading && (
+                      <span className="oo-mail-group" data-testid={'heading-to-answer-' + group}>
+                        {heading.label} <span className="oo-num">{toAnswer.filter((x) => groupOf(x) === group).length}</span>
+                      </span>
+                    )}
+                    <AnswerRow e={e} hasDraft={e.taskId != null && drafted.has(e.taskId)} current={current} onPick={() => go('to-answer', id)} />
+                  </>
+                );
               }}
               reader={(_id, next) =>
                 openEmail ? (
@@ -151,10 +176,16 @@ export default function EmailPage() {
                 )
               }
             />
-            {inbox.data && (inbox.data.leftOut > 0 || inbox.data.more) && (
+            {inbox.data && (
               <p className="oo-muted" style={{ margin: 0, fontSize: 12, lineHeight: 1.5 }} data-testid="text-inbox-left-out">
+                {inbox.data.problem
+                  ? `${inbox.data.problem.replace(/\.$/, '')}. This is your inbox as of ${when(inbox.data.checkedAt)}. `
+                  : inbox.data.updating
+                    ? 'Checking Gmail for new emails. '
+                    : `Checked Gmail at ${when(inbox.data.checkedAt)}. `}
                 {inbox.data.leftOut > 0 && `${inbox.data.leftOut === 1 ? '1 newsletter or automatic email is' : `${inbox.data.leftOut} newsletters and automatic emails are`} left out. `}
-                {inbox.data.more && 'Only your newest 200 inbox emails are looked at.'}
+                {inbox.data.more && 'Only your newest 200 inbox emails are looked at. '}
+                Needs a reply and For your information are OllieOS's best guess.
               </p>
             )}
           </>
@@ -253,7 +284,11 @@ function AnswerRow({ e, hasDraft, current, onPick }: { e: EmailInboxItem; hasDra
         <span className="oo-muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{when(e.at)}</span>
       </span>
       <span className="oo-mail-clamp" style={{ fontSize: 13, fontWeight: e.unread ? 600 : 500, display: '-webkit-box' }}>{e.subject ?? '(no subject)'}</span>
-      <span className="oo-muted oo-mail-clamp" style={{ fontSize: 13 }}>{firstLine(e.snippet)}</span>
+      {e.ask ? (
+        <span className="oo-soft oo-mail-clamp" style={{ fontSize: 13 }} data-testid={'text-to-answer-ask-' + e.threadId}>{e.ask}</span>
+      ) : (
+        <span className="oo-muted oo-mail-clamp" style={{ fontSize: 13 }}>{firstLine(e.snippet)}</span>
+      )}
       {(e.taskId != null || hasDraft) && (
         <span style={{ display: 'flex', gap: 6, marginTop: 3 }}>
           {e.taskId != null && <span className="oo-pill">Task</span>}

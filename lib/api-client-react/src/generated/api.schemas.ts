@@ -1183,6 +1183,19 @@ export interface WritingStyleInput {
   note: string;
 }
 
+/**
+ * Needs a reply, for information, not read yet, or not read by AI (hidden from it, or reading failed)
+ */
+export type EmailInboxItemNeeds = typeof EmailInboxItemNeeds[keyof typeof EmailInboxItemNeeds];
+
+
+export const EmailInboxItemNeeds = {
+  reply: 'reply',
+  info: 'info',
+  checking: 'checking',
+  unknown: 'unknown',
+} as const;
+
 export interface EmailInboxItem {
   threadId: string;
   /** The newest message */
@@ -1203,6 +1216,13 @@ export interface EmailInboxItem {
      */
   taskId: number | null;
   gmailUrl: string;
+  /** Needs a reply, for information, not read yet, or not read by AI (hidden from it, or reading failed) */
+  needs: EmailInboxItemNeeds;
+  /**
+     * One line on what the sender wants
+     * @nullable
+     */
+  ask: string | null;
 }
 
 export interface EmailInbox {
@@ -1211,6 +1231,15 @@ export interface EmailInbox {
   more: boolean;
   /** Newsletters and automatic emails left out */
   leftOut: number;
+  /** When Gmail was last looked at */
+  checkedAt: string;
+  /** Gmail is being looked at again, or new emails are being read */
+  updating: boolean;
+  /**
+     * Why the last look at Gmail failed; the list is from the one before
+     * @nullable
+     */
+  problem: string | null;
 }
 
 export interface EmailInboxTask {

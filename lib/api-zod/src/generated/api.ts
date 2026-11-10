@@ -2544,10 +2544,15 @@ export const ListEmailInboxResponse = zod.object({
   "unread": zod.boolean(),
   "messages": zod.int(),
   "taskId": zod.int().nullable().describe('The email task linked to it'),
-  "gmailUrl": zod.string()
+  "gmailUrl": zod.string(),
+  "needs": zod.enum(['reply', 'info', 'checking', 'unknown']).describe('Needs a reply, for information, not read yet, or not read by AI (hidden from it, or reading failed)'),
+  "ask": zod.string().nullable().describe('One line on what the sender wants')
 })),
   "more": zod.boolean().describe('More inbox emails than are listed'),
-  "leftOut": zod.int().describe('Newsletters and automatic emails left out')
+  "leftOut": zod.int().describe('Newsletters and automatic emails left out'),
+  "checkedAt": zod.coerce.date().describe('When Gmail was last looked at'),
+  "updating": zod.boolean().describe('Gmail is being looked at again, or new emails are being read'),
+  "problem": zod.string().nullable().describe('Why the last look at Gmail failed; the list is from the one before')
 })
 
 

@@ -123,6 +123,8 @@ export async function captureSorted(
     const perMessage = new Map<string, number>();
     for (const it of s.items) {
       const msg = u.messages.find((m) => m.ref === it.ref) ?? u.messages[u.messages.length - 1];
+      // Emails Ollie sends that wait on someone are on Email, Waiting for a reply; no task as well.
+      if (u.source === "email" && it.type === "waiting" && msg.fromMe) continue;
       const n = (perMessage.get(msg.ref) ?? 0) + 1;
       perMessage.set(msg.ref, n);
       const sourceRef = n === 1 ? msg.ref : `${msg.ref}#${n}`;

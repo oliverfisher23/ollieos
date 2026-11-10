@@ -3,11 +3,11 @@
  * a sent reply marking its email done, the "How you write" note, thread summaries, and saving
  * attachments to the Library.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
-import { db, documentContentsTable, documentsTable, knowledgeSourcesTable, replyDraftsTable, tasksTable } from "@workspace/db";
+import { db, documentContentsTable, documentsTable, knowledgeSourcesTable, peopleTable, replyDraftsTable, tasksTable } from "@workspace/db";
 import { checkSentDrafts } from "../src/services/email";
-import { clearInboxCache } from "../src/services/inbox";
+import { ageInboxSnapshot, clearInboxCache, inboxIdle } from "../src/services/inbox";
 import { waitForBriefedDrafts } from "../src/services/replyDraft";
 import { waitForWritingStyle } from "../src/services/writingStyle";
 import { api, OLLIE, useServer } from "./harness";
@@ -135,9 +135,15 @@ vi.mock("../src/services/ask/model", async (orig) => ({
 
 let haikuCalls: string[] = [];
 let modelCalls: string[] = [];
+let inboxReads: string[] = [];
 vi.mock("../src/services/connectors/sorter", async (orig) => ({
   ...(await orig<typeof import("../src/services/connectors/sorter")>()),
-  haikuJson: async (_system: string, content: string) => {
+  haikuJson: async (system: string, content: string) => {
+    if (system.includes("sort Ollie Fisher's email inbox")) {
+      inboxReads.push(content);
+      const fyi = /Just so you know|copied in/.test(content);
+      return { needsReply: !fyi, ask: fyi ? "Update on the plan" : "Wants an answer on Tuesday" };
+    }
     haikuCalls.push(content);
     return { summary: "- Sam asked about Tuesday\n- You still owe the budget" };
   },
@@ -162,7 +168,12 @@ beforeEach(() => {
   draftGate = null;
   haikuCalls = [];
   modelCalls = [];
+  inboxReads = [];
   clearInboxCache();
+});
+
+afterEach(async () => {
+  await inboxIdle();
 });
 
 async function emailTask(threadId: string, lastId: string, opts: { confidential?: boolean; status?: "inbox" | "now" } = {}) {
@@ -485,6 +496,62 @@ describe("To answer: the Gmail inbox", () => {
     await api("email/inbox/doneOne1/done", { method: "POST" });
     expect((await inbox()).items).toEqual([]);
     threads.doneOne1.push({ id: "k2", from: SAM, to: ME, subject: "Re: FYI", at: new Date(Date.now() + 1000), text: "One more thing", labels: ["INBOX"] });
+    ageInboxSnapshot(60_000);
+    await inbox();
+    await inboxIdle();
     expect((await inbox()).items.map((i) => [i.threadId, i.messageId])).toEqual([["doneOne1", "k2"]]);
+  });
+
+  it("opens from the last look at Gmail at once, and looks again in the background when it is old", async () => {
+    threads.firstOne1 = [{ id: "m1", from: SAM, to: ME, subject: "Tuesday", at: ago(2), text: "Can we meet on Tuesday?", labels: ["INBOX"] }];
+    expect((await inbox()).items.map((i) => i.threadId)).toEqual(["firstOne1"]);
+    await inboxIdle();
+    threads.second22 = [{ id: "n1", from: SAM, to: ME, subject: "Budget", at: ago(1), text: "Is the budget ready?", labels: ["INBOX"] }];
+    // Under 45 seconds old: the same list, with no new look.
+    const kept = await inbox();
+    expect(kept.items.map((i) => i.threadId)).toEqual(["firstOne1"]);
+    expect(kept.updating).toBe(false);
+    // Older: the old list straight away while Gmail is looked at again.
+    ageInboxSnapshot(60_000);
+    const stale = await inbox();
+    expect(stale.items.map((i) => i.threadId)).toEqual(["firstOne1"]);
+    expect(stale.updating).toBe(true);
+    await inboxIdle();
+    expect((await inbox()).items.map((i) => i.threadId)).toEqual(["second22", "firstOne1"]);
+  });
+
+  it("reads each new email once to say whether it needs a reply or is for information", async () => {
+    threads.reply111 = [{ id: "p1", from: SAM, to: ME, subject: "Tuesday", at: ago(2), text: "Can we meet on Tuesday?", labels: ["INBOX"] }];
+    threads.info2222 = [{ id: "q1", from: SAM, to: ME, subject: "Plan", at: ago(1), text: "Just so you know, the plan is going ahead.", labels: ["INBOX"] }];
+    const [hidden] = await db.insert(peopleTable).values({ name: "Pat Hidden", slug: "pat-hidden", email: "pat@private.com", aiAccess: false }).returning();
+    threads.hidden33 = [{ id: "r1", from: `Pat Hidden <${hidden.email}>`, to: ME, subject: "Private", at: ago(3), text: "Something private", labels: ["INBOX"] }];
+
+    const first = await inbox();
+    expect(first.items.map((i) => i.needs)).toEqual(["checking", "checking", "checking"]);
+    await inboxIdle();
+    const read = await inbox();
+    expect(read.items.map((i) => [i.threadId, i.needs, i.ask])).toEqual([
+      ["info2222", "info", "Update on the plan"],
+      ["reply111", "reply", "Wants an answer on Tuesday"],
+      ["hidden33", "unknown", null],
+    ]);
+    expect(inboxReads).toHaveLength(2);
+    expect(inboxReads.join("\n")).not.toContain("Something private");
+    expect(read.updating).toBe(false);
+
+    // Read once: looking again does not read it again, but a new message does.
+    ageInboxSnapshot(60_000);
+    await inbox();
+    await inboxIdle();
+    await inbox();
+    await inboxIdle();
+    expect(inboxReads).toHaveLength(2);
+    threads.reply111.push({ id: "p2", from: SAM, to: ME, subject: "Re: Tuesday", at: ago(0.5), text: "Any thoughts?", labels: ["INBOX"] });
+    ageInboxSnapshot(60_000);
+    await inbox();
+    await inboxIdle();
+    await inbox();
+    await inboxIdle();
+    expect(inboxReads).toHaveLength(3);
   });
 });

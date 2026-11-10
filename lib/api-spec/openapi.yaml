@@ -4614,7 +4614,7 @@ components:
         attachments: { type: array, items: { $ref: "#/components/schemas/EmailAttachment" } }
     EmailInboxItem:
       type: object
-      required: [threadId, messageId, subject, fromName, fromEmail, at, snippet, unread, messages, taskId, gmailUrl]
+      required: [threadId, messageId, subject, fromName, fromEmail, at, snippet, unread, messages, taskId, gmailUrl, needs, ask]
       properties:
         threadId: { type: string }
         messageId: { type: string, description: The newest message }
@@ -4627,9 +4627,14 @@ components:
         messages: { type: integer }
         taskId: { type: [integer, "null"], description: The email task linked to it }
         gmailUrl: { type: string }
+        needs:
+          type: string
+          enum: [reply, info, checking, unknown]
+          description: "Needs a reply, for information, not read yet, or not read by AI (hidden from it, or reading failed)"
+        ask: { type: [string, "null"], description: One line on what the sender wants }
     EmailInbox:
       type: object
-      required: [items, more, leftOut]
+      required: [items, more, leftOut, checkedAt, updating, problem]
       properties:
         items:
           type: array
@@ -4637,6 +4642,9 @@ components:
             $ref: "#/components/schemas/EmailInboxItem"
         more: { type: boolean, description: More inbox emails than are listed }
         leftOut: { type: integer, description: Newsletters and automatic emails left out }
+        checkedAt: { type: string, format: date-time, description: When Gmail was last looked at }
+        updating: { type: boolean, description: "Gmail is being looked at again, or new emails are being read" }
+        problem: { type: [string, "null"], description: "Why the last look at Gmail failed; the list is from the one before" }
     EmailInboxTask:
       type: object
       required: [taskId]

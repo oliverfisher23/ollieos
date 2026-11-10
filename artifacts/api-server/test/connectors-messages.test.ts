@@ -187,7 +187,7 @@ describe("capturing from Gmail and Slack", () => {
     ...o,
   });
 
-  it("adds tasks, promises and waiting-on items to the Inbox, logs activity with known people, and carries on from where it got to", async () => {
+  it("adds tasks and promises to the Inbox (waiting on from sent email is left to Waiting for a reply), logs activity with known people, and carries on from where it got to", async () => {
     const [sam] = await db.insert(peopleTable).values({ name: "Sam Lee", slug: "sam-lee", email: "sam@client.com" }).returning();
     const newest = new Date("2026-11-10T09:30:00Z");
     nextGmail = {
@@ -210,23 +210,21 @@ describe("capturing from Gmail and Slack", () => {
 
     const check = await api("connectors/gmail/check", { method: "POST" });
     expect(check.body).toMatchObject({ ok: true, found: 4, account: "ollie@example.com" });
-    expect(check.body.counts).toMatchObject({ inbox: 1, promises: 1, waiting: 1, left_out: 2, activity: 2 });
+    expect(check.body.counts).toMatchObject({ inbox: 1, promises: 1, waiting: 0, left_out: 2, activity: 2 });
 
     const tasks = await db.select().from(tasksTable).orderBy(tasksTable.id);
     expect(tasks.map((t) => [t.title, t.kind, t.status, t.source, t.sourceRef])).toEqual([
       ["Send Sam the Q3 numbers", "task", "inbox", "email", "gmail:m1"],
       ["Send Sam the deck", "promise", "inbox", "email", "gmail:m2"],
-      ["Sam to send the contract", "task", "inbox", "email", "gmail:m2#2"],
     ]);
     expect(tasks[0]).toMatchObject({ personId: sam.id, fromName: "Sam Lee", dueDate: "2026-11-13", createdBy: "ollieos" });
-    expect(tasks[2]).toMatchObject({ waitingOnPersonId: sam.id, personId: null, priority: "high" });
     expect((await db.select().from(activityTable)).map((a) => a.summary).sort()).toEqual(["Sam asked for the Q3 numbers", "You told Sam you would send the deck"]);
     expect(await readByNow("gmail")).toBe("ollieos");
 
     // The next check starts where this one finished, and the same messages are not added twice.
     const again = await api("connectors/gmail/check", { method: "POST" });
     expect(gmailSince[1].toISOString()).toBe(newest.toISOString());
-    expect(again.body.counts).toMatchObject({ inbox: 0, duplicate: 3, activity: 0 });
+    expect(again.body.counts).toMatchObject({ inbox: 0, duplicate: 2, activity: 0 });
 
     // Claude's copy of email is now refused, both tasks and activity.
     const refused = await ingest("tasks", { body: [{ source: "email", source_ref: "claude-1", title: "From Claude" }, { source: "meeting", source_ref: "g-1", title: "Meeting action" }] });

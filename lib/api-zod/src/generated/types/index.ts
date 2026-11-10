@@ -123,6 +123,7 @@ export * from './emailInbox';
 export * from './emailInboxDone';
 export * from './emailInboxDonePreviousStatus';
 export * from './emailInboxItem';
+export * from './emailInboxItemNeeds';
 export * from './emailInboxTask';
 export * from './emailThread';
 export * from './emailThreadMessage';

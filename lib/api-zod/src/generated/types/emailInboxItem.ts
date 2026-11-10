@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { EmailInboxItemNeeds } from './emailInboxItemNeeds';
 
 export interface EmailInboxItem {
   threadId: string;
@@ -26,4 +27,11 @@ export interface EmailInboxItem {
      */
   taskId: number | null;
   gmailUrl: string;
+  /** Needs a reply, for information, not read yet, or not read by AI (hidden from it, or reading failed) */
+  needs: EmailInboxItemNeeds;
+  /**
+     * One line on what the sender wants
+     * @nullable
+     */
+  ask: string | null;
 }

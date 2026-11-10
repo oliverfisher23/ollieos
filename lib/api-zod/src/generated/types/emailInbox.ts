@@ -13,4 +13,13 @@ export interface EmailInbox {
   more: boolean;
   /** Newsletters and automatic emails left out */
   leftOut: number;
+  /** When Gmail was last looked at */
+  checkedAt: Date;
+  /** Gmail is being looked at again, or new emails are being read */
+  updating: boolean;
+  /**
+     * Why the last look at Gmail failed; the list is from the one before
+     * @nullable
+     */
+  problem: string | null;
 }

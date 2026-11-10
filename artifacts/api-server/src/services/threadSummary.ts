@@ -59,17 +59,20 @@ export async function getThreadSummary(taskId: number): Promise<ThreadSummaryVie
  * in People that AI may not see.
  */
 export async function getInboxThreadSummary(threadId: string): Promise<ThreadSummaryView> {
-  return summarise(threadId, async (emails) => {
-    if (!emails.length) return true;
-    const people = await db
-      .select({ id: peopleTable.id })
-      .from(peopleTable)
-      .where(inArray(sql`lower(${peopleTable.email})`, emails));
-    if (!people.length) return true;
-    const refs = people.map((p) => toRef("person", p.id));
-    const seen = await visibleRefs(await askScope(), refs);
-    return refs.every((r) => seen.has(r));
-  });
+  return summarise(threadId, aiMaySeeSenders);
+}
+
+/** False when any of these addresses (lower case) belongs to someone in People that AI may not see. */
+export async function aiMaySeeSenders(emails: string[]): Promise<boolean> {
+  if (!emails.length) return true;
+  const people = await db
+    .select({ id: peopleTable.id })
+    .from(peopleTable)
+    .where(inArray(sql`lower(${peopleTable.email})`, emails));
+  if (!people.length) return true;
+  const refs = people.map((p) => toRef("person", p.id));
+  const seen = await visibleRefs(await askScope(), refs);
+  return refs.every((r) => seen.has(r));
 }
 
 function gmailProblem(err: unknown): never {
