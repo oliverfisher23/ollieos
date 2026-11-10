@@ -30,6 +30,12 @@ const stageOf = (d: EmailDraftItem['draft']): DraftStage => (d.state === 'ready'
 
 /** Open email tasks Ollie still has to deal with; Waiting on ones are with someone else. */
 const TO_ANSWER: Task['status'][] = ['inbox', 'now', 'backlog'];
+/**
+ * Tasks the Gmail check found in an email Ollie sent himself (marked "You", with no address):
+ * a waiting-on or a promise, never an email to answer. Emails he sent that expect a reply are
+ * on Waiting for a reply.
+ */
+const sentByOllie = (t: Task) => !t.fromAddress && t.fromName === 'You';
 const WIDE = '(min-width: 1024px)';
 
 /** Today's emails show the time, older ones the date. */
@@ -76,7 +82,7 @@ export default function EmailPage() {
   const toAnswer = useMemo(
     () =>
       (tasks.data ?? [])
-        .filter((t) => TO_ANSWER.includes(t.status) && (!drafted.has(t.id) || (tab === 'to-answer' && t.id === picked)))
+        .filter((t) => TO_ANSWER.includes(t.status) && !sentByOllie(t) && (!drafted.has(t.id) || (tab === 'to-answer' && t.id === picked)))
         .sort((a, b) => new Date(b.capturedAt ?? b.createdAt).getTime() - new Date(a.capturedAt ?? a.createdAt).getTime()),
     [tasks.data, drafted, tab, picked],
   );
