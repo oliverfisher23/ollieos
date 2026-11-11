@@ -63,7 +63,8 @@ export const suggestionStatusEnum = pgEnum("suggestion_status", ["pending", "app
 /** The Review page (Assist Part C): look-back actions; Part D adds unanswered email. */
 export const reviewItemKindEnum = pgEnum("review_item_kind", ["action", "no_reply"]);
 export const reviewItemStateEnum = pgEnum("review_item_state", ["pending", "accepted", "done", "dropped", "answered"]);
-export const reviewKindEnum = pgEnum("review_kind", ["stale", "conflict"]);
+/** Part O adds "contradiction": an AI check found a card disagreeing with approved knowledge. */
+export const reviewKindEnum = pgEnum("review_kind", ["stale", "conflict", "contradiction"]);
 export const reviewStatusEnum = pgEnum("review_status", ["pending", "resolved"]);
 /** Fixed list of fact attributes (build plan question 42); null means a general fact. */
 export const FACT_ATTRIBUTES = ["job_title", "organisation", "status", "next_step", "decision_date"] as const;

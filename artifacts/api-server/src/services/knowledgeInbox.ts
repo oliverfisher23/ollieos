@@ -1,6 +1,7 @@
 /** Ollie's view of the Knowledge Inbox: suggestions, conflicts and facts that need a check. */
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { db, factReviewsTable, factsTable, peopleTable, suggestionsTable, usersTable, type Fact, type Suggestion } from "@workspace/db";
+import { db, decisionsTable, factReviewsTable, factsTable, peopleTable, rulesTable, suggestionsTable, usersTable, type Fact, type FactReview, type Suggestion } from "@workspace/db";
+import { decidersFor, weigh } from "./contradictions";
 import { hasEmail } from "./personMatch";
 import { CADENCE_LABELS, PRODUCT_STATE_LABELS, RELATIONSHIP_LABELS, formatDayMonth } from "@workspace/shared";
 import { writeAudit } from "../lib/audit";
@@ -48,7 +49,11 @@ export type InboxKind =
   | "cadence_change"
   | "new_relationship"
   | "conflict"
-  | "stale_fact";
+  | "stale_fact"
+  /** Part O: a card that disagrees with approved knowledge (Conflicts tab) */
+  | "contradiction"
+  /** Part O: an approved item a contradiction puts in question (Needs a check tab) */
+  | "out_of_date";
 
 export interface InboxTarget {
   type: string;
@@ -118,6 +123,23 @@ export interface InboxItem {
   /** Part N: who made the claim (a person in People when one matched) and when they said it */
   saidBy: InboxSaidBy | null;
   saidAt: Date | null;
+  /** Part O: the approved items a contradiction card disagrees with, each weighed against the card */
+  contradicts?: InboxContradicted[];
+}
+
+export interface InboxContradicted {
+  ref: string;
+  type: "fact" | "decision" | "rule";
+  label: string;
+  text: string;
+  /** How they disagree, in a line from the check */
+  why: string;
+  target: InboxTarget | null;
+  saidBy: InboxSaidBy | null;
+  saidAt: Date | null;
+  source: string | null;
+  stronger: "new" | "old" | "even";
+  weighing: string;
 }
 
 export interface InboxSaidBy {
@@ -198,7 +220,7 @@ async function suggestedCount(): Promise<number> {
 export async function inboxCounts() {
   await tidyReviews();
   const [suggested, reviews] = await Promise.all([suggestedCount(), reviewCounts()]);
-  return { suggested, conflicts: reviews.conflicts, stale: reviews.stale, total: suggested + reviews.conflicts + reviews.stale };
+  return { suggested, conflicts: reviews.conflicts, stale: reviews.stale, outOfDate: reviews.outOfDate, total: suggested + reviews.conflicts + reviews.stale };
 }
 
 /* ---------- Cards ---------- */
@@ -330,7 +352,7 @@ function fieldsOf(s: Suggestion): InboxField[] {
   }));
 }
 
-function textOf(s: Suggestion): string {
+export function textOf(s: Suggestion): string {
   switch (s.kind) {
     case "fact":
       return (s.payload as FactPayload).text;
@@ -439,6 +461,134 @@ function distinctLabels(options: (InboxOption & { at: Date })[]): InboxOption[] 
 
 export type InboxOrigin = "all" | "look_back" | "documents";
 
+const CONTRADICTED_LABEL = { fact: "Fact", decision: "Decision", rule: "Rule" } as const;
+
+/**
+ * Part O: a contradiction card for the Conflicts tab, with each approved item it disagrees with,
+ * who said each and when, and which side looks stronger; plus a "May be out of date" card for each
+ * approved item, for the Needs a check tab.
+ */
+async function contradictionViews(reviews: FactReview[]): Promise<Map<number, { card: InboxItem; outOfDate: InboxItem[] }>> {
+  const out = new Map<number, { card: InboxItem; outOfDate: InboxItem[] }>();
+  if (!reviews.length) return out;
+  const sids = reviews.map((r) => r.suggestionId).filter((x): x is number => x != null);
+  const cards = sids.length ? await db.select().from(suggestionsTable).where(and(inArray(suggestionsTable.id, sids), eq(suggestionsTable.status, "pending"))) : [];
+  const all = reviews.flatMap((r) => r.contradicts ?? []);
+  const ids = (t: string) => [...new Set(all.filter((i) => i.type === t).map((i) => i.id))];
+  const [facts, decisions, rules, self] = await Promise.all([
+    ids("fact").length ? db.select().from(factsTable).where(and(inArray(factsTable.id, ids("fact")), isNull(factsTable.supersededBy))) : ([] as Fact[]),
+    ids("decision").length ? db.select().from(decisionsTable).where(and(inArray(decisionsTable.id, ids("decision")), isNull(decisionsTable.supersededBy))) : ([] as (typeof decisionsTable.$inferSelect)[]),
+    ids("rule").length ? db.select().from(rulesTable).where(and(inArray(rulesTable.id, ids("rule")), eq(rulesTable.enabled, true))) : ([] as (typeof rulesTable.$inferSelect)[]),
+    db.select({ id: peopleTable.id, name: peopleTable.name, slug: peopleTable.slug }).from(peopleTable).where(eq(peopleTable.isSelf, true)),
+  ]);
+  const me = self[0] ?? null;
+  // Ollie made it, whether or not his own profile exists yet.
+  const selfSaid: InboxSaidBy = me ? { name: me.name, personId: me.id, slug: me.slug, isSelf: true } : { name: "You", personId: null, slug: null, isSelf: true };
+  // Where the approved items came from, for who said them.
+  const originIds = [...facts.map((f) => f.suggestionId), ...decisions.map((d) => d.suggestionId), ...rules.map((r) => r.suggestionId)].filter((x): x is number => x != null);
+  const origins = originIds.length ? await db.select().from(suggestionsTable).where(inArray(suggestionsTable.id, originIds)) : [];
+  const said = await saidByFor([...cards, ...origins]);
+  const t = await targetsFor([
+    ...cards.filter((s) => s.entityType && s.entityId != null).map((s) => ({ type: s.entityType!, id: s.entityId! })),
+    ...facts.map((f) => ({ type: f.entityType, id: f.entityId })),
+    ...decisions.filter((d) => d.projectId != null).map((d) => ({ type: "project", id: d.projectId! })),
+  ]);
+  const deciders = new Map<string, Set<number>>();
+  for (const s of cards) {
+    if (!s.entityType || s.entityId == null) continue;
+    const k = `${s.entityType}:${s.entityId}`;
+    if (!deciders.has(k)) deciders.set(k, new Set(await decidersFor(s.entityType, s.entityId)));
+  }
+  const origin = (id: number | null) => (id != null ? origins.find((o) => o.id === id) : undefined);
+  const fromOrigin = (id: number | null) => {
+    const o = origin(id);
+    return o ? { by: said.get(o.id) ?? null, at: o.saidAt } : null;
+  };
+
+  for (const r of reviews) {
+    const sug = cards.find((s) => s.id === r.suggestionId);
+    if (!sug) continue;
+    const cardTarget = target(t, sug.entityType, sug.entityId);
+    const area = cardTarget ? (cardTarget.isSelf ? "your own profile" : cardTarget.name) : sug.kind === "rule" ? "how you work" : "this";
+    const decide = sug.entityType && sug.entityId != null ? (deciders.get(`${sug.entityType}:${sug.entityId}`) ?? new Set<number>()) : new Set<number>();
+    const newBy = said.get(sug.id) ?? null;
+    const newAt = sug.saidAt ?? sug.createdAt;
+    const contradicted: InboxContradicted[] = [];
+    for (const c of r.contradicts ?? []) {
+      let base: Omit<InboxContradicted, "stronger" | "weighing" | "why" | "ref" | "type" | "label"> | null = null;
+      if (c.type === "fact") {
+        const f = facts.find((x) => x.id === c.id);
+        if (f) {
+          const o = fromOrigin(f.suggestionId);
+          base = { text: f.text, target: target(t, f.entityType, f.entityId), saidBy: o ? o.by : f.createdBy === "ollie" ? selfSaid : null, saidAt: o?.at ?? f.createdAt, source: factSource(f) };
+        }
+      } else if (c.type === "decision") {
+        const d = decisions.find((x) => x.id === c.id);
+        if (d) {
+          const o = fromOrigin(d.suggestionId);
+          const by = o?.by ?? (cleanHint(d.decidedBy) ? { name: d.decidedBy!, personId: null, slug: null, isSelf: false } : d.createdBy === "ollie" ? selfSaid : null);
+          base = { text: d.text, target: target(t, d.projectId != null ? "project" : null, d.projectId), saidBy: by, saidAt: o?.at ?? new Date(`${d.decidedAt}T12:00:00Z`), source: d.source ?? (d.createdBy === "ollie" ? "You" : d.createdBy) };
+        }
+      } else {
+        const rule = rules.find((x) => x.id === c.id);
+        if (rule) {
+          const o = fromOrigin(rule.suggestionId);
+          base = { text: `${rule.title}: ${rule.rule}`, target: null, saidBy: o?.by ?? selfSaid, saidAt: o?.at ?? rule.createdAt, source: "Rules" };
+        }
+      }
+      if (!base) continue;
+      const w = weigh({ area, deciders: decide, selfId: me?.id ?? null, newBy, newAt, oldBy: base.saidBy, oldAt: base.saidAt ?? newAt });
+      contradicted.push({ ...base, ref: `${c.type}:${c.id}`, type: c.type, label: CONTRADICTED_LABEL[c.type], why: c.why, stronger: w.stronger, weighing: w.reason });
+    }
+    if (!contradicted.length) continue;
+    const common = {
+      by: sug.proposedBy,
+      createdAt: r.createdAt,
+      fields: [],
+      attribute: null,
+      replaces: null,
+      sourceUrl: null,
+      options: [],
+      lastConfirmedAt: null,
+      lookBack: sug.proposedBy === LOOK_BACK_PROPOSER,
+      fromDocument: null,
+      needsProject: false,
+      projectHint: null,
+      playbook: null,
+    };
+    const card: InboxItem = {
+      ...common,
+      key: `review:${r.id}`,
+      id: r.id,
+      group: "conflicts",
+      kind: "contradiction",
+      target: cardTarget,
+      text: textOf(sug),
+      source: sourceOf(sug),
+      sourceUrl: sug.sourceUrl,
+      saidBy: newBy,
+      saidAt: sug.saidAt,
+      contradicts: contradicted,
+    };
+    const outOfDate: InboxItem[] = contradicted.map((c) => ({
+      ...common,
+      key: `out-of-date:${r.id}:${c.ref.replace(":", "-")}`,
+      id: r.id,
+      group: "stale",
+      kind: "out_of_date",
+      by: "Contradiction check",
+      target: c.target,
+      text: c.text,
+      source: `${c.label}. A newer card says otherwise: ${textOf(sug)}`,
+      saidBy: c.saidBy,
+      saidAt: c.saidAt,
+      contradicts: [c],
+    }));
+    out.set(r.id, { card, outOfDate });
+  }
+  return out;
+}
+
 export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
   await ensureSelfPerson().catch(() => undefined);
   const counts = await inboxCounts();
@@ -496,9 +646,10 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
     const reviews = await db
       .select()
       .from(factReviewsTable)
-      .where(and(eq(factReviewsTable.status, "pending"), eq(factReviewsTable.kind, tab === "conflicts" ? "conflict" : "stale")))
+      .where(and(eq(factReviewsTable.status, "pending"), inArray(factReviewsTable.kind, tab === "conflicts" ? ["conflict", "contradiction"] : ["stale", "contradiction"])))
       .orderBy(asc(factReviewsTable.createdAt), asc(factReviewsTable.id))
       .limit(200);
+    const views = await contradictionViews(reviews.filter((r) => r.kind === "contradiction"));
     const factIds = [...new Set(reviews.flatMap((r) => r.factIds))];
     const facts = factIds.length ? await db.select().from(factsTable).where(and(inArray(factsTable.id, factIds), isNull(factsTable.supersededBy))) : [];
     const sids = reviews.map((r) => r.suggestionId).filter((x): x is number => x != null);
@@ -506,6 +657,13 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
     const t = await targetsFor(facts.map((f) => ({ type: f.entityType, id: f.entityId })));
     const said = await saidByFor(sugs);
     for (const r of reviews) {
+      if (r.kind === "contradiction") {
+        const v = views.get(r.id);
+        if (!v) continue;
+        if (tab === "conflicts") items.push(v.card);
+        else items.push(...v.outOfDate);
+        continue;
+      }
       const fs = r.factIds.map((i) => facts.find((f) => f.id === i)).filter((f): f is Fact => !!f);
       const first = fs[0];
       if (!first) continue;

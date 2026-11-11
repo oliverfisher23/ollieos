@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { aiClientsTable } from "./access";
 import { entityTypeEnum, reviewKindEnum, reviewStatusEnum, suggestionKindEnum, suggestionStatusEnum } from "./enums";
 
@@ -28,6 +28,8 @@ export const suggestionsTable = pgTable(
     sourceLabel: text("source_label"),
     /** Client name: "Capture sweep", "Claude" */
     proposedBy: text("proposed_by").notNull(),
+    /** Part O: when the AI contradiction check looked at this card; null until it has */
+    checkedAt: timestamp("contradiction_checked_at", { withTimezone: true }),
     /** Part N: who made the claim, as written; the person when one matched; and when they said it */
     saidByName: text("said_by_name"),
     saidById: integer("said_by_id"),
@@ -47,6 +49,14 @@ export const suggestionsTable = pgTable(
   ],
 );
 
+/** An approved item a card contradicts (Part O). */
+export interface ContradictedItem {
+  type: "fact" | "decision" | "rule";
+  id: number;
+  /** One line from the AI on how they disagree */
+  why: string;
+}
+
 /** Stale and conflicting facts (feature 02). A conflict may be between a current fact and a pending suggestion. */
 export const factReviewsTable = pgTable(
   "fact_reviews",
@@ -55,6 +65,8 @@ export const factReviewsTable = pgTable(
     kind: reviewKindEnum("kind").notNull(),
     factIds: integer("fact_ids").array().notNull().default(sql`'{}'`),
     suggestionId: integer("suggestion_id").references(() => suggestionsTable.id, { onDelete: "set null" }),
+    /** Part O, kind contradiction: the approved items the card disagrees with, and how, in a line */
+    contradicts: jsonb("contradicts").$type<ContradictedItem[] | null>(),
     status: reviewStatusEnum("status").notNull().default("pending"),
     /** { action, keptFactId?, newFactId? } */
     resolution: jsonb("resolution"),
@@ -74,5 +86,22 @@ export const appSettingsTable = pgTable("app_settings", {
     .$onUpdate(() => new Date()),
 });
 
+/**
+ * The weekly round-up (Part O): what changed in the knowledge base over a week, made on the chosen
+ * day and time (Fridays at 16:00 unless changed). The content is a snapshot; each line says whether
+ * it may go in the Gmail draft (only what AI may see does).
+ */
+export const weeklyRoundupsTable = pgTable("weekly_roundups", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  weekStart: timestamp("week_start", { withTimezone: true }).notNull(),
+  weekEnd: timestamp("week_end", { withTimezone: true }).notNull().unique(),
+  /** Made by hand from the page rather than on schedule */
+  manual: boolean("manual").notNull().default(false),
+  content: jsonb("content").notNull(),
+  draftId: text("draft_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Suggestion = typeof suggestionsTable.$inferSelect;
+export type WeeklyRoundup = typeof weeklyRoundupsTable.$inferSelect;
 export type FactReview = typeof factReviewsTable.$inferSelect;

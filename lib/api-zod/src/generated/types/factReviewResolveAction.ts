@@ -15,4 +15,7 @@ export const FactReviewResolveAction = {
   no_longer_true: 'no_longer_true',
   keep: 'keep',
   write_own: 'write_own',
+  new_right: 'new_right',
+  old_stands: 'old_stands',
+  both_true: 'both_true',
 } as const;

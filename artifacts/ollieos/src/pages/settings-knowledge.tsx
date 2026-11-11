@@ -3,12 +3,17 @@ import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetKnowledgeSettingsQueryKey,
+  getGetRoundupScheduleQueryKey,
   runFactCheck,
+  setRoundupSchedule,
+  useGetRoundupSchedule,
+  type RoundupSchedule,
   updateKnowledgeSettings,
   useGetKnowledgeSettings,
   type ShelfLives,
 } from '@workspace/api-client-react';
 import { Skel } from '@/components/bits';
+import { Dropdown } from '@/components/dropdown';
 import { whenLabel } from '@/lib/access';
 import { useInvalidateKnowledge } from '@/lib/knowledge';
 import { errorMessage, notify } from '@/lib/notify';
@@ -146,6 +151,71 @@ export default function KnowledgeSettings() {
           </form>
         )}
       </section>
+
+      <RoundupSettings />
     </>
+  );
+}
+
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
+/** Part O: when the weekly round-up is made. */
+function RoundupSettings() {
+  const q = useGetRoundupSchedule();
+  const qc = useQueryClient();
+  const [saving, setSaving] = useState(false);
+  const save = async (next: RoundupSchedule) => {
+    setSaving(true);
+    try {
+      const r = await setRoundupSchedule(next);
+      qc.setQueryData(getGetRoundupScheduleQueryKey(), r);
+      void qc.invalidateQueries({ predicate: (x) => typeof x.queryKey[0] === 'string' && (x.queryKey[0] as string).startsWith('/api/roundups') });
+      notify(`The round-up is now made each ${DAYS[r.day]} at ${String(r.hour).padStart(2, '0')}:00`);
+    } catch (err) {
+      reportApiError(err);
+      notify('That did not save', errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <section className="oo-panel flex flex-col gap-2 px-5 py-6 sm:px-8" aria-labelledby="ks-roundup-h" data-testid="section-roundup-settings">
+      <h2 id="ks-roundup-h" style={H2}>Weekly round-up</h2>
+      <p className="oo-muted" style={{ margin: 0, fontSize: 14, maxWidth: '64ch' }}>
+        What was approved, contradicted and went stale over the week. It is made at this time, the next time OllieOS has fresh data. <Link href="/digest/week" style={{ color: 'var(--oo-ink)' }} data-testid="link-roundup-page">Open the round-up</Link>
+      </p>
+      {q.isLoading ? (
+        <Skel h={38} />
+      ) : !q.data ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>Could not load this setting.</p>
+          <button type="button" className="oo-btn oo-btn-outline" onClick={() => q.refetch()}>Try again</button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, paddingTop: 6, fontSize: 14 }}>
+          <label htmlFor="roundup-day" className="oo-muted">Each</label>
+          <Dropdown
+            id="roundup-day"
+            variant="control"
+            value={String(q.data.day)}
+            disabled={saving}
+            onChange={(v) => save({ day: Number(v), hour: q.data!.hour })}
+            options={DAY_ORDER.map((d) => ({ value: String(d), label: DAYS[d] }))}
+            testId="select-roundup-day"
+          />
+          <label htmlFor="roundup-hour" className="oo-muted">at</label>
+          <Dropdown
+            id="roundup-hour"
+            variant="control"
+            value={String(q.data.hour)}
+            disabled={saving}
+            onChange={(v) => save({ day: q.data!.day, hour: Number(v) })}
+            options={Array.from({ length: 24 }, (_, h) => ({ value: String(h), label: `${String(h).padStart(2, '0')}:00` }))}
+            testId="select-roundup-hour"
+          />
+        </div>
+      )}
+    </section>
   );
 }

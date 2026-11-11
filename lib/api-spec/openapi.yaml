@@ -3644,6 +3644,114 @@ paths:
                 items: { $ref: "#/components/schemas/AiActivity" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /context-packs/{type}/{id}:
+    get:
+      operationId: getContextPack
+      tags: [knowledge]
+      summary: One Markdown file about a project, product or organisation for Claude, with only what AI may see
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema: { type: string, enum: [project, product, organisation] }
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: The pack
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContextPack" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /roundups:
+    get:
+      operationId: getRoundups
+      tags: [knowledge]
+      summary: One weekly round-up (the latest when no id), the weeks there are, and the schedule
+      parameters:
+        - name: id
+          in: query
+          required: false
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Round-ups
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoundupPage" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    post:
+      operationId: makeRoundup
+      tags: [knowledge]
+      summary: Make a round-up of the last seven days now
+      responses:
+        "200":
+          description: The round-up
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Roundup" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /roundups/{id}/draft:
+    post:
+      operationId: saveRoundupDraft
+      tags: [knowledge]
+      summary: Save the round-up as a Gmail draft with no recipient, leaving out confidential and hidden items. Never sends.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [saved]
+                properties:
+                  saved: { type: boolean }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /settings/roundup:
+    get:
+      operationId: getRoundupSchedule
+      tags: [knowledge]
+      summary: When the weekly round-up is made
+      responses:
+        "200":
+          description: Schedule
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoundupSchedule" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    put:
+      operationId: setRoundupSchedule
+      tags: [knowledge]
+      summary: Change when the weekly round-up is made
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RoundupSchedule" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoundupSchedule" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
 components:
   parameters:
     AuthorizationSessionHeader:
@@ -3700,6 +3808,95 @@ components:
             $ref: "#/components/schemas/ErrorEnvelope"
 
   schemas:
+    ContextPack:
+      type: object
+      required: [fileName, content, madeAt, included, leftOut]
+      properties:
+        fileName: { type: string }
+        content: { type: string, description: Markdown }
+        madeAt: { type: string, format: date-time }
+        included: { type: integer }
+        leftOut: { type: integer, description: Confidential or hidden items left out of the file }
+
+    RoundupSchedule:
+      type: object
+      required: [day, hour]
+      properties:
+        day: { type: integer, minimum: 0, maximum: 6, description: 0 is Sunday }
+        hour: { type: integer, minimum: 0, maximum: 23 }
+
+    RoundupLine:
+      type: object
+      required: [text, detail, private]
+      properties:
+        text: { type: string }
+        detail: { type: [string, "null"] }
+        private: { type: boolean, description: Confidential or hidden from AI; left out of the Gmail draft }
+
+    RoundupContent:
+      type: object
+      required: [approved, contradictions, stale, rules, playbooks, products]
+      properties:
+        approved: { type: array, items: { $ref: "#/components/schemas/RoundupLine" } }
+        contradictions: { type: array, items: { $ref: "#/components/schemas/RoundupLine" } }
+        stale: { type: array, items: { $ref: "#/components/schemas/RoundupLine" } }
+        rules: { type: array, items: { $ref: "#/components/schemas/RoundupLine" } }
+        playbooks: { type: array, items: { $ref: "#/components/schemas/RoundupLine" } }
+        products: { type: array, items: { $ref: "#/components/schemas/RoundupLine" } }
+
+    Roundup:
+      type: object
+      required: [id, weekStart, weekEnd, manual, createdAt, draftSaved, content]
+      properties:
+        id: { type: integer }
+        weekStart: { type: string, format: date-time }
+        weekEnd: { type: string, format: date-time }
+        manual: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        draftSaved: { type: boolean }
+        content: { $ref: "#/components/schemas/RoundupContent" }
+
+    RoundupWeek:
+      type: object
+      required: [id, weekEnd, manual]
+      properties:
+        id: { type: integer }
+        weekEnd: { type: string, format: date-time }
+        manual: { type: boolean }
+
+    RoundupPage:
+      type: object
+      required: [roundup, weeks, schedule]
+      properties:
+        roundup:
+          oneOf:
+            - $ref: "#/components/schemas/Roundup"
+            - type: "null"
+        weeks: { type: array, items: { $ref: "#/components/schemas/RoundupWeek" } }
+        schedule: { $ref: "#/components/schemas/RoundupSchedule" }
+
+    KnowledgeInboxContradicted:
+      type: object
+      required: [ref, type, label, text, why, target, saidBy, saidAt, source, stronger, weighing]
+      properties:
+        ref: { type: string }
+        type: { type: string, enum: [fact, decision, rule] }
+        label: { type: string }
+        text: { type: string }
+        why: { type: string, description: How they disagree }
+        target:
+          oneOf:
+            - $ref: "#/components/schemas/KnowledgeInboxTarget"
+            - type: "null"
+        saidBy:
+          oneOf:
+            - $ref: "#/components/schemas/KnowledgeInboxSaidBy"
+            - type: "null"
+        saidAt: { type: [string, "null"], format: date-time }
+        source: { type: [string, "null"] }
+        stronger: { type: string, enum: [new, old, even] }
+        weighing: { type: string, description: One line on which side looks stronger }
+
     HealthStatus:
       type: object
       properties:
@@ -5324,6 +5521,7 @@ components:
         suggested: { type: integer }
         conflicts: { type: integer }
         stale: { type: integer }
+        outOfDate: { type: integer, description: Approved items a newer card contradicts (shown under Needs a check) }
         total: { type: integer }
         lookBack: { type: integer, description: Pending suggestions from a Granola look back (Knowledge Inbox only) }
         documents: { type: integer, description: Pending suggestions from reading documents (Knowledge Inbox only) }
@@ -5365,7 +5563,7 @@ components:
         group: { type: string, enum: [suggested, conflicts, stale] }
         kind:
           type: string
-          enum: [new_fact, new_person, new_organisation, new_project, proposed_decision, changed_summary, changed_details, new_document, document_link, new_rule, new_playbook, playbook_change, new_product, cadence_change, new_relationship, conflict, stale_fact]
+          enum: [new_fact, new_person, new_organisation, new_project, proposed_decision, changed_summary, changed_details, new_document, document_link, new_rule, new_playbook, playbook_change, new_product, cadence_change, new_relationship, conflict, stale_fact, contradiction, out_of_date]
         target:
           oneOf:
             - $ref: "#/components/schemas/KnowledgeInboxTarget"
@@ -5395,6 +5593,10 @@ components:
             - $ref: "#/components/schemas/KnowledgeInboxSaidBy"
             - type: "null"
         saidAt: { type: [string, "null"], format: date-time, description: When they said it }
+        contradicts:
+          type: array
+          description: "Contradiction and out-of-date cards: the approved items the new card disagrees with"
+          items: { $ref: "#/components/schemas/KnowledgeInboxContradicted" }
 
     KnowledgeInboxSaidBy:
       type: object
@@ -5551,7 +5753,7 @@ components:
       type: object
       required: [action]
       properties:
-        action: { type: string, enum: [still_true, edit, no_longer_true, keep, write_own] }
+        action: { type: string, enum: [still_true, edit, no_longer_true, keep, write_own, new_right, old_stands, both_true] }
         text: { type: string, minLength: 1, maxLength: 2000, description: For edit and write_own }
         ref: { type: string, maxLength: 40, description: "For keep: fact:12 or suggestion:4" }
 
@@ -5573,7 +5775,7 @@ components:
 
     Fact:
       type: object
-      required: [id, entityType, entityId, text, source, attribute, createdBy, createdAt, lastConfirmedAt, needsCheck, approvedAt, history]
+      required: [id, entityType, entityId, text, source, attribute, createdBy, createdAt, lastConfirmedAt, needsCheck, outOfDate, approvedAt, history]
       properties:
         id: { type: integer }
         entityType: { type: string }
@@ -5585,6 +5787,7 @@ components:
         createdAt: { type: string, format: date-time }
         lastConfirmedAt: { type: string, format: date-time }
         needsCheck: { type: boolean, description: Stale or in conflict }
+        outOfDate: { type: boolean, description: A newer card contradicts it and Ollie has not decided yet }
         approvedAt: { type: [string, "null"], format: date-time, description: Set when approved from the Knowledge Inbox }
         history:
           type: array
@@ -5613,7 +5816,7 @@ components:
 
     Decision:
       type: object
-      required: [id, text, decidedAt, decidedBy, source, confidential, hiddenFromAi, project, createdBy, createdAt]
+      required: [id, text, decidedAt, decidedBy, source, confidential, hiddenFromAi, project, createdBy, createdAt, outOfDate, replaced]
       properties:
         id: { type: integer }
         text: { type: string }
@@ -5629,6 +5832,8 @@ components:
             - type: "null"
         createdBy: { type: string }
         createdAt: { type: string, format: date-time }
+        outOfDate: { type: boolean, description: A newer card contradicts it and Ollie has not decided yet }
+        replaced: { type: boolean, description: Replaced by a newer claim; kept as history }
 
     DecisionInput:
       type: object
@@ -6801,7 +7006,7 @@ components:
 
     Rule:
       type: object
-      required: [id, title, appliesWhen, rule, enabled, createdBy, createdAt, updatedAt, projects, organisations, products, sentToAi]
+      required: [id, title, appliesWhen, rule, enabled, createdBy, createdAt, updatedAt, projects, organisations, products, sentToAi, outOfDate]
       properties:
         id: { type: integer }
         title: { type: string }
@@ -6815,6 +7020,7 @@ components:
         organisations: { type: array, items: { $ref: "#/components/schemas/NamedLink" } }
         products: { type: array, items: { $ref: "#/components/schemas/NamedLink" } }
         sentToAi: { type: boolean, description: Enabled and global or linked to something AI can read }
+        outOfDate: { type: boolean, description: A newer card contradicts it and Ollie has not decided yet }
 
     RuleInput:
       type: object

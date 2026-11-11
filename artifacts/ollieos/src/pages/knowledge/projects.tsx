@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, Redirect, useParams } from 'wouter';
 import { updateProject, useGetProject, useListGoalOptions, useListProjects, type ProjectLifecycle, type ProjectUpdate } from '@workspace/api-client-react';
 import { LIFECYCLE_LABELS, PROJECT_LIFECYCLES, formatDayMonth, formatDayMonthShort, DOC_LOCATION_LABELS } from '@workspace/shared';
+import { ContextPackButton } from '@/components/knowledge/context-pack';
 import { KnowledgeLayout } from '@/components/knowledge/layout';
 import { CreateDialog } from '@/components/knowledge/create-dialog';
 import { InlineText } from '@/components/inline-text';
@@ -144,6 +145,7 @@ export function ProjectPage() {
           <div style={{ fontSize: 13 }}>
             <WhoDecides type="project" id={project.id} name={project.name} />
           </div>
+          <ContextPackButton type="project" id={project.id} />
         </div>
         <AccessPanel
           kind="project"

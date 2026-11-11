@@ -40,6 +40,20 @@ export function HiddenFromAi({ confidential }: { confidential: boolean }) {
   );
 }
 
+/** Part O: a newer card contradicts this and Ollie has not decided yet. Links to the Conflicts tab. */
+export function OutOfDateMark({ testId }: { testId: string }) {
+  return (
+    <Link href="/knowledge/inbox?tab=conflicts" className="oo-check-mark" data-tone="conflict" style={{ textDecoration: 'none' }} title="A newer card says otherwise. Decide which is right under Conflicts in the Knowledge Inbox." data-testid={testId}>
+      May be out of date
+    </Link>
+  );
+}
+
+/** A decision a newer one replaced ("New one is right"). It stays as history. */
+export function ReplacedMark({ testId }: { testId: string }) {
+  return <span className="oo-check-mark" title="A newer claim replaced this. It is kept as history and no AI sees it." data-testid={testId}>Replaced</span>;
+}
+
 export function LockMark() {
   return <IconLock size={13} className="oo-lock" aria-hidden={false} role="img" aria-label="Confidential" />;
 }
@@ -275,7 +289,9 @@ function FactItem({ fact }: { fact: Fact }) {
         <>
           {fact.attribute && <span className="oo-muted" style={{ fontSize: 12, marginRight: 6 }}>{ATTRIBUTE_LABEL[fact.attribute]}:</span>}
           <span>{fact.text}</span>
-          {fact.needsCheck && (
+          {fact.outOfDate ? (
+            <OutOfDateMark testId={'mark-out-of-date-fact-' + fact.id} />
+          ) : fact.needsCheck && (
             <Link href="/knowledge/inbox?tab=stale" className="oo-check-mark" style={{ textDecoration: 'none' }} title="Nobody has confirmed this in a while. Check it in the Knowledge Inbox." data-testid={'mark-needs-check-' + fact.id}>
               Needs a check
             </Link>
@@ -362,7 +378,7 @@ export function DecisionsSection({ projectId, decisions }: { projectId: number; 
       {decisions.length === 0 && !adding && <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>No decisions recorded.</p>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14, lineHeight: 1.5 }}>
         {decisions.map((d) => (
-          <div key={d.id} style={{ display: 'flex', gap: 12 }} data-testid={'decision-' + d.id}>
+          <div key={d.id} style={{ display: 'flex', gap: 12, opacity: d.replaced ? 0.6 : 1 }} data-testid={'decision-' + d.id}>
             <Link href={'/knowledge/decisions/' + d.id} className="oo-tl-date" style={{ width: 76, textDecoration: 'none' }} data-testid={'link-decision-' + d.id}>
               {formatDayMonthShort(d.decidedAt)}
             </Link>
@@ -376,6 +392,8 @@ export function DecisionsSection({ projectId, decisions }: { projectId: number; 
                 onSave={(text) => write(() => updateDecision(d.id, { text: text ?? '' }))}
               />
               {d.confidential === true && <span style={{ marginLeft: 0 }}><HiddenFromAi confidential /></span>}
+              {d.outOfDate && <OutOfDateMark testId={'mark-out-of-date-decision-' + d.id} />}
+              {d.replaced && <ReplacedMark testId={'mark-replaced-decision-' + d.id} />}
             </div>
           </div>
         ))}

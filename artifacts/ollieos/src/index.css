@@ -732,6 +732,10 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-icard-side { padding: 12px 14px; border-radius: var(--oo-r-input-lg); background: var(--oo-field); display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .oo-icard-side span:first-child { font-size: 12px; color: var(--oo-ink-muted); }
 .oo-icard-side span:last-child { font-size: 15px; overflow-wrap: anywhere; }
+.oo-icard-side span.oo-icard-side-label { font-size: 12px; color: var(--oo-ink-muted); }
+.oo-icard-side span.oo-icard-side-text { font-size: 15px; color: var(--oo-ink); overflow-wrap: anywhere; }
+.oo-icard-side span.oo-icard-side-meta { font-size: 12px; color: var(--oo-ink-muted); overflow-wrap: anywhere; }
+.oo-icard-side[data-stronger="true"] { box-shadow: inset 0 0 0 1px var(--oo-ok); }
 .oo-icard-sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
 .oo-icard-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .oo-icard-result { margin: 0; font-size: 13px; font-weight: 500; color: var(--oo-ok); }

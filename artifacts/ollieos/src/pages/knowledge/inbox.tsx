@@ -48,6 +48,8 @@ const KIND: Record<KnowledgeInboxItemKind, { label: string; tone: string }> = {
   new_relationship: { label: 'Relationship', tone: 'person' },
   conflict: { label: 'Conflict', tone: 'conflict' },
   stale_fact: { label: 'Stale fact', tone: 'stale' },
+  contradiction: { label: 'Contradicts', tone: 'conflict' },
+  out_of_date: { label: 'May be out of date', tone: 'stale' },
 };
 
 const APPROVED: Partial<Record<KnowledgeInboxItemKind, string>> = {
@@ -63,8 +65,8 @@ const APPROVED: Partial<Record<KnowledgeInboxItemKind, string>> = {
 
 const EMPTY: Record<Tab, string> = {
   suggested: 'Nothing waiting. When Claude or the sweep wants to add or change something, it lands here first.',
-  conflicts: 'No conflicts. When two facts disagree about the same thing, you choose between them here.',
-  stale: 'Nothing needs a check. The weekly check looks for facts nobody has confirmed in a while.',
+  conflicts: 'No conflicts. When two facts disagree, or a new card disagrees with something already approved, you choose here.',
+  stale: 'Nothing needs a check. The weekly check looks for facts nobody has confirmed in a while, and anything a newer card contradicts shows here too.',
 };
 
 /** What happened to a card, shown in place until the page is left. */
@@ -117,7 +119,7 @@ export default function KnowledgeInboxPage() {
               onClick={() => navigate(t.id === 'suggested' ? '/knowledge/inbox' : `/knowledge/inbox?tab=${t.id}`, { replace: true })}
               data-testid={'tab-inbox-' + t.id}
             >
-              {t.label} <span className="oo-count oo-num">{counts ? counts[t.id] : ''}</span>
+              {t.label} <span className="oo-count oo-num">{counts ? (t.id === 'stale' ? counts.stale + (counts.outOfDate ?? 0) : counts[t.id]) : ''}</span>
             </button>
           ))}
         </div>
@@ -167,6 +169,7 @@ export default function KnowledgeInboxPage() {
 }
 
 function byLine(it: KnowledgeInboxItem): string {
+  if (it.kind === 'out_of_date') return 'Contradiction check';
   if (it.group === 'stale') return it.lastConfirmedAt ? `Last confirmed ${formatDayMonth(it.lastConfirmedAt)}` : 'Weekly check';
   const day = londonDate(it.createdAt);
   return `${it.by}, ${day === todayLondon() ? formatTime(it.createdAt) : formatDayMonth(it.createdAt)}`;
@@ -210,8 +213,10 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
   const resolve = (body: FactReviewResolve, result: string, ok: boolean) => run(() => resolveFactReview(it.id, body), result, ok);
 
   const staleDays = it.lastConfirmedAt ? daysBetween(londonDate(it.lastConfirmedAt), todayLondon()) : null;
+  const contradiction = it.kind === 'contradiction';
+  const outOfDate = it.kind === 'out_of_date';
   const source =
-    it.group === 'stale'
+    it.group === 'stale' && !outOfDate
       ? [it.source === 'You' ? 'Added by you' : it.source, staleDays != null ? `${staleDays} ${staleDays === 1 ? 'day' : 'days'} since anyone confirmed it` : null].filter(Boolean).join('. ') + '.'
       : it.source;
 
@@ -226,7 +231,18 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
         {it.attribute && it.group !== 'conflicts' && <span className="oo-pill">{it.attribute}</span>}
       </div>
 
-      {it.group === 'conflicts' ? (
+      {contradiction ? (
+        <ContradictionSides it={it} testKey={testKey} />
+      ) : outOfDate ? (
+        <>
+          <p className="oo-icard-text">{it.text}</p>
+          {(it.contradicts ?? []).map((c) => (
+            <p key={c.ref} style={{ margin: 0, fontSize: 13 }} className="oo-soft" data-testid={'text-out-of-date-why-' + testKey}>
+              <span className="oo-muted">Why:</span> {c.why}
+            </p>
+          ))}
+        </>
+      ) : it.group === 'conflicts' ? (
         <div className="oo-icard-sides">
           {it.options.map((o) => (
             <div key={o.ref} className="oo-icard-side" data-testid={`option-${testKey}-${o.ref.replace(':', '-')}`}>
@@ -264,8 +280,8 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
         </>
       )}
 
-      <SaidBy it={it} testKey={testKey} />
-      {source && (
+      {!contradiction && <SaidBy it={it} testKey={testKey} />}
+      {source && !contradiction && (
         <p style={{ margin: 0, fontSize: 13 }} className="oo-soft">
           <span className="oo-muted">Source:</span>{' '}
           {it.sourceUrl ? <a href={it.sourceUrl} target="_blank" rel="noreferrer">{source}</a> : source}
@@ -312,7 +328,17 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
               <button type="button" className="oo-btn oo-btn-danger" disabled={busy} onClick={() => run(() => rejectSuggestion(it.id), 'Rejected', false)} data-testid={'button-reject-' + testKey}>Reject</button>
             </>
           )}
-          {it.group === 'conflicts' && (
+          {contradiction && (
+            <>
+              <button type="button" className="oo-btn oo-btn-ink" disabled={busy} onClick={() => resolve({ action: 'new_right' }, 'New one approved. The old one is kept in history.', true)} data-testid={'button-new-right-' + testKey}>New one is right</button>
+              <button type="button" className="oo-btn oo-btn-outline" disabled={busy} onClick={() => resolve({ action: 'old_stands' }, 'The approved one stands. The new card was rejected.', false)} data-testid={'button-old-stands-' + testKey}>Old one stands</button>
+              <button type="button" className="oo-btn oo-btn-outline" disabled={busy} onClick={() => resolve({ action: 'both_true' }, 'Both kept. The new one was approved too.', true)} data-testid={'button-both-true-' + testKey}>Both are true</button>
+            </>
+          )}
+          {outOfDate && (
+            <Link href="/knowledge/inbox?tab=conflicts" className="oo-btn oo-btn-outline" data-testid={'link-decide-' + testKey}>Decide under Conflicts</Link>
+          )}
+          {it.group === 'conflicts' && !contradiction && (
             <>
               {it.options.map((o, i) => (
                 <button
@@ -329,7 +355,7 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
               <button type="button" className="oo-btn oo-btn-danger" disabled={busy} onClick={() => setMode('own')} data-testid={'button-own-' + testKey}>Neither, I’ll write it</button>
             </>
           )}
-          {it.group === 'stale' && (
+          {it.group === 'stale' && !outOfDate && (
             <>
               <button type="button" className="oo-btn oo-btn-ink" disabled={busy} onClick={() => resolve({ action: 'still_true' }, 'Confirmed today', true)} data-testid={'button-still-true-' + testKey}>Still true</button>
               <button type="button" className="oo-btn oo-btn-outline" disabled={busy} onClick={() => setMode('edit')} data-testid={'button-edit-' + testKey}>Edit</button>
@@ -339,6 +365,54 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
         </div>
       ) : null}
     </article>
+  );
+}
+
+/** Who said it and when, linked to their page when they are in People. */
+function Claimant({ by, at, fallback }: { by: KnowledgeInboxItem['saidBy']; at: string | null; fallback: string }) {
+  const path = by && by.personId != null && !by.isSelf ? entityPath('person', by.slug, by.personId) : null;
+  const name = by ? (by.isSelf ? 'You' : by.name) : fallback;
+  return (
+    <>
+      {path ? <Link href={path}>{name}</Link> : name}
+      {at ? `, ${formatDayMonth(at)}` : ''}
+    </>
+  );
+}
+
+/** A new card beside each approved item it disagrees with, who said each and when, and which looks stronger. */
+function ContradictionSides({ it, testKey }: { it: KnowledgeInboxItem; testKey: string }) {
+  const sides = it.contradicts ?? [];
+  const newStronger = sides.some((c) => c.stronger === 'new');
+  return (
+    <>
+      <div className="oo-icard-sides">
+        <div className="oo-icard-side" data-stronger={newStronger ? 'true' : 'false'} data-testid={'side-new-' + testKey}>
+          <span className="oo-icard-side-label">New card</span>
+          <span className="oo-icard-side-text">{it.text}</span>
+          <span className="oo-icard-side-meta">
+            Said by <Claimant by={it.saidBy} at={it.saidAt ?? it.createdAt} fallback={it.by} />
+            {it.source ? <>. {it.sourceUrl ? <a href={it.sourceUrl} target="_blank" rel="noreferrer">{it.source}</a> : it.source}</> : null}
+          </span>
+        </div>
+        {sides.map((c) => (
+          <div key={c.ref} className="oo-icard-side" data-stronger={c.stronger === 'old' ? 'true' : 'false'} data-testid={`side-old-${testKey}-${c.ref.replace(':', '-')}`}>
+            <span className="oo-icard-side-label">Approved {c.label.toLowerCase()}</span>
+            <span className="oo-icard-side-text">{c.text}</span>
+            <span className="oo-icard-side-meta">
+              Said by <Claimant by={c.saidBy} at={c.saidAt} fallback="You" />
+              {c.source && !(c.source === 'You' && (c.saidBy?.isSelf ?? true)) ? `. ${c.source}` : ''}
+            </span>
+          </div>
+        ))}
+      </div>
+      {sides.map((c) => (
+        <p key={c.ref} style={{ margin: 0, fontSize: 13 }} className="oo-soft" data-testid={`text-weighing-${testKey}-${c.ref.replace(':', '-')}`}>
+          {sides.length > 1 && <span className="oo-muted">Against “{c.text}”: </span>}
+          {c.why} {c.weighing}
+        </p>
+      ))}
+    </>
   );
 }
 

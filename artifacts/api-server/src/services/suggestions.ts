@@ -4,6 +4,7 @@
  * playbook until approved.
  * Tasks, promises, activity, notes and the calendar still write directly (build plan 24 and 26).
  */
+import { queueContradictionCheck } from "./contradictionQueue";
 import { and, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 import {
   db,
@@ -419,7 +420,7 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
   }
 
   const said = await resolveSaidBy(meta.saidBy);
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [row] = await tx
       .insert(suggestionsTable)
       .values({
@@ -462,6 +463,8 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
     const hidden = (p.kind === "decision" || p.kind === "document") && p.payload.confidential === true;
     return { status: "suggested" as const, suggestionId: row.id, hidden };
   });
+  if (result.status === "suggested" && (p.kind === "fact" || p.kind === "decision" || p.kind === "rule")) queueContradictionCheck();
+  return result;
 }
 
 /**
@@ -822,7 +825,7 @@ async function projectForDecision(tx: DbOrTx, choice: ApproveProject | undefined
 export async function approveSuggestion(id: number, edits?: Record<string, string>, now = new Date(), project?: ApproveProject) {
   return db.transaction(async (tx) => {
     let s = await loadPending(tx, id);
-    if (await inPendingConflict(tx, id)) throw new ValidationError("This one disagrees with a current fact. Choose on the Conflicts tab.");
+    if (await inPendingConflict(tx, id)) throw new ValidationError("This one disagrees with something already approved. Choose on the Conflicts tab.");
     if (s.kind === "decision" && s.entityId == null) {
       const projectId = await projectForDecision(tx, project);
       if (projectId != null) {
@@ -854,7 +857,7 @@ export async function approveSuggestion(id: number, edits?: Record<string, strin
 export async function rejectSuggestion(id: number, now = new Date()) {
   return db.transaction(async (tx) => {
     const s = await loadPending(tx, id);
-    if (await inPendingConflict(tx, id)) throw new ValidationError("This one disagrees with a current fact. Choose on the Conflicts tab.");
+    if (await inPendingConflict(tx, id)) throw new ValidationError("This one disagrees with something already approved. Choose on the Conflicts tab.");
     await markRejected(tx, s.id, now);
     await writeAudit(tx, { actor: ACTOR, action: "reject", entityType: "suggestion", entityId: id, payload: { kind: s.kind } });
     return { id, status: "rejected" as const, result: null };

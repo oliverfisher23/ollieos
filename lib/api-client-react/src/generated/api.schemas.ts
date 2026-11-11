@@ -5,6 +5,128 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+export interface ContextPack {
+  fileName: string;
+  /** Markdown */
+  content: string;
+  madeAt: string;
+  included: number;
+  /** Confidential or hidden items left out of the file */
+  leftOut: number;
+}
+
+export interface RoundupSchedule {
+  /**
+     * 0 is Sunday
+     * @minimum 0
+     * @maximum 6
+     */
+  day: number;
+  /**
+     * @minimum 0
+     * @maximum 23
+     */
+  hour: number;
+}
+
+export interface RoundupLine {
+  text: string;
+  /** @nullable */
+  detail: string | null;
+  /** Confidential or hidden from AI; left out of the Gmail draft */
+  private: boolean;
+}
+
+export interface RoundupContent {
+  approved: RoundupLine[];
+  contradictions: RoundupLine[];
+  stale: RoundupLine[];
+  rules: RoundupLine[];
+  playbooks: RoundupLine[];
+  products: RoundupLine[];
+}
+
+export interface Roundup {
+  id: number;
+  weekStart: string;
+  weekEnd: string;
+  manual: boolean;
+  createdAt: string;
+  draftSaved: boolean;
+  content: RoundupContent;
+}
+
+export interface RoundupWeek {
+  id: number;
+  weekEnd: string;
+  manual: boolean;
+}
+
+export interface RoundupPage {
+  roundup: Roundup | null;
+  weeks: RoundupWeek[];
+  schedule: RoundupSchedule;
+}
+
+export type KnowledgeInboxContradictedType = typeof KnowledgeInboxContradictedType[keyof typeof KnowledgeInboxContradictedType];
+
+
+export const KnowledgeInboxContradictedType = {
+  fact: 'fact',
+  decision: 'decision',
+  rule: 'rule',
+} as const;
+
+export type KnowledgeInboxContradictedStronger = typeof KnowledgeInboxContradictedStronger[keyof typeof KnowledgeInboxContradictedStronger];
+
+
+export const KnowledgeInboxContradictedStronger = {
+  new: 'new',
+  old: 'old',
+  even: 'even',
+} as const;
+
+export interface KnowledgeInboxTarget {
+  type: string;
+  /**
+     * Null for a person
+     * @nullable
+     */
+  id: number | null;
+  name: string;
+  /** @nullable */
+  slug: string | null;
+  isSelf: boolean;
+}
+
+export interface KnowledgeInboxSaidBy {
+  name: string;
+  /** @nullable */
+  personId: number | null;
+  /** @nullable */
+  slug: string | null;
+  /** Ollie himself */
+  isSelf: boolean;
+}
+
+export interface KnowledgeInboxContradicted {
+  ref: string;
+  type: KnowledgeInboxContradictedType;
+  label: string;
+  text: string;
+  /** How they disagree */
+  why: string;
+  target: KnowledgeInboxTarget | null;
+  saidBy: KnowledgeInboxSaidBy | null;
+  /** @nullable */
+  saidAt: string | null;
+  /** @nullable */
+  source: string | null;
+  stronger: KnowledgeInboxContradictedStronger;
+  /** One line on which side looks stronger */
+  weighing: string;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -568,6 +690,8 @@ export interface KnowledgeInboxCounts {
   suggested: number;
   conflicts: number;
   stale: number;
+  /** Approved items a newer card contradicts (shown under Needs a check) */
+  outOfDate?: number;
   total: number;
   /** Pending suggestions from a Granola look back (Knowledge Inbox only) */
   lookBack?: number;
@@ -1902,19 +2026,6 @@ export interface ReviewDecideResult {
   items: ReviewItem[];
 }
 
-export interface KnowledgeInboxTarget {
-  type: string;
-  /**
-     * Null for a person
-     * @nullable
-     */
-  id: number | null;
-  name: string;
-  /** @nullable */
-  slug: string | null;
-  isSelf: boolean;
-}
-
 export interface KnowledgeInboxField {
   key: string;
   label: string;
@@ -1962,6 +2073,8 @@ export const KnowledgeInboxItemKind = {
   new_relationship: 'new_relationship',
   conflict: 'conflict',
   stale_fact: 'stale_fact',
+  contradiction: 'contradiction',
+  out_of_date: 'out_of_date',
 } as const;
 
 export type KnowledgeInboxStepChange = typeof KnowledgeInboxStepChange[keyof typeof KnowledgeInboxStepChange];
@@ -1998,16 +2111,6 @@ export interface KnowledgeInboxPlaybook {
   steps: KnowledgeInboxStep[];
   /** @nullable */
   reason: string | null;
-}
-
-export interface KnowledgeInboxSaidBy {
-  name: string;
-  /** @nullable */
-  personId: number | null;
-  /** @nullable */
-  slug: string | null;
-  /** Ollie himself */
-  isSelf: boolean;
 }
 
 export interface KnowledgeInboxItem {
@@ -2059,6 +2162,8 @@ export interface KnowledgeInboxItem {
      * @nullable
      */
   saidAt: string | null;
+  /** Contradiction and out-of-date cards: the approved items the new card disagrees with */
+  contradicts?: KnowledgeInboxContradicted[];
 }
 
 export type MergeOptionItemType = typeof MergeOptionItemType[keyof typeof MergeOptionItemType];
@@ -2207,6 +2312,9 @@ export const FactReviewResolveAction = {
   no_longer_true: 'no_longer_true',
   keep: 'keep',
   write_own: 'write_own',
+  new_right: 'new_right',
+  old_stands: 'old_stands',
+  both_true: 'both_true',
 } as const;
 
 export interface FactReviewResolve {
@@ -2271,6 +2379,8 @@ export interface Fact {
   lastConfirmedAt: string;
   /** Stale or in conflict */
   needsCheck: boolean;
+  /** A newer card contradicts it and Ollie has not decided yet */
+  outOfDate: boolean;
   /**
      * Set when approved from the Knowledge Inbox
      * @nullable
@@ -2350,6 +2460,10 @@ export interface Decision {
   project: EntitySummary | null;
   createdBy: string;
   createdAt: string;
+  /** A newer card contradicts it and Ollie has not decided yet */
+  outOfDate: boolean;
+  /** Replaced by a newer claim; kept as history */
+  replaced: boolean;
 }
 
 export interface DecisionInput {
@@ -2579,6 +2693,8 @@ export interface Rule {
   products: NamedLink[];
   /** Enabled and global or linked to something AI can read */
   sentToAi: boolean;
+  /** A newer card contradicts it and Ollie has not decided yet */
+  outOfDate: boolean;
 }
 
 export interface PlaybookStep {
@@ -4533,5 +4649,13 @@ export type ListAiActivityParams = {
  * @maximum 100
  */
 limit?: number;
+};
+
+export type GetRoundupsParams = {
+id?: number;
+};
+
+export type SaveRoundupDraft200 = {
+  saved: boolean;
 };
 

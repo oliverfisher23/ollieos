@@ -40,3 +40,5 @@ Screens that read Gmail (thread, summary, attachments) cannot show seeded fake e
 A brief only calls the writer when it has substance (a fact, email or note, not just names of people, projects, organisations, products or playbooks), and organisations get no full context, so tests and seeds for brief content need a fact on an attendee. In the Knowledge Inbox, `getByRole('button', { name: 'Approve' })` also matches "Edit, then approve"; use `exact: true`.
 
 Calendar ingest skips events outside its window (`skipped_outside_window`), so seed them relative to now, not on a fixed date. It only fills an event's people from the `people` names in the feed, and a name shared by two people stays unmatched; set `person_ids` by SQL when a test needs a meeting on a person.
+
+Conflicts tab seeding: insert an old fact by SQL, then send a disagreeing fact through `/api/ingest/suggestions` on the test API; the real contradiction check runs about 15 seconds later (about 1p). Do not click "Save as Gmail draft" on the round-up page during a UI check: the test API uses the real Gmail connector and would make a real draft.

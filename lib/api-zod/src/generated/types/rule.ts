@@ -21,4 +21,6 @@ export interface Rule {
   products: NamedLink[];
   /** Enabled and global or linked to something AI can read */
   sentToAi: boolean;
+  /** A newer card contradicts it and Ollie has not decided yet */
+  outOfDate: boolean;
 }

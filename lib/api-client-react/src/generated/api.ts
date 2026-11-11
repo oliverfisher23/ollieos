@@ -54,6 +54,7 @@ import type {
   ConnectorReadByInput,
   ConnectorScheduleInput,
   Connectors,
+  ContextPack,
   DayPlan,
   DecideOAuthConsent200,
   Decision,
@@ -90,6 +91,7 @@ import type {
   FindGraphConnectionParams,
   FindSlackAccountsParams,
   GetOAuthConsentParams,
+  GetRoundupsParams,
   GetTaskSummaryParams,
   GetWeeklyUpdateParams,
   Goal,
@@ -188,9 +190,13 @@ import type {
   ReviewDecideResult,
   ReviewItem,
   ReviewList,
+  Roundup,
+  RoundupPage,
+  RoundupSchedule,
   Rule,
   RuleInput,
   RuleUpdate,
+  SaveRoundupDraft200,
   SearchKnowledgeParams,
   SearchResult,
   SessionDetail,
@@ -17225,4 +17231,558 @@ export function useListAiActivity<TData = Awaited<ReturnType<typeof listAiActivi
 
 
 
+
+export const getGetContextPackUrl = (type: 'project' | 'product' | 'organisation',
+    id: number,) => {
+
+
+
+
+  return `/api/context-packs/${type}/${id}`
+}
+
+/**
+ * @summary One Markdown file about a project, product or organisation for Claude, with only what AI may see
+ */
+export const getContextPack = async (type: 'project' | 'product' | 'organisation',
+    id: number, options?: Parameters<typeof customFetch>[1]): Promise<ContextPack> => {
+
+  return customFetch<ContextPack>(getGetContextPackUrl(type,id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetContextPackQueryKey = (type: 'project' | 'product' | 'organisation',
+    id: number,) => {
+    return [
+    `/api/context-packs/${type}/${id}`
+    ] as const;
+    }
+
+
+export const getGetContextPackQueryOptions = <TData = Awaited<ReturnType<typeof getContextPack>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(type: 'project' | 'product' | 'organisation',
+    id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContextPack>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetContextPackQueryKey(type,id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getContextPack>>> = ({ signal }) => getContextPack(type,id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: type !== null && type !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getContextPack>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetContextPackQueryResult = NonNullable<Awaited<ReturnType<typeof getContextPack>>>
+export type GetContextPackQueryError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+export function useGetContextPack<TData = Awaited<ReturnType<typeof getContextPack>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ type: 'project' | 'product' | 'organisation',
+    id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContextPack>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getContextPack>>,
+          TError,
+          Awaited<ReturnType<typeof getContextPack>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetContextPack<TData = Awaited<ReturnType<typeof getContextPack>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ type: 'project' | 'product' | 'organisation',
+    id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContextPack>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getContextPack>>,
+          TError,
+          Awaited<ReturnType<typeof getContextPack>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetContextPack<TData = Awaited<ReturnType<typeof getContextPack>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ type: 'project' | 'product' | 'organisation',
+    id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContextPack>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary One Markdown file about a project, product or organisation for Claude, with only what AI may see
+ */
+
+export function useGetContextPack<TData = Awaited<ReturnType<typeof getContextPack>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ type: 'project' | 'product' | 'organisation',
+    id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContextPack>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetContextPackQueryOptions(type,id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetRoundupsUrl = (params?: GetRoundupsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/roundups?${stringifiedParams}` : `/api/roundups`
+}
+
+/**
+ * @summary One weekly round-up (the latest when no id), the weeks there are, and the schedule
+ */
+export const getRoundups = async (params?: GetRoundupsParams, options?: Parameters<typeof customFetch>[1]): Promise<RoundupPage> => {
+
+  return customFetch<RoundupPage>(getGetRoundupsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRoundupsQueryKey = (params?: GetRoundupsParams,) => {
+    return [
+    `/api/roundups`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetRoundupsQueryOptions = <TData = Awaited<ReturnType<typeof getRoundups>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(params?: GetRoundupsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoundups>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRoundupsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRoundups>>> = ({ signal }) => getRoundups(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRoundups>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetRoundupsQueryResult = NonNullable<Awaited<ReturnType<typeof getRoundups>>>
+export type GetRoundupsQueryError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+
+
+export function useGetRoundups<TData = Awaited<ReturnType<typeof getRoundups>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ params: undefined |  GetRoundupsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoundups>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRoundups>>,
+          TError,
+          Awaited<ReturnType<typeof getRoundups>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRoundups<TData = Awaited<ReturnType<typeof getRoundups>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ params?: GetRoundupsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoundups>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRoundups>>,
+          TError,
+          Awaited<ReturnType<typeof getRoundups>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRoundups<TData = Awaited<ReturnType<typeof getRoundups>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ params?: GetRoundupsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoundups>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary One weekly round-up (the latest when no id), the weeks there are, and the schedule
+ */
+
+export function useGetRoundups<TData = Awaited<ReturnType<typeof getRoundups>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ params?: GetRoundupsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoundups>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetRoundupsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMakeRoundupUrl = () => {
+
+
+
+
+  return `/api/roundups`
+}
+
+/**
+ * @summary Make a round-up of the last seven days now
+ */
+export const makeRoundup = async ( options?: Parameters<typeof customFetch>[1]): Promise<Roundup> => {
+
+  return customFetch<Roundup>(getMakeRoundupUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMakeRoundupMutationKey = () => ['makeRoundup'] as const;
+
+export const getMakeRoundupMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof makeRoundup>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof makeRoundup>>, TError,void, TContext> => {
+
+const mutationKey = getMakeRoundupMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof makeRoundup>>, void> = () => {
+
+
+          return  makeRoundup(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MakeRoundupMutationResult = NonNullable<Awaited<ReturnType<typeof makeRoundup>>>
+
+    export type MakeRoundupMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Make a round-up of the last seven days now
+ */
+export const useMakeRoundup = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof makeRoundup>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof makeRoundup>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getMakeRoundupMutationOptions(options), queryClient);
+    }
+
+export const getSaveRoundupDraftUrl = (id: number,) => {
+
+
+
+
+  return `/api/roundups/${id}/draft`
+}
+
+/**
+ * @summary Save the round-up as a Gmail draft with no recipient, leaving out confidential and hidden items. Never sends.
+ */
+export const saveRoundupDraft = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<SaveRoundupDraft200> => {
+
+  return customFetch<SaveRoundupDraft200>(getSaveRoundupDraftUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSaveRoundupDraftMutationKey = () => ['saveRoundupDraft'] as const;
+
+export const getSaveRoundupDraftMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveRoundupDraft>>, TError,SaveRoundupDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveRoundupDraft>>, TError,SaveRoundupDraftMutationVariables, TContext> => {
+
+const mutationKey = getSaveRoundupDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveRoundupDraft>>, SaveRoundupDraftMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  saveRoundupDraft(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveRoundupDraftMutationResult = NonNullable<Awaited<ReturnType<typeof saveRoundupDraft>>>
+
+    export type SaveRoundupDraftMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type SaveRoundupDraftMutationVariables = {id: number}
+
+    /**
+ * @summary Save the round-up as a Gmail draft with no recipient, leaving out confidential and hidden items. Never sends.
+ */
+export const useSaveRoundupDraft = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveRoundupDraft>>, TError,SaveRoundupDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveRoundupDraft>>,
+        TError,
+        SaveRoundupDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveRoundupDraftMutationOptions(options), queryClient);
+    }
+
+export const getGetRoundupScheduleUrl = () => {
+
+
+
+
+  return `/api/settings/roundup`
+}
+
+/**
+ * @summary When the weekly round-up is made
+ */
+export const getRoundupSchedule = async ( options?: Parameters<typeof customFetch>[1]): Promise<RoundupSchedule> => {
+
+  return customFetch<RoundupSchedule>(getGetRoundupScheduleUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRoundupScheduleQueryKey = () => {
+    return [
+    `/api/settings/roundup`
+    ] as const;
+    }
+
+
+export const getGetRoundupScheduleQueryOptions = <TData = Awaited<ReturnType<typeof getRoundupSchedule>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoundupSchedule>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRoundupScheduleQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRoundupSchedule>>> = ({ signal }) => getRoundupSchedule({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRoundupSchedule>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetRoundupScheduleQueryResult = NonNullable<Awaited<ReturnType<typeof getRoundupSchedule>>>
+export type GetRoundupScheduleQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetRoundupSchedule<TData = Awaited<ReturnType<typeof getRoundupSchedule>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoundupSchedule>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRoundupSchedule>>,
+          TError,
+          Awaited<ReturnType<typeof getRoundupSchedule>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRoundupSchedule<TData = Awaited<ReturnType<typeof getRoundupSchedule>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoundupSchedule>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRoundupSchedule>>,
+          TError,
+          Awaited<ReturnType<typeof getRoundupSchedule>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetRoundupSchedule<TData = Awaited<ReturnType<typeof getRoundupSchedule>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoundupSchedule>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary When the weekly round-up is made
+ */
+
+export function useGetRoundupSchedule<TData = Awaited<ReturnType<typeof getRoundupSchedule>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoundupSchedule>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetRoundupScheduleQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetRoundupScheduleUrl = () => {
+
+
+
+
+  return `/api/settings/roundup`
+}
+
+/**
+ * @summary Change when the weekly round-up is made
+ */
+export const setRoundupSchedule = async (roundupSchedule: RoundupSchedule, options?: Parameters<typeof customFetch>[1]): Promise<RoundupSchedule> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<RoundupSchedule>(getSetRoundupScheduleUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(roundupSchedule)
+  }
+);}
+
+
+
+
+
+export const getSetRoundupScheduleMutationKey = () => ['setRoundupSchedule'] as const;
+
+export const getSetRoundupScheduleMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setRoundupSchedule>>, TError,SetRoundupScheduleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setRoundupSchedule>>, TError,SetRoundupScheduleMutationVariables, TContext> => {
+
+const mutationKey = getSetRoundupScheduleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setRoundupSchedule>>, SetRoundupScheduleMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setRoundupSchedule(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetRoundupScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof setRoundupSchedule>>>
+    export type SetRoundupScheduleMutationBody = BodyType<RoundupSchedule>
+    export type SetRoundupScheduleMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SetRoundupScheduleMutationVariables = {data: BodyType<RoundupSchedule>}
+
+    /**
+ * @summary Change when the weekly round-up is made
+ */
+export const useSetRoundupSchedule = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setRoundupSchedule>>, TError,SetRoundupScheduleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setRoundupSchedule>>,
+        TError,
+        SetRoundupScheduleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetRoundupScheduleMutationOptions(options), queryClient);
+    }
 

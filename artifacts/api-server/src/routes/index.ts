@@ -19,6 +19,7 @@ import sessionsRouter from "./sessions";
 import graphRouter from "./graph";
 import strategyRouter from "./strategy";
 import planRouter from "./plan";
+import roundupsRouter from "./roundups";
 import ingestRouter from "./ingest";
 import { oauthConsentRouter, oauthPublicRouter } from "../oauth/routes";
 import { requireOllie } from "../middlewares/requireOllie";
@@ -53,6 +54,7 @@ router.use(sessionsRouter);
 router.use(graphRouter);
 router.use(strategyRouter);
 router.use(planRouter);
+router.use(roundupsRouter);
 router.use(oauthConsentRouter);
 
 export default router;

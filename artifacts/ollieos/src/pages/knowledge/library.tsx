@@ -19,7 +19,7 @@ import { CharCount, Skel } from '@/components/bits';
 import { IconArrowOut } from '@/components/icons';
 import { InlineText } from '@/components/inline-text';
 import { KnowledgeLayout } from '@/components/knowledge/layout';
-import { HiddenFromAi, PageProblem, TriStateAccess } from '@/components/knowledge/parts';
+import { HiddenFromAi, OutOfDateMark, PageProblem, TriStateAccess } from '@/components/knowledge/parts';
 import { useKnowledgeWrite } from '@/lib/knowledge';
 import { DocumentDialog, MultiPick } from '@/components/knowledge/document-dialog';
 import { PlaybookDialog, PlaybooksTab } from '@/pages/knowledge/playbooks';
@@ -323,6 +323,7 @@ export function RuleCard({ p, compact }: { p: Rule; compact?: boolean }) {
       <span className="oo-rule-state" data-enabled={p.sentToAi} role="status" data-testid={`text-rule-${p.id}-state`}>
         {!p.enabled ? 'Paused: Claude ignores this' : p.sentToAi ? 'Claude reads this before drafting' : 'Linked only to items hidden from AI, so no AI sees it'}
       </span>
+      {p.outOfDate && <span><OutOfDateMark testId={`mark-out-of-date-rule-${p.id}`} /></span>}
     </article>
   );
 }

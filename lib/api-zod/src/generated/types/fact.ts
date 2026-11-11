@@ -22,6 +22,8 @@ export interface Fact {
   lastConfirmedAt: Date;
   /** Stale or in conflict */
   needsCheck: boolean;
+  /** A newer card contradicts it and Ollie has not decided yet */
+  outOfDate: boolean;
   /**
      * Set when approved from the Knowledge Inbox
      * @nullable

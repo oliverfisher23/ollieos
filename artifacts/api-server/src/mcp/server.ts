@@ -46,7 +46,7 @@ export const SOURCE_OF_TRUTH =
 /** Sent once when a client connects. */
 export const SERVER_INSTRUCTIONS = [
   SOURCE_OF_TRUTH,
-  'A fact marked "needs_check": true may be out of date. If you rely on one, tell Ollie it may be out of date.',
+  'A fact, decision or rule marked "needs_check": true may be out of date (nobody has confirmed it lately, or a newer claim contradicts it and Ollie has not decided yet). If you rely on one, tell Ollie it is in question.',
   "Facts, decisions, new people, organisations, projects and products, playbooks, and changes to existing records, are suggestions until Ollie approves them in his Knowledge Inbox. Use list_my_suggestions to avoid proposing the same thing twice. Tasks, promises, notes and activity go in directly.",
   "Before drafting anything on Ollie's behalf, call get_rules for the project, person, organisation or product concerned and follow every rule it returns.",
   "Playbooks are how Ollie's team does things, step by step. Before planning or doing a process (onboarding a partner, running an event), check get_playbook. When you learn how something is done, or a step has changed, use propose_playbook.",

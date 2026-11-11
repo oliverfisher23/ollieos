@@ -10,6 +10,8 @@ export interface KnowledgeInboxCounts {
   suggested: number;
   conflicts: number;
   stale: number;
+  /** Approved items a newer card contradicts (shown under Needs a check) */
+  outOfDate?: number;
   total: number;
   /** Pending suggestions from a Granola look back (Knowledge Inbox only) */
   lookBack?: number;

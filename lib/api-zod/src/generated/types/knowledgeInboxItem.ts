@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { KnowledgeInboxContradicted } from './knowledgeInboxContradicted';
 import type { KnowledgeInboxField } from './knowledgeInboxField';
 import type { KnowledgeInboxItemGroup } from './knowledgeInboxItemGroup';
 import type { KnowledgeInboxItemKind } from './knowledgeInboxItemKind';
@@ -62,4 +63,6 @@ export interface KnowledgeInboxItem {
      * @nullable
      */
   saidAt: Date | null;
+  /** Contradiction and out-of-date cards: the approved items the new card disagrees with */
+  contradicts?: KnowledgeInboxContradicted[];
 }

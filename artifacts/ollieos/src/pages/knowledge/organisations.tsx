@@ -12,6 +12,7 @@ import {
 import { Skel } from '@/components/bits';
 import { ResearchList } from '@/components/research';
 import { InlineText } from '@/components/inline-text';
+import { ContextPackButton } from '@/components/knowledge/context-pack';
 import { KnowledgeLayout, ListHeader } from '@/components/knowledge/layout';
 import { CreateDialog } from '@/components/knowledge/create-dialog';
 import { InternalSwitch } from '@/components/knowledge/org-options';
@@ -161,6 +162,7 @@ export function OrganisationPage() {
           <div style={{ fontSize: 13 }}>
             <WhoDecides type="organisation" id={o.id} name={o.name} />
           </div>
+          <ContextPackButton type="organisation" id={o.id} />
         </div>
         <AccessPanel
           kind="organisation"

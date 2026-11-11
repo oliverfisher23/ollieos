@@ -16,6 +16,7 @@ import { Skel } from '@/components/bits';
 import { InlineText } from '@/components/inline-text';
 import { Dropdown } from '@/components/dropdown';
 import { personOptions } from '@/components/dropdown-options';
+import { ContextPackButton } from '@/components/knowledge/context-pack';
 import { KnowledgeLayout, ListHeader } from '@/components/knowledge/layout';
 import {
   AccessPanel,
@@ -212,6 +213,7 @@ export function ProductPage() {
           <div style={{ fontSize: 13 }}>
             <WhoDecides type="product" id={p.id} name={p.name} />
           </div>
+          <ContextPackButton type="product" id={p.id} />
         </div>
         <AccessPanel
           kind="product"

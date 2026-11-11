@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, inArray, isNull, ne, or } from "drizzle-orm";
+import { inQuestionRefs } from "../../lib/ai-data/inQuestion";
 import {
   db,
   decisionsTable,
@@ -38,6 +39,8 @@ export interface FactView {
   lastConfirmedAt: Date;
   /** Stale or in conflict: shown as "Needs a check" */
   needsCheck: boolean;
+  /** Part O: a newer card contradicts it and Ollie has not decided yet */
+  outOfDate: boolean;
   approvedAt: Date | null;
   /** Earlier versions this fact replaced, newest first */
   history: { id: number; text: string; createdAt: Date; createdBy: string }[];
@@ -50,6 +53,7 @@ export async function factsFor(entityType: EntityKind, entityId: number): Promis
     .from(factsTable)
     .where(and(eq(factsTable.entityType, entityType), eq(factsTable.entityId, entityId)))
     .orderBy(asc(factsTable.createdAt), asc(factsTable.id));
+  const inQuestion = await inQuestionRefs();
   // A fact can replace several (a resolved conflict); a retired fact points at itself and has no successor.
   const replaced = new Map<number, FactRow[]>();
   for (const r of rows) if (r.supersededBy && r.supersededBy !== r.id) replaced.set(r.supersededBy, [...(replaced.get(r.supersededBy) ?? []), r]);
@@ -67,11 +71,11 @@ export async function factsFor(entityType: EntityKind, entityId: number): Promis
         queue.push(...(replaced.get(prev.id) ?? []));
       }
       history.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || b.id - a.id);
-      return toFactView(r, history);
+      return toFactView(r, history, inQuestion);
     });
 }
 
-function toFactView(r: FactRow, history: FactView["history"]): FactView {
+function toFactView(r: FactRow, history: FactView["history"], inQuestion: ReadonlySet<string> = new Set()): FactView {
   return {
     id: r.id,
     entityType: r.entityType,
@@ -83,6 +87,7 @@ function toFactView(r: FactRow, history: FactView["history"]): FactView {
     createdAt: r.createdAt,
     lastConfirmedAt: r.lastConfirmedAt,
     needsCheck: r.needsCheck,
+    outOfDate: inQuestion.has(`fact:${r.id}`),
     approvedAt: r.approvedAt,
     history,
   };
@@ -201,12 +206,16 @@ export interface DecisionView {
   project: EntitySummary | null;
   createdBy: string;
   createdAt: Date;
+  /** Part O: a newer card contradicts it and Ollie has not decided yet */
+  outOfDate: boolean;
+  /** Part O: replaced by a newer decision or claim ("New one is right"); kept as history */
+  replaced: boolean;
 }
 
 export async function toDecisionViews(rows: DecisionRow[]): Promise<DecisionView[]> {
   if (!rows.length) return [];
   const projectIds = [...new Set(rows.map((r) => r.projectId).filter((id): id is number => id != null))];
-  const [projects, hidden] = await Promise.all([
+  const [projects, hidden, inQuestion] = await Promise.all([
     !projectIds.length
       ? []
       : db
@@ -217,6 +226,7 @@ export async function toDecisionViews(rows: DecisionRow[]): Promise<DecisionView
       "decision",
       rows.map((r) => r.id),
     ),
+    inQuestionRefs(),
   ]);
   const byId = new Map(projects.map((p) => [p.id, p]));
   return rows.map((r) => ({
@@ -230,6 +240,8 @@ export async function toDecisionViews(rows: DecisionRow[]): Promise<DecisionView
     project: r.projectId != null ? (byId.get(r.projectId) ?? null) : null,
     createdBy: r.createdBy,
     createdAt: r.createdAt,
+    outOfDate: inQuestion.has(`decision:${r.id}`),
+    replaced: r.supersededBy != null,
   }));
 }
 

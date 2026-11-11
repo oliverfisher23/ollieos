@@ -150,6 +150,7 @@ export const GetHomeResponse = zod.object({
   "suggested": zod.int(),
   "conflicts": zod.int(),
   "stale": zod.int(),
+  "outOfDate": zod.int().optional().describe('Approved items a newer card contradicts (shown under Needs a check)'),
   "total": zod.int(),
   "lookBack": zod.int().optional().describe('Pending suggestions from a Granola look back (Knowledge Inbox only)'),
   "documents": zod.int().optional().describe('Pending suggestions from reading documents (Knowledge Inbox only)')
@@ -2842,7 +2843,8 @@ export const GetProjectResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })),
-  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read')
+  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read'),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet')
 })).describe('Global ones and those linked to the project, its organisations or products, paused ones included'),
   "playbooks": zod.array(zod.object({
   "id": zod.int(),
@@ -2910,6 +2912,7 @@ export const GetProjectResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "lastConfirmedAt": zod.coerce.date(),
   "needsCheck": zod.boolean().describe('Stale or in conflict'),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet'),
   "approvedAt": zod.coerce.date().nullable().describe('Set when approved from the Knowledge Inbox'),
   "history": zod.array(zod.object({
   "id": zod.int(),
@@ -2933,7 +2936,9 @@ export const GetProjectResponse = zod.object({
   "confidential": zod.boolean()
 }),zod.null()]).describe('The project it belongs to; null for a decision that stands on its own'),
   "createdBy": zod.string(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet'),
+  "replaced": zod.boolean().describe('Replaced by a newer claim; kept as history')
 })),
   "openTasks": zod.array(zod.object({
   "repeat": zod.union([zod.object({
@@ -3364,6 +3369,7 @@ export const GetPersonResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "lastConfirmedAt": zod.coerce.date(),
   "needsCheck": zod.boolean().describe('Stale or in conflict'),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet'),
   "approvedAt": zod.coerce.date().nullable().describe('Set when approved from the Knowledge Inbox'),
   "history": zod.array(zod.object({
   "id": zod.int(),
@@ -5754,7 +5760,8 @@ export const ListRulesResponseItem = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })),
-  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read')
+  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read'),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet')
 })
 export const ListRulesResponse = zod.array(ListRulesResponseItem)
 
@@ -5804,7 +5811,8 @@ export const CreateRuleResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })),
-  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read')
+  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read'),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet')
 })
 
 
@@ -5857,7 +5865,8 @@ export const UpdateRuleResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })),
-  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read')
+  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read'),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet')
 })
 
 
@@ -6269,6 +6278,7 @@ export const GetProductResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "lastConfirmedAt": zod.coerce.date(),
   "needsCheck": zod.boolean().describe('Stale or in conflict'),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet'),
   "approvedAt": zod.coerce.date().nullable().describe('Set when approved from the Knowledge Inbox'),
   "history": zod.array(zod.object({
   "id": zod.int(),
@@ -6301,7 +6311,8 @@ export const GetProductResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })),
-  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read')
+  "sentToAi": zod.boolean().describe('Enabled and global or linked to something AI can read'),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet')
 })).describe('What to say and not say'),
   "documents": zod.array(zod.object({
   "id": zod.int(),
@@ -6405,7 +6416,9 @@ export const GetProductResponse = zod.object({
   "confidential": zod.boolean()
 }),zod.null()]).describe('The project it belongs to; null for a decision that stands on its own'),
   "createdBy": zod.string(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet'),
+  "replaced": zod.boolean().describe('Replaced by a newer claim; kept as history')
 })),
   "notes": zod.array(zod.object({
   "id": zod.int(),
@@ -6665,6 +6678,7 @@ export const GetOrganisationResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "lastConfirmedAt": zod.coerce.date(),
   "needsCheck": zod.boolean().describe('Stale or in conflict'),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet'),
   "approvedAt": zod.coerce.date().nullable().describe('Set when approved from the Knowledge Inbox'),
   "history": zod.array(zod.object({
   "id": zod.int(),
@@ -6753,7 +6767,9 @@ export const ListDecisionsResponseItem = zod.object({
   "confidential": zod.boolean()
 }),zod.null()]).describe('The project it belongs to; null for a decision that stands on its own'),
   "createdBy": zod.string(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet'),
+  "replaced": zod.boolean().describe('Replaced by a newer claim; kept as history')
 })
 export const ListDecisionsResponse = zod.array(ListDecisionsResponseItem)
 
@@ -6789,7 +6805,9 @@ export const CreateDecisionResponse = zod.object({
   "confidential": zod.boolean()
 }),zod.null()]).describe('The project it belongs to; null for a decision that stands on its own'),
   "createdBy": zod.string(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet'),
+  "replaced": zod.boolean().describe('Replaced by a newer claim; kept as history')
 })
 
 
@@ -6815,7 +6833,9 @@ export const GetDecisionResponse = zod.object({
   "confidential": zod.boolean()
 }),zod.null()]).describe('The project it belongs to; null for a decision that stands on its own'),
   "createdBy": zod.string(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet'),
+  "replaced": zod.boolean().describe('Replaced by a newer claim; kept as history')
 })
 
 
@@ -6854,7 +6874,9 @@ export const UpdateDecisionResponse = zod.object({
   "confidential": zod.boolean()
 }),zod.null()]).describe('The project it belongs to; null for a decision that stands on its own'),
   "createdBy": zod.string(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet'),
+  "replaced": zod.boolean().describe('Replaced by a newer claim; kept as history')
 })
 
 
@@ -6997,6 +7019,7 @@ export const CreateFactResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "lastConfirmedAt": zod.coerce.date(),
   "needsCheck": zod.boolean().describe('Stale or in conflict'),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet'),
   "approvedAt": zod.coerce.date().nullable().describe('Set when approved from the Knowledge Inbox'),
   "history": zod.array(zod.object({
   "id": zod.int(),
@@ -7034,6 +7057,7 @@ export const SupersedeFactResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "lastConfirmedAt": zod.coerce.date(),
   "needsCheck": zod.boolean().describe('Stale or in conflict'),
+  "outOfDate": zod.boolean().describe('A newer card contradicts it and Ollie has not decided yet'),
   "approvedAt": zod.coerce.date().nullable().describe('Set when approved from the Knowledge Inbox'),
   "history": zod.array(zod.object({
   "id": zod.int(),
@@ -7060,6 +7084,7 @@ export const ListKnowledgeInboxResponse = zod.object({
   "suggested": zod.int(),
   "conflicts": zod.int(),
   "stale": zod.int(),
+  "outOfDate": zod.int().optional().describe('Approved items a newer card contradicts (shown under Needs a check)'),
   "total": zod.int(),
   "lookBack": zod.int().optional().describe('Pending suggestions from a Granola look back (Knowledge Inbox only)'),
   "documents": zod.int().optional().describe('Pending suggestions from reading documents (Knowledge Inbox only)')
@@ -7068,7 +7093,7 @@ export const ListKnowledgeInboxResponse = zod.object({
   "key": zod.string(),
   "id": zod.int().describe('Suggestion id on the Suggested tab'),
   "group": zod.enum(['suggested', 'conflicts', 'stale']),
-  "kind": zod.enum(['new_fact', 'new_person', 'new_organisation', 'new_project', 'proposed_decision', 'changed_summary', 'changed_details', 'new_document', 'document_link', 'new_rule', 'new_playbook', 'playbook_change', 'new_product', 'cadence_change', 'new_relationship', 'conflict', 'stale_fact']),
+  "kind": zod.enum(['new_fact', 'new_person', 'new_organisation', 'new_project', 'proposed_decision', 'changed_summary', 'changed_details', 'new_document', 'document_link', 'new_rule', 'new_playbook', 'playbook_change', 'new_product', 'cadence_change', 'new_relationship', 'conflict', 'stale_fact', 'contradiction', 'out_of_date']),
   "target": zod.union([zod.object({
   "type": zod.string(),
   "id": zod.int().nullable().describe('Null for a person'),
@@ -7117,7 +7142,31 @@ export const ListKnowledgeInboxResponse = zod.object({
   "slug": zod.string().nullable(),
   "isSelf": zod.boolean().describe('Ollie himself')
 }),zod.null()]).describe('Who made the claim; a person in People when one matched'),
-  "saidAt": zod.coerce.date().nullable().describe('When they said it')
+  "saidAt": zod.coerce.date().nullable().describe('When they said it'),
+  "contradicts": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.enum(['fact', 'decision', 'rule']),
+  "label": zod.string(),
+  "text": zod.string(),
+  "why": zod.string().describe('How they disagree'),
+  "target": zod.union([zod.object({
+  "type": zod.string(),
+  "id": zod.int().nullable().describe('Null for a person'),
+  "name": zod.string(),
+  "slug": zod.string().nullable(),
+  "isSelf": zod.boolean()
+}),zod.null()]),
+  "saidBy": zod.union([zod.object({
+  "name": zod.string(),
+  "personId": zod.int().nullable(),
+  "slug": zod.string().nullable(),
+  "isSelf": zod.boolean().describe('Ollie himself')
+}),zod.null()]),
+  "saidAt": zod.coerce.date().nullable(),
+  "source": zod.string().nullable(),
+  "stronger": zod.enum(['new', 'old', 'even']),
+  "weighing": zod.string().describe('One line on which side looks stronger')
+})).optional().describe('Contradiction and out-of-date cards: the approved items the new card disagrees with')
 }))
 })
 
@@ -7237,7 +7286,7 @@ export const resolveFactReviewBodyRefMax = 40;
 
 
 export const ResolveFactReviewBody = zod.object({
-  "action": zod.enum(['still_true', 'edit', 'no_longer_true', 'keep', 'write_own']),
+  "action": zod.enum(['still_true', 'edit', 'no_longer_true', 'keep', 'write_own', 'new_right', 'old_stands', 'both_true']),
   "text": zod.string().min(1).max(resolveFactReviewBodyTextMax).optional().describe('For edit and write_own'),
   "ref": zod.string().max(resolveFactReviewBodyRefMax).optional().describe('For keep: fact:12 or suggestion:4')
 })
@@ -9566,5 +9615,194 @@ export const ListAiActivityResponseItem = zod.object({
   "context": zod.string().nullable().describe('The Ask question')
 })
 export const ListAiActivityResponse = zod.array(ListAiActivityResponseItem)
+
+
+/**
+ * @summary One Markdown file about a project, product or organisation for Claude, with only what AI may see
+ */
+export const GetContextPackParams = zod.object({
+  "type": zod.enum(['project', 'product', 'organisation']),
+  "id": zod.coerce.number().int()
+})
+
+export const GetContextPackResponse = zod.object({
+  "fileName": zod.string(),
+  "content": zod.string().describe('Markdown'),
+  "madeAt": zod.coerce.date(),
+  "included": zod.int(),
+  "leftOut": zod.int().describe('Confidential or hidden items left out of the file')
+})
+
+
+/**
+ * @summary One weekly round-up (the latest when no id), the weeks there are, and the schedule
+ */
+export const GetRoundupsQueryParams = zod.object({
+  "id": zod.coerce.number().int().optional()
+})
+
+export const getRoundupsResponseScheduleDayMin = 0;
+export const getRoundupsResponseScheduleDayMax = 6;
+
+export const getRoundupsResponseScheduleHourMin = 0;
+export const getRoundupsResponseScheduleHourMax = 23;
+
+
+
+export const GetRoundupsResponse = zod.object({
+  "roundup": zod.union([zod.object({
+  "id": zod.int(),
+  "weekStart": zod.coerce.date(),
+  "weekEnd": zod.coerce.date(),
+  "manual": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "draftSaved": zod.boolean(),
+  "content": zod.object({
+  "approved": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})),
+  "contradictions": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})),
+  "stale": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})),
+  "rules": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})),
+  "playbooks": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})),
+  "products": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+}))
+})
+}),zod.null()]),
+  "weeks": zod.array(zod.object({
+  "id": zod.int(),
+  "weekEnd": zod.coerce.date(),
+  "manual": zod.boolean()
+})),
+  "schedule": zod.object({
+  "day": zod.int().min(getRoundupsResponseScheduleDayMin).max(getRoundupsResponseScheduleDayMax).describe('0 is Sunday'),
+  "hour": zod.int().min(getRoundupsResponseScheduleHourMin).max(getRoundupsResponseScheduleHourMax)
+})
+})
+
+
+/**
+ * @summary Make a round-up of the last seven days now
+ */
+export const MakeRoundupResponse = zod.object({
+  "id": zod.int(),
+  "weekStart": zod.coerce.date(),
+  "weekEnd": zod.coerce.date(),
+  "manual": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "draftSaved": zod.boolean(),
+  "content": zod.object({
+  "approved": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})),
+  "contradictions": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})),
+  "stale": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})),
+  "rules": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})),
+  "playbooks": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})),
+  "products": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+}))
+})
+})
+
+
+/**
+ * @summary Save the round-up as a Gmail draft with no recipient, leaving out confidential and hidden items. Never sends.
+ */
+export const SaveRoundupDraftParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const SaveRoundupDraftResponse = zod.object({
+  "saved": zod.boolean()
+})
+
+
+/**
+ * @summary When the weekly round-up is made
+ */
+export const getRoundupScheduleResponseDayMin = 0;
+export const getRoundupScheduleResponseDayMax = 6;
+
+export const getRoundupScheduleResponseHourMin = 0;
+export const getRoundupScheduleResponseHourMax = 23;
+
+
+
+export const GetRoundupScheduleResponse = zod.object({
+  "day": zod.int().min(getRoundupScheduleResponseDayMin).max(getRoundupScheduleResponseDayMax).describe('0 is Sunday'),
+  "hour": zod.int().min(getRoundupScheduleResponseHourMin).max(getRoundupScheduleResponseHourMax)
+})
+
+
+/**
+ * @summary Change when the weekly round-up is made
+ */
+export const setRoundupScheduleBodyDayMin = 0;
+export const setRoundupScheduleBodyDayMax = 6;
+
+export const setRoundupScheduleBodyHourMin = 0;
+export const setRoundupScheduleBodyHourMax = 23;
+
+
+
+export const SetRoundupScheduleBody = zod.object({
+  "day": zod.int().min(setRoundupScheduleBodyDayMin).max(setRoundupScheduleBodyDayMax).describe('0 is Sunday'),
+  "hour": zod.int().min(setRoundupScheduleBodyHourMin).max(setRoundupScheduleBodyHourMax)
+})
+
+export const setRoundupScheduleResponseDayMin = 0;
+export const setRoundupScheduleResponseDayMax = 6;
+
+export const setRoundupScheduleResponseHourMin = 0;
+export const setRoundupScheduleResponseHourMax = 23;
+
+
+
+export const SetRoundupScheduleResponse = zod.object({
+  "day": zod.int().min(setRoundupScheduleResponseDayMin).max(setRoundupScheduleResponseDayMax).describe('0 is Sunday'),
+  "hour": zod.int().min(setRoundupScheduleResponseHourMin).max(setRoundupScheduleResponseHourMax)
+})
 
 

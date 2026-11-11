@@ -5,6 +5,7 @@
  * Both link to projects (and rules to organisations and products) through `links`, stored from the item.
  * Playbooks (Part M) are in playbooks.ts and use the link helpers here.
  */
+import { inQuestionRefs } from "../lib/ai-data/inQuestion";
 import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import {
   db,
@@ -447,15 +448,18 @@ export interface RuleView extends Omit<Rule, "suggestionId"> {
   products: NamedLink[];
   /** True when AI tools receive it: enabled, and global or linked to something visible */
   sentToAi: boolean;
+  /** Part O: a newer card contradicts it and Ollie has not decided yet */
+  outOfDate: boolean;
 }
 
 async function toRuleViews(rows: Rule[]): Promise<RuleView[]> {
   const ids = rows.map((r) => r.id);
-  const [projectLinks, orgLinks, productLinks, visible] = await Promise.all([
+  const [projectLinks, orgLinks, productLinks, visible, inQuestion] = await Promise.all([
     linkMap("rule", ids, "project"),
     linkMap("rule", ids, "organisation"),
     linkMap("rule", ids, "product"),
     ids.length ? db.select({ id: rulesTable.id }).from(rulesTable).where(and(inArray(rulesTable.id, ids), sql.raw(ruleVisible("rules")))) : [],
+    inQuestionRefs(),
   ]);
   const all = (m: Map<number, number[]>) => [...new Set([...m.values()].flat())];
   const [projectNames, orgNames, productNames] = await Promise.all([
@@ -470,6 +474,7 @@ async function toRuleViews(rows: Rule[]): Promise<RuleView[]> {
     organisations: pickNames(orgNames, orgLinks.get(r.id)),
     products: pickNames(productNames, productLinks.get(r.id)),
     sentToAi: visibleSet.has(r.id),
+    outOfDate: inQuestion.has(`rule:${r.id}`),
   }));
 }
 

@@ -133,7 +133,7 @@ function queryFor(type: SearchType, q: string, tsq: string | null, opts: SearchO
           'project' as entity_type, d.project_id as entity_id, ${rankExpr(sql.raw("d.search"), tsq)} as rank,
           ${v.hidden} as hidden_from_ai, d.confidential, null as status, null::boolean as needs_check
         from decisions d join projects p on p.id = d.project_id
-        where (${textMatch(sql.raw("d.search"), tsq, sql.raw("d.text"), q, mode)})${v.where}
+        where (${textMatch(sql.raw("d.search"), tsq, sql.raw("d.text"), q, mode)})${v.where}${sql.raw(visibleOnly ? " and d.superseded_by is null" : "")}
         order by rank desc, d.decided_at desc limit ${limit}`;
     }
     case "note": {

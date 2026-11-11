@@ -9,6 +9,7 @@ import { db, documentsTable, goalsTable, linksTable, organisationsTable, peopleT
 import { CADENCE_LABELS, OPEN_STATUSES, addDays, todayLondon, toRef, weekStartOf, type Cadence, type DocLocation } from "@workspace/shared";
 import { documentVisible, organisationVisible, personVisible, productVisible, ruleVisible, projectVisible, taskVisible } from "./visibility";
 import { productsLinkedToRefs } from "./playbooks";
+import { inQuestionRefs } from "./inQuestion";
 import { recordReads, sanitiseRefs, type AiScope } from "./scope";
 import { applicableRuleRefs } from "./retrieve";
 import { buildTsQuery } from "./search";
@@ -276,6 +277,8 @@ export interface RuleOut {
   rule: string;
   /** Empty when the rule applies everywhere */
   applies_to: NamedRef[];
+  /** A newer claim contradicts it and Ollie has not decided yet (Part O) */
+  needs_check?: true;
 }
 
 async function ruleOuts(scope: AiScope, refs: string[]): Promise<RuleOut[]> {
@@ -288,8 +291,15 @@ async function ruleOuts(scope: AiScope, refs: string[]): Promise<RuleOut[]> {
     .orderBy(asc(rulesTable.id));
   const ok = new Set(await sanitiseRefs(scope, rows.map((r) => toRef("rule", r.id))));
   const kept = rows.filter((r) => ok.has(toRef("rule", r.id)));
-  const links = await linkedProjectNames(scope, "rule", kept.map((r) => r.id));
-  return kept.map((r) => ({ ref: toRef("rule", r.id), title: r.title, applies_when: r.appliesWhen, rule: r.rule, applies_to: links.get(r.id) ?? [] }));
+  const [links, inQuestion] = await Promise.all([linkedProjectNames(scope, "rule", kept.map((r) => r.id)), inQuestionRefs()]);
+  return kept.map((r) => ({
+    ref: toRef("rule", r.id),
+    title: r.title,
+    applies_when: r.appliesWhen,
+    rule: r.rule,
+    applies_to: links.get(r.id) ?? [],
+    ...(inQuestion.has(toRef("rule", r.id)) ? { needs_check: true as const } : {}),
+  }));
 }
 
 /**

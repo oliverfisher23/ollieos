@@ -25,4 +25,8 @@ export interface Decision {
   project: EntitySummary | null;
   createdBy: string;
   createdAt: Date;
+  /** A newer card contradicts it and Ollie has not decided yet */
+  outOfDate: boolean;
+  /** Replaced by a newer claim; kept as history */
+  replaced: boolean;
 }

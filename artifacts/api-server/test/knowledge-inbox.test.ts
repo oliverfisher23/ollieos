@@ -122,7 +122,7 @@ describe("Knowledge Inbox (feature 01)", () => {
     await call(c, "upsert_person", { name: "Jo Bloggs", role: "Builder" });
     await c.close();
     const home = await api("home");
-    expect(home.body.knowledgeInbox).toEqual({ suggested: 2, conflicts: 0, stale: 0, total: 2 });
+    expect(home.body.knowledgeInbox).toEqual({ suggested: 2, conflicts: 0, outOfDate: 0, stale: 0, total: 2 });
   });
 
   it("list_my_suggestions shows only this client's suggestions on things it can see", async () => {

@@ -74,7 +74,8 @@ function filters(g: Grants) {
     project: sql.raw(projectVisible("projects", g)),
     person: sql.raw(personVisible("people", g)),
     organisation: sql.raw(organisationVisible("organisations", g)),
-    decision: sql.raw(decisionVisible("decisions", g)),
+    // A replaced decision (Part O) is history, not something to act on.
+    decision: sql.raw(`(${decisionVisible("decisions", g)} and decisions.superseded_by is null)`),
     note: sql.raw(noteVisible("notes", g)),
     fact: sql.raw(factVisible("facts", g)),
     document: sql.raw(documentVisible("documents", g)),
@@ -543,7 +544,7 @@ async function expandEntity(type: SearchType, id: number): Promise<string[]> {
   if (type === "project") {
     const [tasks, decisions] = await Promise.all([
       db.select({ id: tasksTable.id }).from(tasksTable).where(and(eq(tasksTable.projectId, id), openOrRecent)).orderBy(desc(tasksTable.updatedAt)).limit(20),
-      db.select({ id: decisionsTable.id }).from(decisionsTable).where(eq(decisionsTable.projectId, id)).orderBy(desc(decisionsTable.decidedAt)).limit(10),
+      db.select({ id: decisionsTable.id }).from(decisionsTable).where(and(eq(decisionsTable.projectId, id), isNull(decisionsTable.supersededBy))).orderBy(desc(decisionsTable.decidedAt)).limit(10),
     ]);
     out.push(...tasks.map((t) => toRef("task", t.id)), ...decisions.map((d) => toRef("decision", d.id)), ...(await recentSessions("project", id)));
     await entityItems("project");

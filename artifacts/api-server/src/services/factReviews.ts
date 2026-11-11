@@ -5,7 +5,7 @@
  * Knowledge Inbox.
  */
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { appSettingsTable, db, factReviewsTable, factsTable, suggestionsTable, type Fact, type FactReview } from "@workspace/db";
+import { appSettingsTable, db, decisionsTable, factReviewsTable, factsTable, rulesTable, suggestionsTable, type ContradictedItem, type Fact, type FactReview } from "@workspace/db";
 import { addDays, londonWallTimeToInstant, todayLondon, weekday } from "@workspace/shared";
 import { writeAudit, type DbOrTx } from "../lib/audit";
 import { ACTOR, cleanText, touch } from "./knowledge/common";
@@ -153,10 +153,16 @@ export async function tidyReviews(now = new Date()) {
   const sids = pending.map((r) => r.suggestionId).filter((x): x is number => x != null);
   const sugs = sids.length ? await db.select({ id: suggestionsTable.id, status: suggestionsTable.status }).from(suggestionsTable).where(inArray(suggestionsTable.id, sids)) : [];
   const pendingSugs = new Set(sugs.filter((s) => s.status === "pending").map((s) => s.id));
+  const standingOthers = await standingItems(pending.flatMap((r) => r.contradicts ?? []));
   for (const r of pending) {
     const standing = r.factIds.filter((i) => live.has(i));
     const sides = standing.length + (r.suggestionId != null && pendingSugs.has(r.suggestionId) ? 1 : 0);
-    const over = r.kind === "stale" ? standing.length === 0 : sides < 2;
+    const over =
+      r.kind === "stale"
+        ? standing.length === 0
+        : r.kind === "contradiction"
+          ? r.suggestionId == null || !pendingSugs.has(r.suggestionId) || !(r.contradicts ?? []).some((c) => (c.type === "fact" ? live.has(c.id) : standingOthers.has(`${c.type}:${c.id}`)))
+          : sides < 2;
     if (!over) continue;
     await db.transaction(async (tx) => {
       await tx
@@ -168,6 +174,17 @@ export async function tidyReviews(now = new Date()) {
   }
 }
 
+/** Decisions not replaced and rules still switched on, as refs. */
+async function standingItems(items: ContradictedItem[], conn: DbOrTx = db): Promise<Set<string>> {
+  const dids = [...new Set(items.filter((i) => i.type === "decision").map((i) => i.id))];
+  const rids = [...new Set(items.filter((i) => i.type === "rule").map((i) => i.id))];
+  const [ds, rs] = await Promise.all([
+    dids.length ? conn.select({ id: decisionsTable.id }).from(decisionsTable).where(and(inArray(decisionsTable.id, dids), isNull(decisionsTable.supersededBy))) : [],
+    rids.length ? conn.select({ id: rulesTable.id }).from(rulesTable).where(and(inArray(rulesTable.id, rids), eq(rulesTable.enabled, true))) : [],
+  ]);
+  return new Set([...ds.map((d) => `decision:${d.id}`), ...rs.map((r) => `rule:${r.id}`)]);
+}
+
 /* ---------- Resolving ---------- */
 
 export type ResolveInput =
@@ -175,7 +192,11 @@ export type ResolveInput =
   | { action: "edit"; text: string }
   | { action: "no_longer_true" }
   | { action: "keep"; ref: string }
-  | { action: "write_own"; text: string };
+  | { action: "write_own"; text: string }
+  /** Part O, for a contradiction */
+  | { action: "new_right" }
+  | { action: "old_stands" }
+  | { action: "both_true" };
 
 async function loadReview(tx: DbOrTx, id: number): Promise<FactReview> {
   const [r] = await tx.select().from(factReviewsTable).where(eq(factReviewsTable.id, id));
@@ -207,7 +228,9 @@ export async function resolveFactReview(id: number, input: ResolveInput, now = n
     const facts = await liveFacts(tx, r.factIds);
     let resolution: Record<string, unknown> = { action: input.action };
 
-    if (r.kind === "stale") {
+    if (r.kind === "contradiction") {
+      resolution = await resolveContradiction(tx, r, facts, input, now);
+    } else if (r.kind === "stale") {
       const f = facts[0];
       if (!f) throw new ValidationError("That fact has already been replaced. Refresh to see the current version.");
       if (input.action === "still_true") {
@@ -273,6 +296,64 @@ export async function resolveFactReview(id: number, input: ResolveInput, now = n
   });
 }
 
+/**
+ * A card that contradicts approved items (Part O).
+ * New one is right: the card is approved; facts it contradicts are replaced (kept in history),
+ * decisions are marked replaced, rules are switched off.
+ * Old one stands: the card is rejected and the approved items count as confirmed today.
+ * Both are true: the card is approved and nothing is replaced.
+ */
+async function resolveContradiction(tx: DbOrTx, r: FactReview, facts: Fact[], input: ResolveInput, now: Date): Promise<Record<string, unknown>> {
+  if (input.action !== "new_right" && input.action !== "old_stands" && input.action !== "both_true") {
+    throw new ValidationError("Choose New one is right, Old one stands or Both are true");
+  }
+  const [sug] = r.suggestionId != null ? await tx.select().from(suggestionsTable).where(eq(suggestionsTable.id, r.suggestionId)) : [];
+  if (!sug || sug.status !== "pending") throw new ValidationError("That card was already decided. Refresh to see the latest.");
+  const items = r.contradicts ?? [];
+  const factIds = facts.map((f) => f.id);
+  const standing = await standingItems(items, tx);
+  const decisionIds = items.filter((i) => i.type === "decision" && standing.has(`decision:${i.id}`)).map((i) => i.id);
+  const ruleIds = items.filter((i) => i.type === "rule" && standing.has(`rule:${i.id}`)).map((i) => i.id);
+  const resolution: Record<string, unknown> = { action: input.action };
+
+  if (input.action === "old_stands") {
+    await markRejected(tx, sug.id, now);
+    await writeAudit(tx, { actor: ACTOR, action: "reject", entityType: "suggestion", entityId: sug.id, payload: { kind: sug.kind, via: "contradiction" } });
+    if (factIds.length) await tx.update(factsTable).set({ lastConfirmedAt: now, needsCheck: false }).where(inArray(factsTable.id, factIds));
+    return resolution;
+  }
+
+  const replace = input.action === "new_right";
+  const result = await applySuggestion(tx, sug, sug.payload as Record<string, unknown>, now, replace && sug.kind === "fact" ? factIds : []);
+  await tx.update(suggestionsTable).set({ status: "approved", decidedAt: now, resultType: result.type, resultId: result.id }).where(eq(suggestionsTable.id, sug.id));
+  await writeAudit(tx, { actor: ACTOR, action: "approve", entityType: "suggestion", entityId: sug.id, payload: { kind: sug.kind, result: `${result.type}:${result.id}`, via: "contradiction" } });
+  resolution.result = `${result.type}:${result.id}`;
+
+  if (replace) {
+    // Facts the new one did not already replace are kept in history with no successor, or with the new fact on the same item.
+    const left = await liveFacts(tx, factIds);
+    for (const f of left) {
+      const by = result.type === "fact" ? result.id : f.id;
+      await tx.update(factsTable).set({ supersededBy: by, needsCheck: false }).where(and(eq(factsTable.id, f.id), isNull(factsTable.supersededBy)));
+      await touch(tx, f.entityType, f.entityId);
+      await writeAudit(tx, { actor: ACTOR, action: "retire", entityType: "fact", entityId: f.id, payload: { text: f.text, via: "contradiction", by: resolution.result } });
+    }
+    for (const id of decisionIds) {
+      await tx.update(decisionsTable).set({ supersededBy: result.type === "decision" ? result.id : id }).where(and(eq(decisionsTable.id, id), isNull(decisionsTable.supersededBy)));
+      await writeAudit(tx, { actor: ACTOR, action: "supersede", entityType: "decision", entityId: id, payload: { via: "contradiction", by: resolution.result } });
+    }
+    if (ruleIds.length) {
+      await tx.update(rulesTable).set({ enabled: false }).where(inArray(rulesTable.id, ruleIds));
+      for (const id of ruleIds) await writeAudit(tx, { actor: ACTOR, action: "update", entityType: "rule", entityId: id, payload: { enabled: false, via: "contradiction", by: resolution.result } });
+    }
+    if (factIds.length) await tx.update(factsTable).set({ needsCheck: false }).where(inArray(factsTable.id, factIds));
+    resolution.replaced = [...factIds.map((i) => `fact:${i}`), ...decisionIds.map((i) => `decision:${i}`), ...ruleIds.map((i) => `rule:${i}`)];
+  } else if (factIds.length) {
+    await tx.update(factsTable).set({ lastConfirmedAt: now, needsCheck: false }).where(inArray(factsTable.id, factIds));
+  }
+  return resolution;
+}
+
 /** Count of open fact reviews by kind. */
 export async function reviewCounts() {
   const rows = await db
@@ -280,5 +361,10 @@ export async function reviewCounts() {
     .from(factReviewsTable)
     .where(eq(factReviewsTable.status, "pending"))
     .groupBy(factReviewsTable.kind);
-  return { stale: rows.find((r) => r.kind === "stale")?.n ?? 0, conflicts: rows.find((r) => r.kind === "conflict")?.n ?? 0 };
+  const n = (k: string) => rows.find((r) => r.kind === k)?.n ?? 0;
+  const [items] = await db
+    .select({ n: sql<number>`coalesce(sum(jsonb_array_length(coalesce(${factReviewsTable.contradicts}, '[]'::jsonb))), 0)::int` })
+    .from(factReviewsTable)
+    .where(and(eq(factReviewsTable.status, "pending"), eq(factReviewsTable.kind, "contradiction")));
+  return { stale: n("stale"), conflicts: n("conflict") + n("contradiction"), outOfDate: items?.n ?? 0 };
 }

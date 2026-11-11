@@ -182,6 +182,8 @@ export const decisionsTable = pgTable(
     createdAt: createdAt(),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     suggestionId: integer("suggestion_id"),
+    /** Part O: the decision that replaced it ("New one is right"); its own id when replaced by something other than a decision */
+    supersededBy: integer("superseded_by"),
     search: tsvector("search").generatedAlwaysAs(sql`to_tsvector('english', coalesce(text,''))`),
   },
   (t) => [

@@ -3,6 +3,7 @@
  * Every query carries the visibility filter in its WHERE clause, every result is checked again
  * with sanitiseRefs, and every item handed out is logged with recordReads.
  */
+import { inQuestionRefs } from "./inQuestion";
 import { and, asc, desc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from "drizzle-orm";
 import {
   activityTable,
@@ -336,7 +337,8 @@ export interface ContextOut {
   };
   summary: string | null;
   facts: { ref: string; text: string; source: string | null; attribute: string | null; created_at: string; last_confirmed_at: string; needs_check: boolean }[];
-  decisions: { ref: string; text: string; decided_at: string; decided_by: string | null }[];
+  /** needs_check: a newer claim contradicts it and Ollie has not decided yet (Part O) */
+  decisions: { ref: string; text: string; decided_at: string; decided_by: string | null; needs_check?: true }[];
   open_tasks: TaskOut[];
   promises: TaskOut[];
   waiting_on_them: TaskOut[];
@@ -443,6 +445,7 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
         and(
           or(type === "project" ? eq(decisionsTable.projectId, id) : undefined, linkedDecisions.length ? inArray(decisionsTable.id, linkedDecisions) : sql`false`),
           sql.raw(decisionVisible("decisions", g)),
+          isNull(decisionsTable.supersededBy),
         ),
       )
       .orderBy(desc(decisionsTable.decidedAt))
@@ -522,6 +525,7 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
       .filter((r): r is NonNullable<typeof r> => !!r),
   );
   const decided: NamedRef[] = deciding.filter((r) => decidingNames.has(r)).map((r) => ({ ref: r, name: decidingNames.get(r)!.name }));
+  const inQuestion = await inQuestionRefs();
   const out: ContextOut = {
     entity,
     summary,
@@ -534,7 +538,7 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
       last_confirmed_at: f.lastConfirmedAt.toISOString(),
       needs_check: f.needsCheck,
     })),
-    decisions: decisionRows.map((d) => ({ ref: toRef("decision", d.id), text: d.text, decided_at: d.decidedAt, decided_by: d.decidedBy })),
+    decisions: decisionRows.map((d) => ({ ref: toRef("decision", d.id), text: d.text, decided_at: d.decidedAt, decided_by: d.decidedBy, ...(inQuestion.has(toRef("decision", d.id)) ? { needs_check: true as const } : {}) })),
     open_tasks: tasks.filter((t) => t.kind === "task" && t.status !== "waiting"),
     promises: tasks.filter((t) => t.kind === "promise"),
     waiting_on_them: tasks.filter((t) => t.kind === "task" && t.status === "waiting"),

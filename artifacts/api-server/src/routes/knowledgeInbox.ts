@@ -27,6 +27,9 @@ const ResolveBody = z.discriminatedUnion("action", [
   z.object({ action: z.literal("no_longer_true") }).strict(),
   z.object({ action: z.literal("keep"), ref: z.string().max(40) }).strict(),
   z.object({ action: z.literal("write_own"), text }).strict(),
+  z.object({ action: z.literal("new_right") }).strict(),
+  z.object({ action: z.literal("old_stands") }).strict(),
+  z.object({ action: z.literal("both_true") }).strict(),
 ]);
 const days = z.number().int().min(1).max(3650);
 const SettingsBody = z

@@ -16,7 +16,7 @@ import { Skel } from '@/components/bits';
 import { InlineText } from '@/components/inline-text';
 import { KnowledgeLayout, ListHeader } from '@/components/knowledge/layout';
 import { CreateDialog } from '@/components/knowledge/create-dialog';
-import { HiddenFromAi, PageProblem, PageSkeleton, TriStateAccess } from '@/components/knowledge/parts';
+import { HiddenFromAi, OutOfDateMark, PageProblem, PageSkeleton, ReplacedMark, TriStateAccess } from '@/components/knowledge/parts';
 import { entityPath, isNotFound, TYPE_LABELS, useKnowledgeWrite } from '@/lib/knowledge';
 import { Dropdown } from '@/components/dropdown';
 import { projectOptions } from '@/components/dropdown-options';
@@ -51,13 +51,15 @@ export function DecisionsListPage() {
       {rows.length > 0 && (
         <div>
           {rows.map((d) => (
-            <Link key={d.id} href={'/knowledge/decisions/' + d.id} className="oo-krow oo-krow-link" style={{ textDecoration: 'none', alignItems: 'flex-start', justifyContent: 'flex-start', flexWrap: 'nowrap' }} data-testid={'row-decision-' + d.id}>
+            <Link key={d.id} href={'/knowledge/decisions/' + d.id} className="oo-krow oo-krow-link" style={{ textDecoration: 'none', alignItems: 'flex-start', justifyContent: 'flex-start', flexWrap: 'nowrap', opacity: d.replaced ? 0.6 : 1 }} data-testid={'row-decision-' + d.id}>
               <span className="oo-tl-date" style={{ paddingTop: 2 }}>{formatDayMonthShort(d.decidedAt)}</span>
               <span style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, flex: 1 }}>
                 <span style={{ overflowWrap: 'anywhere' }}>{d.text}</span>
                 <span className="oo-muted" style={{ fontSize: 13, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                   {d.project ? d.project.name : 'No project'}
                   {d.hiddenFromAi && <HiddenFromAi confidential={d.confidential === true || d.project?.confidential === true} />}
+                  {d.outOfDate && <span className="oo-check-mark" data-tone="conflict" data-testid={'mark-out-of-date-decision-' + d.id}>May be out of date</span>}
+                  {d.replaced && <ReplacedMark testId={'mark-replaced-decision-' + d.id} />}
                 </span>
               </span>
             </Link>
@@ -92,6 +94,8 @@ export function DecisionPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: '1 1 320px' }}>
           <p className="oo-eyebrow">
             Decision
+            {d.outOfDate && <OutOfDateMark testId="mark-out-of-date-decision" />}
+            {d.replaced && <ReplacedMark testId="mark-replaced-decision" />}
             {d.project && (
               <>
                 {' · '}

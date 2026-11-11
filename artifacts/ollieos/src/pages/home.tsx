@@ -131,6 +131,10 @@ export default function HomePage() {
           </Link>
         </>
       )}
+      <span aria-hidden="true" className="oo-t4">·</span>
+      <Link href="/digest/week" style={{ color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-roundup">
+        Weekly round-up
+      </Link>
       <AccessStatus access={home.data.access} />
     </>
   ) : (

@@ -421,8 +421,9 @@ export function draftRaw(d: OutgoingDraft): string {
  * Saves a draft in the thread, updating the earlier one when it still exists (Ollie may have sent
  * or deleted it). Returns the draft id. Never sends.
  */
-export async function saveGmailDraft(threadId: string, draftId: string | null, d: OutgoingDraft): Promise<string> {
-  const message = { raw: draftRaw(d), threadId };
+export async function saveGmailDraft(threadId: string | null, draftId: string | null, d: OutgoingDraft): Promise<string> {
+  // No thread: a new email on its own (the weekly round-up).
+  const message = threadId ? { raw: draftRaw(d), threadId } : { raw: draftRaw(d) };
   if (draftId) {
     const updated = await proxyWriteJson(CONNECTOR, NAME, "PUT", `/gmail/v1/users/me/drafts/${encodeURIComponent(draftId)}`, { id: draftId, message });
     if (updated && typeof updated.id === "string") return updated.id;
