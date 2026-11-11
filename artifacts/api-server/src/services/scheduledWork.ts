@@ -5,6 +5,7 @@
  * clean-ups. Each part runs on its own, and a failure in one never stops the others.
  */
 import { londonParts } from "@workspace/shared";
+import { pool } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { clearOldCalendar } from "./aiWrites";
 import { buildUpcomingBriefs } from "./briefs";
@@ -23,7 +24,34 @@ export function digestTimeReached(now: Date): boolean {
   return p.hour * 60 + p.minute >= DIGEST_NOT_BEFORE.hour * 60 + DIGEST_NOT_BEFORE.minute;
 }
 
-export async function scheduledWork(from: "sweep" | "connectors", now = new Date()): Promise<Record<string, unknown>> {
+let workTail: Promise<unknown> = Promise.resolve();
+
+export function scheduledWork(from: "sweep" | "connectors", now = new Date()): Promise<Record<string, unknown>> {
+  // Wait locally before reserving a pool connection for the cross-server lock.
+  const work = workTail.then(() => lockedScheduledWork(from, now));
+  workTail = work.catch(() => undefined);
+  return work;
+}
+
+async function lockedScheduledWork(from: "sweep" | "connectors", now: Date): Promise<Record<string, unknown>> {
+  // Share the lock with timer/sweep calls too: no two preparation passes overlap,
+  // even on different server instances. Session locks avoid a long-lived transaction.
+  const client = await pool.connect();
+  try {
+    await client.query("select pg_advisory_lock(472091, 1)");
+    return await runScheduledWork(from, now);
+  } finally {
+    try {
+      await client.query("select pg_advisory_unlock(472091, 1)");
+      client.release();
+    } catch (err) {
+      client.release(true);
+      logger.error({ err }, "Could not release scheduled work lock");
+    }
+  }
+}
+
+async function runScheduledWork(from: "sweep" | "connectors", now: Date): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {};
   const part = async (name: string, fn: () => Promise<unknown>) => {
     try {

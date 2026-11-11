@@ -121,13 +121,15 @@ export async function lastGoodRun(key: ServiceKey): Promise<ConnectorRun | null>
 }
 
 /** Who reads a service now. */
-export async function readByNow(key: ServiceKey, settings?: ConnectorSettings): Promise<ReadBy> {
+export async function readByNow(key: ServiceKey, settings?: ConnectorSettings, good?: ConnectorRun | null): Promise<ReadBy> {
   if (!DIRECT_READY.has(key)) return "claude";
   // Claude never reads Dropbox for OllieOS, so there is nothing to hand over.
   if (key === "dropbox") return "ollieos";
   const s = settings ?? (await getConnectorSettings());
   const chosen = s.readBy[key];
   if (chosen) return chosen;
+  // Granola needs historical proof of an own meeting, not just the latest good run.
+  if (key !== "granola" && good !== undefined) return good ? "ollieos" : "claude";
   return (await provenRun(key)) ? "ollieos" : "claude";
 }
 

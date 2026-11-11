@@ -4,6 +4,7 @@ import { ensureSeeds } from "./services/seeds";
 import { runMigrations } from "./services/migrations";
 import { startConnectorTimer } from "./services/connectors";
 import { startKnowledgeReader } from "./services/documents/reader";
+import { startScheduledWorkQueue } from "./services/scheduledWorkQueue";
 
 const rawPort = process.env["PORT"];
 
@@ -32,4 +33,5 @@ app.listen(port, (err) => {
   ensureSeeds().catch((e) => logger.error({ err: e }, "Could not create the first goals and rules"));
   startConnectorTimer();
   startKnowledgeReader();
+  startScheduledWorkQueue();
 });
