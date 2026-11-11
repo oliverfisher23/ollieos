@@ -9,7 +9,7 @@
  * chosen interval). A run is claimed in the database first, so two server instances never run
  * the same check.
  */
-import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { appSettingsTable, connectorRunsTable, db, peopleTable, type ConnectorRun } from "@workspace/db";
 import { addDays, londonParts, londonWallTimeToInstant, todayLondon } from "@workspace/shared";
 import { emailsOf } from "../personMatch";
@@ -424,8 +424,23 @@ export async function timerTick(now = new Date()): Promise<boolean> {
 
 let timer: NodeJS.Timeout | null = null;
 
+/** Message on a check that was cut off because the server restarted. */
+export const STOPPED_BY_RESTART = "Stopped when OllieOS restarted, for example after publishing. The next check carries on.";
+
+/** Closes checks left open by a restart, so they do not read as still running. */
+export async function closeUnfinishedRuns(now = new Date()): Promise<number> {
+  const closed = await db
+    .update(connectorRunsTable)
+    .set({ finishedAt: now, ok: false, error: STOPPED_BY_RESTART })
+    .where(isNull(connectorRunsTable.finishedAt))
+    .returning({ id: connectorRunsTable.id });
+  return closed.length;
+}
+
 export function startConnectorTimer() {
   if (timer || process.env.NODE_ENV === "test" || process.env.OLLIEOS_CONNECTOR_TIMER === "off") return;
+  // Nothing can be running yet in this server, so any open check was cut off by the restart.
+  closeUnfinishedRuns().catch((err) => logger.error({ err }, "Could not close checks cut off by a restart"));
   let busy = false;
   timer = setInterval(() => {
     if (busy) return;

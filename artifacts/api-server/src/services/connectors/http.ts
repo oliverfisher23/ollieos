@@ -1,7 +1,7 @@
 /**
  * Calls a service through its Replit connector and turns failures into messages Ollie can act on.
  * 401 and 403 mean the connection needs reconnecting in Replit; 429 is retried once after the
- * wait the service asks for.
+ * wait the service asks for; a read that cannot reach the service is tried twice more.
  */
 import { ReplitConnectors } from "@replit/connectors-sdk";
 
@@ -19,6 +19,9 @@ let client: ReplitConnectors | null = null;
 const connectors = () => (client ??= new ReplitConnectors());
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Waits before each retry of a read that could not reach the service at all. */
+const NETWORK_RETRIES = process.env.NODE_ENV === "test" ? [0, 0] : [2_000, 6_000];
 
 /**
  * Services that can also be reached with a key saved in Replit Secrets, for when the Replit
@@ -45,6 +48,7 @@ function send(connector: string, path: string, write?: Write): Promise<Response>
 
 /** Calls through the connector, retrying one 429 and turning access problems into ConnectorErrors. */
 async function call(connector: string, name: string, path: string, write?: Write): Promise<Response> {
+  let retried429 = false;
   for (let attempt = 0; ; attempt++) {
     let res: Response;
     try {
@@ -52,9 +56,16 @@ async function call(connector: string, name: string, path: string, write?: Write
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (/no .*connection/i.test(msg)) throw new ConnectorError(`${name} is not connected to OllieOS.`, true);
+      // A dropped connection is usually brief: try a read twice more before giving up. Never repeat a
+      // write, because the first may have landed (a second Gmail draft, say).
+      if (!write && attempt < NETWORK_RETRIES.length) {
+        await sleep(NETWORK_RETRIES[attempt]);
+        continue;
+      }
       throw new ConnectorError(`Could not reach ${name}: ${msg}`);
     }
-    if (res.status === 429 && attempt === 0) {
+    if (res.status === 429 && !retried429) {
+      retried429 = true;
       const wait = Math.min(Number(res.headers.get("retry-after")) || 5, 30);
       await sleep(wait * 1000);
       continue;

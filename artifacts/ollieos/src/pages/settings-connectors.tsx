@@ -206,11 +206,23 @@ function checkedLine(key: string, found: number): string {
   return `Read ${plural(found, key === 'gmail' ? 'email' : 'message')}. New items are in your Inbox.`;
 }
 
+/** A failure the next check usually gets past by itself: the service could not be reached, or a restart cut the check off. */
+function passing(r: ConnectorRun | undefined): boolean {
+  return !!r && !r.ok && /^(Could not reach|Stopped when OllieOS restarted|.* is already being checked|.* asked OllieOS to slow down)/.test(r.error ?? '');
+}
+
+/** One brief failure after a good check is not worth Ollie's attention; two in a row are. */
+function onlyABlip(s: ConnectorService): boolean {
+  const [last, before] = s.runs;
+  return passing(last) && (!before || before.ok);
+}
+
 function status(s: ConnectorService): { label: string; tone?: string } {
   if (!s.canReadDirect) return { label: 'Read by Claude' };
   const last = s.runs[0];
   if (s.readBy === 'claude') return { label: 'Read by Claude', tone: 'waiting' };
   if (!last) return { label: 'First check due' , tone: 'waiting' };
+  if (!last.ok && onlyABlip(s)) return { label: 'Will try again', tone: 'waiting' };
   if (!last.ok) return { label: 'Needs attention', tone: 'high' };
   return { label: 'Working', tone: 'done' };
 }
@@ -277,7 +289,9 @@ function ServiceCard({ s }: { s: ConnectorService }) {
           )}
           {direct && last && !last.ok && (
             <p className="oo-soft" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }} data-testid={'text-connector-fix-' + s.key}>
-              If this keeps happening, reconnect {s.name} in Replit under Integrations, then press Check now.
+              {onlyABlip(s)
+                ? 'Usually brief. The next check will try again, or press Check now.'
+                : `If this keeps happening, reconnect ${s.name} in Replit under Integrations, then press Check now.`}
             </p>
           )}
           {direct && !last && (
