@@ -1369,3 +1369,24 @@ The fix is a link between data: each task remembers where it came from (already 
 63. **Which open tasks are checked against an exchange from another source.** *Proposal:* tasks with anyone in it or their organisation (up to 15), plus the 20 most recently touched open tasks for automatic confirmation emails only. This keeps the AI read small and stops random matches.
 64. **Acknowledgements.** *Proposal:* "on it", "will do", "looking now" leave the task as it is. The promise capture that already exists still turns "I'll send it Friday" into a promise.
 65. **Order.** *Proposal:* build Part U next, before Parts R, S and T, since it fixes tasks Ollie already has piling up.
+
+## 21. Evals: knowing how well each agent does (asked for 11th November 2026, agreed 11th November 2026)
+
+Ollie asked how to build evals into OllieOS and to understand its different agents. OllieOS runs about twenty AI jobs on two models, and Ollie's everyday decisions (approving a card, moving an item to Noise, keeping a "Probably noise" item, restoring a task) already say whether each one got it right. What is missing is a record of each AI run to attach those decisions to: nothing records the model, prompt version, tokens, cost or speed of a run (only the research agent's search count). Agreed with Ollie on 11th November 2026 ("yea start"): four parts, each its own sign-off, starting with the record, since every other part needs it and Part U (section 20, waiting for Ollie's answers) should be measured from its first run.
+
+| Part | Features | Size |
+|---|---|---|
+| V | Every AI run recorded (agent, model, prompt version, tokens, estimated cost, time, errors); an Agents page listing every internal agent and every connected AI | Medium |
+| W | Scorecards from Ollie's own decisions, per agent per week, and a line in the weekly round-up when one drops | Medium |
+| X | "Keep as a test case" on corrections, and a replay command that runs a changed prompt or model against the saved cases before it ships | Medium to large |
+| Y | Checks for the writers: code checks (no em dashes, word limits, only citing what it was given, rules), a sampled Sonnet grader, and thumbs up or down on Ask, briefs and the digest | Medium |
+
+### Part V: Every AI run recorded, and the Agents page
+
+- **The record.** A new table `ai_runs`, one row per call to the model: the agent, model, a prompt version (a short fingerprint of the instructions, so a prompt change shows as a new version), when, how long, whether it worked and the error if not, input, output and cache tokens, web searches, and an estimated cost. No message text, email or document is kept in it. Kept 90 days.
+- **One place.** Every agent already calls the model through one of three helpers (the Haiku and Sonnet helper the sorters use, the Ask OllieOS writers, the research agent). The record is written there, and each caller names its agent, so a call with no agent name does not compile. Recording never fails the agent's own work.
+- **Cost.** Estimated at Anthropic's list prices (Haiku 5.5: $0.10 in, $0.50 out per million tokens, $0.50 and $2.50 above 100,000 input tokens; Sonnet 5.5: $2 in, $10 out; cache writes at 1.25 times input, cache reads at a tenth, Sonnet's at $0.10; web searches at $10 per 1,000). Replit bills them through its credits, so the page calls them estimates, in US dollars.
+- **The agents.** A fixed list in the code names each agent, says in one line what it does and what it may read, and which model it uses: Gmail sorter, Slack sorter, Granola reader, Granola look back, Probably noise, Needs a reply, Waiting for a reply, Drive file matcher, contradiction check, function and client suggester, primary user suggester, document reader, document change line, thread summaries, "How you write", company research, Ask OllieOS, Ask's draft a reply, email replies and chases, check-in drafts, Slack reply drafts, meeting briefs and the digest summary.
+- **Agents page** at Settings, Agents (`/settings/agents`). One card per agent: what it does, its model, runs, failures, estimated cost and average time over the last 7 days, its last run and last error, and how many prompt versions it ran on. Sorted by cost. A total for the week at the top. Then **Connected AIs**: each connected tool (Claude, ChatGPT, Gemini, the Claude sweep, Ask OllieOS) with what it read and wrote in the last 7 days, its Knowledge Inbox proposals (approved, rejected, waiting) and when it was last used.
+- **Not included:** scorecards (Part W); keeping the text of runs; changing any agent's prompt or model.
+- **Checked by:** a Haiku call records one run with its tokens and estimated cost; a failed call records the error and the agent still reports its own failure as before; the Agents page shows runs and cost by agent for the week; a connected AI's proposals and reads show under Connected AIs; runs older than 90 days are cleared.
