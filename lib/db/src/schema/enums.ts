@@ -81,6 +81,9 @@ export const docLocationEnum = pgEnum("doc_location", DOC_LOCATIONS);
 /** Part M: where a product is. Kept in step with PRODUCT_STATES in lib/shared. */
 export const PRODUCT_STATES = ["live", "pilot", "in_development", "retired"] as const;
 export const productStateEnum = pgEnum("product_state", PRODUCT_STATES);
+/** Who a product is mainly for. Kept in step with PRODUCT_USERS in lib/shared. */
+export const PRODUCT_USERS = ["students", "employers", "universities", "colleges", "schools"] as const;
+export const productUserEnum = pgEnum("product_user", PRODUCT_USERS);
 /** Part M: where a playbook is; only In use ones reach AI. Kept in step with PLAYBOOK_STATES in lib/shared. */
 export const PLAYBOOK_STATES = ["draft", "in_use", "retired"] as const;
 export const playbookStateEnum = pgEnum("playbook_state", PLAYBOOK_STATES);

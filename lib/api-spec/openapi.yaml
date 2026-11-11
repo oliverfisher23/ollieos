@@ -2366,6 +2366,19 @@ paths:
         "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /products/suggest-users:
+    post:
+      operationId: suggestProductUsers
+      tags: [knowledge]
+      summary: Ask AI to suggest the primary user of each product that has none, from what OllieOS knows; suggestions go to the Knowledge Inbox
+      responses:
+        "200":
+          description: What was checked and suggested
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuggestProductUsersResult" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /products/{slug}:
     parameters:
       - $ref: "#/components/parameters/Slug"
@@ -7145,15 +7158,32 @@ components:
       type: string
       enum: [live, pilot, in_development, retired]
 
+    ProductUser:
+      type: string
+      description: Who a product is mainly for
+      enum: [students, employers, universities, colleges, schools]
+
+    SuggestProductUsersResult:
+      type: object
+      required: [checked, suggested, unclear]
+      properties:
+        checked: { type: integer, description: Products without a primary user that AI may read }
+        suggested: { type: integer, description: New cards sent to the Knowledge Inbox }
+        unclear: { type: integer, description: Products the documents did not settle }
+
     Product:
       type: object
-      required: [id, name, slug, description, state, ownerId, summary, confidential, aiAccess, createdBy, createdAt, updatedAt, owner]
+      required: [id, name, slug, description, state, primaryUser, ownerId, summary, confidential, aiAccess, createdBy, createdAt, updatedAt, owner]
       properties:
         id: { type: integer }
         name: { type: string }
         slug: { type: string }
         description: { type: [string, "null"] }
         state: { $ref: "#/components/schemas/ProductState" }
+        primaryUser:
+          oneOf:
+            - $ref: "#/components/schemas/ProductUser"
+            - type: "null"
         ownerId: { type: [integer, "null"] }
         summary: { type: [string, "null"] }
         confidential: { type: boolean }
@@ -7168,7 +7198,7 @@ components:
 
     ProductListItem:
       type: object
-      required: [id, name, slug, confidential, description, state, aiAccess, ownerName, factCount, updatedAt]
+      required: [id, name, slug, confidential, description, state, primaryUser, aiAccess, ownerName, factCount, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -7176,6 +7206,10 @@ components:
         confidential: { type: boolean }
         description: { type: [string, "null"] }
         state: { $ref: "#/components/schemas/ProductState" }
+        primaryUser:
+          oneOf:
+            - $ref: "#/components/schemas/ProductUser"
+            - type: "null"
         aiAccess: { type: boolean }
         ownerName: { type: [string, "null"] }
         factCount: { type: integer }
@@ -7199,6 +7233,10 @@ components:
         name: { type: string, minLength: 1, maxLength: 200 }
         description: { type: [string, "null"], maxLength: 300 }
         state: { $ref: "#/components/schemas/ProductState" }
+        primaryUser:
+          oneOf:
+            - $ref: "#/components/schemas/ProductUser"
+            - type: "null"
         ownerId: { type: [integer, "null"] }
         summary: { type: [string, "null"], maxLength: 20000 }
         confidential: { type: boolean }
@@ -7211,6 +7249,10 @@ components:
         name: { type: string, minLength: 1, maxLength: 200 }
         description: { type: [string, "null"], maxLength: 300 }
         state: { $ref: "#/components/schemas/ProductState" }
+        primaryUser:
+          oneOf:
+            - $ref: "#/components/schemas/ProductUser"
+            - type: "null"
         ownerId: { type: [integer, "null"] }
         summary: { type: [string, "null"], maxLength: 20000 }
         confidential: { type: boolean }

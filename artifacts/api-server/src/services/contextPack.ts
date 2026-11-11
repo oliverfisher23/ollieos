@@ -18,7 +18,7 @@ import {
   projectsTable,
   rulesTable,
 } from "@workspace/db";
-import { DOC_LOCATION_LABELS, PRODUCT_STATE_LABELS, formatDayMonth, formatLong, londonDate, todayLondon, toRef } from "@workspace/shared";
+import { DOC_LOCATION_LABELS, PRODUCT_STATE_LABELS, PRODUCT_USER_LABELS, formatDayMonth, formatLong, londonDate, todayLondon, toRef } from "@workspace/shared";
 import { writeAudit } from "../lib/audit";
 import { decisionVisible, documentVisible, factVisible, personVisible, playbookVisible } from "../lib/ai-data/visibility";
 import { defaultScope, visibleRefs } from "../lib/ai-data/scope";
@@ -58,7 +58,7 @@ async function loadEntity(type: PackType, id: number) {
   }
   if (type === "product") {
     const [p] = await db.select().from(productsTable).where(eq(productsTable.id, id));
-    return p ? { name: p.name, slug: p.slug, summary: p.summary ?? p.description, details: [PRODUCT_STATE_LABELS[p.state]] } : null;
+    return p ? { name: p.name, slug: p.slug, summary: p.summary ?? p.description, details: [PRODUCT_STATE_LABELS[p.state], ...(p.primaryUser ? [`Primary user: ${PRODUCT_USER_LABELS[p.primaryUser]}`] : [])] } : null;
   }
   const [o] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, id));
   return o ? { name: o.name, slug: o.slug, summary: o.summary, details: [o.type].filter((x): x is string => !!x) } : null;

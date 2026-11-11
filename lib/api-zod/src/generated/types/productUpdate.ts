@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ProductState } from './productState';
+import type { ProductUser } from './productUser';
 
 export interface ProductUpdate {
   /**
@@ -19,6 +20,7 @@ export interface ProductUpdate {
      */
   description?: string | null;
   state?: ProductState;
+  primaryUser?: ProductUser | null;
   /** @nullable */
   ownerId?: number | null;
   /**

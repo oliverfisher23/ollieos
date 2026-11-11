@@ -1211,3 +1211,12 @@ Ollie shared a diagram of how OllieOS should work: sources are read, claims are 
   - Context packs: "Download for Claude" on project, product and organisation pages downloads one Markdown file, and says how many items it holds and how many were left out. Refused for something hidden from AI.
   - Fix (11th November 2026, after going live): the first judge listed items with a reason saying they did not clash, and these were flagged anyway (two of the first three live conflicts). The judge now gives its reasoning and then an explicit yes or no for each item, and only a yes counts. On the next publish a one-off start-up change withdraws the open contradictions the first judge made, lifts the "May be out of date" marks they set, and sends every waiting card back to be checked again.
   - Weekly round-up at `/digest/week` (linked from Home and from Settings, Knowledge, where the day and hour are set). Past weeks are kept for six months and picked from a list; "Make one now" covers the last seven days. Lines that are confidential or hidden from AI carry a lock on the page and are left out of the Gmail draft.
+
+## 17. Primary user for products (asked for 11th November 2026)
+
+Ollie asked to record who each product is mainly for, picked from a fixed list: Students, Employers, Universities, Colleges, Schools. One per product, and it can be left unset.
+
+- Set on the product page and when adding a product. The products list shows it and can be filtered by it, including "Not set".
+- "Suggest primary users" on the products list asks Claude Haiku, for each product AI may read that has none and no card already waiting, to pick from the list using the product's details, facts, linked documents and items that mention it. It answers "unclear" rather than guess from a name. Each answer is a Changed details card in the Knowledge Inbox with a one-line reason; nothing changes until Ollie approves. Confidential and AI-hidden products are never sent.
+- The document reader can give a primary user on a new Product card, and Claude can give one through propose_product, for a new product or (as a change card) an existing one.
+- Ask, briefs, Download for Claude and the AI tools see the primary user with the product's state.

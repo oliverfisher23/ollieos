@@ -207,6 +207,7 @@ import type {
   StrategySection,
   StrategySectionInput,
   StrategySectionUpdate,
+  SuggestProductUsersResult,
   SuggestionApprove,
   SuggestionDecision,
   SweepStatus,
@@ -10510,6 +10511,80 @@ export const useCreateProduct = <TError = ErrorType<ErrorResponse | NotAuthorise
         TContext
       > => {
       return useMutation(getCreateProductMutationOptions(options), queryClient);
+    }
+
+export const getSuggestProductUsersUrl = () => {
+
+
+
+
+  return `/api/products/suggest-users`
+}
+
+/**
+ * @summary Ask AI to suggest the primary user of each product that has none, from what OllieOS knows; suggestions go to the Knowledge Inbox
+ */
+export const suggestProductUsers = async ( options?: Parameters<typeof customFetch>[1]): Promise<SuggestProductUsersResult> => {
+
+  return customFetch<SuggestProductUsersResult>(getSuggestProductUsersUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSuggestProductUsersMutationKey = () => ['suggestProductUsers'] as const;
+
+export const getSuggestProductUsersMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestProductUsers>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof suggestProductUsers>>, TError,void, TContext> => {
+
+const mutationKey = getSuggestProductUsersMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof suggestProductUsers>>, void> = () => {
+
+
+          return  suggestProductUsers(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SuggestProductUsersMutationResult = NonNullable<Awaited<ReturnType<typeof suggestProductUsers>>>
+
+    export type SuggestProductUsersMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Ask AI to suggest the primary user of each product that has none, from what OllieOS knows; suggestions go to the Knowledge Inbox
+ */
+export const useSuggestProductUsers = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestProductUsers>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof suggestProductUsers>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSuggestProductUsersMutationOptions(options), queryClient);
     }
 
 export const getGetProductUrl = (slug: string,) => {

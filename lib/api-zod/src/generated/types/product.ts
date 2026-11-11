@@ -7,6 +7,7 @@
  */
 import type { NamedLink } from './namedLink';
 import type { ProductState } from './productState';
+import type { ProductUser } from './productUser';
 
 export interface Product {
   id: number;
@@ -15,6 +16,7 @@ export interface Product {
   /** @nullable */
   description: string | null;
   state: ProductState;
+  primaryUser: ProductUser | null;
   /** @nullable */
   ownerId: number | null;
   /** @nullable */

@@ -21,7 +21,7 @@ import {
   type Suggestion,
 } from "@workspace/db";
 import { hasEmail } from "./personMatch";
-import { RULE_MAX, RELATIONSHIPS, type Cadence, type ProductState, type Relationship } from "@workspace/shared";
+import { RULE_MAX, RELATIONSHIPS, isProductUser, type Cadence, type ProductState, type ProductUser, type Relationship } from "@workspace/shared";
 import { writeAudit, type DbOrTx } from "../lib/audit";
 import { ACTOR, cleanText, resolveEntity, touch, uniqueSlug, type EntityKind } from "./knowledge/common";
 import { ConflictError, NotFoundError, ValidationError } from "./tasks";
@@ -141,6 +141,8 @@ export interface ProductPayload {
   name: string;
   description?: string | null;
   state?: ProductState | null;
+  /** Who it is mainly for, from the fixed list */
+  primary_user?: ProductUser | null;
   summary?: string | null;
   /** Facts found about it in the same read; they become facts on the product when approved */
   facts?: string[];
@@ -180,6 +182,8 @@ export interface SummaryChangePayload {
   before: Record<string, string | null>;
   /** When the change moves a person to another organisation */
   organisation_id?: number | null;
+  /** Why AI suggests it, in a line, when it says (a product's primary user) */
+  reason?: string | null;
 }
 
 export type Proposal =
@@ -262,6 +266,7 @@ export const FIELD_LABELS: Record<string, string> = {
   notes: "Notes",
   description: "Description",
   owner: "Owner",
+  primary_user: "Primary user",
 };
 const EDITABLE: Record<Exclude<SuggestionKind, "summary_change">, string[]> = {
   fact: ["text"],
@@ -282,15 +287,18 @@ const CHANGEABLE: Record<EntityKind, string[]> = {
   person: ["role", "email", "relationship_summary", "organisation"],
   project: ["area", "status", "summary"],
   organisation: ["type", "summary"],
-  product: ["description", "summary"],
+  product: ["description", "summary", "primary_user"],
 };
+
+/** Fields on a change card that are picked from a fixed list, so they are approved or rejected but not typed over. */
+const FIXED_FIELDS = new Set(["organisation", "primary_user"]);
 
 export function changeableFields(type: EntityKind): string[] {
   return CHANGEABLE[type];
 }
 
 export function editableFields(s: Pick<Suggestion, "kind" | "payload">): string[] {
-  if (s.kind === "summary_change") return Object.keys((s.payload as SummaryChangePayload).fields).filter((k) => k !== "organisation");
+  if (s.kind === "summary_change") return Object.keys((s.payload as SummaryChangePayload).fields).filter((k) => !FIXED_FIELDS.has(k));
   if (s.kind === "document" && (s.payload as DocumentPayload).document_id != null) return [];
   return EDITABLE[s.kind];
 }
@@ -359,6 +367,10 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
   const text = cleanText(mainText(p));
   if (!text) throw new ValidationError(p.kind === "fact" || p.kind === "decision" ? "A suggestion needs some text" : "A suggestion needs a name");
   if (p.kind === "summary_change" && !Object.keys(p.payload.fields).length) throw new ValidationError("Nothing to change");
+  if (p.kind === "summary_change" && "primary_user" in p.payload.fields && (p.entityType !== "product" || !isProductUser(p.payload.fields.primary_user))) {
+    throw new ValidationError("Choose a primary user from the list");
+  }
+  if (p.kind === "product" && p.payload.primary_user != null && !isProductUser(p.payload.primary_user)) throw new ValidationError("Choose a primary user from the list");
   if (p.kind === "rule" && p.payload.rule.length > RULE_MAX) throw new ValidationError(`Keep the rule to ${RULE_MAX} characters or fewer`);
   const norm = normalise(text);
   const { entityType, entityId } = entityOf(p);
@@ -682,6 +694,7 @@ export async function applySuggestion(
         const set: Partial<typeof productsTable.$inferInsert> = {};
         if (f.description !== undefined) set.description = f.description;
         if (f.summary !== undefined) set.summary = f.summary;
+        if (isProductUser(f.primary_user)) set.primaryUser = f.primary_user;
         if (Object.keys(set).length) await tx.update(productsTable).set(set).where(eq(productsTable.id, id));
       } else if (type === "project") {
         const set: Partial<typeof projectsTable.$inferInsert> = {};
@@ -770,7 +783,12 @@ export async function applySuggestion(
     }
     case "product": {
       const p = payload as unknown as ProductPayload;
-      const id = await insertProduct(tx, { name: p.name, description: str(p.description), state: p.state ?? "live", summary: str(p.summary) }, s.proposedBy, s.id);
+      const id = await insertProduct(
+        tx,
+        { name: p.name, description: str(p.description), state: p.state ?? "live", primaryUser: isProductUser(p.primary_user) ? p.primary_user : null, summary: str(p.summary) },
+        s.proposedBy,
+        s.id,
+      );
       const source = s.sourceLabel ?? s.sourceType ?? null;
       for (const text of p.facts ?? []) {
         const [f] = await tx

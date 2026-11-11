@@ -3,6 +3,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Link, useLocation, useParams } from 'wouter';
 import {
   createProduct,
+  suggestProductUsers,
   updateProduct,
   useGetProduct,
   useListPeople,
@@ -10,8 +11,10 @@ import {
   type LinkedProduct,
   type ProductState,
   type ProductUpdate,
+  type ProductUser,
 } from '@workspace/api-client-react';
-import { PRODUCT_STATE_LABELS, PRODUCT_STATES, formatDayMonthShort } from '@workspace/shared';
+import { PRODUCT_STATE_LABELS, PRODUCT_STATES, PRODUCT_USER_LABELS, PRODUCT_USERS, formatDayMonthShort } from '@workspace/shared';
+import { notify } from '@/lib/notify';
 import { Skel } from '@/components/bits';
 import { InlineText } from '@/components/inline-text';
 import { Dropdown } from '@/components/dropdown';
@@ -41,18 +44,63 @@ export function ProductStatePill({ state }: { state: ProductState }) {
   return <span className="oo-pill" data-tone={STATE_TONE[state]}>{PRODUCT_STATE_LABELS[state]}</span>;
 }
 
+const USER_OPTIONS = PRODUCT_USERS.map((u) => ({ value: u, label: PRODUCT_USER_LABELS[u] }));
+
 /* ---------- List ---------- */
 
 export function ProductsListPage() {
   const list = useListProducts();
+  const write = useKnowledgeWrite();
   const [creating, setCreating] = useState(false);
+  const [user, setUser] = useState('');
+  const [suggesting, setSuggesting] = useState(false);
+  const missing = list.data?.filter((p) => !p.primaryUser).length ?? 0;
+  const shown = list.data?.filter((p) => !user || (user === 'none' ? !p.primaryUser : p.primaryUser === user)) ?? [];
+
+  const suggest = async () => {
+    setSuggesting(true);
+    const r = await write(() => suggestProductUsers(), { fail: 'Could not suggest primary users' });
+    setSuggesting(false);
+    if (!r) return;
+    if (!r.checked) notify('Nothing to check', 'Every product AI may read has a primary user or a suggestion waiting.');
+    else
+      notify(
+        r.suggested ? `${r.suggested === 1 ? '1 suggestion' : `${r.suggested} suggestions`} in your Knowledge Inbox` : 'No new suggestions',
+        r.unclear ? `What OllieOS knows did not settle ${r.unclear === 1 ? '1 product' : `${r.unclear} products`}. Set those yourself.` : undefined,
+      );
+  };
+
   return (
     <KnowledgeLayout testId="page-products">
       <ListHeader
         title="Products"
         line="What you sell or run, with the facts about each and what to say and not say."
-        action={<button type="button" className="oo-btn oo-btn-ink" onClick={() => setCreating(true)} data-testid="button-new-product">New product</button>}
+        action={
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {missing > 0 && (
+              <button type="button" className="oo-btn oo-btn-outline" onClick={suggest} disabled={suggesting} data-testid="button-suggest-product-users">
+                {suggesting ? 'Suggesting…' : 'Suggest primary users'}
+              </button>
+            )}
+            <button type="button" className="oo-btn oo-btn-ink" onClick={() => setCreating(true)} data-testid="button-new-product">New product</button>
+          </div>
+        }
       />
+      {!!list.data?.length && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <label htmlFor="products-user-filter" className="oo-muted" style={{ fontSize: 13 }}>Primary user</label>
+          <Dropdown
+            id="products-user-filter"
+            variant="compact"
+            style={{ maxWidth: 220 }}
+            value={user}
+            onChange={setUser}
+            options={[{ value: '', label: 'Everyone' }, ...USER_OPTIONS, { value: 'none', label: 'Not set' }]}
+            testId="select-products-user-filter"
+          />
+          {missing > 0 && <span className="oo-muted" style={{ fontSize: 13 }} data-testid="text-products-missing-user">{missing === 1 ? '1 product has' : `${missing} products have`} no primary user. AI suggestions wait for your approval in the Knowledge Inbox.</span>}
+        </div>
+      )}
       {list.isLoading ? (
         <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{[0, 1, 2].map((i) => <Skel key={i} h={40} />)}</div>
       ) : list.error || !list.data ? (
@@ -61,7 +109,8 @@ export function ProductsListPage() {
         <p className="oo-muted" style={{ margin: 0 }} data-testid="state-products-empty">No products yet. Add one with New product, then link the projects and organisations that use it.</p>
       ) : (
         <div data-testid="list-products">
-          {list.data.map((p) => (
+          {shown.length === 0 && <p className="oo-muted" style={{ margin: 0 }} data-testid="state-products-filtered-empty">No products match.</p>}
+          {shown.map((p) => (
             <Link key={p.id} href={'/knowledge/products/' + p.slug} className="oo-krow oo-krow-link" style={{ textDecoration: 'none', alignItems: 'flex-start' }} data-testid={'row-product-' + p.slug}>
               <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: '1 1 300px' }}>
                 <span style={{ fontWeight: 500 }}>{p.name}</span>
@@ -70,6 +119,7 @@ export function ProductsListPage() {
               <span style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', fontSize: 13 }} className="oo-muted">
                 {(p.confidential || !p.aiAccess) && <HiddenFromAi confidential={p.confidential} />}
                 <ProductStatePill state={p.state} />
+                {p.primaryUser && <span className="oo-pill" data-testid={'pill-product-user-' + p.slug}>For {PRODUCT_USER_LABELS[p.primaryUser].toLowerCase()}</span>}
                 <span className="oo-num">{p.factCount === 1 ? '1 fact' : `${p.factCount} facts`}</span>
                 {p.ownerName && <span>{p.ownerName}</span>}
                 <span>Updated {formatDayMonthShort(p.updatedAt)}</span>
@@ -89,13 +139,14 @@ function ProductDialog({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [state, setState] = useState<ProductState>('live');
+  const [primaryUser, setPrimaryUser] = useState('');
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim() || busy) return;
     setBusy(true);
-    const made = await write(() => createProduct({ name: name.trim(), description: description.trim() || null, state }), { done: 'Product added', fail: 'Could not add that product' });
+    const made = await write(() => createProduct({ name: name.trim(), description: description.trim() || null, state, primaryUser: (primaryUser || null) as ProductUser | null }), { done: 'Product added', fail: 'Could not add that product' });
     setBusy(false);
     if (made) {
       onClose();
@@ -127,6 +178,16 @@ function ProductDialog({ onClose }: { onClose: () => void }) {
                   onChange={(v) => setState(v as ProductState)}
                   options={PRODUCT_STATES.map((s) => ({ value: s, label: PRODUCT_STATE_LABELS[s] }))}
                   testId="select-product-state-new"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label htmlFor="product-user-new">Primary user <span className="oo-muted">(optional)</span></label>
+                <Dropdown
+                  id="product-user-new"
+                  value={primaryUser}
+                  onChange={setPrimaryUser}
+                  options={[{ value: '', label: 'Not set' }, ...USER_OPTIONS]}
+                  testId="select-product-user-new"
                 />
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -195,6 +256,17 @@ export function ProductPage() {
                 onChange={(v) => save({ state: v as ProductState })}
                 options={PRODUCT_STATES.map((s) => ({ value: s, label: PRODUCT_STATE_LABELS[s] }))}
                 testId="select-product-state"
+              />
+            </dd>
+            <dt><label htmlFor="product-user">Primary user</label></dt>
+            <dd>
+              <Dropdown
+                id="product-user"
+                variant="compact"
+                value={p.primaryUser ?? ''}
+                onChange={(v) => save({ primaryUser: (v || null) as ProductUser | null })}
+                options={[{ value: '', label: 'Not set' }, ...USER_OPTIONS]}
+                testId="select-product-user"
               />
             </dd>
             <dt><label htmlFor="product-owner">Owner</label></dt>

@@ -6,7 +6,7 @@
  */
 import { asc, eq, inArray, sql } from "drizzle-orm";
 import { db, decisionsTable, organisationsTable, peopleTable, productsTable, projectsTable, type Product } from "@workspace/db";
-import type { ProductState } from "@workspace/shared";
+import type { ProductState, ProductUser } from "@workspace/shared";
 import { writeAudit, type DbOrTx } from "../lib/audit";
 import { productVisible } from "../lib/ai-data/visibility";
 import { ACTOR, cleanText, uniqueSlug, type EntitySummary } from "./knowledge/common";
@@ -20,6 +20,7 @@ export type ProductView = Omit<Product, "search" | "suggestionId"> & { owner: Na
 export interface ProductListItem extends EntitySummary {
   description: string | null;
   state: ProductState;
+  primaryUser: ProductUser | null;
   aiAccess: boolean;
   ownerName: string | null;
   factCount: number;
@@ -54,6 +55,7 @@ export async function listProducts(): Promise<ProductListItem[]> {
       slug: productsTable.slug,
       description: productsTable.description,
       state: productsTable.state,
+      primaryUser: productsTable.primaryUser,
       confidential: productsTable.confidential,
       aiAccess: productsTable.aiAccess,
       ownerName: peopleTable.name,
@@ -132,6 +134,7 @@ export interface ProductInput {
   name: string;
   description?: string | null;
   state?: ProductState;
+  primaryUser?: ProductUser | null;
   ownerId?: number | null;
   summary?: string | null;
   confidential?: boolean;
@@ -157,6 +160,7 @@ export async function insertProduct(tx: DbOrTx, input: ProductInput, createdBy: 
       slug,
       description: cleanText(input.description),
       state: input.state ?? "live",
+      primaryUser: input.primaryUser ?? null,
       ownerId: input.ownerId ?? null,
       summary: cleanText(input.summary),
       confidential: input.confidential ?? false,
@@ -185,6 +189,7 @@ export async function updateProduct(slug: string, input: Partial<ProductInput>):
   }
   if (input.description !== undefined) set.description = cleanText(input.description);
   if (input.state !== undefined) set.state = input.state;
+  if (input.primaryUser !== undefined) set.primaryUser = input.primaryUser;
   if (input.ownerId !== undefined) {
     await assertOwner(input.ownerId);
     set.ownerId = input.ownerId;
@@ -199,6 +204,7 @@ export async function updateProduct(slug: string, input: Partial<ProductInput>):
     if (set.confidential !== undefined && set.confidential !== current.confidential) payload.confidential = { from: current.confidential, to: set.confidential };
     if (set.aiAccess !== undefined && set.aiAccess !== current.aiAccess) payload.aiAccess = { from: current.aiAccess, to: set.aiAccess };
     if (set.state !== undefined && set.state !== current.state) payload.state = { from: current.state, to: set.state };
+    if (set.primaryUser !== undefined && set.primaryUser !== current.primaryUser) payload.primaryUser = { from: current.primaryUser, to: set.primaryUser };
     await writeAudit(tx, { actor: ACTOR, action: "update", entityType: "product", entityId: current.id, payload });
     return updated;
   });

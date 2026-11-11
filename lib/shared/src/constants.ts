@@ -126,6 +126,11 @@ export const DOC_LOCATION_LABELS: Record<DocLocation, string> = {
 export const PRODUCT_STATES = ["live", "pilot", "in_development", "retired"] as const;
 export type ProductState = (typeof PRODUCT_STATES)[number];
 export const PRODUCT_STATE_LABELS: Record<ProductState, string> = { live: "Live", pilot: "Pilot", in_development: "In development", retired: "Retired" };
+/** Who a product is mainly for, from Ollie's fixed list. Kept in step with the product_user enum in lib/db. */
+export const PRODUCT_USERS = ["students", "employers", "universities", "colleges", "schools"] as const;
+export type ProductUser = (typeof PRODUCT_USERS)[number];
+export const PRODUCT_USER_LABELS: Record<ProductUser, string> = { students: "Students", employers: "Employers", universities: "Universities", colleges: "Colleges", schools: "Schools" };
+export const isProductUser = (v: unknown): v is ProductUser => typeof v === "string" && (PRODUCT_USERS as readonly string[]).includes(v);
 
 /** Part M: where a playbook is; only In use ones reach AI. Kept in step with the playbook_state enum in lib/db. */
 export const PLAYBOOK_STATES = ["draft", "in_use", "retired"] as const;

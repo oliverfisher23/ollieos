@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
-import { CADENCES, PRODUCT_STATES, PROJECT_LIFECYCLES, isIsoDate } from "@workspace/shared";
+import { CADENCES, PRODUCT_STATES, PRODUCT_USERS, PROJECT_LIFECYCLES, isIsoDate } from "@workspace/shared";
 import { createProduct, getProduct, listProducts, updateProduct } from "../services/products";
+import { suggestProductUsers } from "../services/productUsers";
 import { CADENCE_TABS, listCadence } from "../services/cadence";
 import { checkInDraft } from "../services/checkIn";
 import { handle } from "../lib/handle";
@@ -103,6 +104,7 @@ const ProductCreate = z
     name: z.string().min(1).max(200),
     description: z.string().max(300).nullable().optional(),
     state: z.enum(PRODUCT_STATES).optional(),
+    primaryUser: z.enum(PRODUCT_USERS).nullable().optional(),
     ownerId: id.nullable().optional(),
     summary: shortText(20000),
     confidential: z.boolean().optional(),
@@ -228,6 +230,7 @@ router.patch(
 /* Products (Part M) */
 router.get("/products", handle(async (_req, res) => void res.json(await listProducts())));
 router.post("/products", handle(async (req, res) => void res.status(201).json(await createProduct(ProductCreate.parse(req.body)))));
+router.post("/products/suggest-users", handle(async (_req, res) => void res.json(await suggestProductUsers())));
 router.get("/products/:slug", handle(async (req, res) => void res.json(await getProduct(SlugParams.parse(req.params).slug))));
 router.patch("/products/:slug", handle(async (req, res) => void res.json(await updateProduct(SlugParams.parse(req.params).slug, ProductUpdate.parse(req.body)))));
 

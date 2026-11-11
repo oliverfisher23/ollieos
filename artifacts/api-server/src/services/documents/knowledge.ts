@@ -10,7 +10,7 @@
 import { eq, sql } from "drizzle-orm";
 import { db, linksTable, organisationsTable, peopleTable, playbooksTable, productsTable, projectsTable } from "@workspace/db";
 import { emailsOf } from "../personMatch";
-import { formatLong, PLAYBOOK_STEPS_MAX, RULE_MAX, RELATIONSHIPS, todayLondon, type Relationship } from "@workspace/shared";
+import { formatLong, isProductUser, PLAYBOOK_STEPS_MAX, PRODUCT_USERS, RULE_MAX, RELATIONSHIPS, todayLondon, type Relationship } from "@workspace/shared";
 import { proposeOrganisation, proposePerson, type AiProposeResult } from "../aiPropose";
 import { ASK_MODEL } from "../ask/model";
 import { modelJson } from "../connectors/sorter";
@@ -37,7 +37,7 @@ export interface Extracted {
   rules: { title: string; applies_when: string; rule: string; project: string }[];
   relationships: { from: string; relationship: string; to: string; evidence: string }[];
   /** Part M; optional so older reads and test doubles without them still work */
-  products?: { name: string; description: string; facts: string[] }[];
+  products?: { name: string; description: string; primary_user?: string; facts: string[] }[];
   playbooks?: {
     title: string;
     existing: string;
@@ -61,7 +61,7 @@ export const EXTRACT_SCHEMA = obj({
   organisations: { type: "array", items: obj({ name: str, type: str, summary: str }) },
   rules: { type: "array", items: obj({ title: str, applies_when: str, rule: str, project: str }) },
   relationships: { type: "array", items: obj({ from: str, relationship: { type: "string", enum: [...RELATIONSHIPS] }, to: str, evidence: str }) },
-  products: { type: "array", items: obj({ name: str, description: str, facts: { type: "array", items: str } }) },
+  products: { type: "array", items: obj({ name: str, description: str, primary_user: { type: "string", enum: [...PRODUCT_USERS, ""] }, facts: { type: "array", items: str } }) },
   playbooks: {
     type: "array",
     items: obj({ title: str, existing: str, when_to_use: str, purpose: str, owner: str, steps: { type: "array", items: obj({ text: str, person: str, day: str }) } }),
@@ -162,7 +162,7 @@ function systemPrompt(k: Known, now: Date, changed: boolean): string {
     `- "organisations" (at most ${LIMITS.organisations}): new customers, partners, universities or suppliers that matter, with "type" (customer, partner, supplier, university, school, charity, investor or other) and a one-sentence "summary" of how they relate to Springpod. Never list known organisations.`,
     `- "rules" (at most ${LIMITS.rules}): standing rules Ollie wants followed whenever AI works for him, such as how to write, what to always or never do, or how to treat a customer. Not one-off instructions for a single task. "rule" is under ${RULE_MAX - 50} characters. "project" is a known project it is only for, or "".`,
     `- "relationships" (at most ${LIMITS.relationships}): how two known projects, people or organisations relate, when the document says so plainly. "from" and "to" are copied exactly from the known lists. "relationship" reads "from <relationship> to": reports_to, works_with, advises, introduced_by, investor_in, customer_of, supplier_to, partner_of, competitor_of, part_of, depends_on, blocked_by, related_to or decides_on (a person who has the say on a project, product or organisation). Never someone's employer (that is "organisation" on a person). "evidence" is one sentence from what the document says.`,
-    `- "products" (at most ${LIMITS.products}): products or services Springpod sells or runs that OllieOS does not know yet. Never list known products. "description" is what it is in one line. "facts" (at most 5) are current facts about it, one sentence each.`,
+    `- "products" (at most ${LIMITS.products}): products or services Springpod sells or runs that OllieOS does not know yet. Never list known products. "description" is what it is in one line. "primary_user" is who it is mainly for, one of ${PRODUCT_USERS.join(", ")}, only when the document makes it plain, otherwise "". "facts" (at most 5) are current facts about it, one sentence each.`,
     `- "playbooks" (at most ${LIMITS.playbooks}): only when the document sets out how something is done as a repeatable process, in steps (for example onboarding a new partner). "existing" is a known playbook copied exactly when the document changes or adds to it, otherwise "". "title" names the process. "when_to_use" says when it starts, for example "A new university partner signs". "purpose" is one line, or "". "owner" is a known person who owns it, or "". "steps" (at most ${PLAYBOOK_STEPS_MAX}) in order, each one action in a sentence; "person" is a known person who does it when not Ollie, or ""; "day" is the number of days after starting when the document says, or "". For a change to a known playbook, give the whole new list of steps.`,
     `Write in British English with no em dashes. Use Ollie's name rather than "I" or "you".`,
     changed
@@ -361,7 +361,8 @@ export async function proposeExtracted(x: Extracted, k: Known, ctx: ProposeConte
     const name = clean(pr.name);
     if (!name || k.products.has(name.toLowerCase())) continue;
     const facts = (pr.facts ?? []).map(clean).filter((f): f is string => !!f).slice(0, 5);
-    tally("products", await propose(ctx.meta, { kind: "product", payload: { name, description: clean(pr.description), facts } }, ctx.now));
+    const primaryUser = isProductUser(pr.primary_user) ? pr.primary_user : null;
+    tally("products", await propose(ctx.meta, { kind: "product", payload: { name, description: clean(pr.description), primary_user: primaryUser, facts } }, ctx.now));
   }
 
   for (const pb of (x.playbooks ?? []).slice(0, LIMITS.playbooks)) {

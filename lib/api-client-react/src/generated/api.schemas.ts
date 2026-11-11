@@ -4223,6 +4223,29 @@ export interface PlaybookUpdate {
   checked?: boolean;
 }
 
+/**
+ * Who a product is mainly for
+ */
+export type ProductUser = typeof ProductUser[keyof typeof ProductUser];
+
+
+export const ProductUser = {
+  students: 'students',
+  employers: 'employers',
+  universities: 'universities',
+  colleges: 'colleges',
+  schools: 'schools',
+} as const;
+
+export interface SuggestProductUsersResult {
+  /** Products without a primary user that AI may read */
+  checked: number;
+  /** New cards sent to the Knowledge Inbox */
+  suggested: number;
+  /** Products the documents did not settle */
+  unclear: number;
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -4230,6 +4253,7 @@ export interface Product {
   /** @nullable */
   description: string | null;
   state: ProductState;
+  primaryUser: ProductUser | null;
   /** @nullable */
   ownerId: number | null;
   /** @nullable */
@@ -4250,6 +4274,7 @@ export interface ProductListItem {
   /** @nullable */
   description: string | null;
   state: ProductState;
+  primaryUser: ProductUser | null;
   aiAccess: boolean;
   /** @nullable */
   ownerName: string | null;
@@ -4269,6 +4294,7 @@ export interface ProductInput {
      */
   description?: string | null;
   state?: ProductState;
+  primaryUser?: ProductUser | null;
   /** @nullable */
   ownerId?: number | null;
   /**
@@ -4292,6 +4318,7 @@ export interface ProductUpdate {
      */
   description?: string | null;
   state?: ProductState;
+  primaryUser?: ProductUser | null;
   /** @nullable */
   ownerId?: number | null;
   /**

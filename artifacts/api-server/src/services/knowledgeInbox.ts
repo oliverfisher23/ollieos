@@ -3,7 +3,10 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, decisionsTable, factReviewsTable, factsTable, peopleTable, rulesTable, suggestionsTable, usersTable, type Fact, type FactReview, type Suggestion } from "@workspace/db";
 import { decidersFor, weigh, whenSaid } from "./contradictions";
 import { hasEmail } from "./personMatch";
-import { CADENCE_LABELS, PRODUCT_STATE_LABELS, RELATIONSHIP_LABELS, formatDayMonth } from "@workspace/shared";
+import { CADENCE_LABELS, PRODUCT_STATE_LABELS, PRODUCT_USER_LABELS, RELATIONSHIP_LABELS, formatDayMonth, isProductUser } from "@workspace/shared";
+
+/** A change card shows a list value (a product's primary user) by its label. */
+const shown = (key: string, v: string | null): string | null => (key === "primary_user" && isProductUser(v) ? PRODUCT_USER_LABELS[v] : v);
 import { writeAudit } from "../lib/audit";
 import { resolveEntities, uniqueSlug } from "./knowledge/common";
 import { reviewCounts, tidyReviews } from "./factReviews";
@@ -338,8 +341,8 @@ function fieldsOf(s: Suggestion): InboxField[] {
     return Object.entries(c.fields).map(([key, value]) => ({
       key,
       label: FIELD_LABELS[key] ?? key,
-      value,
-      before: c.before?.[key] ?? null,
+      value: shown(key, value),
+      before: shown(key, c.before?.[key] ?? null),
       editable: editable.has(key),
     }));
   }
@@ -375,9 +378,7 @@ export function textOf(s: Suggestion): string {
     }
     case "summary_change": {
       const c = s.payload as SummaryChangePayload;
-      return Object.entries(c.fields)
-        .map(([k, v]) => `${FIELD_LABELS[k] ?? k}: ${v}`)
-        .join("\n");
+      return [...Object.entries(c.fields).map(([k, v]) => `${FIELD_LABELS[k] ?? k}: ${shown(k, v)}`), ...(c.reason ? [`Why: ${c.reason}`] : [])].join("\n");
     }
     case "document": {
       const d = s.payload as DocumentPayload;
@@ -411,6 +412,7 @@ export function textOf(s: Suggestion): string {
         p.name,
         p.description,
         p.state ? PRODUCT_STATE_LABELS[p.state] : null,
+        isProductUser(p.primary_user) ? `Primary user: ${PRODUCT_USER_LABELS[p.primary_user]}` : null,
         p.summary,
         p.facts?.length ? `Facts: ${p.facts.join("; ")}` : null,
       ]);

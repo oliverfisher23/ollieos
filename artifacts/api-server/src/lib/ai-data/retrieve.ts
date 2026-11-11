@@ -25,6 +25,7 @@ import {
   PLAYBOOK_STATE_LABELS,
   PRIORITY_LABELS,
   PRODUCT_STATE_LABELS,
+  PRODUCT_USER_LABELS,
   SOURCE_LABELS,
   STATUS_LABELS,
   formatLong,
@@ -462,7 +463,7 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
       id: p.id,
       text: [
         `[${ref}] Product: ${p.name}${p.description ? `. ${p.description}` : ""}`,
-        line([`State: ${PRODUCT_STATE_LABELS[p.state]}`, owner && `Owner: ${owner}`, `Updated ${day(p.updatedAt)}`]),
+        line([`State: ${PRODUCT_STATE_LABELS[p.state]}`, p.primaryUser && `Primary user: ${PRODUCT_USER_LABELS[p.primaryUser]}`, owner && `Owner: ${owner}`, `Updated ${day(p.updatedAt)}`]),
         whoDecides("product", p.id),
         p.summary && `Summary: ${clip(p.summary, 2000)}`,
       ]

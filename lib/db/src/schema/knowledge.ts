@@ -11,7 +11,7 @@ import {
   uniqueIndex,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { activityKindEnum, cadenceEnum, entityTypeEnum, factAttributeEnum, productStateEnum, projectLifecycleEnum, relationshipEnum, tsvector } from "./enums";
+import { activityKindEnum, cadenceEnum, entityTypeEnum, factAttributeEnum, productStateEnum, productUserEnum, projectLifecycleEnum, relationshipEnum, tsvector } from "./enums";
 import { goalsTable } from "./goals";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -119,6 +119,8 @@ export const productsTable = pgTable(
     /** One line on what it is */
     description: text("description"),
     state: productStateEnum("state").notNull().default("live"),
+    /** Who it is mainly for; null until Ollie sets it or approves an AI suggestion */
+    primaryUser: productUserEnum("primary_user"),
     ownerId: integer("owner_id").references(() => peopleTable.id, { onDelete: "set null" }),
     summary: text("summary"),
     confidential: boolean("confidential").notNull().default(false),

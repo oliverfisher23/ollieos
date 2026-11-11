@@ -6190,6 +6190,7 @@ export const ListProductsResponseItem = zod.object({
   "confidential": zod.boolean(),
   "description": zod.string().nullable(),
   "state": zod.enum(['live', 'pilot', 'in_development', 'retired']),
+  "primaryUser": zod.union([zod.enum(['students', 'employers', 'universities', 'colleges', 'schools']).describe('Who a product is mainly for'),zod.null()]),
   "aiAccess": zod.boolean(),
   "ownerName": zod.string().nullable(),
   "factCount": zod.int(),
@@ -6213,6 +6214,7 @@ export const CreateProductBody = zod.object({
   "name": zod.string().min(1).max(createProductBodyNameMax),
   "description": zod.string().max(createProductBodyDescriptionMax).nullish(),
   "state": zod.enum(['live', 'pilot', 'in_development', 'retired']).optional(),
+  "primaryUser": zod.union([zod.enum(['students', 'employers', 'universities', 'colleges', 'schools']).describe('Who a product is mainly for'),zod.null()]).optional(),
   "ownerId": zod.int().nullish(),
   "summary": zod.string().max(createProductBodySummaryMax).nullish(),
   "confidential": zod.boolean().optional(),
@@ -6225,6 +6227,7 @@ export const CreateProductResponse = zod.object({
   "slug": zod.string(),
   "description": zod.string().nullable(),
   "state": zod.enum(['live', 'pilot', 'in_development', 'retired']),
+  "primaryUser": zod.union([zod.enum(['students', 'employers', 'universities', 'colleges', 'schools']).describe('Who a product is mainly for'),zod.null()]),
   "ownerId": zod.int().nullable(),
   "summary": zod.string().nullable(),
   "confidential": zod.boolean(),
@@ -6237,6 +6240,16 @@ export const CreateProductResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 }),zod.null()])
+})
+
+
+/**
+ * @summary Ask AI to suggest the primary user of each product that has none, from what OllieOS knows; suggestions go to the Knowledge Inbox
+ */
+export const SuggestProductUsersResponse = zod.object({
+  "checked": zod.int().describe('Products without a primary user that AI may read'),
+  "suggested": zod.int().describe('New cards sent to the Knowledge Inbox'),
+  "unclear": zod.int().describe('Products the documents did not settle')
 })
 
 
@@ -6254,6 +6267,7 @@ export const GetProductResponse = zod.object({
   "slug": zod.string(),
   "description": zod.string().nullable(),
   "state": zod.enum(['live', 'pilot', 'in_development', 'retired']),
+  "primaryUser": zod.union([zod.enum(['students', 'employers', 'universities', 'colleges', 'schools']).describe('Who a product is mainly for'),zod.null()]),
   "ownerId": zod.int().nullable(),
   "summary": zod.string().nullable(),
   "confidential": zod.boolean(),
@@ -6459,6 +6473,7 @@ export const UpdateProductBody = zod.object({
   "name": zod.string().min(1).max(updateProductBodyNameMax).optional(),
   "description": zod.string().max(updateProductBodyDescriptionMax).nullish(),
   "state": zod.enum(['live', 'pilot', 'in_development', 'retired']).optional(),
+  "primaryUser": zod.union([zod.enum(['students', 'employers', 'universities', 'colleges', 'schools']).describe('Who a product is mainly for'),zod.null()]).optional(),
   "ownerId": zod.int().nullish(),
   "summary": zod.string().max(updateProductBodySummaryMax).nullish(),
   "confidential": zod.boolean().optional(),
@@ -6471,6 +6486,7 @@ export const UpdateProductResponse = zod.object({
   "slug": zod.string(),
   "description": zod.string().nullable(),
   "state": zod.enum(['live', 'pilot', 'in_development', 'retired']),
+  "primaryUser": zod.union([zod.enum(['students', 'employers', 'universities', 'colleges', 'schools']).describe('Who a product is mainly for'),zod.null()]),
   "ownerId": zod.int().nullable(),
   "summary": zod.string().nullable(),
   "confidential": zod.boolean(),

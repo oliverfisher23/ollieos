@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ProductState } from './productState';
+import type { ProductUser } from './productUser';
 
 export interface ProductListItem {
   id: number;
@@ -15,6 +16,7 @@ export interface ProductListItem {
   /** @nullable */
   description: string | null;
   state: ProductState;
+  primaryUser: ProductUser | null;
   aiAccess: boolean;
   /** @nullable */
   ownerName: string | null;

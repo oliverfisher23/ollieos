@@ -6,7 +6,8 @@
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult, ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { PLAYBOOK_STEPS_MAX, PRODUCT_STATES, RELATIONSHIPS, isIsoDate, todayLondon } from "@workspace/shared";
+import { PLAYBOOK_STEPS_MAX, PRODUCT_STATES, PRODUCT_USERS, RELATIONSHIPS, isIsoDate, todayLondon } from "@workspace/shared";
+import { proposeProductUser } from "../services/productUsers";
 import {
   getContext,
   listTasksForAi,
@@ -798,12 +799,14 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     "propose_product",
     {
       description: describe(
-        "Proposes a product OllieOS does not know yet, with any facts you know about it. It goes to Ollie's Knowledge Inbox as a Product card; the facts become facts on the product when he approves it. Check search first: for a product that exists, use add_fact with product.",
+        "Proposes a product OllieOS does not know yet, with any facts you know about it. It goes to Ollie's Knowledge Inbox as a Product card; the facts become facts on the product when he approves it. Check search first: for a product that exists, use add_fact with product. To suggest who an existing product is mainly for, call this with its name (or ref) and primary_user only; that goes to Ollie as a change for approval.",
       ),
       inputSchema: {
         name: z.string().min(1).max(200),
         description: z.string().max(300).optional().describe("What it is, in one line"),
         state: z.enum(PRODUCT_STATES).optional().describe("Default live"),
+        primary_user: z.enum(PRODUCT_USERS).optional().describe("Who it is mainly for: students, employers, universities, colleges or schools. Only when you know."),
+        primary_user_why: z.string().max(300).optional().describe("For an existing product: what shows who it is for, in a line"),
         summary: z.string().max(5000).optional(),
         facts: z.array(z.string().min(1).max(2000)).max(20).optional().describe("Current facts about it, one each"),
         ...SourceFields,
@@ -811,9 +814,23 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     },
     async (a) =>
       guard(async () => {
+        if (a.primary_user) {
+          const existing = await resolveProductForAi(scope, a.name.trim());
+          if (existing) {
+            const r = await proposeProductUser(metaOf(a), existing.id, a.primary_user, a.primary_user_why ?? null);
+            return ok(r.status === "unchanged" ? { status: "unchanged", ref: `product:${existing.id}`, message: "OllieOS already has that primary user." } : proposalReply(r));
+          }
+        }
         const r = await propose(metaOf(a), {
           kind: "product",
-          payload: { name: a.name.trim(), description: a.description?.trim() || null, state: a.state ?? null, summary: a.summary?.trim() || null, facts: a.facts ?? [] },
+          payload: {
+            name: a.name.trim(),
+            description: a.description?.trim() || null,
+            state: a.state ?? null,
+            primary_user: a.primary_user ?? null,
+            summary: a.summary?.trim() || null,
+            facts: a.facts ?? [],
+          },
         });
         return ok(proposalReply(r));
       }),
