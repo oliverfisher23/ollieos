@@ -1156,7 +1156,7 @@ Ollie asked where information about products and processes lives. Today neither 
 
 ## 16. Knowledge you can trust (asked for 11th November 2026)
 
-Ollie shared a diagram of how OllieOS should work: sources are read, claims are checked against what is already approved and against who has the say, Ollie approves, and the result reaches every AI. Compared with what is built, the flow is right but three parts are thin: Slack and Gmail only make tasks, not knowledge; a person is matched by one email and nothing records who decides what; and only two facts of the same kind about the same thing are caught as a conflict. Agreed with Ollie on 11th November 2026: the "owner confirms" invite loop stays out for now, so OllieOS stays a one-person app and Ollie's approval is the only confirmation. Two parts, each its own sign-off. N comes first because the contradiction check in O weighs claims by who said them.
+Ollie shared a diagram of how OllieOS should work: sources are read, claims are checked against what is already approved and against who has the say, Ollie approves, and the result reaches every AI. Compared with what is built, the flow is right but three parts are thin: Slack and Gmail only make tasks, not knowledge; a person is matched by one email and nothing records who decides what; and only two facts of the same kind about the same thing are caught as a conflict. Agreed with Ollie on 11th November 2026: the "owner confirms" invite loop stays out for now, so OllieOS stays a one-person app and Ollie's approval is the only confirmation. Two parts, each its own sign-off, built before Part K (Ollie chose this on 11th November 2026). N comes first because the contradiction check in O weighs claims by who said them. Ollie agreed the weekly round-up as written: Fridays at 16:00, with confidential items left out of the version to forward.
 
 | Part | Features | Size |
 |---|---|---|
@@ -1197,8 +1197,3 @@ Ollie shared a diagram of how OllieOS should work: sources are read, claims are 
   - The contradicted fact shows "May be out of date" until Ollie decides.
   - A context pack for a project includes its facts, decisions and rules, and leaves out a confidential decision.
   - The weekly round-up lists the week's approvals and the conflict, and its Gmail draft leaves out a confidential item.
-
-### Questions for Ollie
-
-- Build N and O before Part K (Meetings), or after K and L?
-- Weekly round-up: Friday at 16:00, and leave confidential items out of the version to forward?
