@@ -15,3 +15,4 @@
 - [Yes/no AI judges](model-judges.md) — Haiku lists non-matches with a 'no' reason; use reasoning then an explicit boolean, filter on it
 - [Raw SQL subqueries in Drizzle](drizzle-subqueries.md) — outer column in a raw subquery renders bare and binds to the inner table; qualify it
 - [Manual check preparation](preparation-latency.md) — manual checks await data persistence, not unrelated AI work; preserve durable, coalesced preparation
+- [Data-layer query constraints](data-layer-query-constraints.md) — paginate whole AI batches; Gmail thread matching must support historical account-specific URLs

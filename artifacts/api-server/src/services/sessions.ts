@@ -261,17 +261,26 @@ interface Row {
 
 async function loadRows(where: SQL, now: Date, limit = 300): Promise<Row[]> {
   const res = await db.execute(sql`
+    with page as materialized (
+      select s.* from cowork_sessions s where ${where}
+      order by s.happened_at desc, s.id desc limit ${limit}
+    ), counts as (
+      select g.source_ref,
+        count(*) filter (where g.status = 'approved' and g.result_type = 'decision')::int as decision_count,
+        count(*) filter (where g.status = 'approved' and g.result_type = 'document')::int as document_count,
+        count(*) filter (where g.status = 'pending')::int as waiting_count
+      from suggestions g join page p on g.source_ref = 'session:' || p.id
+      group by g.source_ref
+    )
     select s.id, s.title, s.summary, s.outcomes, s.happened_at, s.confidential, s.project_ids, s.person_ids,
       ${sessionArchivedSql("s", now)} as archived,
       ${sql.raw(sessionVisible("s"))} as visible,
       cardinality(s.task_ids)::int as task_count,
-      (select count(*) from suggestions g where g.source_ref = 'session:' || s.id and g.status = 'approved' and g.result_type = 'decision')::int as decision_count,
-      (select count(*) from suggestions g where g.source_ref = 'session:' || s.id and g.status = 'approved' and g.result_type = 'document')::int as document_count,
-      (select count(*) from suggestions g where g.source_ref = 'session:' || s.id and g.status = 'pending')::int as waiting_count
-    from cowork_sessions s
-    where ${where}
-    order by s.happened_at desc, s.id desc
-    limit ${limit}`);
+      coalesce(c.decision_count, 0) as decision_count,
+      coalesce(c.document_count, 0) as document_count,
+      coalesce(c.waiting_count, 0) as waiting_count
+    from page s left join counts c on c.source_ref = 'session:' || s.id
+    order by s.happened_at desc, s.id desc`);
   return res.rows as unknown as Row[];
 }
 

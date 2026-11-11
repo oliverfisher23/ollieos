@@ -427,17 +427,27 @@ const KIND: Record<string, AiActivityView["kind"]> = { read: "read", search: "se
 export async function listAiActivity(limit = 100): Promise<AiActivityView[]> {
   const n = Math.min(Math.max(Math.trunc(limit) || 100, 1), 100);
   const res = await db.execute(sql`
-    select coalesce(a.payload->>'batch', 'e' || a.id::text) as grp,
-      max(a.created_at) as at, coalesce(min(c.name), min(a.actor)) as actor, min(a.action) as action, count(*)::int as count,
-      (array_agg(a.entity_type::text || ':' || a.entity_id order by a.id) filter (where a.entity_id is not null))[1:3] as refs,
-      min(coalesce(a.payload->>'question', a.payload->>'query', a.payload->>'requested')) as context,
-      max(a.payload->>'count') as n
-    from audit_events a
-    left join ai_clients c on c.id = a.client_id
-    where a.client_id is not null and a.actor <> ${ACTOR}
-    group by grp
-    order by at desc
-    limit ${n}`);
+    with recent as materialized (
+      select key, at from ai_activity_groups order by at desc, key desc limit ${n}
+    )
+    select r.key as grp, r.at, totals.*,
+      array(
+        select a.entity_type::text || ':' || a.entity_id
+        from audit_events a
+        where a.client_id is not null and a.actor <> 'ollie'
+          and coalesce(a.payload->>'batch', 'e' || a.id::text) = r.key and a.entity_id is not null
+        order by a.id limit 3
+      ) as refs
+    from recent r
+    cross join lateral (
+      select coalesce(min(c.name), min(a.actor)) as actor, min(a.action) as action, count(*)::int as count,
+        min(coalesce(a.payload->>'question', a.payload->>'query', a.payload->>'requested')) as context,
+        max(a.payload->>'count') as n
+      from audit_events a left join ai_clients c on c.id = a.client_id
+      where a.client_id is not null and a.actor <> 'ollie'
+        and coalesce(a.payload->>'batch', 'e' || a.id::text) = r.key
+    ) totals
+    order by r.at desc, r.key desc`);
   const rows = res.rows as { grp: string; at: string | Date; actor: string; action: string; count: number; refs: string[] | null; context: string | null; n: string | null }[];
   const labels = await describeRefs(rows.flatMap((r) => r.refs ?? []));
   return rows.map((r) => ({

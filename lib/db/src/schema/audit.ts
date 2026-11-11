@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { bigint, boolean, index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { entityTypeEnum } from "./enums";
 
@@ -20,8 +21,16 @@ export const auditEventsTable = pgTable(
     index("audit_events_entity_idx").on(t.entityType, t.entityId),
     index("audit_events_created_idx").on(t.createdAt),
     index("audit_events_action_idx").on(t.action),
+    index("audit_events_ai_batch_idx").on(sql`coalesce(${t.payload}->>'batch', 'e' || ${t.id}::text)`, t.id)
+      .where(sql`${t.clientId} is not null and ${t.actor} <> 'ollie'`),
   ],
 );
+
+/** Indexed group headers; detailed events remain the source of counts and previews. */
+export const aiActivityGroupsTable = pgTable("ai_activity_groups", {
+  key: text("key").primaryKey(),
+  at: timestamp("at", { withTimezone: true }).notNull(),
+}, (t) => [index("ai_activity_groups_recent_idx").on(t.at.desc(), t.key.desc())]);
 
 /** Ask OllieOS history. */
 export const askThreadsTable = pgTable("ask_threads", {
@@ -33,7 +42,7 @@ export const askThreadsTable = pgTable("ask_threads", {
   usedConfidential: boolean("used_confidential").notNull().default(false),
   model: text("model"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [index("ask_threads_parent_created_idx").on(t.parentId, t.createdAt.desc(), t.id.desc())]);
 
 /** One-off imports, once per kind ("tasks", "knowledge"). */
 export const importRunsTable = pgTable("import_runs", {
