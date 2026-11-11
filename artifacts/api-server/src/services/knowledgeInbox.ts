@@ -1,7 +1,7 @@
 /** Ollie's view of the Knowledge Inbox: suggestions, conflicts and facts that need a check. */
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, decisionsTable, factReviewsTable, factsTable, peopleTable, rulesTable, suggestionsTable, usersTable, type Fact, type FactReview, type Suggestion } from "@workspace/db";
-import { decidersFor, weigh } from "./contradictions";
+import { decidersFor, weigh, whenSaid } from "./contradictions";
 import { hasEmail } from "./personMatch";
 import { CADENCE_LABELS, PRODUCT_STATE_LABELS, RELATIONSHIP_LABELS, formatDayMonth } from "@workspace/shared";
 import { writeAudit } from "../lib/audit";
@@ -502,7 +502,7 @@ async function contradictionViews(reviews: FactReview[]): Promise<Map<number, { 
   const origin = (id: number | null) => (id != null ? origins.find((o) => o.id === id) : undefined);
   const fromOrigin = (id: number | null) => {
     const o = origin(id);
-    return o ? { by: said.get(o.id) ?? null, at: o.saidAt } : null;
+    return o ? { by: said.get(o.id) ?? null, at: whenSaid(o) } : null;
   };
 
   for (const r of reviews) {
@@ -512,7 +512,7 @@ async function contradictionViews(reviews: FactReview[]): Promise<Map<number, { 
     const area = cardTarget ? (cardTarget.isSelf ? "your own profile" : cardTarget.name) : sug.kind === "rule" ? "how you work" : "this";
     const decide = sug.entityType && sug.entityId != null ? (deciders.get(`${sug.entityType}:${sug.entityId}`) ?? new Set<number>()) : new Set<number>();
     const newBy = said.get(sug.id) ?? null;
-    const newAt = sug.saidAt ?? sug.createdAt;
+    const newAt = whenSaid(sug) ?? sug.createdAt;
     const contradicted: InboxContradicted[] = [];
     for (const c of r.contradicts ?? []) {
       let base: Omit<InboxContradicted, "stronger" | "weighing" | "why" | "ref" | "type" | "label"> | null = null;
@@ -567,7 +567,7 @@ async function contradictionViews(reviews: FactReview[]): Promise<Map<number, { 
       source: sourceOf(sug),
       sourceUrl: sug.sourceUrl,
       saidBy: newBy,
-      saidAt: sug.saidAt,
+      saidAt: whenSaid(sug),
       contradicts: contradicted,
     };
     const outOfDate: InboxItem[] = contradicted.map((c) => ({
@@ -639,7 +639,7 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
         projectHint: s.kind === "decision" ? (cleanHint((s.payload as DecisionPayload).project_hint) ?? null) : null,
         playbook: playbookOf(s),
         saidBy: said.get(s.id) ?? null,
-        saidAt: s.saidAt,
+        saidAt: whenSaid(s),
       };
     });
   } else {
@@ -720,7 +720,7 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
           projectHint: null,
           playbook: null,
           saidBy: sug ? (said.get(sug.id) ?? null) : null,
-          saidAt: sug?.saidAt ?? null,
+          saidAt: sug ? whenSaid(sug) : null,
         });
       }
     }

@@ -56,6 +56,19 @@ describe("Knowledge Inbox (feature 01)", () => {
     expect(view.items[0]).toMatchObject({ kind: "new_fact", by: "Claude", text: "Budget is 3k", target: { name: "Garden shed" } });
   });
 
+  it("a look-back decision with no speaker still carries the meeting date", async () => {
+    await db.insert(suggestionsTable).values({
+      kind: "decision",
+      payload: { text: "Cap client review at three rounds", decided_at: "2026-07-29", decided_by: null, source: "Granola: Workshop" },
+      normalisedText: "cap client review at three rounds",
+      proposedBy: "Granola look back",
+      sourceType: "meeting",
+      sourceLabel: "Granola: Workshop",
+    });
+    const view = await inbox();
+    expect(view.items[0]).toMatchObject({ lookBack: true, saidBy: null, saidAt: "2026-07-29T12:00:00.000Z" });
+  });
+
   it("criterion 2: approving creates the fact with its source and audit event; rejecting creates nothing", async () => {
     const shed = await project("Garden shed");
     const c = await claude();

@@ -124,6 +124,16 @@ function ruleText(r: { title: string; applies_when: string; rule: string }): str
   return `${r.title}. When ${r.applies_when}: ${r.rule}`;
 }
 
+/**
+ * When the card's claim was made: who-said-it time when known, otherwise a decision's own date (a
+ * look-back card read before Part N only has the meeting date there). Null when neither is known.
+ */
+export function whenSaid(s: Pick<Suggestion, "saidAt" | "kind" | "payload">): Date | null {
+  if (s.saidAt) return s.saidAt;
+  const d = s.kind === "decision" ? (s.payload as DecisionPayload | null)?.decided_at : null;
+  return d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(`${d}T12:00:00Z`) : null;
+}
+
 async function candidates(s: Suggestion): Promise<JudgeItem[]> {
   const scope = defaultScope();
   const out: JudgeItem[] = [];
@@ -227,7 +237,7 @@ export async function checkNewCards(now = new Date(), limit = 30): Promise<{ che
       }
       let verdicts;
       try {
-        verdicts = await judgeContradictions({ kind: s.kind, about: await aboutLine(s), text: claimText(s), saidBy: s.saidByName, saidAt: s.saidAt ?? s.createdAt }, items, now);
+        verdicts = await judgeContradictions({ kind: s.kind, about: await aboutLine(s), text: claimText(s), saidBy: s.saidByName, saidAt: whenSaid(s) ?? s.createdAt }, items, now);
       } catch (err) {
         // Most likely the model is unavailable: stop and try the rest on the next run.
         logger.warn({ err, suggestionId: s.id }, "Contradiction check failed");

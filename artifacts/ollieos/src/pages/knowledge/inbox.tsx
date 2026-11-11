@@ -14,7 +14,7 @@ import {
   type KnowledgeInboxItemKind,
   type KnowledgeInboxPlaybook,
 } from '@workspace/api-client-react';
-import { daysBetween, formatDayMonth, formatTime, londonDate, todayLondon } from '@workspace/shared';
+import { daysBetween, formatDayMonth, formatLong, formatTime, londonDate, todayLondon } from '@workspace/shared';
 import { CharCount, Skel } from '@/components/bits';
 import { Dropdown } from '@/components/dropdown';
 import { projectOptions } from '@/components/dropdown-options';
@@ -419,7 +419,15 @@ function ContradictionSides({ it, testKey }: { it: KnowledgeInboxItem; testKey: 
 /** "Said by Sam Lee, 3rd November": who made the claim, linked to their page when they are in People. */
 function SaidBy({ it, testKey }: { it: KnowledgeInboxItem; testKey: string }) {
   const s = it.saidBy;
-  if (!s) return null;
+  if (!s) {
+    // No speaker known (such as a look-back meeting card): still say when it was discussed or said.
+    if (!it.saidAt) return null;
+    return (
+      <p style={{ margin: 0, fontSize: 13 }} className="oo-soft" data-testid={'text-said-at-' + testKey}>
+        <span className="oo-muted">{it.lookBack ? 'Discussed:' : 'Said:'}</span> {formatLong(it.saidAt)}
+      </p>
+    );
+  }
   const path = s.personId != null ? entityPath('person', s.slug, s.personId) : null;
   const name = s.isSelf ? 'You' : s.name;
   return (
