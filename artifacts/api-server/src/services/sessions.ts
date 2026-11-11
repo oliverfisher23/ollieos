@@ -173,7 +173,7 @@ export async function saveSession(writer: Writer, input: SaveSessionInput, now =
     if (!docTitle || !a.content.trim()) continue;
     artifacts.push(
       await propose(
-        { proposedBy: writer.actor, clientId: writer.clientId, sourceType: "chat", sourceRef: sessionKey(id), sourceUrl: null, sourceLabel: `Cowork session: ${title}` },
+        { proposedBy: writer.actor, clientId: writer.clientId, sourceType: "chat", sourceRef: sessionKey(id), sourceUrl: null, sourceLabel: `Cowork session: ${title}`, saidBy: { at: session.happenedAt } },
         {
           kind: "document",
           payload: {

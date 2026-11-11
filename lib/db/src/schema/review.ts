@@ -28,6 +28,10 @@ export const suggestionsTable = pgTable(
     sourceLabel: text("source_label"),
     /** Client name: "Capture sweep", "Claude" */
     proposedBy: text("proposed_by").notNull(),
+    /** Part N: who made the claim, as written; the person when one matched; and when they said it */
+    saidByName: text("said_by_name"),
+    saidById: integer("said_by_id"),
+    saidAt: timestamp("said_at", { withTimezone: true }),
     clientId: integer("client_id").references(() => aiClientsTable.id),
     status: suggestionStatusEnum("status").notNull().default("pending"),
     /** What approval created */

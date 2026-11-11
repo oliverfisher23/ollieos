@@ -39,6 +39,12 @@ const pairWhere = (a: End, b: End) =>
 /** Project to person or organisation links mean something without a label (the project's people). */
 const plainLinkMatters = (a: End, b: End) => (a.type === "project") !== (b.type === "project");
 
+/** Part N: "decides on" always runs from a person to a project, product or organisation. */
+export function assertDecidesOn(from: End, to: End, relationship: Relationship) {
+  if (relationship !== "decides_on") return;
+  if (from.type !== "person" || to.type === "person") throw new ValidationError("Only a person decides on a project, product or organisation");
+}
+
 export function phraseFor(relationship: Relationship, direction: "out" | "in"): string {
   return direction === "out" ? RELATIONSHIP_LABELS[relationship] : RELATIONSHIP_INVERSE[relationship];
 }
@@ -74,6 +80,7 @@ export async function setRelationship(
   const { from, to, relationship } = input;
   if (!RELATIONSHIPS.includes(relationship)) throw new ValidationError("Choose a relationship");
   if (from.type === to.type && from.id === to.id) throw new ValidationError("An item cannot be related to itself");
+  assertDecidesOn(from, to, relationship);
   const run = async (tx: DbOrTx) => {
     const [, b] = await Promise.all([resolveEntity(from.type, from.id, tx), resolveEntity(to.type, to.id, tx)]);
     await tx.delete(linksTable).where(pairWhere(from, to));

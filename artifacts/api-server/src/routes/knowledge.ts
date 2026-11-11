@@ -35,6 +35,9 @@ import {
   updateNote,
 } from "../services/knowledge/items";
 import { resolveEntities } from "../services/knowledge/common";
+import { markNotSame, mergePeople, possibleDuplicates } from "../services/mergePeople";
+import { findSlackUsers } from "../services/connectors/slack";
+import { UpstreamError } from "../services/tasks";
 import { SEARCH_TYPES, searchItems } from "../lib/ai-data/search";
 
 const router: IRouter = Router();
@@ -70,7 +73,17 @@ const PersonCreate = z
     aiAccess: z.boolean().optional(),
   })
   .strict();
-const PersonUpdate = PersonCreate.partial().extend({ cadence: z.enum(CADENCES).optional(), cadencePaused: z.boolean().optional() }).strict();
+const PersonUpdate = PersonCreate.partial()
+  .extend({
+    cadence: z.enum(CADENCES).optional(),
+    cadencePaused: z.boolean().optional(),
+    otherEmails: z.array(z.string().trim().email("That email address does not look right").max(320)).max(20).optional(),
+    slackUserId: z.string().trim().min(1).max(40).nullable().optional(),
+  })
+  .strict();
+const MergeBody = z.object({ otherId: id }).strict();
+const NotSameBody = z.object({ aId: id, bId: id }).strict();
+const SlackQuery = z.object({ q: z.string().max(100).default("") });
 const CadenceQuery = z.object({ tab: z.enum(CADENCE_TABS).optional() });
 
 const OrganisationCreate = z
@@ -168,6 +181,34 @@ router.get("/people", handle(async (_req, res) => void res.json(await listPeople
 router.post("/people", handle(async (req, res) => void res.status(201).json(await createPerson(PersonCreate.parse(req.body)))));
 // Before /people/:slug so "cadence" is not read as a slug.
 router.get("/people/cadence", handle(async (req, res) => void res.json(await listCadence(CadenceQuery.parse(req.query).tab))));
+router.get("/people/duplicates", handle(async (_req, res) => void res.json(await possibleDuplicates())));
+router.post(
+  "/people/duplicates/not-same",
+  handle(async (req, res) => {
+    const b = NotSameBody.parse(req.body);
+    await markNotSame(b.aId, b.bId);
+    res.json({ ok: true });
+  }),
+);
+router.get(
+  "/people/slack-accounts",
+  handle(async (req, res) => {
+    const { q } = SlackQuery.parse(req.query);
+    try {
+      res.json(await findSlackUsers(q, Date.now(), 1000));
+    } catch (err) {
+      req.log?.warn({ err }, "Slack people lookup failed");
+      throw new UpstreamError("Could not reach Slack. Check the Slack connection in Settings.");
+    }
+  }),
+);
+router.post(
+  "/people/:slug/merge",
+  handle(async (req, res) => {
+    const keep = await getPerson(SlugParams.parse(req.params).slug);
+    res.json(await mergePeople(keep.person.id, MergeBody.parse(req.body).otherId));
+  }),
+);
 router.post("/people/:slug/check-in-draft", handle(async (req, res) => void res.json(await checkInDraft(SlugParams.parse(req.params).slug))));
 router.get("/people/:slug", handle(async (req, res) => void res.json(await getPerson(SlugParams.parse(req.params).slug))));
 router.patch(

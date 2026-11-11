@@ -5,6 +5,7 @@
  */
 import { eq, inArray, sql } from "drizzle-orm";
 import { db, peopleTable, threadSummariesTable } from "@workspace/db";
+import { hasAnyEmail } from "./personMatch";
 import { formatDayMonth, toRef } from "@workspace/shared";
 import { visibleRefs } from "../lib/ai-data/scope";
 import { logger } from "../lib/logger";
@@ -68,7 +69,7 @@ export async function aiMaySeeSenders(emails: string[]): Promise<boolean> {
   const people = await db
     .select({ id: peopleTable.id })
     .from(peopleTable)
-    .where(inArray(sql`lower(${peopleTable.email})`, emails));
+    .where(hasAnyEmail(emails));
   if (!people.length) return true;
   const refs = people.map((p) => toRef("person", p.id));
   const seen = await visibleRefs(await askScope(), refs);

@@ -72,6 +72,7 @@ export function pickConversations(convs: SlackConv[], state: SlackState, now: Da
 }
 
 interface SlackUser {
+  id: string;
   name: string;
   handle: string;
   email: string | null;
@@ -116,6 +117,7 @@ async function loadUsers(now: number): Promise<Map<string, SlackUser>> {
       const profile = (u.profile ?? {}) as Record<string, unknown>;
       const name = String(u.real_name || profile.real_name || profile.display_name || u.name || u.id);
       users.set(String(u.id), {
+        id: String(u.id),
         name,
         handle: String(u.name ?? ""),
         email: typeof profile.email === "string" ? profile.email.toLowerCase() : null,
@@ -127,6 +129,26 @@ async function loadUsers(now: number): Promise<Map<string, SlackUser>> {
   }
   usersCache = { at: now, users };
   return users;
+}
+
+export interface SlackPerson {
+  id: string;
+  name: string;
+  handle: string;
+  email: string | null;
+}
+
+/** Slack accounts in Ollie's workspace whose name, handle or email contains the text, people only. */
+export async function findSlackUsers(q: string, now = Date.now(), limit = 20): Promise<SlackPerson[]> {
+  const needle = q.trim().toLowerCase();
+  const users = await loadUsers(now);
+  const out: SlackPerson[] = [];
+  for (const u of users.values()) {
+    if (u.bot) continue;
+    if (needle && ![u.name, u.handle, u.email ?? ""].some((v) => v.toLowerCase().includes(needle))) continue;
+    out.push({ id: u.id, name: u.name, handle: u.handle, email: u.email });
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name)).slice(0, limit);
 }
 
 /** Test hook. */
@@ -241,16 +263,17 @@ export async function readSlack(prev: SlackState | null, now = new Date()): Prom
         fromMe: m.user === me,
         fromName: m.user === me ? null : (u?.name ?? null),
         fromAddress: u?.email ?? null,
+        fromSlackId: m.user ?? null,
         text: trimText(plainSlack(m.text ?? "", users), MAX_TEXT),
         url: `${teamUrl}archives/${c.id}/p${m.ts.replace(".", "")}`,
       };
     });
     const people =
       c.kind === "im"
-        ? [{ name: other?.name ?? null, email: other?.email ?? null }]
+        ? [{ name: other?.name ?? null, email: other?.email ?? null, slackId: c.user ?? null }]
         : c.kind === "mpim"
-          ? members.map((u) => ({ name: u.name, email: u.email }))
-          : [...new Map(ordered.filter((m) => m.user !== me).map((m) => [m.user!, users.get(m.user!)])).values()].filter(Boolean).map((u) => ({ name: u!.name, email: u!.email }));
+          ? members.map((u) => ({ name: u.name, email: u.email, slackId: u.id }))
+          : [...new Map(ordered.filter((m) => m.user !== me).map((m) => [m.user!, users.get(m.user!)])).values()].filter(Boolean).map((u) => ({ name: u!.name, email: u!.email, slackId: u!.id }));
     units.push({
       source: "slack",
       key: `slack:${c.id}:${ordered[ordered.length - 1].ts}`,

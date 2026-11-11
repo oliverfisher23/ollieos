@@ -76,6 +76,10 @@ export const peopleTable = pgTable(
     organisationId: integer("organisation_id").references(() => organisationsTable.id),
     role: text("role"),
     email: text("email"),
+    /** Part N: other addresses the same person uses; matched like the main one */
+    otherEmails: text("other_emails").array().notNull().default(sql`'{}'::text[]`),
+    /** Part N: their Slack user id, so Slack messages match them */
+    slackUserId: text("slack_user_id"),
     relationshipSummary: text("relationship_summary"),
     confidential: boolean("confidential").notNull().default(false),
     aiAccess: boolean("ai_access").notNull().default(true),
@@ -94,6 +98,7 @@ export const peopleTable = pgTable(
   },
   (t) => [
     uniqueIndex("people_email_unique").on(t.email).where(sql`email is not null`),
+    uniqueIndex("people_slack_unique").on(t.slackUserId).where(sql`slack_user_id is not null`),
     uniqueIndex("people_self_unique").on(t.isSelf).where(sql`is_self`),
     index("people_organisation_idx").on(t.organisationId),
     index("people_search_idx").using("gin", t.search),

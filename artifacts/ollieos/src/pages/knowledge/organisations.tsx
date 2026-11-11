@@ -30,7 +30,7 @@ import {
   Timeline,
   useUnlink,
 } from '@/components/knowledge/parts';
-import { RelationshipsSection } from '@/components/knowledge/relationships';
+import { RelationshipsSection, WhoDecides } from '@/components/knowledge/relationships';
 import { isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
 import { PlaybooksSection } from '@/pages/knowledge/playbooks';
 import { ProductsSection } from '@/pages/knowledge/products';
@@ -158,6 +158,9 @@ export function OrganisationPage() {
           <h1 className="oo-h1">
             <InlineText value={o.name} label="Organisation name" required maxLength={200} testId="org-name" onSave={(v) => save({ name: v ?? o.name })} />
           </h1>
+          <div style={{ fontSize: 13 }}>
+            <WhoDecides type="organisation" id={o.id} name={o.name} />
+          </div>
         </div>
         <AccessPanel
           kind="organisation"

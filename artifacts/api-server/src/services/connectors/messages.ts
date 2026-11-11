@@ -7,6 +7,8 @@ export interface WorkMessage {
   fromMe: boolean;
   fromName: string | null;
   fromAddress: string | null;
+  /** Slack: the sender's Slack user id, so they match a person by their Slack account */
+  fromSlackId?: string | null;
   text: string;
   url: string;
 }
@@ -19,7 +21,7 @@ export interface WorkUnit {
   /** Slack: "#channel", the other person's name for a DM, or the names in a group DM */
   channel: string | null;
   /** Who else is in the exchange, for linking to People */
-  people: { name: string | null; email: string | null }[];
+  people: { name: string | null; email: string | null; slackId?: string | null }[];
   /** Oldest first */
   messages: WorkMessage[];
 }

@@ -52,7 +52,7 @@ export async function loadScopeContext(): Promise<ScopeContext> {
   const [me, rows] = await Promise.all([
     myAddresses(),
     db
-      .select({ personId: peopleTable.id, email: peopleTable.email, isSelf: peopleTable.isSelf, orgId: organisationsTable.id, orgName: organisationsTable.name, internal: organisationsTable.internal })
+      .select({ personId: peopleTable.id, email: peopleTable.email, otherEmails: peopleTable.otherEmails, isSelf: peopleTable.isSelf, orgId: organisationsTable.id, orgName: organisationsTable.name, internal: organisationsTable.internal })
       .from(peopleTable)
       .leftJoin(organisationsTable, eq(peopleTable.organisationId, organisationsTable.id)),
   ]);
@@ -65,7 +65,7 @@ export async function loadScopeContext(): Promise<ScopeContext> {
   const personOrg = new Map<number, { id: number; name: string; internal: boolean }>();
   for (const r of rows) {
     if (r.orgId != null) personOrg.set(r.personId, { id: r.orgId, name: r.orgName!, internal: !!r.internal });
-    if (r.internal || r.isSelf) add(r.email);
+    if (r.internal || r.isSelf) for (const e of [r.email, ...r.otherEmails]) add(e);
   }
   return { internalDomains, personOrg };
 }

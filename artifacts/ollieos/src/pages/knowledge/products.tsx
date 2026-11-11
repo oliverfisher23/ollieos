@@ -29,7 +29,7 @@ import {
   PageSkeleton,
   useUnlink,
 } from '@/components/knowledge/parts';
-import { RelationshipsSection } from '@/components/knowledge/relationships';
+import { RelationshipsSection, WhoDecides } from '@/components/knowledge/relationships';
 import { isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
 import { RuleCard, RuleDialog } from '@/pages/knowledge/library';
 import { PlaybooksSection } from '@/pages/knowledge/playbooks';
@@ -209,6 +209,9 @@ export function ProductPage() {
               />
             </dd>
           </dl>
+          <div style={{ fontSize: 13 }}>
+            <WhoDecides type="product" id={p.id} name={p.name} />
+          </div>
         </div>
         <AccessPanel
           kind="product"

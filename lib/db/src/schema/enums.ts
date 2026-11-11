@@ -58,7 +58,7 @@ export const suggestionKindEnum = pgEnum("suggestion_kind", [
   "rule",
   "product",
 ]);
-export const suggestionStatusEnum = pgEnum("suggestion_status", ["pending", "approved", "rejected"]);
+export const suggestionStatusEnum = pgEnum("suggestion_status", ["pending", "approved", "rejected", "merged"]);
 /** Stale and conflicting facts (feature 02). */
 /** The Review page (Assist Part C): look-back actions; Part D adds unanswered email. */
 export const reviewItemKindEnum = pgEnum("review_item_kind", ["action", "no_reply"]);
@@ -106,5 +106,7 @@ export const RELATIONSHIP_KINDS = [
   "depends_on",
   "blocked_by",
   "related_to",
+  /** Part N: a person who decides on a project, product or organisation */
+  "decides_on",
 ] as const;
 export const relationshipEnum = pgEnum("relationship", RELATIONSHIP_KINDS);

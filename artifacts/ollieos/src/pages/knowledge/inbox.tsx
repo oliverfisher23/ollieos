@@ -2,11 +2,13 @@ import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import {
   approveSuggestion,
+  mergeSuggestion,
   rejectSuggestion,
   rejectSuggestionsFromSource,
   resolveFactReview,
   useListKnowledgeInbox,
   useListProjects,
+  useListSuggestionMergeOptions,
   type FactReviewResolve,
   type KnowledgeInboxItem,
   type KnowledgeInboxItemKind,
@@ -186,7 +188,7 @@ function Target({ it }: { it: KnowledgeInboxItem }) {
 function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?: Done; onDone: (result: string, ok: boolean) => void }) {
   const write = useKnowledgeWrite();
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<'view' | 'edit' | 'own'>('view');
+  const [mode, setMode] = useState<'view' | 'edit' | 'own' | 'same'>('view');
   const kind = KIND[it.kind];
   const testKey = it.key.replace(':', '-');
   // A decision with no project: file it under one, a new one, or none.
@@ -262,6 +264,7 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
         </>
       )}
 
+      <SaidBy it={it} testKey={testKey} />
       {source && (
         <p style={{ margin: 0, fontSize: 13 }} className="oo-soft">
           <span className="oo-muted">Source:</span>{' '}
@@ -272,6 +275,16 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
 
       {it.needsProject && !done && mode !== 'own' && (
         <ProjectPicker testKey={testKey} hint={it.projectHint} value={project} onChange={setProject} newName={newName} onNewName={setNewName} />
+      )}
+
+      {mode === 'same' && !done && (
+        <SameAsExisting
+          it={it}
+          testKey={testKey}
+          busy={busy}
+          onCancel={() => setMode('view')}
+          onPick={(itemType, itemId) => run(() => mergeSuggestion(it.id, { itemType, itemId }), SAME_DONE[itemType], true)}
+        />
       )}
 
       {mode === 'own' && !done && (
@@ -292,6 +305,9 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
               <button type="button" className="oo-btn oo-btn-ink" disabled={busy || filingBlocked} onClick={() => run(() => approveSuggestion(it.id, filing), approvedText(it, project, newName), true)} data-testid={'button-approve-' + testKey}>Approve</button>
               {it.fields.some((f) => f.editable) && (
                 <button type="button" className="oo-btn oo-btn-outline" disabled={busy} onClick={() => setMode('edit')} data-testid={'button-edit-' + testKey}>Edit, then approve</button>
+              )}
+              {MERGEABLE[it.kind] && (
+                <button type="button" className="oo-btn oo-btn-outline" disabled={busy} onClick={() => setMode('same')} data-testid={'button-same-' + testKey}>Same as existing</button>
               )}
               <button type="button" className="oo-btn oo-btn-danger" disabled={busy} onClick={() => run(() => rejectSuggestion(it.id), 'Rejected', false)} data-testid={'button-reject-' + testKey}>Reject</button>
             </>
@@ -323,6 +339,68 @@ function InboxCard({ item: it, done, onDone }: { item: KnowledgeInboxItem; done?
         </div>
       ) : null}
     </article>
+  );
+}
+
+/** "Said by Sam Lee, 3rd November": who made the claim, linked to their page when they are in People. */
+function SaidBy({ it, testKey }: { it: KnowledgeInboxItem; testKey: string }) {
+  const s = it.saidBy;
+  if (!s) return null;
+  const path = s.personId != null ? entityPath('person', s.slug, s.personId) : null;
+  const name = s.isSelf ? 'You' : s.name;
+  return (
+    <p style={{ margin: 0, fontSize: 13 }} className="oo-soft" data-testid={'text-said-by-' + testKey}>
+      <span className="oo-muted">Said by:</span>{' '}
+      {path && !s.isSelf ? <Link href={path}>{name}</Link> : name}
+      {it.saidAt ? `, ${formatDayMonth(it.saidAt)}` : ''}
+    </p>
+  );
+}
+
+type MergeType = 'fact' | 'decision' | 'rule';
+const MERGEABLE: Partial<Record<KnowledgeInboxItemKind, MergeType>> = { new_fact: 'fact', proposed_decision: 'decision', new_rule: 'rule' };
+const SAME_DONE: Record<MergeType, string> = {
+  fact: 'Same as an existing fact. Marked as checked today.',
+  decision: 'Same as an existing decision. Nothing added.',
+  rule: 'Same as an existing rule. Nothing added.',
+};
+
+/** Picks the approved fact, decision or rule this card already says. */
+function SameAsExisting({ it, testKey, busy, onPick, onCancel }: { it: KnowledgeInboxItem; testKey: string; busy: boolean; onPick: (type: MergeType, id: number) => void; onCancel: () => void }) {
+  const q = useListSuggestionMergeOptions(it.id);
+  const what = MERGEABLE[it.kind] ?? 'fact';
+  const options = (q.data ?? []).map((o) => ({
+    value: `${o.itemType}:${o.id}`,
+    label: o.text,
+    hint: o.detail ?? undefined,
+    group: o.likely ? 'Close matches' : 'Others',
+  }));
+  return (
+    <div role="group" aria-label="Same as an existing one" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', fontSize: 13 }}>
+      {q.error ? (
+        <span role="alert">Could not load the existing ones.</span>
+      ) : !q.isLoading && options.length === 0 ? (
+        <span className="oo-muted" data-testid={'text-same-none-' + testKey}>There is no approved {what} {what === 'fact' ? 'on this yet' : 'yet'} to match it to.</span>
+      ) : (
+        <Dropdown
+          variant="control"
+          ariaLabel={`Existing ${what}`}
+          value=""
+          defaultOpen
+          disabled={busy || q.isLoading}
+          onChange={(v) => {
+            const [type, id] = v.split(':');
+            onPick(type as MergeType, Number(id));
+          }}
+          placeholder={q.isLoading ? 'Loading…' : `Choose the existing ${what}`}
+          searchPlaceholder={`Search ${what}s`}
+          options={options}
+          testId={'select-same-' + testKey}
+          style={{ flex: '1 1 260px', minWidth: 0, maxWidth: 520 }}
+        />
+      )}
+      <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" disabled={busy} onClick={onCancel} data-testid={'button-same-cancel-' + testKey}>Cancel</button>
+    </div>
   );
 }
 

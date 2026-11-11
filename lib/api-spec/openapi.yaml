@@ -1480,6 +1480,78 @@ paths:
         "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /people/duplicates:
+    get:
+      operationId: listPossibleDuplicates
+      tags: [knowledge]
+      summary: People who look like the same person (same name, or a matching email address)
+      responses:
+        "200":
+          description: Pairs
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/DuplicatePair" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /people/duplicates/not-same:
+    post:
+      operationId: markPeopleNotSame
+      tags: [knowledge]
+      summary: Say two people are different people, so they stop showing as possible duplicates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NotSameInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /people/slack-accounts:
+    get:
+      operationId: findSlackAccounts
+      tags: [knowledge]
+      summary: People in Ollie's Slack workspace, for linking a person to their Slack account
+      parameters:
+        - { name: q, in: query, required: false, schema: { type: string, maxLength: 100 } }
+      responses:
+        "200":
+          description: Up to 1000 Slack accounts, by name
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/SlackAccount" } }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /people/{slug}/merge:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    post:
+      operationId: mergePerson
+      tags: [knowledge]
+      summary: Merge another person into this one. Everything on them moves here and they are removed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MergePersonInput" }
+      responses:
+        "200":
+          description: Merged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MergePersonResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /people/{slug}/check-in-draft:
     parameters:
       - $ref: "#/components/parameters/Slug"
@@ -2632,6 +2704,45 @@ paths:
                   rejected: { type: integer }
         "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /suggestions/{id}/merge-options:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      operationId: listSuggestionMergeOptions
+      tags: [knowledge]
+      summary: Approved facts, decisions or rules a card could be the same as, close matches first
+      responses:
+        "200":
+          description: Options
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/MergeOption" } }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /suggestions/{id}/merge:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: mergeSuggestion
+      tags: [knowledge]
+      summary: Same as existing. The existing item counts as checked today and nothing new is added.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MergeSuggestionInput" }
+      responses:
+        "200":
+          description: Merged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuggestionDecision" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
 
   /suggestions/{id}/reject:
     parameters:
@@ -4213,7 +4324,7 @@ components:
 
     BriefAttendeePerson:
       type: object
-      required: [id, slug, name, role, organisation, confidential, lastContactAt, facts, cadence]
+      required: [id, slug, name, role, organisation, confidential, lastContactAt, facts, cadence, decidesOn]
       properties:
         id: { type: integer }
         slug: { type: string }
@@ -4237,6 +4348,19 @@ components:
           oneOf:
             - $ref: "#/components/schemas/BriefCadence"
             - type: "null"
+        decidesOn:
+          type: array
+          description: The projects, products and organisations this person decides on
+          items: { $ref: "#/components/schemas/DecidesOnItem" }
+
+    DecidesOnItem:
+      type: object
+      required: [type, id, name, slug]
+      properties:
+        type: { type: string, enum: [project, product, organisation] }
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
 
     BriefCadence:
       type: object
@@ -5234,7 +5358,7 @@ components:
 
     KnowledgeInboxItem:
       type: object
-      required: [key, id, group, kind, target, by, createdAt, text, fields, attribute, replaces, source, sourceUrl, options, lastConfirmedAt, lookBack, fromDocument, needsProject, projectHint, playbook]
+      required: [key, id, group, kind, target, by, createdAt, text, fields, attribute, replaces, source, sourceUrl, options, lastConfirmedAt, lookBack, fromDocument, needsProject, projectHint, playbook, saidBy, saidAt]
       properties:
         key: { type: string }
         id: { type: integer, description: Suggestion id on the Suggested tab, review id otherwise }
@@ -5265,6 +5389,113 @@ components:
           oneOf:
             - $ref: "#/components/schemas/KnowledgeInboxPlaybook"
             - type: "null"
+        saidBy:
+          description: Who made the claim; a person in People when one matched
+          oneOf:
+            - $ref: "#/components/schemas/KnowledgeInboxSaidBy"
+            - type: "null"
+        saidAt: { type: [string, "null"], format: date-time, description: When they said it }
+
+    KnowledgeInboxSaidBy:
+      type: object
+      required: [name, personId, slug, isSelf]
+      properties:
+        name: { type: string }
+        personId: { type: [integer, "null"] }
+        slug: { type: [string, "null"] }
+        isSelf: { type: boolean, description: Ollie himself }
+
+    MergeOption:
+      type: object
+      required: [itemType, id, text, detail, likely]
+      properties:
+        itemType: { type: string, enum: [fact, decision, rule] }
+        id: { type: integer }
+        text: { type: string }
+        detail: { type: [string, "null"] }
+        likely: { type: boolean, description: Says much the same thing as the card }
+
+    MergeSuggestionInput:
+      type: object
+      required: [itemType, itemId]
+      additionalProperties: false
+      properties:
+        itemType: { type: string, enum: [fact, decision, rule] }
+        itemId: { type: integer }
+
+    DuplicatePerson:
+      type: object
+      required: [id, name, slug, email]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        email: { type: [string, "null"] }
+
+    DuplicatePair:
+      type: object
+      required: [a, b, reason]
+      properties:
+        a: { $ref: "#/components/schemas/DuplicatePerson" }
+        b: { $ref: "#/components/schemas/DuplicatePerson" }
+        reason: { type: string }
+
+    NotSameInput:
+      type: object
+      required: [aId, bId]
+      additionalProperties: false
+      properties:
+        aId: { type: integer }
+        bId: { type: integer }
+
+    OkResult:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+
+    SlackAccount:
+      type: object
+      required: [id, name, handle, email]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        handle: { type: string }
+        email: { type: [string, "null"] }
+
+    MergePersonInput:
+      type: object
+      required: [otherId]
+      additionalProperties: false
+      properties:
+        otherId: { type: integer, description: The person to merge into this one and remove }
+
+    MergePersonResult:
+      type: object
+      required: [kept, removed, moved]
+      properties:
+        kept:
+          type: object
+          required: [id, name, slug]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            slug: { type: string }
+        removed:
+          type: object
+          required: [id, name]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+        moved:
+          type: object
+          required: [facts, notes, tasks, meetings, links]
+          properties:
+            facts: { type: integer }
+            notes: { type: integer }
+            tasks: { type: integer }
+            meetings: { type: integer }
+            links: { type: integer }
 
     KnowledgeInboxStep:
       type: object
@@ -5306,7 +5537,7 @@ components:
       required: [id, status, result]
       properties:
         id: { type: integer }
-        status: { type: string, enum: [approved, rejected] }
+        status: { type: string, enum: [approved, rejected, merged] }
         result:
           oneOf:
             - type: object
@@ -5521,7 +5752,7 @@ components:
 
     Person:
       type: object
-      required: [id, name, slug, role, email, relationshipSummary, confidential, aiAccess, lastContactAt, organisation, cadence, cadencePaused, isSelf, createdAt, updatedAt]
+      required: [id, name, slug, role, email, relationshipSummary, confidential, aiAccess, lastContactAt, organisation, cadence, cadencePaused, isSelf, otherEmails, slackUserId, createdAt, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -5539,6 +5770,8 @@ components:
         cadence: { $ref: "#/components/schemas/Cadence" }
         cadencePaused: { type: boolean }
         isSelf: { type: boolean, description: "Ollie's own record" }
+        otherEmails: { type: array, items: { type: string }, description: "Other addresses they use, in lower case" }
+        slackUserId: { type: [string, "null"], description: Their Slack account }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
@@ -5566,6 +5799,8 @@ components:
         aiAccess: { type: boolean }
         cadence: { $ref: "#/components/schemas/Cadence" }
         cadencePaused: { type: boolean }
+        otherEmails: { type: array, maxItems: 20, items: { type: string, maxLength: 320 }, description: Replaces the list of other addresses }
+        slackUserId: { type: [string, "null"], description: Their Slack account id, or null to unlink }
 
     PersonDetail:
       type: object
@@ -5717,7 +5952,7 @@ components:
 
     RelationshipKind:
       type: string
-      enum: [reports_to, works_with, advises, introduced_by, investor_in, customer_of, supplier_to, partner_of, competitor_of, part_of, depends_on, blocked_by, related_to]
+      enum: [reports_to, works_with, advises, introduced_by, investor_in, customer_of, supplier_to, partner_of, competitor_of, part_of, depends_on, blocked_by, related_to, decides_on]
 
     RelationshipView:
       type: object

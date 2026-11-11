@@ -215,8 +215,37 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
     const r = parseRef(`${n.entityType}:${n.entityId}`);
     if (r) nameRefs.push(r);
   }
+  // Part N: who decides on the projects, organisations and products loaded, and what loaded people decide on.
+  const decideConds = [
+    ...([
+      ["project", projects],
+      ["organisation", orgs],
+      ["product", products],
+    ] as const)
+      .filter(([, rows]) => rows.length)
+      .map(([t, rows]) => and(eq(linksTable.toType, t), inArray(linksTable.toId, rows.map((r) => r.id)))),
+    ...(people.length ? [and(eq(linksTable.fromType, "person"), inArray(linksTable.fromId, people.map((p) => p.id)))] : []),
+  ];
+  const decideRows = decideConds.length
+    ? await db
+        .select({ fromId: linksTable.fromId, toType: linksTable.toType, toId: linksTable.toId })
+        .from(linksTable)
+        .where(and(eq(linksTable.relationship, "decides_on"), eq(linksTable.fromType, "person"), or(...decideConds)))
+    : [];
+  for (const r of decideRows) nameRefs.push({ type: "person", id: r.fromId }, { type: r.toType as RefType, id: r.toId });
   const names = await visibleNames(nameRefs, scope.grants);
   const name = (t: RefType, id: number | null) => (id ? (names.get(toRef(t, id)) ?? null) : null);
+  /** "Who decides" for an item: the named people AI may see, Ollie when no one is named, nothing when all are hidden. */
+  const whoDecides = (t: RefType, id: number) => {
+    const rows = decideRows.filter((r) => r.toType === t && r.toId === id);
+    if (!rows.length) return "Who decides: Ollie (no one else named)";
+    const ns = rows.map((r) => name("person", r.fromId)).filter(Boolean);
+    return ns.length ? `Who decides: ${ns.join(", ")}` : null;
+  };
+  const decidesOn = (personId: number) => {
+    const ns = decideRows.filter((r) => r.fromId === personId).map((r) => name(r.toType as RefType, r.toId)).filter(Boolean);
+    return ns.length ? `Decides on: ${ns.join(", ")}` : null;
+  };
 
   const docs: AiDoc[] = [];
   for (const t of tasks) {
@@ -258,7 +287,7 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
       ref,
       type: "project",
       id: p.id,
-      text: [`[${ref}] Project: ${p.name}`, line([p.area && `Area: ${p.area}`, p.status && `Status: ${p.status}`, `Updated ${day(p.updatedAt)}`]), p.summary && `Summary: ${clip(p.summary)}`]
+      text: [`[${ref}] Project: ${p.name}`, line([p.area && `Area: ${p.area}`, p.status && `Status: ${p.status}`, `Updated ${day(p.updatedAt)}`]), whoDecides("project", p.id), p.summary && `Summary: ${clip(p.summary)}`]
         .filter(Boolean)
         .join("\n"),
     });
@@ -272,6 +301,7 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
       text: [
         `[${ref}] Person: ${p.name}`,
         line([name("organisation", p.organisationId) && `Organisation: ${name("organisation", p.organisationId)}`, p.role && `Role: ${p.role}`, p.email && `Email: ${p.email}`, p.lastContactAt && `Last contact: ${day(p.lastContactAt)}`]),
+        decidesOn(p.id),
         p.relationshipSummary && `Relationship: ${clip(p.relationshipSummary)}`,
       ]
         .filter(Boolean)
@@ -284,7 +314,7 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
       ref,
       type: "organisation",
       id: o.id,
-      text: [`[${ref}] Organisation: ${o.name}`, o.internal ? "Internal: Ollie's own company; people here are his colleagues" : "External", o.type && `Type: ${o.type}`, o.summary && `Summary: ${clip(o.summary)}`].filter(Boolean).join("\n"),
+      text: [`[${ref}] Organisation: ${o.name}`, o.internal ? "Internal: Ollie's own company; people here are his colleagues" : "External", o.type && `Type: ${o.type}`, whoDecides("organisation", o.id), o.summary && `Summary: ${clip(o.summary)}`].filter(Boolean).join("\n"),
     });
   }
   for (const d of decisions) {
@@ -432,6 +462,7 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
       text: [
         `[${ref}] Product: ${p.name}${p.description ? `. ${p.description}` : ""}`,
         line([`State: ${PRODUCT_STATE_LABELS[p.state]}`, owner && `Owner: ${owner}`, `Updated ${day(p.updatedAt)}`]),
+        whoDecides("product", p.id),
         p.summary && `Summary: ${clip(p.summary, 2000)}`,
       ]
         .filter(Boolean)

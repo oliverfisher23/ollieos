@@ -24,7 +24,9 @@ import {
   type CalendarAttendee,
   type CalendarEvent,
   type MeetingBrief,
+  linksTable,
 } from "@workspace/db";
+import { byEmailMap } from "./personMatch";
 import { CADENCE_LABELS, OPEN_STATUSES, SOURCE_LABELS, addDays, formatLong, formatTime, londonRange, parseRef, todayLondon, toRef } from "@workspace/shared";
 import { getContext, visibleCalendarRows, wholeWord, type ContextOut } from "../lib/ai-data/context";
 import { applicableRuleRefs, loadVisibleDocs } from "../lib/ai-data/retrieve";
@@ -40,6 +42,7 @@ import { loadScopeContext, scopeOf, type MeetingScope, type ScopeContext } from 
 import { researchViews, type ResearchView } from "./research";
 import { ConflictError, NotFoundError } from "./tasks";
 import { linkMap } from "./library";
+import { resolveEntities } from "./knowledge/common";
 
 export const BRIEF_MAX_AGE_MS = 3 * 60 * 60 * 1000;
 /** Part of the inputs hash: bump when the brief gains a section, so existing briefs are written again. */
@@ -51,7 +54,7 @@ const MAX_PROJECTS = 4;
 /* ---------- Matching an event to what OllieOS knows ---------- */
 
 export interface Matchers {
-  people: { id: number; name: string; email: string | null; organisationId: number | null; isSelf: boolean }[];
+  people: { id: number; name: string; email: string | null; otherEmails: string[]; organisationId: number | null; isSelf: boolean }[];
   projects: { id: number; name: string; re: RegExp }[];
   orgs: { id: number; name: string; re: RegExp }[];
   selfEmail: string | null;
@@ -61,7 +64,7 @@ export interface Matchers {
 export async function loadMatchers(): Promise<Matchers> {
   const [people, projects, orgs, scope] = await Promise.all([
     db
-      .select({ id: peopleTable.id, name: peopleTable.name, email: peopleTable.email, organisationId: peopleTable.organisationId, isSelf: peopleTable.isSelf })
+      .select({ id: peopleTable.id, name: peopleTable.name, email: peopleTable.email, otherEmails: peopleTable.otherEmails, organisationId: peopleTable.organisationId, isSelf: peopleTable.isSelf })
       .from(peopleTable),
     db.select({ id: projectsTable.id, name: projectsTable.name }).from(projectsTable).where(eq(projectsTable.archived, false)),
     db.select({ id: organisationsTable.id, name: organisationsTable.name }).from(organisationsTable),
@@ -101,7 +104,7 @@ export interface EventMatch {
  */
 export function matchEvent(e: CalendarEvent, m: Matchers): EventMatch {
   const details: CalendarAttendee[] = e.attendeeDetails?.length ? e.attendeeDetails : e.attendees.map((name) => ({ name }));
-  const byEmail = new Map(m.people.filter((p) => p.email).map((p) => [p.email!.toLowerCase(), p]));
+  const byEmail = byEmailMap(m.people);
   const byName = new Map<string, (typeof m.people)[number][]>();
   for (const p of m.people) byName.set(p.name.trim().toLowerCase(), [...(byName.get(p.name.trim().toLowerCase()) ?? []), p]);
   const byId = new Map(m.people.map((p) => [p.id, p]));
@@ -503,6 +506,31 @@ export interface BriefSource {
   external: boolean;
 }
 
+export interface DecidesOnItem {
+  type: "project" | "product" | "organisation";
+  id: number;
+  name: string;
+  slug: string;
+}
+
+/** What each person decides on (Part N), for the brief's attendee lines. Ollie's view. */
+async function decidesOnFor(personIds: number[]): Promise<Map<number, DecidesOnItem[]>> {
+  const out = new Map<number, DecidesOnItem[]>();
+  if (!personIds.length) return out;
+  const rows = await db
+    .select({ personId: linksTable.fromId, type: linksTable.toType, id: linksTable.toId })
+    .from(linksTable)
+    .where(and(eq(linksTable.relationship, "decides_on"), eq(linksTable.fromType, "person"), inArray(linksTable.fromId, personIds)));
+  const names = await resolveEntities(rows.map((r) => ({ type: r.type, id: r.id })));
+  for (const r of rows) {
+    const n = names.get(`${r.type}:${r.id}`);
+    if (!n || !["project", "product", "organisation"].includes(r.type)) continue;
+    out.set(r.personId, [...(out.get(r.personId) ?? []), { type: r.type as DecidesOnItem["type"], id: r.id, name: n.name, slug: n.slug ?? "" }]);
+  }
+  for (const list of out.values()) list.sort((a, b) => a.name.localeCompare(b.name));
+  return out;
+}
+
 export interface BriefView {
   event: { id: number; title: string; startsAt: Date; endsAt: Date; location: string | null; platform: string | null; scope: MeetingScope; companies: string[] };
   /** What the research agent found about each outside company on the meeting */
@@ -531,6 +559,8 @@ export interface BriefView {
       lastContactAt: Date | null;
       facts: { id: number; text: string; needsCheck: boolean }[];
       cadence: { label: string; status: string; daysOverdue: number | null; daysLeft: number | null; daysSince: number | null } | null;
+      /** Part N: the projects, products and organisations they decide on */
+      decidesOn: DecidesOnItem[];
     } | null;
   }[];
   promises: { id: number; title: string; source: string; capturedAt: Date; dueDate: string | null; personName: string | null }[];
@@ -729,6 +759,7 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
   const withSources = (lines: BriefLine[] | null) =>
     lines ? lines.map((l) => ({ text: l.text, sources: l.cited.map((r) => sources.get(r)).filter((s): s is BriefSource => !!s) })) : null;
   const byPerson = new Map(personRows.map((p) => [p.id, p]));
+  const deciding = await decidesOnFor(personRows.map((p) => p.id));
   const order = (ids: number[]) => (a: { id: number }, b: { id: number }) => ids.indexOf(a.id) - ids.indexOf(b.id);
 
   return {
@@ -770,6 +801,7 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
               lastContactAt: p.lastContactAt,
               facts: extra.facts.get(p.id) ?? [],
               cadence: cad ? { label: CADENCE_LABELS[p.cadence], status: cad.status, daysOverdue: cad.daysOverdue, daysLeft: cad.daysLeft, daysSince: cad.daysSince } : null,
+              decidesOn: deciding.get(p.id) ?? [],
             }
           : null,
       };
@@ -966,7 +998,8 @@ export interface BriefOut {
   questions: { text: string; refs: string[] }[];
   agenda: { text: string; refs: string[] }[];
   questions_note: string | null;
-  attendees: { name: string; response: string | null; person: string | null }[];
+  /** decides_on: refs of the projects, products and organisations the person decides on */
+  attendees: { name: string; response: string | null; person: string | null; decides_on: string[] }[];
   promises: { ref: string; title: string; due_date: string | null }[];
   projects: { ref: string; name: string }[];
   goals: { ref: string; name: string }[];
@@ -1000,6 +1033,7 @@ export async function briefForAi(scope: AiScope, eventId: number): Promise<Brief
   const ok = await visibleRefs(scope, all);
   const keep = (lines: BriefLine[] | null) => (lines ?? []).filter((l) => l.cited.every((r) => ok.has(r))).map((l) => ({ text: l.text, refs: l.cited }));
   const view = await viewOf(event, brief, inputs);
+  const okDecide = await visibleRefs(scope, view.attendees.flatMap((a) => (a.person?.decidesOn ?? []).map((d) => toRef(d.type, d.id))));
   const out: BriefOut = {
     event: {
       ref: `calendar_event:${event.id}`,
@@ -1019,6 +1053,7 @@ export async function briefForAi(scope: AiScope, eventId: number): Promise<Brief
       name: a.name,
       response: a.response,
       person: a.person && ok.has(toRef("person", a.person.id)) ? toRef("person", a.person.id) : null,
+      decides_on: a.person && ok.has(toRef("person", a.person.id)) ? a.person.decidesOn.map((d) => toRef(d.type, d.id)).filter((r) => okDecide.has(r)) : [],
     })),
     promises: view.promises.filter((p) => ok.has(toRef("task", p.id))).map((p) => ({ ref: toRef("task", p.id), title: p.title, due_date: p.dueDate })),
     projects: view.projects.filter((p) => ok.has(toRef("project", p.id))).map((p) => ({ ref: toRef("project", p.id), name: p.name })),

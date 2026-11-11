@@ -29,6 +29,7 @@ import {
   useUnlink,
 } from '@/components/knowledge/parts';
 import { RelationshipsSection } from '@/components/knowledge/relationships';
+import { OtherEmails, PossibleDuplicates, SamePersonAs, SlackAccount } from '@/components/knowledge/person-identity';
 import { copyText, firstName, isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
 import { CadencePill, CadenceSelect, CheckInDialog } from '@/pages/people-cadence';
 import { notify } from '@/lib/notify';
@@ -44,6 +45,7 @@ export function PeopleListPage() {
         line="Everyone you work with, and what is open between you."
         action={<button type="button" className="oo-btn oo-btn-ink" onClick={() => setCreating(true)} data-testid="button-new-person">New person</button>}
       />
+      <PossibleDuplicates />
       {people.isLoading ? (
         <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{[0, 1, 2, 3].map((i) => <Skel key={i} h={40} />)}</div>
       ) : people.error ? (
@@ -197,6 +199,10 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
             </dd>
             <dt>Email</dt>
             <dd><InlineText value={person.email} label="Email" placeholder="Add an email" testId="person-email" onSave={(v) => save({ email: v })} /></dd>
+            <dt>Other emails</dt>
+            <dd><OtherEmails person={person} /></dd>
+            <dt>Slack</dt>
+            <dd><SlackAccount person={person} /></dd>
             <dt>Last contact</dt>
             <dd data-testid="text-last-contact">{person.lastContactAt ? formatDayMonth(person.lastContactAt) : 'None recorded'}</dd>
             {!person.isSelf && (
@@ -235,6 +241,12 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
               <LinkPicker fromType="person" fromId={person.id} toType="project" exclude={projects.filter((p) => p.linked).map((p) => p.id)} />
             </dd>
           </dl>
+        </section>
+
+        <section className="oo-panel" aria-labelledby="same-h" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <h2 id="same-h" className="oo-h2" style={{ fontSize: 14 }}>Duplicate record?</h2>
+          <p className="oo-muted" style={{ margin: 0, fontSize: 13 }}>If someone else in People is also {first}, merge them here so everything is in one place.</p>
+          <SamePersonAs person={person} />
         </section>
 
         <div className="oo-panel">

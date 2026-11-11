@@ -20,7 +20,7 @@ import {
   Timeline,
   useUnlink,
 } from '@/components/knowledge/parts';
-import { RelationshipsSection } from '@/components/knowledge/relationships';
+import { RelationshipsSection, WhoDecides } from '@/components/knowledge/relationships';
 import { isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
 import { Skel } from '@/components/bits';
 import { DocumentDialog, RuleCard, RuleDialog } from '@/pages/knowledge/library';
@@ -140,6 +140,9 @@ export function ProjectPage() {
                 Counts towards {goal.parentName ? `${goal.parentName}: ${goal.name}` : goal.name}
               </Link>
             )}
+          </div>
+          <div style={{ fontSize: 13 }}>
+            <WhoDecides type="project" id={project.id} name={project.name} />
           </div>
         </div>
         <AccessPanel

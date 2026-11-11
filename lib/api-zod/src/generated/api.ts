@@ -3151,6 +3151,8 @@ export const CreatePersonResponse = zod.object({
   "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
   "cadencePaused": zod.boolean(),
   "isSelf": zod.boolean().describe('Ollie\'s own record'),
+  "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
+  "slackUserId": zod.string().nullable().describe('Their Slack account'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -3183,6 +3185,8 @@ export const GetPersonResponse = zod.object({
   "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
   "cadencePaused": zod.boolean(),
   "isSelf": zod.boolean().describe('Ollie\'s own record'),
+  "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
+  "slackUserId": zod.string().nullable().describe('Their Slack account'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }),
@@ -3405,6 +3409,10 @@ export const UpdatePersonParams = zod.object({
 
 export const updatePersonBodyNameMax = 200;
 
+export const updatePersonBodyOtherEmailsItemMax = 320;
+
+export const updatePersonBodyOtherEmailsMax = 20;
+
 
 
 export const UpdatePersonBody = zod.object({
@@ -3416,7 +3424,9 @@ export const UpdatePersonBody = zod.object({
   "confidential": zod.boolean().optional(),
   "aiAccess": zod.boolean().optional(),
   "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']).optional(),
-  "cadencePaused": zod.boolean().optional()
+  "cadencePaused": zod.boolean().optional(),
+  "otherEmails": zod.array(zod.string().max(updatePersonBodyOtherEmailsItemMax)).max(updatePersonBodyOtherEmailsMax).optional().describe('Replaces the list of other addresses'),
+  "slackUserId": zod.string().nullish().describe('Their Slack account id')
 })
 
 export const UpdatePersonResponse = zod.object({
@@ -3438,6 +3448,8 @@ export const UpdatePersonResponse = zod.object({
   "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
   "cadencePaused": zod.boolean(),
   "isSelf": zod.boolean().describe('Ollie\'s own record'),
+  "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
+  "slackUserId": zod.string().nullable().describe('Their Slack account'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -3486,6 +3498,91 @@ export const ListCadenceResponse = zod.object({
 }),zod.null()]),
   "lastContactAt": zod.coerce.date().nullable()
 })))
+})
+
+
+/**
+ * @summary People who look like the same person (same name, or a matching email address)
+ */
+export const ListPossibleDuplicatesResponseItem = zod.object({
+  "a": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "email": zod.string().nullable()
+}),
+  "b": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "email": zod.string().nullable()
+}),
+  "reason": zod.string()
+})
+export const ListPossibleDuplicatesResponse = zod.array(ListPossibleDuplicatesResponseItem)
+
+
+/**
+ * @summary Say two people are different people, so they stop showing as possible duplicates
+ */
+export const MarkPeopleNotSameBody = zod.object({
+  "aId": zod.int(),
+  "bId": zod.int()
+})
+
+export const MarkPeopleNotSameResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary People in Ollie's Slack workspace, for linking a person to their Slack account
+ */
+export const findSlackAccountsQueryQMax = 100;
+
+
+
+export const FindSlackAccountsQueryParams = zod.object({
+  "q": zod.coerce.string().max(findSlackAccountsQueryQMax).optional()
+})
+
+export const FindSlackAccountsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "handle": zod.string(),
+  "email": zod.string().nullable()
+})
+export const FindSlackAccountsResponse = zod.array(FindSlackAccountsResponseItem)
+
+
+/**
+ * @summary Merge another person into this one. Everything on them moves here and they are removed.
+ */
+export const MergePersonParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const MergePersonBody = zod.object({
+  "otherId": zod.int().describe('The person to merge into this one and remove')
+})
+
+export const MergePersonResponse = zod.object({
+  "kept": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),
+  "removed": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "moved": zod.object({
+  "facts": zod.int(),
+  "notes": zod.int(),
+  "tasks": zod.int(),
+  "meetings": zod.int(),
+  "links": zod.int()
+})
 })
 
 
@@ -3667,7 +3764,13 @@ export const GetNextBriefResponse = zod.object({
   "daysOverdue": zod.int().nullable(),
   "daysLeft": zod.int().nullable(),
   "daysSince": zod.int().nullable()
-}),zod.null()]).describe('Null when the person has no cadence')
+}),zod.null()]).describe('Null when the person has no cadence'),
+  "decidesOn": zod.array(zod.object({
+  "type": zod.enum(['project', 'product', 'organisation']),
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})).describe('The projects, products and organisations this person decides on')
 }),zod.null()]).describe('The matching person, or null for no previous contact')
 })),
   "promises": zod.array(zod.object({
@@ -3871,7 +3974,13 @@ export const GetBriefResponse = zod.object({
   "daysOverdue": zod.int().nullable(),
   "daysLeft": zod.int().nullable(),
   "daysSince": zod.int().nullable()
-}),zod.null()]).describe('Null when the person has no cadence')
+}),zod.null()]).describe('Null when the person has no cadence'),
+  "decidesOn": zod.array(zod.object({
+  "type": zod.enum(['project', 'product', 'organisation']),
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})).describe('The projects, products and organisations this person decides on')
 }),zod.null()]).describe('The matching person, or null for no previous contact')
 })),
   "promises": zod.array(zod.object({
@@ -4099,7 +4208,13 @@ export const RefreshBriefResponse = zod.object({
   "daysOverdue": zod.int().nullable(),
   "daysLeft": zod.int().nullable(),
   "daysSince": zod.int().nullable()
-}),zod.null()]).describe('Null when the person has no cadence')
+}),zod.null()]).describe('Null when the person has no cadence'),
+  "decidesOn": zod.array(zod.object({
+  "type": zod.enum(['project', 'product', 'organisation']),
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})).describe('The projects, products and organisations this person decides on')
 }),zod.null()]).describe('The matching person, or null for no previous contact')
 })),
   "promises": zod.array(zod.object({
@@ -4303,7 +4418,13 @@ export const AllowForBriefResponse = zod.object({
   "daysOverdue": zod.int().nullable(),
   "daysLeft": zod.int().nullable(),
   "daysSince": zod.int().nullable()
-}),zod.null()]).describe('Null when the person has no cadence')
+}),zod.null()]).describe('Null when the person has no cadence'),
+  "decidesOn": zod.array(zod.object({
+  "type": zod.enum(['project', 'product', 'organisation']),
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})).describe('The projects, products and organisations this person decides on')
 }),zod.null()]).describe('The matching person, or null for no previous contact')
 })),
   "promises": zod.array(zod.object({
@@ -6989,7 +7110,14 @@ export const ListKnowledgeInboxResponse = zod.object({
   "before": zod.string().nullable().describe('The step as it was')
 })),
   "reason": zod.string().nullable()
-}),zod.null()]).describe('Steps for a Playbook card, with the change shown')
+}),zod.null()]).describe('Steps for a Playbook card, with the change shown'),
+  "saidBy": zod.union([zod.object({
+  "name": zod.string(),
+  "personId": zod.int().nullable(),
+  "slug": zod.string().nullable(),
+  "isSelf": zod.boolean().describe('Ollie himself')
+}),zod.null()]).describe('Who made the claim; a person in People when one matched'),
+  "saidAt": zod.coerce.date().nullable().describe('When they said it')
 }))
 })
 
@@ -7015,7 +7143,7 @@ export const ApproveSuggestionBody = zod.object({
 
 export const ApproveSuggestionResponse = zod.object({
   "id": zod.int(),
-  "status": zod.enum(['approved', 'rejected']),
+  "status": zod.enum(['approved', 'rejected', 'merged']),
   "result": zod.union([zod.object({
   "type": zod.string(),
   "id": zod.int()
@@ -7040,6 +7168,45 @@ export const RejectSuggestionsFromSourceResponse = zod.object({
 
 
 /**
+ * @summary Approved facts, decisions or rules a card could be the same as, close matches first
+ */
+export const ListSuggestionMergeOptionsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ListSuggestionMergeOptionsResponseItem = zod.object({
+  "itemType": zod.enum(['fact', 'decision', 'rule']),
+  "id": zod.int(),
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "likely": zod.boolean().describe('Says much the same thing as the card')
+})
+export const ListSuggestionMergeOptionsResponse = zod.array(ListSuggestionMergeOptionsResponseItem)
+
+
+/**
+ * @summary Same as existing. The existing item counts as checked today and nothing new is added.
+ */
+export const MergeSuggestionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const MergeSuggestionBody = zod.object({
+  "itemType": zod.enum(['fact', 'decision', 'rule']),
+  "itemId": zod.int()
+})
+
+export const MergeSuggestionResponse = zod.object({
+  "id": zod.int(),
+  "status": zod.enum(['approved', 'rejected', 'merged']),
+  "result": zod.union([zod.object({
+  "type": zod.string(),
+  "id": zod.int()
+}),zod.null()])
+})
+
+
+/**
  * @summary Reject a suggestion. It is kept 30 days so it is not proposed again.
  */
 export const RejectSuggestionParams = zod.object({
@@ -7048,7 +7215,7 @@ export const RejectSuggestionParams = zod.object({
 
 export const RejectSuggestionResponse = zod.object({
   "id": zod.int(),
-  "status": zod.enum(['approved', 'rejected']),
+  "status": zod.enum(['approved', 'rejected', 'merged']),
   "result": zod.union([zod.object({
   "type": zod.string(),
   "id": zod.int()
@@ -7350,7 +7517,7 @@ export const ListRelationshipsQueryParams = zod.object({
 })
 
 export const ListRelationshipsResponseItem = zod.object({
-  "relationship": zod.enum(['reports_to', 'works_with', 'advises', 'introduced_by', 'investor_in', 'customer_of', 'supplier_to', 'partner_of', 'competitor_of', 'part_of', 'depends_on', 'blocked_by', 'related_to']),
+  "relationship": zod.enum(['reports_to', 'works_with', 'advises', 'introduced_by', 'investor_in', 'customer_of', 'supplier_to', 'partner_of', 'competitor_of', 'part_of', 'depends_on', 'blocked_by', 'related_to', 'decides_on']),
   "phrase": zod.string(),
   "direction": zod.enum(['out', 'in']),
   "other": zod.object({
@@ -7379,12 +7546,12 @@ export const SetRelationshipBody = zod.object({
   "fromId": zod.int(),
   "toType": zod.enum(['person', 'organisation', 'project', 'product']),
   "toId": zod.int(),
-  "relationship": zod.enum(['reports_to', 'works_with', 'advises', 'introduced_by', 'investor_in', 'customer_of', 'supplier_to', 'partner_of', 'competitor_of', 'part_of', 'depends_on', 'blocked_by', 'related_to']),
+  "relationship": zod.enum(['reports_to', 'works_with', 'advises', 'introduced_by', 'investor_in', 'customer_of', 'supplier_to', 'partner_of', 'competitor_of', 'part_of', 'depends_on', 'blocked_by', 'related_to', 'decides_on']),
   "note": zod.string().max(setRelationshipBodyNoteMax).nullish()
 })
 
 export const SetRelationshipResponse = zod.object({
-  "relationship": zod.enum(['reports_to', 'works_with', 'advises', 'introduced_by', 'investor_in', 'customer_of', 'supplier_to', 'partner_of', 'competitor_of', 'part_of', 'depends_on', 'blocked_by', 'related_to']),
+  "relationship": zod.enum(['reports_to', 'works_with', 'advises', 'introduced_by', 'investor_in', 'customer_of', 'supplier_to', 'partner_of', 'competitor_of', 'part_of', 'depends_on', 'blocked_by', 'related_to', 'decides_on']),
   "phrase": zod.string(),
   "direction": zod.enum(['out', 'in']),
   "other": zod.object({

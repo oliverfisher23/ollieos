@@ -27,6 +27,13 @@ export interface Person {
   cadencePaused: boolean;
   /** Ollie's own record */
   isSelf: boolean;
+  /** Other addresses they use, in lower case */
+  otherEmails: string[];
+  /**
+     * Their Slack account
+     * @nullable
+     */
+  slackUserId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

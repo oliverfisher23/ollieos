@@ -5,6 +5,7 @@ import { handle } from "../lib/handle";
 import { getKnowledgeSettings, resolveFactReview, runFactCheck, updateShelfLives } from "../services/factReviews";
 import { listInbox } from "../services/knowledgeInbox";
 import { approveSuggestion, rejectFromSource, rejectSuggestion } from "../services/suggestions";
+import { MERGE_ITEM_TYPES, mergeOptions, mergeSuggestion } from "../services/inboxMerge";
 
 const router: IRouter = Router();
 
@@ -18,6 +19,7 @@ const ApproveBody = z
     newProjectName: z.string().trim().min(1).max(200).optional(),
   })
   .strict();
+const MergeBody = z.object({ itemType: z.enum(MERGE_ITEM_TYPES), itemId: z.number().int().positive() }).strict();
 const text = z.string().min(1).max(2000);
 const ResolveBody = z.discriminatedUnion("action", [
   z.object({ action: z.literal("still_true") }).strict(),
@@ -53,6 +55,14 @@ router.post(
 router.post(
   "/suggestions/reject-source",
   handle(async (req, res) => void res.json({ rejected: await rejectFromSource(RejectSourceBody.parse(req.body).sourceRef) })),
+);
+router.get("/suggestions/:id/merge-options", handle(async (req, res) => void res.json(await mergeOptions(IdParams.parse(req.params).id))));
+router.post(
+  "/suggestions/:id/merge",
+  handle(async (req, res) => {
+    const b = MergeBody.parse(req.body);
+    res.json(await mergeSuggestion(IdParams.parse(req.params).id, b.itemType, b.itemId));
+  }),
 );
 router.post("/suggestions/:id/reject", handle(async (req, res) => void res.json(await rejectSuggestion(IdParams.parse(req.params).id))));
 router.post(

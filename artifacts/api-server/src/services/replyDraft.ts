@@ -6,6 +6,7 @@
  */
 import { and, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { db, peopleTable, replyDraftsTable, tasksTable, type ReplyDraft as ReplyDraftRow, type Task as TaskRow } from "@workspace/db";
+import { hasAnyEmail } from "./personMatch";
 import { OPEN_STATUSES, formatDayMonth, formatTime, toRef } from "@workspace/shared";
 import { applicableRuleRefs, loadVisibleDocs } from "../lib/ai-data/retrieve";
 import { recordReads, visibleRefs } from "../lib/ai-data/scope";
@@ -145,7 +146,7 @@ async function contextRefs(t: TaskRow, senderEmails: string[]): Promise<string[]
     const [p] = await db
       .select({ id: peopleTable.id })
       .from(peopleTable)
-      .where(and(inArray(sql`lower(${peopleTable.email})`, senderEmails), eq(peopleTable.isSelf, false)))
+      .where(and(hasAnyEmail(senderEmails), eq(peopleTable.isSelf, false)))
       .limit(1);
     personId = p?.id ?? null;
   }

@@ -155,7 +155,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     "get_context",
     {
       description: describe(
-        "Everything about one project, person or organisation: summary, current facts, decisions, open tasks, promises, what they owe Ollie, people, notes, the last 20 touchpoints and the rules that apply. For a project, also its goal and its documents. Recent Cowork sessions about it are included, so a new session can pick up where the last one left off.",
+        "Everything about one project, person or organisation: summary, current facts, decisions, open tasks, promises, what they owe Ollie, people, notes, the last 20 touchpoints and the rules that apply. For a project, also its goal and its documents. who_decides lists the people with the say on a project or organisation (empty means Ollie decides); for a person, decides_on lists what they have the say on. Weigh claims by who decides. Recent Cowork sessions about it are included, so a new session can pick up where the last one left off.",
       ),
       inputSchema: Pick.shape,
     },
@@ -542,14 +542,21 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     source: z.string().max(500).optional().describe('Where this came from, for Ollie, e.g. "Email from Veronica Wilkinson, 30th October"'),
     source_type: z.enum(SUGGESTION_SOURCES).optional(),
     source_url: z.string().url().max(2000).optional(),
+    said_by: z.string().max(200).optional().describe('Who made the claim, by name or email as written ("Sam Lee"). Use "Ollie" when Ollie said it. Leave out when unknown.'),
+    said_at: z.string().max(40).optional().describe("When they said it, as YYYY-MM-DD or a full date and time"),
   };
-  const metaOf = (a: { source?: string; source_type?: string; source_url?: string }): ProposeMeta => ({
-    proposedBy: writer.actor,
-    clientId: writer.clientId,
-    sourceType: a.source_type ?? "chat",
-    sourceUrl: a.source_url ?? null,
-    sourceLabel: a.source ?? null,
-  });
+  const metaOf = (a: { source?: string; source_type?: string; source_url?: string; said_by?: string; said_at?: string }): ProposeMeta => {
+    const at = a.said_at ? new Date(a.said_at) : null;
+    const who = a.said_by?.trim() || null;
+    return {
+      proposedBy: writer.actor,
+      clientId: writer.clientId,
+      sourceType: a.source_type ?? "chat",
+      sourceUrl: a.source_url ?? null,
+      sourceLabel: a.source ?? null,
+      saidBy: who || at ? { name: who && !who.includes("@") ? who : null, email: who?.includes("@") ? who : null, at: at && !Number.isNaN(at.getTime()) ? at : null } : null,
+    };
+  };
 
   server.registerTool(
     "add_fact",
@@ -629,7 +636,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     "propose_relationship",
     {
       description: describe(
-        "Proposes how two projects, people or organisations are related, read \"from <relationship> to\": reports_to, works_with, advises, introduced_by (from was introduced by to), investor_in, customer_of, supplier_to, partner_of, competitor_of, part_of, depends_on, blocked_by or related_to. It goes to Ollie's Knowledge Inbox. Where someone works is not a relationship: use upsert_person for that.",
+        "Proposes how two projects, people or organisations are related, read \"from <relationship> to\": reports_to, works_with, advises, introduced_by (from was introduced by to), investor_in, customer_of, supplier_to, partner_of, competitor_of, part_of, depends_on, blocked_by, related_to or decides_on (from is a person who has the say on the project, product or organisation in to). It goes to Ollie's Knowledge Inbox. Where someone works is not a relationship: use upsert_person for that.",
       ),
       inputSchema: {
         from: Pick,

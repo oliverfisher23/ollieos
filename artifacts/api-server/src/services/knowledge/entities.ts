@@ -10,6 +10,7 @@ import {
   type Person as PersonRow,
   type Project as ProjectRow,
 } from "@workspace/db";
+import { hasEmail } from "../personMatch";
 import { domainsForOrganisation, researchViews, type ResearchView } from "../research";
 import { OPEN_STATUSES, type Cadence, type CadenceState, type ProjectLifecycle, type TaskStatus } from "@workspace/shared";
 import { writeAudit } from "../../lib/audit";
@@ -395,7 +396,36 @@ export interface PersonInput {
   aiAccess?: boolean;
 }
 
-export type PersonUpdate = Partial<PersonInput> & { cadence?: Cadence; cadencePaused?: boolean };
+export type PersonUpdate = Partial<PersonInput> & {
+  cadence?: Cadence;
+  cadencePaused?: boolean;
+  /** Part N: the person's other addresses, replacing the list */
+  otherEmails?: string[];
+  /** Part N: their Slack user id, or null to unlink */
+  slackUserId?: string | null;
+};
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Cleans a list of other addresses: lower case, no repeats, not the main one, and not anyone else's. */
+async function cleanOtherEmails(list: string[], main: string | null, exceptId: number): Promise<string[]> {
+  const out: string[] = [];
+  for (const raw of list) {
+    const e = raw.trim().toLowerCase();
+    if (!e) continue;
+    if (!EMAIL_RE.test(e)) throw new ValidationError(`${raw.trim()} is not an email address`);
+    if (e === main || out.includes(e)) continue;
+    await assertEmailFree(e, exceptId);
+    out.push(e);
+  }
+  if (out.length > 20) throw new ValidationError("Keep it to 20 other addresses");
+  return out;
+}
+
+async function assertSlackFree(id: string, exceptId: number) {
+  const [p] = await db.select({ id: peopleTable.id, name: peopleTable.name }).from(peopleTable).where(eq(peopleTable.slackUserId, id));
+  if (p && p.id !== exceptId) throw new ConflictError(`${p.name} already has that Slack account`);
+}
 
 async function assertOrg(id: number | null | undefined) {
   if (!id) return;
@@ -405,7 +435,7 @@ async function assertOrg(id: number | null | undefined) {
 
 async function assertEmailFree(email: string | null, exceptId?: number) {
   if (!email) return;
-  const [p] = await db.select({ id: peopleTable.id, name: peopleTable.name }).from(peopleTable).where(sql`lower(${peopleTable.email}) = ${email.toLowerCase()}`);
+  const [p] = await db.select({ id: peopleTable.id, name: peopleTable.name }).from(peopleTable).where(hasEmail(email));
   if (p && p.id !== exceptId) throw new ConflictError(`${p.name} already has that email address`);
 }
 
@@ -452,6 +482,17 @@ export async function updatePerson(slug: string, input: PersonUpdate): Promise<P
     const email = cleanText(input.email)?.toLowerCase() ?? null;
     await assertEmailFree(email, current.id);
     set.email = email;
+  }
+  if (input.otherEmails !== undefined) {
+    set.otherEmails = await cleanOtherEmails(input.otherEmails, set.email !== undefined ? set.email : (current.email?.toLowerCase() ?? null), current.id);
+  } else if (set.email && current.otherEmails.includes(set.email)) {
+    // Making one of the other addresses the main one takes it off the other list.
+    set.otherEmails = current.otherEmails.filter((e) => e !== set.email);
+  }
+  if (input.slackUserId !== undefined) {
+    const id = cleanText(input.slackUserId);
+    if (id) await assertSlackFree(id, current.id);
+    set.slackUserId = id;
   }
   if (input.relationshipSummary !== undefined) set.relationshipSummary = cleanText(input.relationshipSummary);
   if (input.confidential !== undefined) set.confidential = input.confidential;

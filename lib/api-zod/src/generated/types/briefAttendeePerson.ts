@@ -7,6 +7,7 @@
  */
 import type { BriefAttendeePersonFactsItem } from './briefAttendeePersonFactsItem';
 import type { BriefCadence } from './briefCadence';
+import type { DecidesOnItem } from './decidesOnItem';
 
 export interface BriefAttendeePerson {
   id: number;
@@ -23,4 +24,6 @@ export interface BriefAttendeePerson {
   facts: BriefAttendeePersonFactsItem[];
   /** Null when the person has no cadence */
   cadence: BriefCadence | null;
+  /** The projects, products and organisations this person decides on */
+  decidesOn: DecidesOnItem[];
 }

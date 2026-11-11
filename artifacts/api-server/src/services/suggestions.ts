@@ -19,13 +19,14 @@ import {
   FACT_ATTRIBUTES,
   type Suggestion,
 } from "@workspace/db";
+import { hasEmail } from "./personMatch";
 import { RULE_MAX, RELATIONSHIPS, type Cadence, type ProductState, type Relationship } from "@workspace/shared";
 import { writeAudit, type DbOrTx } from "../lib/audit";
 import { ACTOR, cleanText, resolveEntity, touch, uniqueSlug, type EntityKind } from "./knowledge/common";
 import { ConflictError, NotFoundError, ValidationError } from "./tasks";
 import { addDocumentProjects, insertDocument, insertRule, keepDocumentText } from "./library";
 import { enqueueDocument } from "./documents/enqueue";
-import { existingRelationship, sameRelationship, setRelationship } from "./relationships";
+import { assertDecidesOn, existingRelationship, sameRelationship, setRelationship } from "./relationships";
 import { applyPlaybookUpdate, cleanSteps, insertPlaybook, loadPlaybook } from "./playbooks";
 import { insertProduct } from "./products";
 
@@ -203,6 +204,32 @@ export interface ProposeMeta {
   sourceRef?: string | null;
   sourceUrl?: string | null;
   sourceLabel?: string | null;
+  /** Part N: who made the claim and when. Matched to a person by id, email or exact name. */
+  saidBy?: SaidBy | null;
+}
+
+export interface SaidBy {
+  name?: string | null;
+  email?: string | null;
+  personId?: number | null;
+  at?: Date | null;
+}
+
+/** Who said a claim, matched to a person in People where one fits. */
+export async function resolveSaidBy(s: SaidBy | null | undefined): Promise<{ saidByName: string | null; saidById: number | null; saidAt: Date | null }> {
+  if (!s) return { saidByName: null, saidById: null, saidAt: null };
+  const at = s.at && !Number.isNaN(s.at.getTime()) ? s.at : null;
+  const name = cleanText(s.name)?.slice(0, 200) ?? null;
+  const email = cleanText(s.email)?.toLowerCase() ?? null;
+  let person: { id: number; name: string } | null = null;
+  const cols = { id: peopleTable.id, name: peopleTable.name };
+  if (s.personId != null) [person = null] = await db.select(cols).from(peopleTable).where(eq(peopleTable.id, s.personId));
+  if (!person && email) [person = null] = await db.select(cols).from(peopleTable).where(hasEmail(email)).limit(1);
+  if (!person && name) {
+    const hits = await db.select(cols).from(peopleTable).where(sql`lower(${peopleTable.name}) = ${name.toLowerCase()}`).limit(2);
+    if (hits.length === 1) person = hits[0];
+  }
+  return { saidByName: name ?? person?.name ?? email, saidById: person?.id ?? null, saidAt: at };
 }
 
 export type ProposeResult =
@@ -340,7 +367,7 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
     entityType ? and(eq(suggestionsTable.entityType, entityType), eq(suggestionsTable.entityId, entityId!)) : isNull(suggestionsTable.entityType),
   );
 
-  const [pending] = await db.select({ id: suggestionsTable.id }).from(suggestionsTable).where(and(sameTarget, eq(suggestionsTable.status, "pending")));
+  const [pending] = await db.select({ id: suggestionsTable.id }).from(suggestionsTable).where(and(sameTarget, inArray(suggestionsTable.status, ["pending", "merged"])));
   if (pending) return { status: "duplicate", suggestionId: pending.id };
   const since = new Date(now.getTime() - REJECTED_MEMORY_DAYS * 86_400_000);
   const [rejected] = await db
@@ -360,6 +387,7 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
   if (p.kind === "relationship") {
     const { to_type, to_id, relationship } = p.payload;
     if (!RELATIONSHIPS.includes(relationship)) throw new ValidationError("Choose a relationship");
+    assertDecidesOn({ type: p.entityType, id: p.entityId }, { type: to_type, id: to_id }, relationship);
     if (p.entityType === to_type && p.entityId === to_id) throw new ValidationError("An item cannot be related to itself");
     const [from, to] = await Promise.all([resolveEntity(p.entityType, p.entityId), resolveEntity(to_type, to_id)]);
     p.payload.from_name = from.name;
@@ -390,10 +418,12 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
     }
   }
 
+  const said = await resolveSaidBy(meta.saidBy);
   return db.transaction(async (tx) => {
     const [row] = await tx
       .insert(suggestionsTable)
       .values({
+        ...said,
         kind: p.kind,
         entityType,
         entityId,
@@ -487,7 +517,7 @@ async function preparePlaybook(p: PlaybookPayload): Promise<void> {
 async function loadPending(conn: DbOrTx, id: number): Promise<Suggestion> {
   const [s] = await conn.select().from(suggestionsTable).where(eq(suggestionsTable.id, id));
   if (!s) throw new NotFoundError("That suggestion does not exist");
-  if (s.status !== "pending") throw new ValidationError(s.status === "approved" ? "That suggestion was already approved" : "That suggestion was already rejected");
+  if (s.status !== "pending") throw new ValidationError(s.status === "approved" ? "That suggestion was already approved" : s.status === "merged" ? "That suggestion was already marked as the same as an existing item" : "That suggestion was already rejected");
   return s;
 }
 
@@ -591,7 +621,7 @@ export async function applySuggestion(
       let email = str(p.email)?.toLowerCase() ?? null;
       if (email) {
         // Never reuse an address someone else already has; that could merge two people.
-        const [taken] = await tx.select({ id: peopleTable.id }).from(peopleTable).where(sql`lower(${peopleTable.email}) = ${email}`);
+        const [taken] = await tx.select({ id: peopleTable.id }).from(peopleTable).where(hasEmail(email));
         if (taken) email = null;
       }
       let organisationId = p.organisation_id ?? null;
@@ -639,7 +669,7 @@ export async function applySuggestion(
         if (f.relationship_summary !== undefined) set.relationshipSummary = f.relationship_summary;
         if (f.email !== undefined) {
           const email = f.email.toLowerCase();
-          const [taken] = await tx.select({ id: peopleTable.id }).from(peopleTable).where(sql`lower(${peopleTable.email}) = ${email}`);
+          const [taken] = await tx.select({ id: peopleTable.id }).from(peopleTable).where(hasEmail(email));
           if (taken && taken.id !== id) throw new ValidationError("Someone else already has that email address");
           set.email = email;
         }

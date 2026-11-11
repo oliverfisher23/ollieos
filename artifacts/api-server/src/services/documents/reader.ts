@@ -41,6 +41,8 @@ interface Source {
   label: string;
   url: string | null;
   document: { id: number; title: string; url: string | null } | null;
+  /** When what it says was said: a Cowork session's date */
+  at?: Date | null;
 }
 
 async function documentSource(row: KnowledgeSource, now: Date): Promise<Source> {
@@ -105,7 +107,7 @@ async function sessionSource(row: KnowledgeSource): Promise<Source> {
   if (!s) throw new ReadError("The session is no longer in OllieOS.");
   if (!s.visible) throw new ReadError("This session is hidden from AI, so OllieOS does not read it for knowledge.");
   const text = sessionText(s);
-  return { text, where: `Cowork session with Claude on ${formatLong(s.happenedAt, { withYear: true })}`, label: `Cowork session: ${s.title}`, url: null, document: null };
+  return { text, where: `Cowork session with Claude on ${formatLong(s.happenedAt, { withYear: true })}`, label: `Cowork session: ${s.title}`, url: null, document: null, at: s.happenedAt };
 }
 
 /** The text the knowledge step reads for a session. */
@@ -158,7 +160,7 @@ export async function readSource(row: KnowledgeSource, now = new Date()): Promis
     if (changed !== "") {
       const { result, known } = await extractKnowledge({ title: row.title, where: src.where, text: src.text, changed }, now);
       counts = await proposeExtracted(result, known, {
-        meta: { proposedBy: DOCUMENT_PROPOSER, clientId: null, sourceType: row.kind === "session" ? "chat" : "document", sourceRef: row.key, sourceUrl: src.url, sourceLabel: src.label },
+        meta: { proposedBy: DOCUMENT_PROPOSER, clientId: null, sourceType: row.kind === "session" ? "chat" : "document", sourceRef: row.key, sourceUrl: src.url, sourceLabel: src.label, saidBy: src.at ? { at: src.at } : null },
         document: src.document,
         now,
       });

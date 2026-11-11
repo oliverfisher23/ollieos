@@ -155,6 +155,7 @@ export const RELATIONSHIPS = [
   "depends_on",
   "blocked_by",
   "related_to",
+  "decides_on",
 ] as const;
 export type Relationship = (typeof RELATIONSHIPS)[number];
 
@@ -173,6 +174,7 @@ export const RELATIONSHIP_LABELS: Record<Relationship, string> = {
   depends_on: "depends on",
   blocked_by: "is blocked by",
   related_to: "is related to",
+  decides_on: "decides on",
 };
 
 /** Read from the "to" end: "Alex manages Sam". The same words for two-way relationships. */
@@ -190,6 +192,7 @@ export const RELATIONSHIP_INVERSE: Record<Relationship, string> = {
   depends_on: "is needed by",
   blocked_by: "is blocking",
   related_to: "is related to",
+  decides_on: "is decided by",
 };
 
 /** Two-way relationships read the same from either end. */
@@ -210,4 +213,5 @@ export const RELATIONSHIP_OPTIONS: Record<Relationship, string> = {
   depends_on: "Depends on",
   blocked_by: "Is blocked by",
   related_to: "Is related to",
+  decides_on: "Decides on",
 };

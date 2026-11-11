@@ -1,6 +1,7 @@
 /** Ollie's view of the Knowledge Inbox: suggestions, conflicts and facts that need a check. */
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, factReviewsTable, factsTable, peopleTable, suggestionsTable, usersTable, type Fact, type Suggestion } from "@workspace/db";
+import { hasEmail } from "./personMatch";
 import { CADENCE_LABELS, PRODUCT_STATE_LABELS, RELATIONSHIP_LABELS, formatDayMonth } from "@workspace/shared";
 import { writeAudit } from "../lib/audit";
 import { resolveEntities, uniqueSlug } from "./knowledge/common";
@@ -114,6 +115,31 @@ export interface InboxItem {
   projectHint: string | null;
   /** Steps for a Playbook card, with the change shown */
   playbook: InboxPlaybook | null;
+  /** Part N: who made the claim (a person in People when one matched) and when they said it */
+  saidBy: InboxSaidBy | null;
+  saidAt: Date | null;
+}
+
+export interface InboxSaidBy {
+  name: string;
+  personId: number | null;
+  slug: string | null;
+  /** Ollie himself */
+  isSelf: boolean;
+}
+
+/** Who said each card's claim, with the person's page where one matched. Falls back to a decision's "decided by". */
+async function saidByFor(rows: Suggestion[]): Promise<Map<number, InboxSaidBy | null>> {
+  const ids = [...new Set(rows.map((s) => s.saidById).filter((x): x is number => x != null))];
+  const people = ids.length ? await db.select({ id: peopleTable.id, name: peopleTable.name, slug: peopleTable.slug, isSelf: peopleTable.isSelf }).from(peopleTable).where(inArray(peopleTable.id, ids)) : [];
+  const out = new Map<number, InboxSaidBy | null>();
+  for (const s of rows) {
+    const p = s.saidById != null ? people.find((x) => x.id === s.saidById) : undefined;
+    const fallback = s.kind === "decision" ? cleanHint((s.payload as DecisionPayload).decided_by) : null;
+    const name = p?.name ?? s.saidByName ?? fallback ?? null;
+    out.set(s.id, name ? { name, personId: p?.id ?? null, slug: p?.slug ?? null, isSelf: p?.isSelf ?? false } : null);
+  }
+  return out;
 }
 
 /* ---------- Ollie's own person record ---------- */
@@ -136,7 +162,7 @@ export async function ensureSelfPerson(): Promise<void> {
   const email = user.email.toLowerCase();
   const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || email;
   await db.transaction(async (tx) => {
-    const [existing] = await tx.select({ id: peopleTable.id }).from(peopleTable).where(sql`lower(${peopleTable.email}) = ${email}`);
+    const [existing] = await tx.select({ id: peopleTable.id }).from(peopleTable).where(hasEmail(email));
     if (existing) {
       await tx.update(peopleTable).set({ isSelf: true }).where(eq(peopleTable.id, existing.id));
       await writeAudit(tx, { actor: "ollie", action: "update", entityType: "person", entityId: existing.id, payload: { isSelf: true } });
@@ -435,6 +461,7 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
     const supersedeIds = rows.map((s) => (s.kind === "fact" ? (s.payload as FactPayload).supersedes : null)).filter((x): x is number => x != null);
     const replaced = supersedeIds.length ? await db.select({ id: factsTable.id, text: factsTable.text }).from(factsTable).where(inArray(factsTable.id, supersedeIds)) : [];
     const t = await targetsFor(rows.filter((s) => s.entityType && s.entityId != null).map((s) => ({ type: s.entityType!, id: s.entityId! })));
+    const said = await saidByFor(rows);
     items = rows.map((s) => {
       const name = newName(s);
       const fp = s.kind === "fact" ? (s.payload as FactPayload) : null;
@@ -461,6 +488,8 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
         needsProject: s.kind === "decision" && s.entityId == null,
         projectHint: s.kind === "decision" ? (cleanHint((s.payload as DecisionPayload).project_hint) ?? null) : null,
         playbook: playbookOf(s),
+        saidBy: said.get(s.id) ?? null,
+        saidAt: s.saidAt,
       };
     });
   } else {
@@ -475,6 +504,7 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
     const sids = reviews.map((r) => r.suggestionId).filter((x): x is number => x != null);
     const sugs = sids.length ? await db.select().from(suggestionsTable).where(inArray(suggestionsTable.id, sids)) : [];
     const t = await targetsFor(facts.map((f) => ({ type: f.entityType, id: f.entityId })));
+    const said = await saidByFor(sugs);
     for (const r of reviews) {
       const fs = r.factIds.map((i) => facts.find((f) => f.id === i)).filter((f): f is Fact => !!f);
       const first = fs[0];
@@ -501,6 +531,8 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
           needsProject: false,
           projectHint: null,
           playbook: null,
+          saidBy: null,
+          saidAt: null,
         });
       } else {
         const sug = sugs.find((s) => s.id === r.suggestionId && s.status === "pending");
@@ -529,6 +561,8 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
           needsProject: false,
           projectHint: null,
           playbook: null,
+          saidBy: sug ? (said.get(sug.id) ?? null) : null,
+          saidAt: sug?.saidAt ?? null,
         });
       }
     }

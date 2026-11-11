@@ -40,7 +40,7 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
       const projectId = projectIdByName.get(d.project.toLowerCase().trim()) ?? projectIdByName.get(sorted.project.toLowerCase().trim()) ?? event?.projectId ?? null;
       if (projectId == null) continue;
       const r = await propose(
-        { proposedBy: MEETING_PROPOSER, clientId: null, sourceType: "meeting", sourceRef: `granola:${n.noteId}`, sourceUrl: n.url, sourceLabel: `Granola: ${n.title}` },
+        { proposedBy: MEETING_PROPOSER, clientId: null, sourceType: "meeting", sourceRef: `granola:${n.noteId}`, sourceUrl: n.url, sourceLabel: `Granola: ${n.title}`, saidBy: { at: n.at } },
         {
           kind: "decision",
           entityType: "project",

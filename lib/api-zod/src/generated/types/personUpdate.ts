@@ -25,4 +25,15 @@ export interface PersonUpdate {
   aiAccess?: boolean;
   cadence?: Cadence;
   cadencePaused?: boolean;
+  /**
+     * Replaces the list of other addresses
+     * @maxItems 20
+     * @items.maxLength 320
+     */
+  otherEmails?: string[];
+  /**
+     * Their Slack account id
+     * @nullable
+     */
+  slackUserId?: string | null;
 }

@@ -12,4 +12,5 @@ export type SuggestionDecisionStatus = typeof SuggestionDecisionStatus[keyof typ
 export const SuggestionDecisionStatus = {
   approved: 'approved',
   rejected: 'rejected',
+  merged: 'merged',
 } as const;

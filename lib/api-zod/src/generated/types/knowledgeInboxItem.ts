@@ -10,6 +10,7 @@ import type { KnowledgeInboxItemGroup } from './knowledgeInboxItemGroup';
 import type { KnowledgeInboxItemKind } from './knowledgeInboxItemKind';
 import type { KnowledgeInboxOption } from './knowledgeInboxOption';
 import type { KnowledgeInboxPlaybook } from './knowledgeInboxPlaybook';
+import type { KnowledgeInboxSaidBy } from './knowledgeInboxSaidBy';
 import type { KnowledgeInboxTarget } from './knowledgeInboxTarget';
 
 export interface KnowledgeInboxItem {
@@ -54,4 +55,11 @@ export interface KnowledgeInboxItem {
   projectHint: string | null;
   /** Steps for a Playbook card, with the change shown */
   playbook: KnowledgeInboxPlaybook | null;
+  /** Who made the claim; a person in People when one matched */
+  saidBy: KnowledgeInboxSaidBy | null;
+  /**
+     * When they said it
+     * @nullable
+     */
+  saidAt: Date | null;
 }

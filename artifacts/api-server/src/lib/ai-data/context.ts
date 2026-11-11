@@ -22,6 +22,8 @@ import {
   type CalendarEvent,
   type Task as TaskRow,
 } from "@workspace/db";
+import { hasEmail } from "../../services/personMatch";
+import { resolveEntities } from "../../services/knowledge/common";
 import { OPEN_STATUSES, londonRange, parseRef, repeatLabel, todayLondon, toRef, type RepeatRule, type TaskStatus } from "@workspace/shared";
 import {
   activityVisible,
@@ -111,7 +113,7 @@ export async function resolvePick(
   if (!name) return null;
   for (const type of types) {
     const t = TABLES[type];
-    const exact = type === "person" ? sql`(lower(${peopleTable.name}) = ${name} or lower(${peopleTable.email}) = ${name})` : sql`lower(${t.name}) = ${name}`;
+    const exact = type === "person" ? sql`(lower(${peopleTable.name}) = ${name} or ${hasEmail(name)})` : sql`lower(${t.name}) = ${name}`;
     const hits = await one(type, exact, 2);
     if (hits.length === 1) return hits[0];
     if (hits.length > 1) return null;
@@ -348,6 +350,20 @@ export interface ContextOut {
   documents?: DocumentOut[];
   /** Rules Ollie wants followed when drafting anything about this item */
   rules: RuleOut[];
+  /** Projects and organisations: the people who decide on it. Empty means Ollie decides. */
+  who_decides?: NamedRef[];
+  /** People: the projects, organisations and products they decide on */
+  decides_on?: NamedRef[];
+}
+
+/** Part N: "decides on" links touching an item, as refs to the other end, before visibility checks. */
+async function decideRefs(type: PickType, id: number): Promise<string[]> {
+  const rows = await db.execute(
+    type === "person"
+      ? sql`select to_type as type, to_id as id from links where relationship = 'decides_on' and from_type = 'person' and from_id = ${id}`
+      : sql`select from_type as type, from_id as id from links where relationship = 'decides_on' and from_type = 'person' and to_type = ${type} and to_id = ${id}`,
+  );
+  return (rows.rows as { type: string; id: number }[]).map((r) => `${r.type}:${Number(r.id)}`);
 }
 
 /** Ids of `other` linked to an item, either way round. */
@@ -497,6 +513,15 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
   ]);
 
   const tasks = await toTaskOuts(scope, taskRows);
+  const deciding = await decideRefs(type, id);
+  const decidingOk = new Set(await sanitiseRefs(scope, deciding));
+  const decidingNames = await resolveEntities(
+    deciding
+      .filter((r) => decidingOk.has(r))
+      .map(parseRef)
+      .filter((r): r is NonNullable<typeof r> => !!r),
+  );
+  const decided: NamedRef[] = deciding.filter((r) => decidingNames.has(r)).map((r) => ({ ref: r, name: decidingNames.get(r)!.name }));
   const out: ContextOut = {
     entity,
     summary,
@@ -532,6 +557,7 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
     sessions: sessionRows.map((s) => ({ ref: toRef("session", s.id), title: s.title, summary: s.summary, outcomes: s.outcomes, happened_at: s.happenedAt.toISOString() })),
     ...(documents ? { documents } : {}),
     rules,
+    ...(type === "person" ? { decides_on: decided } : { who_decides: decided }),
   };
 
   // Second check: drop anything that is not visible, in case a join above is ever wrong.
@@ -550,6 +576,8 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
   out.sessions = keep(out.sessions);
   if (out.documents) out.documents = keep(out.documents);
   out.rules = keep(out.rules);
+  if (out.who_decides) out.who_decides = keep(out.who_decides);
+  if (out.decides_on) out.decides_on = keep(out.decides_on);
   if (out.entity.organisation && !ok.has(out.entity.organisation.ref)) out.entity.organisation = null;
 
   await recordReads(scope, contextRefs(out), { via });
@@ -572,6 +600,8 @@ function contextRefs(c: ContextOut): string[] {
     ...c.sessions.map((x) => x.ref),
     ...(c.documents ?? []).map((x) => x.ref),
     ...c.rules.map((x) => x.ref),
+    ...(c.who_decides ?? []).map((x) => x.ref),
+    ...(c.decides_on ?? []).map((x) => x.ref),
   ];
 }
 

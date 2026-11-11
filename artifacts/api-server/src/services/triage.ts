@@ -9,6 +9,7 @@ import {
   type InsertTask,
   type Task as TaskRow,
 } from "@workspace/db";
+import { hasEmail } from "./personMatch";
 import { STATUS_LABELS, formatLong, londonRange, todayLondon, weekStartOf } from "@workspace/shared";
 import { writeAudit } from "../lib/audit";
 import type { FieldChange } from "./history";
@@ -46,7 +47,7 @@ async function defaultWaitingOn(t: TaskRow): Promise<number | null> {
     const [p] = await db
       .select({ id: peopleTable.id })
       .from(peopleTable)
-      .where(sql`lower(${peopleTable.email}) = ${address}`);
+      .where(hasEmail(address));
     if (p) return p.id;
   }
   return null;

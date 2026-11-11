@@ -30,6 +30,71 @@ export function useItemOptions(enabled = true, exclude?: string): { options: Dro
   return { options, loading: people.isLoading || projects.isLoading || orgs.isLoading || products.isLoading };
 }
 
+/**
+ * "Who decides" on a project, product or organisation page (Part N): the people with the say on
+ * it, stored as "decides on" relationships. With no one named, Ollie decides.
+ */
+export function WhoDecides({ type, id, name }: { type: Exclude<EntityKind, 'person'>; id: number; name: string }) {
+  const list = useListRelationships({ type, id });
+  const people = useListPeople();
+  const write = useKnowledgeWrite();
+  const deciders = (list.data ?? []).filter((r) => r.relationship === 'decides_on' && r.direction === 'in' && r.other.type === 'person');
+  const named = new Set(deciders.map((d) => d.other.id));
+  const options: DropdownOption[] = (people.data ?? []).filter((p) => !named.has(p.id)).map((p) => ({ value: String(p.id), label: p.name }));
+  const add = (v: string) => {
+    const person = people.data?.find((p) => String(p.id) === v);
+    if (!person) return;
+    void write(() => setRelationship({ fromType: 'person', fromId: person.id, toType: type, toId: id, relationship: 'decides_on', note: null }), {
+      done: `${person.name} decides on ${name}`,
+      fail: 'Could not save that',
+    });
+  };
+  const remove = (personId: number, personName: string) =>
+    write(() => removeRelationship({ fromType: 'person', fromId: personId, toType: type, toId: id }), { done: `${personName} no longer named`, fail: 'Could not remove that' });
+
+  return (
+    <span role="group" aria-label="Who decides" style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} data-testid="row-who-decides">
+      <span className="oo-muted">Who decides</span>
+      {list.isLoading ? (
+        <Skel h={20} w={80} />
+      ) : deciders.length === 0 ? (
+        <span className="oo-pill" data-testid="text-who-decides-you">You</span>
+      ) : (
+        deciders.map((d) => {
+          const href = entityPath('person', d.other.slug, d.other.id);
+          return (
+            <span key={d.other.id} className="oo-pill" style={{ gap: 6 }} data-testid={`pill-decider-${d.other.id}`}>
+              {href ? <Link href={href} className="oo-krow-link">{d.other.name}</Link> : d.other.name}
+              <button
+                type="button"
+                className="oo-textbtn"
+                style={{ fontSize: 12, padding: 0, minHeight: 0 }}
+                aria-label={`Remove ${d.other.name} from who decides`}
+                onClick={() => remove(d.other.id, d.other.name)}
+                data-testid={`button-remove-decider-${d.other.id}`}
+              >
+                ×
+              </button>
+            </span>
+          );
+        })
+      )}
+      <Dropdown
+        variant="compact"
+        ariaLabel="Add someone who decides"
+        value=""
+        onChange={add}
+        placeholder={deciders.length ? 'Add someone' : 'Name someone'}
+        searchPlaceholder="Search people"
+        disabled={people.isLoading}
+        options={options}
+        testId="select-add-decider"
+        style={{ maxWidth: 200 }}
+      />
+    </span>
+  );
+}
+
 const SOURCE_LABEL = (source: string | null, createdBy: string) => {
   if (source) return `From ${source}`;
   return createdBy === 'ollie' ? null : `From ${createdBy}`;
@@ -40,7 +105,8 @@ export function RelationshipsSection({ type, id, name, title = 'Relationships' }
   const list = useListRelationships({ type, id });
   const write = useKnowledgeWrite();
   const [adding, setAdding] = useState(false);
-  const rows = list.data ?? [];
+  // On a project, product or organisation, who decides is shown in its own row at the top.
+  const rows = (list.data ?? []).filter((r) => type === 'person' || r.relationship !== 'decides_on');
   const headId = 'relationships-' + type;
   const remove = (otherType: EntityKind, otherId: number) =>
     write(() => removeRelationship({ fromType: type, fromId: id, toType: otherType, toId: otherId }), { done: 'Relationship removed', fail: 'Could not remove that' });
@@ -105,6 +171,8 @@ function RelationshipForm({ type, id, name, onDone }: { type: EntityKind; id: nu
   const [other, setOther] = useState('');
   const [note, setNote] = useState('');
   const items = useItemOptions(true, `${type}:${id}`);
+  const kinds = RELATIONSHIPS.filter((r) => r !== 'decides_on' || type === 'person');
+  const others = relationship === 'decides_on' ? items.options.filter((o) => !o.value.startsWith('person:')) : items.options;
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!relationship || !other) return;
@@ -125,7 +193,7 @@ function RelationshipForm({ type, id, name, onDone }: { type: EntityKind; id: nu
         onChange={(v) => setKind(v as RelationshipKind)}
         placeholder="Choose a relationship…"
         searchable={false}
-        options={RELATIONSHIPS.map((r) => ({ value: r, label: RELATIONSHIP_OPTIONS[r] }))}
+        options={kinds.map((r) => ({ value: r, label: RELATIONSHIP_OPTIONS[r] }))}
         testId="select-relationship-kind"
         style={{ minWidth: 190 }}
       />
@@ -137,7 +205,7 @@ function RelationshipForm({ type, id, name, onDone }: { type: EntityKind; id: nu
         placeholder={items.loading ? 'Loading…' : 'Choose who or what…'}
         searchPlaceholder="Search people, organisations and projects"
         disabled={items.loading}
-        options={items.options}
+        options={others}
         testId="select-relationship-other"
         style={{ minWidth: 220 }}
       />

@@ -346,7 +346,7 @@ router.post(
         continue;
       }
       const r = await propose(
-        { proposedBy: scope.actor, clientId: writer.clientId, sourceType: "meeting", sourceRef: b.granola_ref, sourceUrl: b.source_url ?? null, sourceLabel: `Granola: ${event.title}` },
+        { proposedBy: scope.actor, clientId: writer.clientId, sourceType: "meeting", sourceRef: b.granola_ref, sourceUrl: b.source_url ?? null, sourceLabel: `Granola: ${event.title}`, saidBy: { name: d.decided_by ?? null, at: event.startsAt } },
         {
           kind: "decision",
           entityType: "project",
@@ -488,8 +488,18 @@ const SuggestionItem = z.object({
   source_type: z.enum(SUGGESTION_SOURCES).nullish(),
   source_ref: optText(500),
   source_url: optText(2000),
+  /** Part N: who made the claim, by name or email, and when */
+  said_by: optText(200),
+  said_at: optText(40),
 });
 type SuggestionItem = z.infer<typeof SuggestionItem>;
+
+function saidByOf(who: string | null, when: string | null): ProposeMeta["saidBy"] {
+  const at = when ? new Date(isIsoDate(when) ? `${when}T12:00:00Z` : when) : null;
+  const ok = at && !Number.isNaN(at.getTime()) ? at : null;
+  if (!who && !ok) return null;
+  return { name: who && !who.includes("@") ? who : null, email: who?.includes("@") ? who : null, at: ok };
+}
 
 async function suggestOne(scope: AiScope, writer: Writer, s: SuggestionItem): Promise<AiProposeResult | { error: string }> {
   const meta: ProposeMeta = {
@@ -499,6 +509,7 @@ async function suggestOne(scope: AiScope, writer: Writer, s: SuggestionItem): Pr
     sourceRef: s.source_ref ?? null,
     sourceUrl: s.source_url ?? null,
     sourceLabel: s.source ?? null,
+    saidBy: saidByOf(s.said_by ?? null, s.said_at ?? s.decided_at ?? null),
   };
   const exact = { partial: false };
   switch (s.kind) {

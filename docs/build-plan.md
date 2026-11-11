@@ -1179,6 +1179,14 @@ Ollie shared a diagram of how OllieOS should work: sources are read, claims are 
   - "Sam Lee decides on Atlas launch" shows on the project page and in a brief with Sam in the room.
   - A Slack message stating a decision about a known project produces a Decision card that says who said it, citing the message.
   - "Same as existing" on a card marks the approved fact as checked and adds no new fact.
+- **Built (11th November 2026):**
+  - People have other email addresses and a linked Slack account (picked from Slack's member list on the person page, never linked automatically). Gmail, Calendar, Granola and Slack match a person on the Slack account first, then any of their addresses.
+  - Merge: "Same person as…" on the person page, and a "Possible duplicates" list on People (same name, or a shared address) with Merge and "Different people". Facts, decisions, notes, tasks, links, relationships, meetings, emails and Inbox cards move to the person kept; their details win where both have one, and the other addresses are kept. Ollie's own profile is never merged away. A merge cannot be undone.
+  - Who decides: a "decides on" relationship from a person to a project, product or organisation. Shown and edited as a "Who decides" row on those pages ("You" when no one is named), read by Claude in the context it gets, and shown as "Decides on …" beside each person in a brief.
+  - Who said it: every card carries the person who said it (or the name as written) and when, shown as "Said by" above the source. Claude's tools and the ingest route accept said_by and said_at.
+  - Slack and Gmail: the same AI read that finds tasks also proposes firm decisions and facts about known people, projects, organisations and products, citing the message. Exchanges with someone hidden from AI, Noise and newsletters are not read for knowledge.
+  - "Same as existing" on New fact, Proposed decision and New rule cards: pick the approved item (close matches first). It counts as checked today, a stale or conflict review on it is closed, and the card is kept as merged.
+  - Not built: showing the merged card's source on the existing item itself.
 
 ### Part O: Contradictions, context packs and the weekly round-up
 

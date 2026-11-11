@@ -9,6 +9,7 @@
  */
 import { eq, sql } from "drizzle-orm";
 import { db, linksTable, organisationsTable, peopleTable, playbooksTable, productsTable, projectsTable } from "@workspace/db";
+import { emailsOf } from "../personMatch";
 import { formatLong, PLAYBOOK_STEPS_MAX, RULE_MAX, RELATIONSHIPS, todayLondon, type Relationship } from "@workspace/shared";
 import { proposeOrganisation, proposePerson, type AiProposeResult } from "../aiPropose";
 import { ASK_MODEL } from "../ask/model";
@@ -89,6 +90,7 @@ async function known(): Promise<Known> {
         id: peopleTable.id,
         name: peopleTable.name,
         email: peopleTable.email,
+        otherEmails: peopleTable.otherEmails,
         role: peopleTable.role,
         org: organisationsTable.name,
         isSelf: peopleTable.isSelf,
@@ -120,7 +122,7 @@ async function known(): Promise<Known> {
   }
   for (const p of people) {
     k.people.set(p.name.toLowerCase(), p);
-    if (p.email) k.people.set(p.email.toLowerCase(), p);
+    for (const e of emailsOf(p)) k.people.set(e, p);
     if (!p.hidden) k.prompt.people.push([p.name, p.isSelf ? "(Ollie himself)" : null, p.role, p.org ? `at ${p.org}` : null].filter(Boolean).join(", "));
   }
   for (const o of orgs) {
@@ -159,7 +161,7 @@ function systemPrompt(k: Known, now: Date, changed: boolean): string {
     `- "people" (at most ${LIMITS.people}): people who matter to Ollie's work. Give "email" only when the document shows it. "organisation" is where they work. "relationship" is one sentence on how they relate to Ollie's work. Include a known person only when the document gives their role, email or organisation and OllieOS does not have it.`,
     `- "organisations" (at most ${LIMITS.organisations}): new customers, partners, universities or suppliers that matter, with "type" (customer, partner, supplier, university, school, charity, investor or other) and a one-sentence "summary" of how they relate to Springpod. Never list known organisations.`,
     `- "rules" (at most ${LIMITS.rules}): standing rules Ollie wants followed whenever AI works for him, such as how to write, what to always or never do, or how to treat a customer. Not one-off instructions for a single task. "rule" is under ${RULE_MAX - 50} characters. "project" is a known project it is only for, or "".`,
-    `- "relationships" (at most ${LIMITS.relationships}): how two known projects, people or organisations relate, when the document says so plainly. "from" and "to" are copied exactly from the known lists. "relationship" reads "from <relationship> to": reports_to, works_with, advises, introduced_by, investor_in, customer_of, supplier_to, partner_of, competitor_of, part_of, depends_on, blocked_by or related_to. Never someone's employer (that is "organisation" on a person). "evidence" is one sentence from what the document says.`,
+    `- "relationships" (at most ${LIMITS.relationships}): how two known projects, people or organisations relate, when the document says so plainly. "from" and "to" are copied exactly from the known lists. "relationship" reads "from <relationship> to": reports_to, works_with, advises, introduced_by, investor_in, customer_of, supplier_to, partner_of, competitor_of, part_of, depends_on, blocked_by, related_to or decides_on (a person who has the say on a project, product or organisation). Never someone's employer (that is "organisation" on a person). "evidence" is one sentence from what the document says.`,
     `- "products" (at most ${LIMITS.products}): products or services Springpod sells or runs that OllieOS does not know yet. Never list known products. "description" is what it is in one line. "facts" (at most 5) are current facts about it, one sentence each.`,
     `- "playbooks" (at most ${LIMITS.playbooks}): only when the document sets out how something is done as a repeatable process, in steps (for example onboarding a new partner). "existing" is a known playbook copied exactly when the document changes or adds to it, otherwise "". "title" names the process. "when_to_use" says when it starts, for example "A new university partner signs". "purpose" is one line, or "". "owner" is a known person who owns it, or "". "steps" (at most ${PLAYBOOK_STEPS_MAX}) in order, each one action in a sentence; "person" is a known person who does it when not Ollie, or ""; "day" is the number of days after starting when the document says, or "". For a change to a known playbook, give the whole new list of steps.`,
     `Write in British English with no em dashes. Use Ollie's name rather than "I" or "you".`,
@@ -261,8 +263,10 @@ export async function proposeExtracted(x: Extracted, k: Known, ctx: ProposeConte
     const text = clean(d.text);
     if (!text) continue;
     const p = project(d.project) ?? (x.projects.length === 1 ? project(x.projects[0]) : undefined);
+    const decidedOn = isoDate(d.decided_on);
+    const by = clean(d.decided_by);
     const r = await propose(
-      ctx.meta,
+      by || decidedOn ? { ...ctx.meta, saidBy: { ...ctx.meta.saidBy, name: by ?? ctx.meta.saidBy?.name, at: decidedOn ? new Date(`${decidedOn}T12:00:00Z`) : ctx.meta.saidBy?.at } } : ctx.meta,
       {
         kind: "decision",
         entityType: p ? "project" : null,

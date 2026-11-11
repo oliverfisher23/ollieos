@@ -366,7 +366,7 @@ async function addDecisions(n: MeetingNote, sorted: SortedMeeting, s: Saved, ctx
     }
     const projectId = ctx.projectByName.get(d.project.toLowerCase()) ?? ctx.projectByName.get(sorted.project.toLowerCase().trim()) ?? null;
     const r = await propose(
-      { proposedBy: LOOK_BACK_PROPOSER, clientId: null, sourceType: "meeting", sourceRef: `granola:${n.noteId}`, sourceUrl: n.url, sourceLabel: `Granola: ${n.title}` },
+      { proposedBy: LOOK_BACK_PROPOSER, clientId: null, sourceType: "meeting", sourceRef: `granola:${n.noteId}`, sourceUrl: n.url, sourceLabel: `Granola: ${n.title}`, saidBy: { at: n.at } },
       {
         kind: "decision",
         entityType: projectId == null ? null : "project",

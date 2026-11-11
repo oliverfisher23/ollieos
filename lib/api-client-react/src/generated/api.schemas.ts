@@ -635,6 +635,22 @@ export interface BriefCadence {
   daysSince: number | null;
 }
 
+export type DecidesOnItemType = typeof DecidesOnItemType[keyof typeof DecidesOnItemType];
+
+
+export const DecidesOnItemType = {
+  project: 'project',
+  product: 'product',
+  organisation: 'organisation',
+} as const;
+
+export interface DecidesOnItem {
+  type: DecidesOnItemType;
+  id: number;
+  name: string;
+  slug: string;
+}
+
 export interface BriefAttendeePerson {
   id: number;
   slug: string;
@@ -650,6 +666,8 @@ export interface BriefAttendeePerson {
   facts: BriefAttendeePersonFactsItem[];
   /** Null when the person has no cadence */
   cadence: BriefCadence | null;
+  /** The projects, products and organisations this person decides on */
+  decidesOn: DecidesOnItem[];
 }
 
 export interface BriefAttendee {
@@ -1982,6 +2000,16 @@ export interface KnowledgeInboxPlaybook {
   reason: string | null;
 }
 
+export interface KnowledgeInboxSaidBy {
+  name: string;
+  /** @nullable */
+  personId: number | null;
+  /** @nullable */
+  slug: string | null;
+  /** Ollie himself */
+  isSelf: boolean;
+}
+
 export interface KnowledgeInboxItem {
   key: string;
   /** Suggestion id on the Suggested tab */
@@ -2024,6 +2052,107 @@ export interface KnowledgeInboxItem {
   projectHint: string | null;
   /** Steps for a Playbook card, with the change shown */
   playbook: KnowledgeInboxPlaybook | null;
+  /** Who made the claim; a person in People when one matched */
+  saidBy: KnowledgeInboxSaidBy | null;
+  /**
+     * When they said it
+     * @nullable
+     */
+  saidAt: string | null;
+}
+
+export type MergeOptionItemType = typeof MergeOptionItemType[keyof typeof MergeOptionItemType];
+
+
+export const MergeOptionItemType = {
+  fact: 'fact',
+  decision: 'decision',
+  rule: 'rule',
+} as const;
+
+export interface MergeOption {
+  itemType: MergeOptionItemType;
+  id: number;
+  text: string;
+  /** @nullable */
+  detail: string | null;
+  /** Says much the same thing as the card */
+  likely: boolean;
+}
+
+export type MergeSuggestionInputItemType = typeof MergeSuggestionInputItemType[keyof typeof MergeSuggestionInputItemType];
+
+
+export const MergeSuggestionInputItemType = {
+  fact: 'fact',
+  decision: 'decision',
+  rule: 'rule',
+} as const;
+
+export interface MergeSuggestionInput {
+  itemType: MergeSuggestionInputItemType;
+  itemId: number;
+}
+
+export interface DuplicatePerson {
+  id: number;
+  name: string;
+  slug: string;
+  /** @nullable */
+  email: string | null;
+}
+
+export interface DuplicatePair {
+  a: DuplicatePerson;
+  b: DuplicatePerson;
+  reason: string;
+}
+
+export interface NotSameInput {
+  aId: number;
+  bId: number;
+}
+
+export interface OkResult {
+  ok: boolean;
+}
+
+export interface SlackAccount {
+  id: string;
+  name: string;
+  handle: string;
+  /** @nullable */
+  email: string | null;
+}
+
+export interface MergePersonInput {
+  /** The person to merge into this one and remove */
+  otherId: number;
+}
+
+export type MergePersonResultKept = {
+  id: number;
+  name: string;
+  slug: string;
+};
+
+export type MergePersonResultRemoved = {
+  id: number;
+  name: string;
+};
+
+export type MergePersonResultMoved = {
+  facts: number;
+  notes: number;
+  tasks: number;
+  meetings: number;
+  links: number;
+};
+
+export interface MergePersonResult {
+  kept: MergePersonResultKept;
+  removed: MergePersonResultRemoved;
+  moved: MergePersonResultMoved;
 }
 
 export interface KnowledgeInbox {
@@ -2055,6 +2184,7 @@ export type SuggestionDecisionStatus = typeof SuggestionDecisionStatus[keyof typ
 export const SuggestionDecisionStatus = {
   approved: 'approved',
   rejected: 'rejected',
+  merged: 'merged',
 } as const;
 
 export type SuggestionDecisionResult = {
@@ -2588,6 +2718,13 @@ export interface Person {
   cadencePaused: boolean;
   /** Ollie's own record */
   isSelf: boolean;
+  /** Other addresses they use, in lower case */
+  otherEmails: string[];
+  /**
+     * Their Slack account
+     * @nullable
+     */
+  slackUserId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -2628,6 +2765,17 @@ export interface PersonUpdate {
   aiAccess?: boolean;
   cadence?: Cadence;
   cadencePaused?: boolean;
+  /**
+     * Replaces the list of other addresses
+     * @maxItems 20
+     * @items.maxLength 320
+     */
+  otherEmails?: string[];
+  /**
+     * Their Slack account id
+     * @nullable
+     */
+  slackUserId?: string | null;
 }
 
 export type CadenceStatus = typeof CadenceStatus[keyof typeof CadenceStatus];
@@ -2850,6 +2998,7 @@ export const RelationshipKind = {
   depends_on: 'depends_on',
   blocked_by: 'blocked_by',
   related_to: 'related_to',
+  decides_on: 'decides_on',
 } as const;
 
 export type RelationshipViewDirection = typeof RelationshipViewDirection[keyof typeof RelationshipViewDirection];
@@ -4257,6 +4406,13 @@ export const ListProjectsIncludeArchived = {
 
 export type ListCadenceParams = {
 tab?: CadenceTab;
+};
+
+export type FindSlackAccountsParams = {
+/**
+ * @maxLength 100
+ */
+q?: string;
 };
 
 export type ListDocumentsParams = {

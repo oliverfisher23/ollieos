@@ -23,4 +23,5 @@ export const RelationshipKind = {
   depends_on: 'depends_on',
   blocked_by: 'blocked_by',
   related_to: 'related_to',
+  decides_on: 'decides_on',
 } as const;

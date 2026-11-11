@@ -14,6 +14,7 @@
  */
 import { and, eq, ne, sql } from "drizzle-orm";
 import { appSettingsTable, db, peopleTable, reviewItemsTable, tasksTable } from "@workspace/db";
+import { hasEmail } from "../personMatch";
 import { addDays, todayLondon, weekday } from "@workspace/shared";
 import { logger } from "../../lib/logger";
 import { ValidationError } from "../tasks";
@@ -421,7 +422,7 @@ async function addItem(c: Candidate, input: NoReplyCandidate, v: NoReplyVerdict,
     [person = null] = await db
       .select(cols)
       .from(peopleTable)
-      .where(and(eq(sql`lower(${peopleTable.email})`, who.email), eq(peopleTable.isSelf, false)))
+      .where(and(hasEmail(who.email), eq(peopleTable.isSelf, false)))
       .limit(1);
     if (!person && who.name) {
       [person = null] = await db

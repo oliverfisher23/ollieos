@@ -10,8 +10,9 @@
  * the same check.
  */
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
-import { appSettingsTable, connectorRunsTable, db, type ConnectorRun } from "@workspace/db";
+import { appSettingsTable, connectorRunsTable, db, peopleTable, type ConnectorRun } from "@workspace/db";
 import { addDays, londonParts, londonWallTimeToInstant, todayLondon } from "@workspace/shared";
+import { emailsOf } from "../personMatch";
 import { logger } from "../../lib/logger";
 import { replaceCalendar } from "../aiWrites";
 import { scheduledWork } from "../scheduledWork";
@@ -257,6 +258,9 @@ export async function myAddresses(): Promise<Set<string>> {
   }
   const allowed = process.env.ALLOWED_EMAIL;
   for (const a of (allowed ?? "").split(",")) if (a.includes("@")) out.add(a.trim().toLowerCase());
+  // Every address on Ollie's own person record counts as him (Part N).
+  const [self] = await db.select({ email: peopleTable.email, otherEmails: peopleTable.otherEmails }).from(peopleTable).where(eq(peopleTable.isSelf, true));
+  if (self) for (const e of emailsOf(self)) out.add(e);
   return out;
 }
 

@@ -455,6 +455,11 @@ function AttendeeCard({ a, index }: { a: BriefAttendee; index: number }) {
         {role && <span style={{ fontSize: 13, color: 'var(--oo-ink-muted)', overflowWrap: 'anywhere' }}>{breakable(role)}</span>}
         <span style={{ fontSize: 12, color: 'var(--oo-ink-muted)' }}>{meta}</span>
         {cadence && <span style={{ fontSize: 12, color: 'var(--oo-ink-muted)' }} data-testid={'text-attendee-cadence-' + index}>Cadence: {cadence}</span>}
+        {p && p.decidesOn.length > 0 && (
+          <span style={{ fontSize: 13, fontWeight: 500, overflowWrap: 'anywhere' }} data-testid={'text-attendee-decides-' + index}>
+            Decides on {p.decidesOn.map((d) => d.name).join(', ')}
+          </span>
+        )}
         {p && p.facts.length > 0 && (
           <ul style={{ margin: '4px 0 0', paddingLeft: 16, listStyle: 'disc', display: 'flex', flexDirection: 'column', gap: 3, fontSize: 13, lineHeight: 1.45, color: 'var(--oo-ink-soft)' }} data-testid={'list-attendee-facts-' + index}>
             {p.facts.map((f) => (

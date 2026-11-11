@@ -70,6 +70,7 @@ import type {
   DropboxFolderInput,
   DropboxFolderPreview,
   DropboxFolderPreviewInput,
+  DuplicatePair,
   EmailAttachmentInput,
   EmailDraftList,
   EmailInbox,
@@ -87,6 +88,7 @@ import type {
   FactReviewResult,
   FactSupersede,
   FindGraphConnectionParams,
+  FindSlackAccountsParams,
   GetOAuthConsentParams,
   GetTaskSummaryParams,
   GetWeeklyUpdateParams,
@@ -126,6 +128,10 @@ import type {
   LookBack,
   LookBackInput,
   MeetingsList,
+  MergeOption,
+  MergePersonInput,
+  MergePersonResult,
+  MergeSuggestionInput,
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
   NoReplyScan,
@@ -133,11 +139,13 @@ import type {
   NoiseRuleOption,
   NoiseRuleUpdate,
   NotAuthorisedResponse,
+  NotSameInput,
   Note,
   NoteInput,
   NoteUpdate,
   OAuthConsent,
   OAuthConsentDecision,
+  OkResult,
   Organisation,
   OrganisationDetail,
   OrganisationInput,
@@ -188,6 +196,7 @@ import type {
   SessionDetail,
   SessionListItem,
   SessionUpdate,
+  SlackAccount,
   StrategyOrder,
   StrategySection,
   StrategySectionInput,
@@ -5789,6 +5798,392 @@ export function useListCadence<TData = Awaited<ReturnType<typeof listCadence>>, 
 
 
 
+
+export const getListPossibleDuplicatesUrl = () => {
+
+
+
+
+  return `/api/people/duplicates`
+}
+
+/**
+ * @summary People who look like the same person (same name, or a matching email address)
+ */
+export const listPossibleDuplicates = async ( options?: Parameters<typeof customFetch>[1]): Promise<DuplicatePair[]> => {
+
+  return customFetch<DuplicatePair[]>(getListPossibleDuplicatesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPossibleDuplicatesQueryKey = () => {
+    return [
+    `/api/people/duplicates`
+    ] as const;
+    }
+
+
+export const getListPossibleDuplicatesQueryOptions = <TData = Awaited<ReturnType<typeof listPossibleDuplicates>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPossibleDuplicates>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPossibleDuplicatesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPossibleDuplicates>>> = ({ signal }) => listPossibleDuplicates({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPossibleDuplicates>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPossibleDuplicatesQueryResult = NonNullable<Awaited<ReturnType<typeof listPossibleDuplicates>>>
+export type ListPossibleDuplicatesQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListPossibleDuplicates<TData = Awaited<ReturnType<typeof listPossibleDuplicates>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPossibleDuplicates>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPossibleDuplicates>>,
+          TError,
+          Awaited<ReturnType<typeof listPossibleDuplicates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPossibleDuplicates<TData = Awaited<ReturnType<typeof listPossibleDuplicates>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPossibleDuplicates>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPossibleDuplicates>>,
+          TError,
+          Awaited<ReturnType<typeof listPossibleDuplicates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPossibleDuplicates<TData = Awaited<ReturnType<typeof listPossibleDuplicates>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPossibleDuplicates>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary People who look like the same person (same name, or a matching email address)
+ */
+
+export function useListPossibleDuplicates<TData = Awaited<ReturnType<typeof listPossibleDuplicates>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPossibleDuplicates>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListPossibleDuplicatesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMarkPeopleNotSameUrl = () => {
+
+
+
+
+  return `/api/people/duplicates/not-same`
+}
+
+/**
+ * @summary Say two people are different people, so they stop showing as possible duplicates
+ */
+export const markPeopleNotSame = async (notSameInput: NotSameInput, options?: Parameters<typeof customFetch>[1]): Promise<OkResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OkResult>(getMarkPeopleNotSameUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(notSameInput)
+  }
+);}
+
+
+
+
+
+export const getMarkPeopleNotSameMutationKey = () => ['markPeopleNotSame'] as const;
+
+export const getMarkPeopleNotSameMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markPeopleNotSame>>, TError,MarkPeopleNotSameMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markPeopleNotSame>>, TError,MarkPeopleNotSameMutationVariables, TContext> => {
+
+const mutationKey = getMarkPeopleNotSameMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markPeopleNotSame>>, MarkPeopleNotSameMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  markPeopleNotSame(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkPeopleNotSameMutationResult = NonNullable<Awaited<ReturnType<typeof markPeopleNotSame>>>
+    export type MarkPeopleNotSameMutationBody = BodyType<NotSameInput>
+    export type MarkPeopleNotSameMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type MarkPeopleNotSameMutationVariables = {data: BodyType<NotSameInput>}
+
+    /**
+ * @summary Say two people are different people, so they stop showing as possible duplicates
+ */
+export const useMarkPeopleNotSame = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markPeopleNotSame>>, TError,MarkPeopleNotSameMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof markPeopleNotSame>>,
+        TError,
+        MarkPeopleNotSameMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkPeopleNotSameMutationOptions(options), queryClient);
+    }
+
+export const getFindSlackAccountsUrl = (params?: FindSlackAccountsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/people/slack-accounts?${stringifiedParams}` : `/api/people/slack-accounts`
+}
+
+/**
+ * @summary People in Ollie's Slack workspace, for linking a person to their Slack account
+ */
+export const findSlackAccounts = async (params?: FindSlackAccountsParams, options?: Parameters<typeof customFetch>[1]): Promise<SlackAccount[]> => {
+
+  return customFetch<SlackAccount[]>(getFindSlackAccountsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getFindSlackAccountsQueryKey = (params?: FindSlackAccountsParams,) => {
+    return [
+    `/api/people/slack-accounts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getFindSlackAccountsQueryOptions = <TData = Awaited<ReturnType<typeof findSlackAccounts>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(params?: FindSlackAccountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof findSlackAccounts>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getFindSlackAccountsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof findSlackAccounts>>> = ({ signal }) => findSlackAccounts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof findSlackAccounts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type FindSlackAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof findSlackAccounts>>>
+export type FindSlackAccountsQueryError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+export function useFindSlackAccounts<TData = Awaited<ReturnType<typeof findSlackAccounts>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: undefined |  FindSlackAccountsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof findSlackAccounts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof findSlackAccounts>>,
+          TError,
+          Awaited<ReturnType<typeof findSlackAccounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useFindSlackAccounts<TData = Awaited<ReturnType<typeof findSlackAccounts>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params?: FindSlackAccountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof findSlackAccounts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof findSlackAccounts>>,
+          TError,
+          Awaited<ReturnType<typeof findSlackAccounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useFindSlackAccounts<TData = Awaited<ReturnType<typeof findSlackAccounts>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params?: FindSlackAccountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof findSlackAccounts>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary People in Ollie's Slack workspace, for linking a person to their Slack account
+ */
+
+export function useFindSlackAccounts<TData = Awaited<ReturnType<typeof findSlackAccounts>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params?: FindSlackAccountsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof findSlackAccounts>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getFindSlackAccountsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMergePersonUrl = (slug: string,) => {
+
+
+
+
+  return `/api/people/${slug}/merge`
+}
+
+/**
+ * @summary Merge another person into this one. Everything on them moves here and they are removed.
+ */
+export const mergePerson = async (slug: string,
+    mergePersonInput: MergePersonInput, options?: Parameters<typeof customFetch>[1]): Promise<MergePersonResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MergePersonResult>(getMergePersonUrl(slug),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mergePersonInput)
+  }
+);}
+
+
+
+
+
+export const getMergePersonMutationKey = () => ['mergePerson'] as const;
+
+export const getMergePersonMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergePerson>>, TError,MergePersonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergePerson>>, TError,MergePersonMutationVariables, TContext> => {
+
+const mutationKey = getMergePersonMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergePerson>>, MergePersonMutationVariables> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  mergePerson(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergePersonMutationResult = NonNullable<Awaited<ReturnType<typeof mergePerson>>>
+    export type MergePersonMutationBody = BodyType<MergePersonInput>
+    export type MergePersonMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type MergePersonMutationVariables = {slug: string;data: BodyType<MergePersonInput>}
+
+    /**
+ * @summary Merge another person into this one. Everything on them moves here and they are removed.
+ */
+export const useMergePerson = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergePerson>>, TError,MergePersonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof mergePerson>>,
+        TError,
+        MergePersonMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMergePersonMutationOptions(options), queryClient);
+    }
 
 export const getDraftCheckInUrl = (slug: string,) => {
 
@@ -11898,6 +12293,196 @@ export const useRejectSuggestionsFromSource = <TError = ErrorType<ErrorResponse 
         TContext
       > => {
       return useMutation(getRejectSuggestionsFromSourceMutationOptions(options), queryClient);
+    }
+
+export const getListSuggestionMergeOptionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/suggestions/${id}/merge-options`
+}
+
+/**
+ * @summary Approved facts, decisions or rules a card could be the same as, close matches first
+ */
+export const listSuggestionMergeOptions = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<MergeOption[]> => {
+
+  return customFetch<MergeOption[]>(getListSuggestionMergeOptionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSuggestionMergeOptionsQueryKey = (id: number,) => {
+    return [
+    `/api/suggestions/${id}/merge-options`
+    ] as const;
+    }
+
+
+export const getListSuggestionMergeOptionsQueryOptions = <TData = Awaited<ReturnType<typeof listSuggestionMergeOptions>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSuggestionMergeOptions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSuggestionMergeOptionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSuggestionMergeOptions>>> = ({ signal }) => listSuggestionMergeOptions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSuggestionMergeOptions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListSuggestionMergeOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof listSuggestionMergeOptions>>>
+export type ListSuggestionMergeOptionsQueryError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+export function useListSuggestionMergeOptions<TData = Awaited<ReturnType<typeof listSuggestionMergeOptions>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSuggestionMergeOptions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSuggestionMergeOptions>>,
+          TError,
+          Awaited<ReturnType<typeof listSuggestionMergeOptions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSuggestionMergeOptions<TData = Awaited<ReturnType<typeof listSuggestionMergeOptions>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSuggestionMergeOptions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSuggestionMergeOptions>>,
+          TError,
+          Awaited<ReturnType<typeof listSuggestionMergeOptions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSuggestionMergeOptions<TData = Awaited<ReturnType<typeof listSuggestionMergeOptions>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSuggestionMergeOptions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Approved facts, decisions or rules a card could be the same as, close matches first
+ */
+
+export function useListSuggestionMergeOptions<TData = Awaited<ReturnType<typeof listSuggestionMergeOptions>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSuggestionMergeOptions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListSuggestionMergeOptionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMergeSuggestionUrl = (id: number,) => {
+
+
+
+
+  return `/api/suggestions/${id}/merge`
+}
+
+/**
+ * @summary Same as existing. The existing item counts as checked today and nothing new is added.
+ */
+export const mergeSuggestion = async (id: number,
+    mergeSuggestionInput: MergeSuggestionInput, options?: Parameters<typeof customFetch>[1]): Promise<SuggestionDecision> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SuggestionDecision>(getMergeSuggestionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mergeSuggestionInput)
+  }
+);}
+
+
+
+
+
+export const getMergeSuggestionMutationKey = () => ['mergeSuggestion'] as const;
+
+export const getMergeSuggestionMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeSuggestion>>, TError,MergeSuggestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergeSuggestion>>, TError,MergeSuggestionMutationVariables, TContext> => {
+
+const mutationKey = getMergeSuggestionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergeSuggestion>>, MergeSuggestionMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  mergeSuggestion(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergeSuggestionMutationResult = NonNullable<Awaited<ReturnType<typeof mergeSuggestion>>>
+    export type MergeSuggestionMutationBody = BodyType<MergeSuggestionInput>
+    export type MergeSuggestionMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type MergeSuggestionMutationVariables = {id: number;data: BodyType<MergeSuggestionInput>}
+
+    /**
+ * @summary Same as existing. The existing item counts as checked today and nothing new is added.
+ */
+export const useMergeSuggestion = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeSuggestion>>, TError,MergeSuggestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof mergeSuggestion>>,
+        TError,
+        MergeSuggestionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMergeSuggestionMutationOptions(options), queryClient);
     }
 
 export const getRejectSuggestionUrl = (id: number,) => {
