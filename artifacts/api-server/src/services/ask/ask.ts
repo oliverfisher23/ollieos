@@ -36,6 +36,7 @@ import { toTaskView, type TaskView } from "../taskView";
 import { resolveEntities } from "../knowledge/common";
 import { ASK_MODEL, answerFromDocs, draftReplyFromDocs, type PriorTurn } from "./model";
 import { logger } from "../../lib/logger";
+import { recordCheck } from "../writerChecks";
 
 const ACTOR = "ollie";
 const OPEN = new Set<TaskStatus>(OPEN_STATUSES);
@@ -493,6 +494,8 @@ export async function ask(question: string, parentId?: number | null): Promise<{
     return created;
   });
   await recordReads(scope, answer.retrievedRefs, { via: "ask", threadId: row.id, question: q });
+  // Part Y: code checks on the answer; it may only cite what it was given (and earlier turns).
+  await recordCheck("ask_answer", `ask:${row.id}`, [answer.summary, ...answer.items.map((i) => i.text)].join("\n"), { given: [...answer.retrievedRefs, ...carry], cited: citedIds, maxWords: 600 });
   return { id: row.id, ...(await getThread(row.id)) };
 }
 

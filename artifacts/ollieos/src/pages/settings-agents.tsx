@@ -1,6 +1,7 @@
 import { useListAgents, type AgentMeasure, type AgentView, type ConnectedAiView } from '@workspace/api-client-react';
 import { formatShort, formatTime, londonDate, todayLondon } from '@workspace/shared';
 import { Skel } from '@/components/bits';
+import { AgentTests, WriterScores } from '@/components/evals';
 
 const KIND_LABEL: Record<string, string> = { sorter: 'Sorts', judge: 'Judges', writer: 'Writes', researcher: 'Researches', unknown: 'Retired' };
 const MODEL_LABEL: Record<string, string> = { 'claude-haiku-5-5': 'Claude Haiku 5.5', 'claude-sonnet-5-5': 'Claude Sonnet 5.5' };
@@ -40,7 +41,7 @@ export default function AgentsSettings() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <h1 id="ag-h" style={{ margin: 0, fontSize: 30, fontWeight: 600, letterSpacing: '-0.015em' }}>Agents</h1>
         <p className="oo-soft" style={{ margin: 0, fontSize: 14, maxWidth: '64ch', lineHeight: 1.6 }}>
-          Every AI job inside OllieOS, what it reads, and how it did over the last 7 days, including how often you kept what it did, worked out from your own choices (Noise, Reject, Not done, reopening a task). Costs are estimates at Anthropic's list prices in US dollars; Replit bills them through your credits. No message, email or document text is kept for this, only the counts.
+          Every AI job inside OllieOS, what it reads, and how it did over the last 7 days, including how often you kept what it did, worked out from your own choices (Noise, Reject, Not done, reopening a task). Costs are estimates at Anthropic's list prices in US dollars; Replit bills them through your credits. Run records keep no message, email or document text. Readers keep what they were given for 30 days, so an item can be kept as a test case and replayed before a prompt or model changes. Writers are checked as they write, graded on a small sample each week, and scored by your thumbs on Ask, briefs and the digest.
         </p>
       </div>
 
@@ -120,6 +121,8 @@ function AgentCard({ a }: { a: AgentView }) {
           {a.measures.filter((m) => m.kept + m.undone + m.waiting > 0 || m.lastRate != null).map((m) => <MeasureLine key={m.key} m={m} />)}
         </ul>
       )}
+      <WriterScores a={a} />
+      <AgentTests a={a} />
       {a.lastError && (
         <span style={{ fontSize: 13, color: 'var(--oo-danger)', lineHeight: 1.5 }} data-testid={'text-agent-error-' + a.key}>
           Last error{a.lastErrorAt ? ` (${when(a.lastErrorAt)})` : ''}: {a.lastError}

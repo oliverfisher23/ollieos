@@ -28,6 +28,7 @@ import { writeAudit } from "../lib/audit";
 import { logger } from "../lib/logger";
 import { askScope } from "./ask/ask";
 import { digestSummaryFromLines } from "./ask/model";
+import { recordCheck } from "./writerChecks";
 import { briefableIds, notPreppedIds } from "./briefs";
 import { listCadence } from "./cadence";
 import { inboxCounts } from "./knowledgeInbox";
@@ -297,7 +298,7 @@ export async function buildDigest(date: string, now = new Date()): Promise<Diges
   const since = digestWindowStart(date);
   const sections = await buildSections(date, since, now);
   const summary = await summarise(sections);
-  return db.transaction(async (tx) => {
+  const saved = await db.transaction(async (tx) => {
     const [row] = await tx
       .insert(digestsTable)
       .values({ forDate: date, windowStart: since, summary, sections })
@@ -312,6 +313,9 @@ export async function buildDigest(date: string, now = new Date()): Promise<Diges
     });
     return row;
   });
+  // Part Y: code checks on the AI summary (asked for under 35 words, one sentence).
+  if (summary && summary !== QUIET_NIGHT) await recordCheck("digest_summary", `digest:${saved.id}`, summary, { maxWords: 35 });
+  return saved;
 }
 
 /** When a sweep finishes: the digest for today, once, on weekdays. */
@@ -349,6 +353,8 @@ async function sweepFinishedToday(now: Date): Promise<boolean> {
 }
 
 export interface DigestView {
+  /** Part Y: for thumbs */
+  id: number;
   date: string;
   windowStart: Date;
   summary: string | null;
@@ -356,7 +362,7 @@ export interface DigestView {
   createdAt: Date;
 }
 
-const toView = (d: Digest): DigestView => ({ date: d.forDate, windowStart: d.windowStart, summary: d.summary, sections: d.sections, createdAt: d.createdAt });
+const toView = (d: Digest): DigestView => ({ id: d.id, date: d.forDate, windowStart: d.windowStart, summary: d.summary, sections: d.sections, createdAt: d.createdAt });
 
 /**
  * One day's digest. For today, it is built on open if a sweep has finished today and the sweep's

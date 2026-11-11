@@ -36,6 +36,7 @@ import { applicableRuleRefs, loadVisibleDocs } from "../lib/ai-data/retrieve";
 import { askClient, defaultScope, recordReads, visibleRefs, type AiScope } from "../lib/ai-data/scope";
 import { writeAudit } from "../lib/audit";
 import { logger } from "../lib/logger";
+import { recordCheck } from "./writerChecks";
 import type { GrantType } from "../lib/ai-data/visibility";
 import { describeRefs, grantDirect } from "./access";
 import { askScope } from "./ask/ask";
@@ -390,7 +391,7 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
     failed,
     model,
   };
-  return db.transaction(async (tx) => {
+  const saved = await db.transaction(async (tx) => {
     const [row] = await tx
       .insert(meetingBriefsTable)
       .values(values)
@@ -405,6 +406,12 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
     });
     return row;
   });
+  // Part Y: code checks on what the brief writer wrote; it may only cite what it was given.
+  if (!failed && why) {
+    const text = [...(saved.why ?? []), ...(saved.agenda ?? []), ...(saved.questions ?? [])].map((l) => l.text).join("\n");
+    await recordCheck("brief_writer", `brief:${saved.id}`, text, { given: inputRefs, cited: citedIds, maxWords: 450 });
+  }
+  return saved;
 }
 
 /** Whole-word patterns for the names of attendees, projects and organisations hidden from AI. */
@@ -535,6 +542,8 @@ async function decidesOnFor(personIds: number[]): Promise<Map<number, DecidesOnI
 }
 
 export interface BriefView {
+  /** Part Y: for thumbs */
+  id: number;
   event: { id: number; title: string; startsAt: Date; endsAt: Date; location: string | null; platform: string | null; scope: MeetingScope; companies: string[] };
   /** What the research agent found about each outside company on the meeting */
   research: ResearchView[];
@@ -789,6 +798,7 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
     pulse: inputs.match.scope === "external" ? (await pulsesFor(inputs.match.orgIds)).map((p) => ({ name: p.name, slug: p.slug, line: p.line, needsAttention: p.needsAttention, reasons: p.reasons })) : [],
     followUpTaskId: brief.granolaRef ? await followUpTaskFor(brief.granolaRef) : null,
     openedAt: brief.openedAt,
+    id: brief.id,
     generatedAt: brief.generatedAt,
     failed: brief.failed,
     notMuch: !brief.why && !brief.failed,

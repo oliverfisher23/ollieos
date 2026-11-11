@@ -6,7 +6,9 @@
 import { and, count, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
 import { aiClientsTable, aiRunsTable, auditEventsTable, db, suggestionsTable } from "@workspace/db";
 import { AGENTS, AGENT_KEYS, type AgentKind } from "../lib/agents";
+import { caseCounts, REPLAY_AGENTS } from "./evals";
 import { scorecards, type Measure } from "./scorecards";
+import { writingViews, type WritingView } from "./writerChecks";
 
 export const AGENTS_WINDOW_DAYS = 7;
 
@@ -32,6 +34,10 @@ export interface AgentView {
   promptVersions: number;
   /** Part W: how often Ollie kept what it did, this week against last */
   measures: Measure[];
+  /** Part Y: writers only; code checks, the weekly grade and Ollie's thumbs over the last 7 days */
+  writing: WritingView | null;
+  /** Part X: readers only; saved test cases and the last replay */
+  tests: { cases: number; lastReplay: { passed: number; total: number; at: Date; promptVersion: string; model: string } | null } | null;
 }
 
 export interface ConnectedAiView {
@@ -85,7 +91,7 @@ export async function agentsView(now = new Date()): Promise<AgentsView> {
       .orderBy(aiRunsTable.agent, desc(aiRunsTable.startedAt)),
   ]);
   const byStats = new Map(stats.map((s) => [s.agent, s]));
-  const measures = await scorecards(now);
+  const [measures, writing, tests] = await Promise.all([scorecards(now), writingViews(now), caseCounts()]);
   const byLatest = new Map(latest.map((l) => [l.agent, l]));
   const byError = new Map(errors.map((e) => [e.agent, e]));
 
@@ -114,6 +120,8 @@ export async function agentsView(now = new Date()): Promise<AgentsView> {
       lastErrorAt: e?.at ?? null,
       promptVersions: num(s?.versions),
       measures: measures.filter((m) => m.agent === key),
+      writing: info?.kind === "writer" ? (writing.get(key) ?? { checks: { passed: 0, total: 0, lastIssues: [] }, grade: { average: null, count: 0, lowest: null }, thumbs: { up: 0, down: 0 } }) : null,
+      tests: REPLAY_AGENTS.includes(key) ? (tests.get(key) ?? { cases: 0, lastReplay: null }) : null,
     };
   });
   // Most expensive first, then busiest, then by name; agents with no runs last.

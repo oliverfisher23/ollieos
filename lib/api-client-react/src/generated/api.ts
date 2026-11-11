@@ -124,6 +124,7 @@ import type {
   ListAiActivityParams,
   ListCadenceParams,
   ListDocumentsParams,
+  ListFeedbackParams,
   ListIdeasParams,
   ListKnowledgeInboxParams,
   ListProjectsParams,
@@ -131,6 +132,7 @@ import type {
   ListResearchParams,
   ListSessionsParams,
   ListTasksParams,
+  ListTestCasesParams,
   ListUnusedRulesAndPlaybooks200,
   LogoutBrowserSessionParams,
   LogoutSuccess,
@@ -190,6 +192,8 @@ import type {
   RelationshipPair,
   RelationshipRemoved,
   RelationshipView,
+  ReplayInput,
+  ReplayResult,
   ReplyBriefInput,
   ReplyDraft,
   ReplyDraftInput,
@@ -235,7 +239,12 @@ import type {
   TaskEvidence,
   TaskSummary,
   TaskUpdate,
+  TestCase,
+  TestCaseAvailability,
+  TestCaseInput,
   ThreadSummary,
+  Thumb,
+  ThumbInput,
   TimeReport,
   TriageInput,
   TriageResult,
@@ -4226,6 +4235,662 @@ export function useListAgents<TData = Awaited<ReturnType<typeof listAgents>>, TE
 
 
 
+
+export const getGetTaskTestCaseUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/test-case`
+}
+
+/**
+ * @summary Part X: whether this item's exchange can still be kept as a test case
+ */
+export const getTaskTestCase = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<TestCaseAvailability> => {
+
+  return customFetch<TestCaseAvailability>(getGetTaskTestCaseUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTaskTestCaseQueryKey = (id: number,) => {
+    return [
+    `/api/tasks/${id}/test-case`
+    ] as const;
+    }
+
+
+export const getGetTaskTestCaseQueryOptions = <TData = Awaited<ReturnType<typeof getTaskTestCase>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskTestCase>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTaskTestCaseQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTaskTestCase>>> = ({ signal }) => getTaskTestCase(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTaskTestCase>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTaskTestCaseQueryResult = NonNullable<Awaited<ReturnType<typeof getTaskTestCase>>>
+export type GetTaskTestCaseQueryError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+
+
+export function useGetTaskTestCase<TData = Awaited<ReturnType<typeof getTaskTestCase>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskTestCase>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskTestCase>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskTestCase>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskTestCase<TData = Awaited<ReturnType<typeof getTaskTestCase>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskTestCase>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskTestCase>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskTestCase>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskTestCase<TData = Awaited<ReturnType<typeof getTaskTestCase>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskTestCase>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Part X: whether this item's exchange can still be kept as a test case
+ */
+
+export function useGetTaskTestCase<TData = Awaited<ReturnType<typeof getTaskTestCase>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskTestCase>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTaskTestCaseQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getKeepTaskTestCaseUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/test-case`
+}
+
+/**
+ * @summary Part X: keep what the reader was given for this item as a test case
+ */
+export const keepTaskTestCase = async (id: number,
+    testCaseInput: TestCaseInput, options?: Parameters<typeof customFetch>[1]): Promise<TestCase> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TestCase>(getKeepTaskTestCaseUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(testCaseInput)
+  }
+);}
+
+
+
+
+
+export const getKeepTaskTestCaseMutationKey = () => ['keepTaskTestCase'] as const;
+
+export const getKeepTaskTestCaseMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof keepTaskTestCase>>, TError,KeepTaskTestCaseMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof keepTaskTestCase>>, TError,KeepTaskTestCaseMutationVariables, TContext> => {
+
+const mutationKey = getKeepTaskTestCaseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof keepTaskTestCase>>, KeepTaskTestCaseMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  keepTaskTestCase(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type KeepTaskTestCaseMutationResult = NonNullable<Awaited<ReturnType<typeof keepTaskTestCase>>>
+    export type KeepTaskTestCaseMutationBody = BodyType<TestCaseInput>
+    export type KeepTaskTestCaseMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type KeepTaskTestCaseMutationVariables = {id: number;data: BodyType<TestCaseInput>}
+
+    /**
+ * @summary Part X: keep what the reader was given for this item as a test case
+ */
+export const useKeepTaskTestCase = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof keepTaskTestCase>>, TError,KeepTaskTestCaseMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof keepTaskTestCase>>,
+        TError,
+        KeepTaskTestCaseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getKeepTaskTestCaseMutationOptions(options), queryClient);
+    }
+
+export const getListTestCasesUrl = (params?: ListTestCasesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/evals/cases?${stringifiedParams}` : `/api/evals/cases`
+}
+
+/**
+ * @summary Part X: saved test cases
+ */
+export const listTestCases = async (params?: ListTestCasesParams, options?: Parameters<typeof customFetch>[1]): Promise<TestCase[]> => {
+
+  return customFetch<TestCase[]>(getListTestCasesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTestCasesQueryKey = (params?: ListTestCasesParams,) => {
+    return [
+    `/api/evals/cases`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListTestCasesQueryOptions = <TData = Awaited<ReturnType<typeof listTestCases>>, TError = ErrorType<NotAuthorisedResponse>>(params?: ListTestCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTestCases>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTestCasesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTestCases>>> = ({ signal }) => listTestCases(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTestCases>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListTestCasesQueryResult = NonNullable<Awaited<ReturnType<typeof listTestCases>>>
+export type ListTestCasesQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListTestCases<TData = Awaited<ReturnType<typeof listTestCases>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params: undefined |  ListTestCasesParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTestCases>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTestCases>>,
+          TError,
+          Awaited<ReturnType<typeof listTestCases>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTestCases<TData = Awaited<ReturnType<typeof listTestCases>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params?: ListTestCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTestCases>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTestCases>>,
+          TError,
+          Awaited<ReturnType<typeof listTestCases>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTestCases<TData = Awaited<ReturnType<typeof listTestCases>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params?: ListTestCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTestCases>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Part X: saved test cases
+ */
+
+export function useListTestCases<TData = Awaited<ReturnType<typeof listTestCases>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params?: ListTestCasesParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTestCases>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListTestCasesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRemoveTestCaseUrl = (id: number,) => {
+
+
+
+
+  return `/api/evals/cases/${id}`
+}
+
+/**
+ * @summary Part X: remove a test case
+ */
+export const removeTestCase = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getRemoveTestCaseUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveTestCaseMutationKey = () => ['removeTestCase'] as const;
+
+export const getRemoveTestCaseMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeTestCase>>, TError,RemoveTestCaseMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeTestCase>>, TError,RemoveTestCaseMutationVariables, TContext> => {
+
+const mutationKey = getRemoveTestCaseMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeTestCase>>, RemoveTestCaseMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  removeTestCase(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveTestCaseMutationResult = NonNullable<Awaited<ReturnType<typeof removeTestCase>>>
+
+    export type RemoveTestCaseMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type RemoveTestCaseMutationVariables = {id: number}
+
+    /**
+ * @summary Part X: remove a test case
+ */
+export const useRemoveTestCase = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeTestCase>>, TError,RemoveTestCaseMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeTestCase>>,
+        TError,
+        RemoveTestCaseMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveTestCaseMutationOptions(options), queryClient);
+    }
+
+export const getReplayTestCasesUrl = () => {
+
+
+
+
+  return `/api/evals/replay`
+}
+
+/**
+ * @summary Part X: run a reader as the code now stands against its test cases
+ */
+export const replayTestCases = async (replayInput: ReplayInput, options?: Parameters<typeof customFetch>[1]): Promise<ReplayResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReplayResult>(getReplayTestCasesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(replayInput)
+  }
+);}
+
+
+
+
+
+export const getReplayTestCasesMutationKey = () => ['replayTestCases'] as const;
+
+export const getReplayTestCasesMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replayTestCases>>, TError,ReplayTestCasesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof replayTestCases>>, TError,ReplayTestCasesMutationVariables, TContext> => {
+
+const mutationKey = getReplayTestCasesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof replayTestCases>>, ReplayTestCasesMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  replayTestCases(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReplayTestCasesMutationResult = NonNullable<Awaited<ReturnType<typeof replayTestCases>>>
+    export type ReplayTestCasesMutationBody = BodyType<ReplayInput>
+    export type ReplayTestCasesMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type ReplayTestCasesMutationVariables = {data: BodyType<ReplayInput>}
+
+    /**
+ * @summary Part X: run a reader as the code now stands against its test cases
+ */
+export const useReplayTestCases = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replayTestCases>>, TError,ReplayTestCasesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof replayTestCases>>,
+        TError,
+        ReplayTestCasesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReplayTestCasesMutationOptions(options), queryClient);
+    }
+
+export const getListFeedbackUrl = (params: ListFeedbackParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/feedback?${stringifiedParams}` : `/api/feedback`
+}
+
+/**
+ * @summary Part Y: Ollie's thumbs on Ask answers, briefs and digests
+ */
+export const listFeedback = async (params: ListFeedbackParams, options?: Parameters<typeof customFetch>[1]): Promise<Thumb[]> => {
+
+  return customFetch<Thumb[]>(getListFeedbackUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFeedbackQueryKey = (params?: ListFeedbackParams,) => {
+    return [
+    `/api/feedback`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListFeedbackQueryOptions = <TData = Awaited<ReturnType<typeof listFeedback>>, TError = ErrorType<NotAuthorisedResponse>>(params: ListFeedbackParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFeedback>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFeedbackQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFeedback>>> = ({ signal }) => listFeedback(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFeedback>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListFeedbackQueryResult = NonNullable<Awaited<ReturnType<typeof listFeedback>>>
+export type ListFeedbackQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListFeedback<TData = Awaited<ReturnType<typeof listFeedback>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params: ListFeedbackParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFeedback>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFeedback>>,
+          TError,
+          Awaited<ReturnType<typeof listFeedback>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFeedback<TData = Awaited<ReturnType<typeof listFeedback>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params: ListFeedbackParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFeedback>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listFeedback>>,
+          TError,
+          Awaited<ReturnType<typeof listFeedback>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListFeedback<TData = Awaited<ReturnType<typeof listFeedback>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params: ListFeedbackParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFeedback>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Part Y: Ollie's thumbs on Ask answers, briefs and digests
+ */
+
+export function useListFeedback<TData = Awaited<ReturnType<typeof listFeedback>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params: ListFeedbackParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listFeedback>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListFeedbackQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetFeedbackUrl = () => {
+
+
+
+
+  return `/api/feedback`
+}
+
+/**
+ * @summary Part Y: thumbs up or down (null clears)
+ */
+export const setFeedback = async (thumbInput: ThumbInput, options?: Parameters<typeof customFetch>[1]): Promise<Thumb> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Thumb>(getSetFeedbackUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(thumbInput)
+  }
+);}
+
+
+
+
+
+export const getSetFeedbackMutationKey = () => ['setFeedback'] as const;
+
+export const getSetFeedbackMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setFeedback>>, TError,SetFeedbackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setFeedback>>, TError,SetFeedbackMutationVariables, TContext> => {
+
+const mutationKey = getSetFeedbackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setFeedback>>, SetFeedbackMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setFeedback(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetFeedbackMutationResult = NonNullable<Awaited<ReturnType<typeof setFeedback>>>
+    export type SetFeedbackMutationBody = BodyType<ThumbInput>
+    export type SetFeedbackMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SetFeedbackMutationVariables = {data: BodyType<ThumbInput>}
+
+    /**
+ * @summary Part Y: thumbs up or down (null clears)
+ */
+export const useSetFeedback = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setFeedback>>, TError,SetFeedbackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setFeedback>>,
+        TError,
+        SetFeedbackMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetFeedbackMutationOptions(options), queryClient);
+    }
 
 export const getSearchDriveUrl = (params: SearchDriveParams,) => {
   const normalizedParams = new URLSearchParams();

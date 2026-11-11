@@ -40,6 +40,8 @@ export const AGENTS = {
   draft_checker: { name: "Draft check", kind: "judge", does: "Checks a draft against your rules, lists the lines that break one, and rewrites only those lines when asked.", reads: "The draft and the rules that apply to it." },
   meeting_follow_up: { name: "Meeting follow-ups", kind: "writer", does: "Drafts a recap email after an external meeting from its Granola notes, saved to Gmail as a draft.", reads: "The meeting's Granola notes, its actions and decisions, your rules and How you write." },
   brief_writer: { name: "Meeting briefs", kind: "writer", does: "Writes why a meeting matters, an agenda and questions for the prep page.", reads: "Items AI may see about the people, organisations and projects in the meeting." },
+  test_replay: { name: "Test case replays", kind: "sorter", does: "Runs a reader, as the code now stands, against the test cases you kept, before a changed prompt or model ships. Makes no tasks.", reads: "The exchanges kept as test cases." },
+  writer_grader: { name: "Writing grader", kind: "judge", does: "Once a week, grades a few pieces from each writer out of 5 for being useful, accurate to what it was given, short and in your style.", reads: "A sample of answers, briefs, digest summaries and drafts from the last week, with nothing hidden from AI." },
   digest_summary: { name: "Digest summary", kind: "writer", does: "Writes the one-sentence summary at the top of the daily digest.", reads: "Digest lines AI may see; hidden ones are only counted." },
 } as const satisfies Record<string, AgentInfo>;
 

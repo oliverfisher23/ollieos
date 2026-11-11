@@ -19,6 +19,7 @@ import { loadMatchers, matchEvent } from "./briefs";
 import { gmailAccount, saveGmailDraft } from "./connectors/gmail";
 import type { MeetingNote } from "./connectors/granola";
 import { writingStyleNote } from "./writingStyle";
+import { recordCheck } from "./writerChecks";
 
 export const followUpRef = (noteId: string) => `granola:${noteId}#follow-up`;
 
@@ -91,6 +92,8 @@ export async function writeFollowUp(
 
   const toLine = to.map((a) => (a.name ? `${a.name} <${a.email}>` : a.email!)).join(", ");
   const [row] = await db.insert(replyDraftsTable).values({ taskId: task.taskId, toLine, subject: draft.subject, body: draft.body, writtenBody: draft.body, state: "ready" }).returning();
+  // Part Y: code checks (asked for under 200 words; leaves room for names and dates).
+  await recordCheck("meeting_follow_up", `draft:${row.id}`, draft.body, { maxWords: 250, rulePhrases: true });
   let savedToGmail = false;
   try {
     const draftId = await saveGmailDraft(null, null, { to: toLine, cc: "", subject: draft.subject, body: draft.body, inReplyTo: null, references: null });

@@ -1,4 +1,4 @@
-import { bigint, boolean, index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { bigint, boolean, index, integer, jsonb, pgTable, smallint, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { entityTypeEnum } from "./enums";
 
 /** Every write from any source, and every AI read, records who did it. */
@@ -77,3 +77,88 @@ export const aiRunsTable = pgTable(
 );
 
 export type AiRun = typeof aiRunsTable.$inferSelect;
+
+/**
+ * Part X (build plan section 21): what a sorter was given for one exchange and what it found, so a
+ * correction can be kept as a test case. Only exchanges already cleared for AI reach a sorter, so
+ * nothing hidden is kept here. Kept 30 days; a test case keeps its own copy.
+ */
+export const aiInputsTable = pgTable(
+  "ai_inputs",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    agent: text("agent").notNull(),
+    /** The exchange's key, and the refs of its messages (what tasks point at) */
+    unitKey: text("unit_key").notNull(),
+    refs: text("refs").array().notNull(),
+    /** The exchange as the sorter was given it */
+    unit: jsonb("unit").notNull(),
+    /** Ollie's account, as the sorter was told */
+    me: text("me").notNull(),
+    /** What it found: item titles and types */
+    output: jsonb("output").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ai_inputs_refs_idx").using("gin", t.refs), index("ai_inputs_at_idx").on(t.at)],
+);
+
+/** Part X: an input kept as a test case, with what the agent should have done. */
+export const evalCasesTable = pgTable(
+  "eval_cases",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    agent: text("agent").notNull(),
+    title: text("title").notNull(),
+    unit: jsonb("unit").notNull(),
+    me: text("me").notNull(),
+    /** "task": it should find something to do; "no_task": it should find nothing */
+    expected: text("expected").$type<"task" | "no_task">().notNull(),
+    /** What it found when the case was kept */
+    gotThen: jsonb("got_then").notNull(),
+    note: text("note"),
+    /** The task the correction was made on */
+    taskId: integer("task_id"),
+    createdBy: text("created_by").notNull().default("ollie"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    /** The last replay: when, which model and prompt, passed or not, and what it found */
+    lastResult: jsonb("last_result").$type<{ at: string; model: string; promptVersion: string; passed: boolean; got: string[] } | null>(),
+  },
+  (t) => [uniqueIndex("eval_cases_task_idx").on(t.agent, t.taskId)],
+);
+
+/** Part X: each replay of the test cases, for comparing prompt versions and models. */
+export const evalReplaysTable = pgTable("eval_replays", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  agent: text("agent").notNull(),
+  model: text("model").notNull(),
+  promptVersion: text("prompt_version").notNull(),
+  total: integer("total").notNull(),
+  passed: integer("passed").notNull(),
+  failed: jsonb("failed").$type<{ caseId: number; title: string; expected: string; got: string[] }[]>().notNull(),
+  by: text("by").notNull(),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Part Y: how the writers did on one piece of writing. "check" is the code check (1 passed, 0 not),
+ * "grade" the sampled Sonnet grade (1 to 5), "thumb" Ollie's thumbs up (1) or down (-1). One of each
+ * kind per piece; a later one replaces it.
+ */
+export const writerScoresTable = pgTable(
+  "writer_scores",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    agent: text("agent").notNull(),
+    /** What was written, e.g. "ask:12", "brief:4", "digest:9", "draft:31" */
+    subject: text("subject").notNull(),
+    kind: text("kind").$type<"check" | "grade" | "thumb">().notNull(),
+    score: smallint("score").notNull(),
+    /** Check: the problems found; grade: the reason; thumb: Ollie's note */
+    detail: jsonb("detail"),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("writer_scores_subject_kind_idx").on(t.subject, t.kind), index("writer_scores_agent_at_idx").on(t.agent, t.at)],
+);
+
+export type EvalCase = typeof evalCasesTable.$inferSelect;
+export type WriterScore = typeof writerScoresTable.$inferSelect;

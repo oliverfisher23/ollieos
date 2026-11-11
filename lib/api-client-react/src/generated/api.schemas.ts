@@ -1102,6 +1102,7 @@ export interface TalkingPoint {
 }
 
 export interface BriefView {
+  id: number;
   event: BriefEvent;
   research: CompanyResearch[];
   /** Part K: open Next time I see points for people in the meeting, shown at the top of the agenda */
@@ -1268,6 +1269,7 @@ export interface DigestSections {
 }
 
 export interface Digest {
+  id: number;
   date: string;
   windowStart: string;
   /**
@@ -1778,6 +1780,55 @@ export interface AgentMeasure {
   lastDecided: number;
 }
 
+export type WritingViewChecks = {
+  passed: number;
+  total: number;
+  lastIssues: string[];
+};
+
+export type WritingViewGradeLowest = {
+  subject: string;
+  score: number;
+  reason: string;
+} | null;
+
+export type WritingViewGrade = {
+  /** @nullable */
+  average: number | null;
+  count: number;
+  lowest: WritingViewGradeLowest;
+};
+
+export type WritingViewThumbs = {
+  up: number;
+  down: number;
+};
+
+/**
+ * Part Y: a writer's code checks, weekly grade and Ollie's thumbs over the last 7 days
+ */
+export interface WritingView {
+  checks: WritingViewChecks;
+  grade: WritingViewGrade;
+  thumbs: WritingViewThumbs;
+}
+
+export interface ReplaySummary {
+  passed: number;
+  total: number;
+  at: string;
+  promptVersion: string;
+  model: string;
+}
+
+/**
+ * Part X: a reader's test cases and its last replay
+ */
+export interface AgentTests {
+  cases: number;
+  lastReplay: ReplaySummary | null;
+}
+
 export interface AgentView {
   key: string;
   name: string;
@@ -1801,6 +1852,8 @@ export interface AgentView {
   lastErrorAt: string | null;
   promptVersions: number;
   measures: AgentMeasure[];
+  writing: WritingView | null;
+  tests: AgentTests | null;
 }
 
 export type ConnectedAiViewProposals = {
@@ -1830,6 +1883,133 @@ export interface AgentsView {
   totalRuns: number;
   agents: AgentView[];
   connected: ConnectedAiView[];
+}
+
+export type TestCaseAvailabilityExpected = typeof TestCaseAvailabilityExpected[keyof typeof TestCaseAvailabilityExpected];
+
+
+export const TestCaseAvailabilityExpected = {
+  task: 'task',
+  no_task: 'no_task',
+} as const;
+
+export interface TestCaseAvailability {
+  available: boolean;
+  expected: TestCaseAvailabilityExpected;
+  /** @nullable */
+  caseId: number | null;
+}
+
+export type TestCaseInputExpected = typeof TestCaseInputExpected[keyof typeof TestCaseInputExpected];
+
+
+export const TestCaseInputExpected = {
+  task: 'task',
+  no_task: 'no_task',
+} as const;
+
+export interface TestCaseInput {
+  expected?: TestCaseInputExpected;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  note?: string | null;
+}
+
+export interface TestCaseResult {
+  at: string;
+  model: string;
+  promptVersion: string;
+  passed: boolean;
+  got: string[];
+}
+
+export type TestCaseExpected = typeof TestCaseExpected[keyof typeof TestCaseExpected];
+
+
+export const TestCaseExpected = {
+  task: 'task',
+  no_task: 'no_task',
+} as const;
+
+export interface TestCase {
+  id: number;
+  agent: string;
+  agentName: string;
+  title: string;
+  expected: TestCaseExpected;
+  gotThen: string[];
+  /** @nullable */
+  note: string | null;
+  /** @nullable */
+  taskId: number | null;
+  createdAt: string;
+  lastResult: TestCaseResult | null;
+}
+
+export interface ReplayInput {
+  agent: string;
+  /** @nullable */
+  model?: string | null;
+}
+
+export interface ReplayFailure {
+  caseId: number;
+  title: string;
+  expected: string;
+  got: string[];
+}
+
+export interface ReplayResult {
+  id: number;
+  agent: string;
+  model: string;
+  promptVersion: string;
+  total: number;
+  passed: number;
+  failed: ReplayFailure[];
+  previous: ReplaySummary | null;
+  at: string;
+}
+
+/**
+ * @nullable
+ */
+export type ThumbThumb = typeof ThumbThumb[keyof typeof ThumbThumb] | null;
+
+
+export const ThumbThumb = {
+  up: 'up',
+  down: 'down',
+} as const;
+
+export interface Thumb {
+  subject: string;
+  /** @nullable */
+  thumb: ThumbThumb;
+}
+
+/**
+ * @nullable
+ */
+export type ThumbInputThumb = typeof ThumbInputThumb[keyof typeof ThumbInputThumb] | null;
+
+
+export const ThumbInputThumb = {
+  up: 'up',
+  down: 'down',
+} as const;
+
+export interface ThumbInput {
+  subject: string;
+  /** @nullable */
+  thumb: ThumbInputThumb;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  note?: string | null;
 }
 
 /**
@@ -5103,6 +5283,17 @@ weekStart?: string;
 
 export type GetWeeklyUpdateParams = {
 weekStart?: string;
+};
+
+export type ListTestCasesParams = {
+agent?: string;
+};
+
+export type ListFeedbackParams = {
+/**
+ * Comma-separated, e.g. ask:12,brief:4
+ */
+subjects: string;
 };
 
 export type SearchDriveParams = {

@@ -2620,7 +2620,37 @@ export const ListAgentsResponse = zod.object({
   "rate": zod.int().nullable(),
   "lastRate": zod.int().nullable(),
   "lastDecided": zod.int()
-}).describe('Part W: how often Ollie kept what the agent did, this week against last'))
+}).describe('Part W: how often Ollie kept what the agent did, this week against last')),
+  "writing": zod.union([zod.object({
+  "checks": zod.object({
+  "passed": zod.int(),
+  "total": zod.int(),
+  "lastIssues": zod.array(zod.string())
+}),
+  "grade": zod.object({
+  "average": zod.number().nullable(),
+  "count": zod.int(),
+  "lowest": zod.union([zod.object({
+  "subject": zod.string(),
+  "score": zod.int(),
+  "reason": zod.string()
+}),zod.null()])
+}),
+  "thumbs": zod.object({
+  "up": zod.int(),
+  "down": zod.int()
+})
+}).describe('Part Y: a writer\'s code checks, weekly grade and Ollie\'s thumbs over the last 7 days'),zod.null()]),
+  "tests": zod.union([zod.object({
+  "cases": zod.int(),
+  "lastReplay": zod.union([zod.object({
+  "passed": zod.int(),
+  "total": zod.int(),
+  "at": zod.coerce.date(),
+  "promptVersion": zod.string(),
+  "model": zod.string()
+}),zod.null()])
+}).describe('Part X: a reader\'s test cases and its last replay'),zod.null()])
 })),
   "connected": zod.array(zod.object({
   "id": zod.int(),
@@ -2638,6 +2668,159 @@ export const ListAgentsResponse = zod.object({
   "pending": zod.int()
 })
 }))
+})
+
+
+/**
+ * @summary Part X: whether this item's exchange can still be kept as a test case
+ */
+export const GetTaskTestCaseParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetTaskTestCaseResponse = zod.object({
+  "available": zod.boolean(),
+  "expected": zod.enum(['task', 'no_task']),
+  "caseId": zod.int().nullable()
+})
+
+
+/**
+ * @summary Part X: keep what the reader was given for this item as a test case
+ */
+export const KeepTaskTestCaseParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const keepTaskTestCaseBodyNoteMax = 500;
+
+
+
+export const KeepTaskTestCaseBody = zod.object({
+  "expected": zod.enum(['task', 'no_task']).optional(),
+  "note": zod.string().max(keepTaskTestCaseBodyNoteMax).nullish()
+})
+
+export const KeepTaskTestCaseResponse = zod.object({
+  "id": zod.int(),
+  "agent": zod.string(),
+  "agentName": zod.string(),
+  "title": zod.string(),
+  "expected": zod.enum(['task', 'no_task']),
+  "gotThen": zod.array(zod.string()),
+  "note": zod.string().nullable(),
+  "taskId": zod.int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "lastResult": zod.union([zod.object({
+  "at": zod.coerce.date(),
+  "model": zod.string(),
+  "promptVersion": zod.string(),
+  "passed": zod.boolean(),
+  "got": zod.array(zod.string())
+}),zod.null()])
+})
+
+
+/**
+ * @summary Part X: saved test cases
+ */
+export const ListTestCasesQueryParams = zod.object({
+  "agent": zod.coerce.string().optional()
+})
+
+export const ListTestCasesResponseItem = zod.object({
+  "id": zod.int(),
+  "agent": zod.string(),
+  "agentName": zod.string(),
+  "title": zod.string(),
+  "expected": zod.enum(['task', 'no_task']),
+  "gotThen": zod.array(zod.string()),
+  "note": zod.string().nullable(),
+  "taskId": zod.int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "lastResult": zod.union([zod.object({
+  "at": zod.coerce.date(),
+  "model": zod.string(),
+  "promptVersion": zod.string(),
+  "passed": zod.boolean(),
+  "got": zod.array(zod.string())
+}),zod.null()])
+})
+export const ListTestCasesResponse = zod.array(ListTestCasesResponseItem)
+
+
+/**
+ * @summary Part X: remove a test case
+ */
+export const RemoveTestCaseParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RemoveTestCaseResponse = zod.void()
+
+
+/**
+ * @summary Part X: run a reader as the code now stands against its test cases
+ */
+export const ReplayTestCasesBody = zod.object({
+  "agent": zod.string(),
+  "model": zod.string().nullish()
+})
+
+export const ReplayTestCasesResponse = zod.object({
+  "id": zod.int(),
+  "agent": zod.string(),
+  "model": zod.string(),
+  "promptVersion": zod.string(),
+  "total": zod.int(),
+  "passed": zod.int(),
+  "failed": zod.array(zod.object({
+  "caseId": zod.int(),
+  "title": zod.string(),
+  "expected": zod.string(),
+  "got": zod.array(zod.string())
+})),
+  "previous": zod.union([zod.object({
+  "passed": zod.int(),
+  "total": zod.int(),
+  "at": zod.coerce.date(),
+  "promptVersion": zod.string(),
+  "model": zod.string()
+}),zod.null()]),
+  "at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Part Y: Ollie's thumbs on Ask answers, briefs and digests
+ */
+export const ListFeedbackQueryParams = zod.object({
+  "subjects": zod.coerce.string().describe('Comma-separated, e.g. ask:12,brief:4')
+})
+
+export const ListFeedbackResponseItem = zod.object({
+  "subject": zod.string(),
+  "thumb": zod.union([zod.literal('up'),zod.literal('down'),zod.literal(null)]).nullable()
+})
+export const ListFeedbackResponse = zod.array(ListFeedbackResponseItem)
+
+
+/**
+ * @summary Part Y: thumbs up or down (null clears)
+ */
+export const setFeedbackBodyNoteMax = 500;
+
+
+
+export const SetFeedbackBody = zod.object({
+  "subject": zod.string(),
+  "thumb": zod.union([zod.literal('up'),zod.literal('down'),zod.literal(null)]).nullable(),
+  "note": zod.string().max(setFeedbackBodyNoteMax).nullish()
+})
+
+export const SetFeedbackResponse = zod.object({
+  "subject": zod.string(),
+  "thumb": zod.union([zod.literal('up'),zod.literal('down'),zod.literal(null)]).nullable()
 })
 
 
@@ -4412,6 +4595,7 @@ export const ListMeetingsResponse = zod.object({
  * @summary The brief for the next work meeting, today or tomorrow
  */
 export const GetNextBriefResponse = zod.object({
+  "id": zod.int(),
   "event": zod.object({
   "id": zod.int(),
   "title": zod.string(),
@@ -4643,6 +4827,7 @@ export const GetBriefParams = zod.object({
 })
 
 export const GetBriefResponse = zod.object({
+  "id": zod.int(),
   "event": zod.object({
   "id": zod.int(),
   "title": zod.string(),
@@ -4898,6 +5083,7 @@ export const RefreshBriefParams = zod.object({
 })
 
 export const RefreshBriefResponse = zod.object({
+  "id": zod.int(),
   "event": zod.object({
   "id": zod.int(),
   "title": zod.string(),
@@ -5129,6 +5315,7 @@ export const AllowForBriefParams = zod.object({
 })
 
 export const AllowForBriefResponse = zod.object({
+  "id": zod.int(),
   "event": zod.object({
   "id": zod.int(),
   "title": zod.string(),
@@ -5370,6 +5557,7 @@ export const GetDigestParams = zod.object({
 })
 
 export const GetDigestResponse = zod.object({
+  "id": zod.int(),
   "date": zod.coerce.date(),
   "windowStart": zod.coerce.date(),
   "summary": zod.string().nullable().describe('One sentence. Null when the model could not write it.'),

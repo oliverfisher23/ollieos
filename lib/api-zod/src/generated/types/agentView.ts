@@ -6,7 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AgentMeasure } from './agentMeasure';
+import type { AgentTests } from './agentTests';
 import type { AgentViewKind } from './agentViewKind';
+import type { WritingView } from './writingView';
 
 export interface AgentView {
   key: string;
@@ -31,4 +33,6 @@ export interface AgentView {
   lastErrorAt: Date | null;
   promptVersions: number;
   measures: AgentMeasure[];
+  writing: WritingView | null;
+  tests: AgentTests | null;
 }

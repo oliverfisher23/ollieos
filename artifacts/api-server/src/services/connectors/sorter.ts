@@ -5,7 +5,9 @@
  */
 import type { anthropic } from "@workspace/integrations-anthropic-ai";
 import type { AgentKey } from "../../lib/agents";
-import { recordedCreate } from "../../lib/aiRuns";
+import { aiInputsTable, db } from "@workspace/db";
+import { promptVersion, recordedCreate } from "../../lib/aiRuns";
+import { logger } from "../../lib/logger";
 import { PROGRESS_SCHEMA, progressRules } from "../taskEvidence";
 import { formatLong, todayLondon } from "@workspace/shared";
 import { ConnectorError } from "./http";
@@ -286,9 +288,9 @@ async function sortBatch(units: WorkUnit[], ctx: SortContext, offset: number): P
   const allowed = units.map((_, i) => !!ctx.known && (ctx.readKnowledge?.(offset + i) ?? false));
   const content = `<exchanges>\n${units.map((u, i) => unitBlock(ids[i], u, allowed[i], ctx.openItems?.(offset + i) ?? null)).join("\n\n")}\n</exchanges>`;
   const known = ctx.known && allowed.some(Boolean) ? ctx.known : null;
-  const parsed = await haikuJson<{ results?: (SortedUnit & { unit: string; reply_needed?: string; reply_ask?: string; progress?: unknown[]; signature_title?: string; signature_company?: string; signature_phone?: string })[] }>(systemPrompt(ctx.me, ctx.projects, ctx.now, known), content, SCHEMA, 8192, ctx.agent);
+  const parsed = await modelJson<{ results?: (SortedUnit & { unit: string; reply_needed?: string; reply_ask?: string; progress?: unknown[]; signature_title?: string; signature_company?: string; signature_phone?: string })[] }>(ctx.model ?? SORT_MODEL, systemPrompt(ctx.me, ctx.projects, ctx.now, known), content, SCHEMA, 8192, ctx.agent);
   const byId = new Map((parsed.results ?? []).map((r) => [r.unit, r]));
-  return ids.map((id, i) => {
+  const out = ids.map((id, i) => {
     const r = byId.get(id);
     return {
       summary: String(r?.summary ?? "").trim(),
@@ -300,6 +302,31 @@ async function sortBatch(units: WorkUnit[], ctx: SortContext, offset: number): P
       signature: units[i].source === "email" ? { title: clip(r?.signature_title), company: clip(r?.signature_company), phone: clip(r?.signature_phone) } : undefined,
     };
   });
+  if (ctx.keepInputs !== false) await keepInputs(units, out, ctx);
+  return out;
+}
+
+/** Part X: what each exchange was and what was found, so a correction can be kept as a test case. */
+async function keepInputs(units: WorkUnit[], sorted: SortedUnit[], ctx: SortContext) {
+  try {
+    await db.insert(aiInputsTable).values(
+      units.map((u, i) => ({
+        agent: ctx.agent,
+        unitKey: u.key,
+        refs: u.messages.map((m) => m.ref),
+        unit: u,
+        me: ctx.me,
+        output: sorted[i].items.map((it) => ({ type: it.type, title: it.title })),
+      })),
+    );
+  } catch (err) {
+    logger.warn({ err, agent: ctx.agent }, "Could not keep sorter inputs");
+  }
+}
+
+/** The fingerprint of the sorter's instructions as the code stands (with fixed names and date), for replays. */
+export function sorterPromptVersion(): string {
+  return promptVersion(systemPrompt("ollie@example.com", [], new Date(0), null));
 }
 
 /**
@@ -361,6 +388,10 @@ export interface SortContext {
   agent: AgentKey;
   /** Part U: the open items block for the unit at this index, or null */
   openItems?: (i: number) => string | null;
+  /** Part X: a model other than the usual one, for replays */
+  model?: string;
+  /** Part X: false for replays, which keep nothing */
+  keepInputs?: boolean;
 }
 
 /** One sorted result per unit, in the same order. */

@@ -8,6 +8,7 @@
 import type { DigestSections } from './digestSections';
 
 export interface Digest {
+  id: number;
   date: Date;
   windowStart: Date;
   /**

@@ -1088,6 +1088,119 @@ paths:
               schema: { $ref: "#/components/schemas/AgentsView" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /tasks/{id}/test-case:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getTaskTestCase
+      tags: [agents]
+      summary: "Part X: whether this item's exchange can still be kept as a test case"
+      responses:
+        "200":
+          description: Availability
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TestCaseAvailability" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    post:
+      operationId: keepTaskTestCase
+      tags: [agents]
+      summary: "Part X: keep what the reader was given for this item as a test case"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TestCaseInput" }
+      responses:
+        "201":
+          description: The test case
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TestCase" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /evals/cases:
+    get:
+      operationId: listTestCases
+      tags: [agents]
+      summary: "Part X: saved test cases"
+      parameters:
+        - { name: agent, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: Test cases
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/TestCase" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /evals/cases/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    delete:
+      operationId: removeTestCase
+      tags: [agents]
+      summary: "Part X: remove a test case"
+      responses:
+        "204": { description: Removed }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /evals/replay:
+    post:
+      operationId: replayTestCases
+      tags: [agents]
+      summary: "Part X: run a reader as the code now stands against its test cases"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReplayInput" }
+      responses:
+        "200":
+          description: The result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReplayResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /feedback:
+    get:
+      operationId: listFeedback
+      tags: [agents]
+      summary: "Part Y: Ollie's thumbs on Ask answers, briefs and digests"
+      parameters:
+        - { name: subjects, in: query, required: true, schema: { type: string }, description: "Comma-separated, e.g. ask:12,brief:4" }
+      responses:
+        "200":
+          description: Thumbs
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Thumb" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: setFeedback
+      tags: [agents]
+      summary: "Part Y: thumbs up or down (null clears)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ThumbInput" }
+      responses:
+        "200":
+          description: The thumb
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Thumb" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /library/drive-search:
     get:
       operationId: searchDrive
@@ -5222,8 +5335,9 @@ components:
 
     BriefView:
       type: object
-      required: [event, research, generatedAt, failed, notMuch, sourcesLine, why, questions, questionsNote, agenda, attendees, promises, tasks, waitingOn, earlier, threads, projects, goals, documents, rules, heldBack, notes, granolaNotes, granolaRef, actions]
+      required: [id, event, research, generatedAt, failed, notMuch, sourcesLine, why, questions, questionsNote, agenda, attendees, promises, tasks, waitingOn, earlier, threads, projects, goals, documents, rules, heldBack, notes, granolaNotes, granolaRef, actions]
       properties:
+        id: { type: integer }
         event: { $ref: "#/components/schemas/BriefEvent" }
         research: { type: array, items: { $ref: "#/components/schemas/CompanyResearch" } }
         talkingPoints:
@@ -5473,8 +5587,9 @@ components:
 
     Digest:
       type: object
-      required: [date, windowStart, summary, sections, createdAt]
+      required: [id, date, windowStart, summary, sections, createdAt]
       properties:
+        id: { type: integer }
         date: { type: string, format: date }
         windowStart: { type: string, format: date-time }
         summary: { type: [string, "null"], description: One sentence. Null when the model could not write it. }
@@ -5881,7 +5996,7 @@ components:
         connected: { type: array, items: { $ref: "#/components/schemas/ConnectedAiView" } }
     AgentView:
       type: object
-      required: [key, name, kind, does, reads, model, runs, failures, costUsd, inputTokens, outputTokens, avgMs, lastRunAt, lastError, lastErrorAt, promptVersions, measures]
+      required: [key, name, kind, does, reads, model, runs, failures, costUsd, inputTokens, outputTokens, avgMs, lastRunAt, lastError, lastErrorAt, promptVersions, measures, writing, tests]
       properties:
         key: { type: string }
         name: { type: string }
@@ -5900,6 +6015,150 @@ components:
         lastErrorAt: { type: [string, "null"], format: date-time }
         promptVersions: { type: integer }
         measures: { type: array, items: { $ref: "#/components/schemas/AgentMeasure" } }
+        writing:
+          oneOf:
+            - { $ref: "#/components/schemas/WritingView" }
+            - { type: "null" }
+        tests:
+          oneOf:
+            - { $ref: "#/components/schemas/AgentTests" }
+            - { type: "null" }
+    WritingView:
+      type: object
+      description: "Part Y: a writer's code checks, weekly grade and Ollie's thumbs over the last 7 days"
+      required: [checks, grade, thumbs]
+      properties:
+        checks:
+          type: object
+          required: [passed, total, lastIssues]
+          properties:
+            passed: { type: integer }
+            total: { type: integer }
+            lastIssues: { type: array, items: { type: string } }
+        grade:
+          type: object
+          required: [average, count, lowest]
+          properties:
+            average: { type: [number, "null"] }
+            count: { type: integer }
+            lowest:
+              oneOf:
+                - type: object
+                  required: [subject, score, reason]
+                  properties:
+                    subject: { type: string }
+                    score: { type: integer }
+                    reason: { type: string }
+                - { type: "null" }
+        thumbs:
+          type: object
+          required: [up, down]
+          properties:
+            up: { type: integer }
+            down: { type: integer }
+    AgentTests:
+      type: object
+      description: "Part X: a reader's test cases and its last replay"
+      required: [cases, lastReplay]
+      properties:
+        cases: { type: integer }
+        lastReplay:
+          oneOf:
+            - $ref: "#/components/schemas/ReplaySummary"
+            - { type: "null" }
+    ReplaySummary:
+      type: object
+      required: [passed, total, at, promptVersion, model]
+      properties:
+        passed: { type: integer }
+        total: { type: integer }
+        at: { type: string, format: date-time }
+        promptVersion: { type: string }
+        model: { type: string }
+    TestCaseAvailability:
+      type: object
+      required: [available, expected, caseId]
+      properties:
+        available: { type: boolean }
+        expected: { type: string, enum: [task, no_task] }
+        caseId: { type: [integer, "null"] }
+    TestCaseInput:
+      type: object
+      additionalProperties: false
+      properties:
+        expected: { type: string, enum: [task, no_task] }
+        note: { type: [string, "null"], maxLength: 500 }
+    TestCaseResult:
+      type: object
+      required: [at, model, promptVersion, passed, got]
+      properties:
+        at: { type: string, format: date-time }
+        model: { type: string }
+        promptVersion: { type: string }
+        passed: { type: boolean }
+        got: { type: array, items: { type: string } }
+    TestCase:
+      type: object
+      required: [id, agent, agentName, title, expected, gotThen, note, taskId, createdAt, lastResult]
+      properties:
+        id: { type: integer }
+        agent: { type: string }
+        agentName: { type: string }
+        title: { type: string }
+        expected: { type: string, enum: [task, no_task] }
+        gotThen: { type: array, items: { type: string } }
+        note: { type: [string, "null"] }
+        taskId: { type: [integer, "null"] }
+        createdAt: { type: string, format: date-time }
+        lastResult:
+          oneOf:
+            - $ref: "#/components/schemas/TestCaseResult"
+            - { type: "null" }
+    ReplayInput:
+      type: object
+      additionalProperties: false
+      required: [agent]
+      properties:
+        agent: { type: string }
+        model: { type: [string, "null"] }
+    ReplayFailure:
+      type: object
+      required: [caseId, title, expected, got]
+      properties:
+        caseId: { type: integer }
+        title: { type: string }
+        expected: { type: string }
+        got: { type: array, items: { type: string } }
+    ReplayResult:
+      type: object
+      required: [id, agent, model, promptVersion, total, passed, failed, previous, at]
+      properties:
+        id: { type: integer }
+        agent: { type: string }
+        model: { type: string }
+        promptVersion: { type: string }
+        total: { type: integer }
+        passed: { type: integer }
+        failed: { type: array, items: { $ref: "#/components/schemas/ReplayFailure" } }
+        previous:
+          oneOf:
+            - $ref: "#/components/schemas/ReplaySummary"
+            - { type: "null" }
+        at: { type: string, format: date-time }
+    Thumb:
+      type: object
+      required: [subject, thumb]
+      properties:
+        subject: { type: string }
+        thumb: { type: [string, "null"], enum: [up, down, null] }
+    ThumbInput:
+      type: object
+      additionalProperties: false
+      required: [subject, thumb]
+      properties:
+        subject: { type: string }
+        thumb: { type: [string, "null"], enum: [up, down, null] }
+        note: { type: [string, "null"], maxLength: 500 }
     AgentMeasure:
       type: object
       description: "Part W: how often Ollie kept what the agent did, this week against last"

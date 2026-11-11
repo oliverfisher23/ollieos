@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { BriefTalkingPoints } from '@/components/talking-points';
+import { Thumbs } from '@/components/evals';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -151,6 +152,7 @@ function Brief({ brief }: { brief: BriefView }) {
             {brief.sourcesLine ? ' ' + brief.sourcesLine + '.' : ''}
             {e.location && e.location !== e.platform ? ' ' + e.location : ''}
           </p>
+          {!brief.failed && brief.why && <div><Thumbs subject={'brief:' + brief.id} label="Was this brief useful?" dark /></div>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {!ended && (

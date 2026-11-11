@@ -19,6 +19,7 @@ import { ConnectorError } from "./connectors/http";
 import { gmailThreadIdOf, gmailThreadUrl, readGmailThread, saveGmailDraft, type Address, type GmailThread, type ThreadMessage } from "./connectors/gmail";
 import { ConflictError, NotFoundError, UpstreamError, ValidationError, loadTask } from "./tasks";
 import { writingStyleNote } from "./writingStyle";
+import { recordCheck } from "./writerChecks";
 
 export interface ReplyDraftView {
   taskId: number;
@@ -271,6 +272,8 @@ export async function writeReplyDraft(
     .onConflictDoUpdate({ target: replyDraftsTable.taskId, set: values })
     .returning();
   await writeAudit(db, { actor, action: "reply_draft", entityType: "task", entityId: task.id, payload: { saved: false, thread: !!thread, instructions: !!input.instructions?.trim(), revised: !!input.current?.trim() } });
+  // Part Y: code checks on what was written.
+  await recordCheck("email_reply_draft", `draft:${row.id}`, body, { maxWords: 300, rulePhrases: true });
   return view(row);
 }
 

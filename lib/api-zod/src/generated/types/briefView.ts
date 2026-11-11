@@ -25,6 +25,7 @@ import type { CompanyResearch } from './companyResearch';
 import type { TalkingPoint } from './talkingPoint';
 
 export interface BriefView {
+  id: number;
   event: BriefEvent;
   research: CompanyResearch[];
   /** Part K: open Next time I see points for people in the meeting, shown at the top of the agenda */
