@@ -1,6 +1,6 @@
 # Mobile responsiveness and optimisation plan
 
-Status: proposal, 11th November 2026. Nothing here is built yet. Each part is its own sign-off, in the order below.
+Status: Part A built (11th November 2026), waiting for sign-off. Parts B to E not started. Each part is its own sign-off, in the order below.
 
 Relates to: PRD section 5 ("works at 375px", "touch targets at least 44px", saved to the home screen), PRD acceptance criterion 8, and build plan milestone 9 (phone Home and Triage, swipe, home screen install, voice).
 
@@ -10,7 +10,7 @@ Measured against a local copy with the seed data: every route rendered at 375 ×
 
 **Already good**
 
-- No page scrolls sideways at 375px. All 33 routes checked, including task detail, Knowledge, Map, Settings and Ask.
+- Only one page scrolled sideways: Settings, Connectors, by about 200px whenever a tool is connected. The first check missed it; the Part A audit found it and it is fixed (see Part A). Every other route fits at 360px and 375px.
 - The bottom tab bar, add sheet, phone triage panel, task detail sheet and Email's one-pane-at-a-time layout all exist.
 - Most shared controls (`.oo-btn`, `.oo-control`, `.oo-seg`, `.oo-navpill`, dropdowns) already grow to 44px below 640px.
 
@@ -18,7 +18,7 @@ Measured against a local copy with the seed data: every route rendered at 375 ×
 
 | Area | Finding |
 |---|---|
-| Bundle | One 975 KB script (269 KB gzipped). Every route loads up front: 342 KB of it is pages, 172 KB components, 170 KB react-dom. The phone Home screen downloads Map, Playbooks, Settings, Ask and the rest before it can draw. |
+| Bundle | One 975 KB script (269 KB gzipped by Vite's report; 262.6 KB by the build budget's measure, which is the number used from now on). Every route loads up front: 342 KB of it is pages, 172 KB components, 170 KB react-dom. The phone Home screen downloads Map, Playbooks, Settings, Ask and the rest before it can draw. |
 | Load time | First paint about 2.2s and largest paint about 2.7s on the throttled phone, for Home, Tasks and Knowledge alike. That is mostly the single script, then the wait for `/api/auth/user` before any page data is asked for. |
 | Fonts | Google Fonts stylesheet blocks rendering (a third-party connection before first paint). |
 | Refetching | Queries have no `staleTime` (default 0) and `refetchOnWindowFocus` is on, so every return to the app from another phone app refetches every visible query. Knowledge index fires 10 API calls on open. |
@@ -37,7 +37,7 @@ Not checked here: real iPhone Safari (safe areas, keyboard covering inputs, rubb
 - Every tappable thing at least 44 × 44 on phones, or 44px tall with at least 8px between neighbours where a row of pills has to stay compact.
 - Every text field 16px on phones; pinch zoom allowed.
 - Throttled phone load (settings above): first paint under 1.2s, largest paint under 1.8s on Home and Tasks.
-- Script needed for Home on first load: under 120 KB gzipped (from 269 KB).
+- Script needed for Home on first load: under 120 KB gzipped (from 262.6 KB as the budget measures it).
 - Opens from the home screen full screen, with the tab bar clear of the home indicator.
 
 ## 3. Parts
@@ -46,9 +46,19 @@ Not checked here: real iPhone Safari (safe areas, keyboard covering inputs, rubb
 
 So it stays fixed once fixed.
 
-- Add `scripts/mobile-audit` (Playwright, already installed): signs in a test session, visits every route at 360 and 375, fails on sideways scroll, lists targets under 44px and inputs under 16px, saves screenshots. Same approach as the measurements above.
-- Add a bundle budget: `build.chunkSizeWarningLimit` plus a check that fails the build if the entry chunk goes over budget.
+- Add `scripts/mobile-audit` (Playwright): signs in a test session, visits every route at 360 and 375, fails on sideways scroll, lists targets under 44px and inputs under 16px, saves screenshots.
+- Add a bundle budget: a check that fails the build if the entry chunk and what it loads with it go over budget.
 - Write down the phone rules in `DESIGN.md`: 640px is the one phone breakpoint (`sm:` in Tailwind, `max-width: 639px` in CSS), 44px targets, 16px inputs.
+
+**Built (11th November 2026):**
+
+- `pnpm --filter @workspace/scripts run mobile-audit` (`scripts/src/mobile-audit.ts`). Visits up to 46 addresses (every `App.tsx` route, plus the Tasks, Email, Library and Settings tabs) at 360 and 375px as a touch device. A page for a record type with no records yet is skipped and listed in the report; with the seed data that left 39, missing one organisation, decision, note, playbook and product page, and the two brief pages. It fails on sideways scroll, the error screen or a script error, and with `--strict` also on small targets and text fields. For a sideways scroll it names the element causing it, not the fixed bars that stretch with the page. Report and screenshots go to `tmp/mobile-audit/` (not committed). It fails if `App.tsx` gains a route it does not visit.
+- Safe to run against the real database: it signs in with its own session row and deletes it at the end, blocks every API call that is not a GET, and skips brief pages unless `--include-briefs` is given (opening a brief can write it with the model).
+- Bundle budget in `artifacts/ollieos/vite.config.ts` (`INITIAL_JS_BUDGET_KB`): adds up the gzipped size of the entry chunk and every chunk it imports statically, and fails the build over the limit. Set to 280 KB now (today: 262.6 KB); Part B lowers it to 120. Checked that a 100 KB limit fails the build.
+- Phone rules in `DESIGN.md` section 6, and both commands in `replit.md`.
+- Fix found by the audit: the Connected tools table on Settings, Connectors has an `sr-only` "Action" header. Its scroll box was not positioned, so that hidden text escaped the box and widened the page by about 200px on phones. The box is now `position: relative`, and the rule is in `DESIGN.md`.
+- Result with the seed data: 78 page checks, 0 failures. Still reported (Part C fixes them): small targets on most pages, small text fields, and a viewport that blocks pinch zoom.
+- Not yet tried on Replit itself. Playwright's Chromium has to be installed there once (`pnpm --filter @workspace/scripts exec playwright install chromium`); if that fails on Replit's system libraries, set `CHROMIUM_PATH` to a Chromium that Replit provides.
 
 ### Part B. Load faster (1 to 2 days)
 
@@ -90,7 +100,7 @@ Same routes, different layout below 640px, as the build plan already says.
 
 | Part | What | Size | Sign-off check |
 |---|---|---|---|
-| A | Audit script, bundle budget, rules in DESIGN.md | 0.5 day | Script runs and reports the numbers in section 1 |
+| A | Audit script, bundle budget, rules in DESIGN.md | 0.5 day | Built: audit passes (78 checks), budget fails the build when exceeded |
 | B | Route splitting, fonts, waterfall, caching | 1 to 2 days | Home entry under 120 KB gzipped; throttled first paint under 1.2s |
 | C | Touch targets, 16px inputs, safe areas | 1 to 2 days | Audit shows no targets under 44px on Home, Tasks, task detail, Email |
 | D | Tasks, Knowledge, Settings, tables on phone | 2 to 3 days | Screens reviewed by Ollie on his phone |

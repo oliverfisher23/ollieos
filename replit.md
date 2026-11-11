@@ -10,6 +10,7 @@ Ollie's private personal operating system for tasks and work knowledge, readable
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - `pnpm --filter @workspace/api-server run test` — vitest for the AI access rules; rebuilds a throwaway `ollieos_test` database each run, never touches the real one. Shared server/MCP/ingest helpers in `test/harness.ts`
+- `pnpm --filter @workspace/scripts run mobile-audit` — phone layout check: opens every page at 360 and 375px as a touch device, fails on sideways scroll or the error screen, reports tap targets under 44px and text fields under 16px (`-- --strict` fails on those too, `-- --only /tasks`, `-- --widths 375`). Needs both dev servers, `DATABASE_URL` and `ALLOWED_EMAIL`; signs in with its own session (removed afterwards), blocks every non-GET API call, skips brief pages unless `-- --include-briefs` (opening one can write it with the model). Report and screenshots in `tmp/mobile-audit/`. Needs Playwright's Chromium (`pnpm --filter @workspace/scripts exec playwright install chromium`) or `CHROMIUM_PATH`
 - `pnpm --filter @workspace/scripts run seed-tasks` — seed the 10 starting tasks and their people (runs once per database)
 - Required env: `DATABASE_URL`; secrets `ALLOWED_EMAIL` (the only email allowed to sign in; if unset, nobody can), `SESSION_SECRET` (also signs OAuth consent requests), `INBOX_API_KEY` (bearer key for `/api/ingest/*`; ingest answers 503 until it is set)
 
@@ -96,6 +97,8 @@ Ollie's private personal operating system for tasks and work knowledge, readable
 
 ## Gotchas
 
+- The web build fails when the JavaScript a first page load needs goes over `INITIAL_JS_BUDGET_KB` (gzipped) in `artifacts/ollieos/vite.config.ts`. Lazy-load new pages rather than raising it; raise it only on purpose.
+- A sideways-scrolling box needs `position: relative` if anything inside it is absolutely positioned (`sr-only` included), or that element widens the page on phones.
 - OllieOS component CSS in `index.css` sits in `@layer components` so Tailwind utilities like `hidden sm:flex` can override it.
 
 ## Pointers

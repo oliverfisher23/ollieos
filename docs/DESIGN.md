@@ -129,6 +129,17 @@ Gaps: 16px between cards, 22 to 26px between sections in a panel. Page gutter 24
 - **Tables:** no zebra stripes, 1px `line-soft` row dividers, hover `#faf8f3`, wide tables scroll inside their own box.
 - **Toast and undo:** small glass bar with the action and an Undo link in `accent`.
 
+### Phone rules
+
+Checked by `pnpm --filter @workspace/scripts run mobile-audit` (see `docs/mobile-plan.md`).
+
+- One phone breakpoint: below 640px. `sm:` in Tailwind, `@media (max-width: 639px)` in CSS. Phone layouts are the same route with a different layout, never a separate page.
+- Nothing scrolls sideways at 360px or 375px. Wide content (tables, tab rows, filter rows) scrolls inside its own box.
+- A box that scrolls sideways is `position: relative` whenever anything inside it is absolutely positioned (including `sr-only` text). Otherwise that element escapes the box and widens the whole page.
+- Tap targets at least 44 × 44px on phones. A link inside a sentence is exempt. Grow the element itself (padding, min-height), not a pseudo-element, so the audit can measure it.
+- Text fields 16px on phones, so iPhone does not zoom in on focus.
+- Fixed bars and sheets use `env(safe-area-inset-*)` for their outer padding.
+
 ## 7. Behaviour
 
 - Respect `prefers-reduced-motion`. Motion is limited to fades on triage and completing a task (2 seconds before a completed row leaves the list).
