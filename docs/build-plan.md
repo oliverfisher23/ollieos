@@ -1231,3 +1231,90 @@ Ollie asked to keep work for one client apart from work for a part of the busine
 - "Suggest functions and clients" in the sidebar asks Claude Haiku, for each project AI may read that is missing a function or a client and has no card already waiting, to pick from what OllieOS knows about it. It answers "unclear" rather than guess from a name. A function is a Changed details card; a client OllieOS knows is a Changed details card that links it when approved; a new client is a new organisation card ("Client for <project>") that creates and links it. Two projects naming the same new client share one card. Nothing changes until Ollie approves.
 - The document reader is told which names are functions: a document about a part of the business in general goes on the function, and one about a single client goes on that client's project.
 - Claude can give a function and client through upsert_project. Ask, briefs, Download for Claude and the AI tools see a project's function.
+
+## 19. More from the sources OllieOS already reads (proposed 11th November 2026, not yet agreed)
+
+Ollie asked what else would be useful given the sources OllieOS reads. Most of what follows joins sources that are today read separately (Calendar with Granola, Gmail with Calendar, Drive with the digest), or uses data that is read and then thrown away (Slack conversations, calendar rows after 30 days). No new access is needed except in Part T. Five parts, each its own sign-off. The proposed order is P and Q first (small, close real gaps), then R, S and T. Parts K and L (section 14) are agreed and not yet built; question 51 asks where these go relative to them.
+
+| Part | Features | Size |
+|---|---|---|
+| P | Slack to answer | Medium |
+| Q | Digest: connector warnings and documents that changed | Small |
+| R | Time and meetings: where my time goes, is this week realistic, meetings worth keeping | Medium to large |
+| S | People and accounts: client pulse, relationships from email and meetings, details from signatures | Medium |
+| T | Commercial data on client organisations (CRM and account health) | Small to medium, depends on question 60 |
+
+### Part P: Slack to answer
+
+Email has To answer and Waiting for a reply; Slack only feeds the sorter, so a DM that needs an answer but holds no task disappears once read.
+
+- **What is listed:** DMs and group DMs where the newest message is not Ollie's, and channel messages that @mention Ollie with no message from him after them in the same thread. Last 14 days only. Bots, Slackbot and people marked Noise are left out.
+- **Where:** a Slack tab on the Email page (`/email?tab=slack`), after To answer (question 52). The tab count is Needs a reply only.
+- **Needs a reply or For your information:** the sorter already reads these messages, so the same read gives each conversation one of the two and a one-line "what they want", as To answer does for email. No extra AI call. Conversations with someone hidden from AI are not read and sit under Needs a reply.
+- **Actions:** Open in Slack (permalink), Done (off the list until a new message arrives, with Undo), Make a task (status Now, "Reply to <name> on Slack", source_ref the message), Draft a reply (written in the "How you write" style and copied, never posted: Slack has no drafts for this connection and OllieOS never sends).
+- **Closing on its own:** when a later check sees a message from Ollie after it, the item leaves the list. Quiet DMs are only read every 2 hours (section 12), so the list can be up to 2 hours behind for them; conversations active in the last 14 days are read on every check.
+- **Data:** a new table `slack_to_answer` (conversation id, kind, message ts, thread ts, person id or name, first 300 characters, sort, ask, done_at, done_ts). Written by the Slack check in the same step as its cursor, so a failed check is read again.
+- **Digest and Home:** "N Slack messages to answer" joins Needs you, and Home's Inbox line, when any are over one working day old.
+- **Not included:** posting to Slack; channel threads that do not mention Ollie; Slack search (not granted).
+- **Checked by:** a DM whose last message is from someone else appears with its ask; a reply from Ollie in Slack takes it off on the next check; Done hides it until a new message; a DM with someone hidden from AI is listed but not read; Draft a reply copies text and posts nothing.
+
+### Part Q: Digest: connector warnings and documents that changed
+
+- **Connector warnings.** The digest only uses `connector_runs` to time itself. Instead:
+  - A service OllieOS reads with no good check for 4 working hours (or 3 runs in a row, whichever is later) shows under Needs you, on the Home status line and on its Settings card: "Granola: no good check since Tuesday 10th November, 14:30. Last error: key refused", linking to Settings, Connectors.
+  - **Good but empty:** a check can succeed and still find nothing useful, as with the first Granola key (section 12). Warn when Granola finds none of Ollie's meetings for 2 working days while the calendar shows 3 or more work meetings he attended, and when Gmail finds no new messages for a whole working day.
+  - Cleared on the next good (or non-empty) check. Nothing is retried beyond what the timer already does.
+- **Documents that changed.** Drive already re-reads Library documents when their `modifiedTime` moves, and the Part E reader only sends what was added. A new digest section, **Changed**, lists Library documents linked to an active project, function or product that someone other than Ollie changed since the last digest, each with one Haiku line on what changed ("Tier 2 price moved from £8 to £10") and who changed it (Drive `lastModifyingUser`). Up to 5, then "N more" linking to the Library. Under 1p a document.
+  - Confidential and AI-hidden documents show on the page with a lock and no AI line, and are left out of the summary sent to AI.
+  - The weekly round-up gets the same list for the week.
+- **Checked by:** a connector with a revoked key appears in the next digest and on Home, and clears after a good check; a Granola key that sees no meetings of Ollie's warns after 2 working days; a colleague's edit to a linked Drive document shows under Changed with one line; Ollie's own edit does not.
+
+### Part R: Time and meetings
+
+Calendar rows are deleted 30 days after they end (`clearOldCalendar`), so OllieOS cannot say where time went, and nothing connects meetings to what came out of them.
+
+- **Meeting history.** A new table `meeting_history`, one row per work meeting Ollie attended (not declined, not personal): calendar source_ref, recurring series id (new: `recurringEventId` from Google Calendar, kept on calendar rows too), title, start, minutes, internal or external (`meetingScope`), project, function, goal (the project's), organisation ids, person ids, and from Granola: had notes, actions found, decisions found. Written when the meeting ends and updated when its notes arrive. Kept 2 years. Confidential follows the project, as tasks do.
+  - One-off backfill of the last 12 weeks from Google Calendar (question 55). Granola counts are filled for meetings whose notes OllieOS has already read.
+- **Where my time goes.** A section on the Goals page: meeting hours this week and each of the last 4 weeks, split by goal, by function and internal or external, with "Not linked" last; plus planned task time from Plan my day (lengths of ticked tasks), labelled as planned, not measured. A goal marked as a priority with under 10% of meeting time gets a one-line note. The weekly round-up and the weekly update copy get one line ("18 hours in meetings, 7 towards Growth").
+- **Is this week realistic?** On Monday morning, and on demand from Home's Plan today, OllieOS compares free hours left this week (working hours minus meetings, from now) with what is due: tasks due this week, Now tasks and promises due, each at its Plan my day length (30 minutes when none is set). When what is due is more than 80% of the free time, Home and the digest show "This week is over by about 6 hours" with the tasks that could move (Medium or Low, no promise, no outside person waiting). Ollie moves them; OllieOS never does.
+- **Meetings worth keeping.** Every 4 weeks, for each repeating series Ollie went to at least 4 times in the last 8 weeks: if 3 or more of the last 4 had no Granola notes, or notes with no actions or decisions, it shows on the Meetings page under "Worth a look": the series, how often, hours a month and what came out of it. Keep (not asked again for 12 weeks) or Draft a note to the organiser (copied, never sent). Nothing in Google Calendar changes.
+- **Not included:** writing to Google Calendar; tracking time spent on tasks (only planned lengths); meetings Ollie declined.
+- **Checked by:** a meeting on a project linked to a goal counts towards that goal's hours; the backfill fills 12 weeks; a week with 30 hours of meetings and 15 hours of due work shows the warning with tasks that could move; a weekly series with no actions in 4 meetings appears under Worth a look and Keep hides it for 12 weeks.
+
+### Part S: People and accounts
+
+- **Client pulse.** On organisation pages typed customer, client or partner, on the organisations list, and in briefs for external meetings, one line from what OllieOS holds: last met, meetings in the last 90 days, emails from them waiting in To answer (and how long), what Ollie owes them, what they owe him, and the tone of the last 3 Granola notes with them. Tone is one more field on the Granola read that already happens (positive, neutral or concerned, with a one-line reason), so no extra AI call.
+  - **Needs attention** when any of: no meeting or email either way for 30 days (changeable per organisation), something owed to them overdue, an email from them waiting over 3 working days, or "concerned" in the last note. The organisations list can sort by it, and client organisations join Gone quiet in the digest.
+- **Relationships worked out from email and meetings.** Part G left out reading old email and meetings for relationships. Using only headers (who is on a thread, who is in a meeting) and no AI:
+  - Two known people on 5 or more threads, or in 3 or more meetings, together in 90 days, with no stated relationship, become a "works with" card in the Knowledge Inbox citing up to 3 examples.
+  - A known person with no organisation, writing from the domain of a known organisation, becomes a "works at" card.
+  - One-off look back over 6 months of Gmail headers and the 12-week calendar backfill (Part R), then kept up to date by each check. Exchanges with anyone hidden from AI are never counted. "Different people" style rejection means the same pair is not proposed again.
+- **Details from signatures.** The Gmail sorter read also picks a sender's job title and organisation from their signature, for known people only, as `job_title` and `organisation` fact cards (the existing attributes, so a changed title becomes a conflict review as now). Phone numbers as a plain fact (question 59). Only when OllieOS does not already hold the same value.
+- **Not included:** reading LinkedIn or the web for people (the research agent stays company-only); sentiment from Slack or email.
+- **Checked by:** a client not met or emailed for 31 days shows Needs attention and appears in Gone quiet; two people on 5 threads together produce one "works with" card and rejecting it stops it coming back; a signature with a new job title opens a conflict against the old one.
+
+### Part T: Commercial data on client organisations
+
+Claude's sessions can read HubSpot and the KPI Portal (account health, renewal risk, ARR), but OllieOS cannot, so briefs for client meetings miss the commercial picture.
+
+- **What it adds:** on client organisation pages, in their pulse (Part S) and in external meeting briefs: renewal date, contract value, account health and renewal risk, open deals and stage, each with when it was read.
+- **How (question 60):**
+  - *Step 1, no build in OllieOS:* the Claude sweep reads the KPI Portal and HubSpot for client organisations OllieOS knows and proposes facts through `add_fact` with new attributes `renewal_date`, `contract_value` and `account_health`, so a change opens a conflict review. Cards from the sweep that only repeat what is held answer "unchanged".
+  - *Step 2:* if the Replit HubSpot connector connects for Ollie, OllieOS reads deals and company records itself on the timer, as with Gmail, and the sweep step for HubSpot is ignored. The KPI Portal stays with the sweep unless it offers an API OllieOS can call.
+- **Not included:** writing to HubSpot; showing commercial data for organisations that are not clients.
+- **Checked by:** a client with a renewal date in HubSpot shows it on its page and in the brief for its next meeting; a changed renewal date opens a conflict review.
+
+### Questions for section 19
+
+Each has a proposal. As before, "agree with 51, 53" (or "agree with all") is enough, and correct the rest.
+
+51. **Order against Parts K and L.** *Proposal:* P and Q first (both small and close real gaps), then K and L as agreed, then R, S and T.
+52. **Where Slack to answer lives.** *Proposal:* a Slack tab on the Email page, since the actions match. The alternative is its own page in the rail.
+53. **Slack window.** *Proposal:* 14 days, the same as the "active" window the Slack check already uses. Older unanswered DMs are left out.
+54. **Connector warning threshold.** *Proposal:* 4 working hours or 3 runs in a row, whichever is later, so one blip never warns.
+55. **Meeting history backfill.** *Proposal:* 12 weeks from Google Calendar, once, so Where my time goes has a month to compare against on day one.
+56. **How long meeting history is kept.** *Proposal:* 2 years. Briefs still go after 30 days, as now.
+57. **"Over" threshold for the week.** *Proposal:* warn when due work is more than 80% of free time, leaving room for things that come in during the week.
+58. **Client pulse quiet period.** *Proposal:* 30 days by default, changeable per organisation on its page.
+59. **Phone numbers from signatures.** *Proposal:* a plain fact on the person (no attribute), so it never opens a conflict review. The alternative is a new `phone` attribute.
+60. **Commercial data route.** *Proposal:* start with the Claude sweep (step 1), since it needs no new connection, and try the Replit HubSpot connector before building step 2.
