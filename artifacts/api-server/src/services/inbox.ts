@@ -175,17 +175,17 @@ interface Linked {
 export async function linkedTasks(threadIds: string[]): Promise<Map<string, Linked>> {
   const ids = [...new Set(threadIds)];
   if (!ids.length) return new Map();
-  // Identical to the expression index: old account-specific URLs need no data backfill.
+  // gmail_thread_id is stored from source_url, so old account-specific URLs need no backfill.
   const result = await db.execute(sql`
-    select distinct on (substring(source_url from '#all/([A-Za-z0-9]+)[[:space:]]*$'))
-      substring(source_url from '#all/([A-Za-z0-9]+)[[:space:]]*$') as thread_id,
+    select distinct on (gmail_thread_id)
+      gmail_thread_id as thread_id,
       id, status, updated_at
     from tasks
     where source = 'email'
-      and substring(source_url from '#all/([A-Za-z0-9]+)[[:space:]]*$') in (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
+      and gmail_thread_id in (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
       and (source_ref is null or source_ref not like '%#chase')
       and not (coalesce(from_address, '') = '' and from_name is not distinct from 'You')
-    order by substring(source_url from '#all/([A-Za-z0-9]+)[[:space:]]*$'),
+    order by gmail_thread_id,
       (status not in ('done', 'dropped', 'noise', 'archived')) desc, updated_at desc, id desc`);
   return new Map((result.rows as { thread_id: string; id: number; status: string; updated_at: Date }[])
     .map((r) => [r.thread_id, { id: r.id, status: r.status, updatedAt: new Date(r.updated_at) }]));

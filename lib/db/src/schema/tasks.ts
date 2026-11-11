@@ -39,6 +39,11 @@ export const tasksTable = pgTable(
     source: taskSourceEnum("source").notNull().default("manual"),
     sourceRef: text("source_ref"),
     sourceUrl: text("source_url"),
+    /**
+     * The Gmail thread id from the source link, including older account-specific links. Stored so
+     * it can be a plain indexed column; Replit's publish step garbles an index on the expression.
+     */
+    gmailThreadId: text("gmail_thread_id").generatedAlwaysAs(sql`substring(source_url from '#all/([A-Za-z0-9]+)[[:space:]]*$')`),
     sourceQuote: text("source_quote"),
     sourceSubject: text("source_subject"),
     sourceChannel: text("source_channel"),
@@ -91,8 +96,7 @@ export const tasksTable = pgTable(
     index("tasks_waiting_on_idx").on(t.waitingOnPersonId),
     index("tasks_completed_idx").on(t.completedAt),
     // Same normalisation as inbox linking, including older account-specific Gmail URLs.
-    index("tasks_gmail_thread_idx").on(sql`substring(${t.sourceUrl} from '#all/([A-Za-z0-9]+)[[:space:]]*$')`)
-      .where(sql`${t.source} = 'email'`),
+    index("tasks_gmail_thread_idx").on(t.gmailThreadId).where(sql`${t.source} = 'email'`),
     uniqueIndex("tasks_source_ref_unique").on(t.source, t.sourceRef).where(sql`source_ref is not null`),
     index("tasks_search_idx").using("gin", t.search),
   ],

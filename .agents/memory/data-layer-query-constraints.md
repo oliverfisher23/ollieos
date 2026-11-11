@@ -14,3 +14,5 @@ Do not replace Gmail thread matching with equality against one canonical full UR
 **Why:** Gmail links can have different account segments for the same thread. Historical email tasks must still link to the current inbox without rewriting their source URLs.
 
 **How to apply:** normalise and index the thread identity, or retain an equivalent indexed expression that supports those historical URL variants.
+
+Never index an expression (`index().on(sql\`...\`)`). Replit's publish step copies indexes to production and garbles expression indexes (it drops a closing bracket or the last character), so publishing fails. Store the value in a generated column (`text(...).generatedAlwaysAs(sql\`...\`)`) and index that column instead, as `audit_events.batch_key` and `tasks.gmail_thread_id` do.
