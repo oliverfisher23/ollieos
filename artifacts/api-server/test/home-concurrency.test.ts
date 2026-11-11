@@ -27,7 +27,9 @@ vi.mock("@workspace/db", async (original) => {
 });
 vi.mock("../src/services/taskView", () => ({ toTaskViews: () => delayed("enrich", 50, []) }));
 vi.mock("../src/services/access", () => ({ listAccessRequests: () => delayed("access", 40, { pending: [], open: [] }) }));
-vi.mock("../src/services/briefs", () => ({ briefableIds: () => delayed("briefs", 60, new Set()) }));
+vi.mock("../src/services/briefs", () => ({ briefableIds: () => delayed("briefs", 60, new Set()), notPreppedIds: () => delayed("unprepped", 20, new Set()) }));
+vi.mock("../src/services/slackToAnswer", () => ({ slackRepliesOverdue: () => delayed("slack", 30, []) }));
+vi.mock("../src/services/connectorHealth", () => ({ connectorWarnings: () => delayed("warnings", 30, []) }));
 vi.mock("../src/services/digest", () => ({ todaysDigestDate: () => delayed("digest", 70, null) }));
 vi.mock("../src/services/seeds", () => ({ ensureSeeds: () => delayed("seeds", timing.seedMs, undefined) }));
 vi.mock("../src/services/knowledgeInbox", () => ({
@@ -50,7 +52,7 @@ it("starts independent reads immediately and enriches tasks without waiting for 
   let finished = false;
   const home = getHome().then(() => { finished = true; });
   await vi.advanceTimersByTimeAsync(0);
-  for (const name of ["digest", "access", "counts", "ideas", "seeds", "self"]) {
+  for (const name of ["digest", "access", "counts", "ideas", "seeds", "self", "slack", "warnings"]) {
     expect(timing.calls.find((call) => call.name === name)?.at).toBe(0);
   }
   expect(timing.calls.filter((call) => call.name === "query")).toHaveLength(8);

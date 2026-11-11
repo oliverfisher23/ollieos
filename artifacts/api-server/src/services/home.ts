@@ -84,7 +84,7 @@ export async function getHome() {
     await readyForTaskViews;
     return toTaskViews(rows);
   };
-  const [candidates, inboxBySource, waiting, promises, doneCount, latestDone, lastSweep, calendar, digestDate, access, knowledgeInbox, ideasDue] =
+  const [candidates, inboxBySource, waiting, promises, doneCount, latestDone, lastSweep, calendar, digestDate, access, knowledgeInbox, ideasDue, slackToAnswer, warnings] =
     await Promise.all([
       db
         .select()
@@ -127,15 +127,19 @@ export async function getHome() {
         .from(calendarEventsTable)
         .where(and(gte(calendarEventsTable.startsAt, day.start), lt(calendarEventsTable.startsAt, day.end)))
         .orderBy(asc(calendarEventsTable.startsAt))
-        .then(async (events) => ({ events, briefable: await briefableIds(events) })),
+        .then(async (events) => {
+          const [briefable, unprepped] = await Promise.all([briefableIds(events), notPreppedIds(events, now)]);
+          return { events, briefable, unprepped };
+        }),
       todaysDigestDate(now),
       listAccessRequests(),
       inboxCounts(),
       dueIdeas(today),
+      slackRepliesOverdue(now),
+      connectorWarnings(now),
       readyForTaskViews,
     ]);
-  const { events: todayEvents, briefable } = calendar;
-  const [unprepped, slackToAnswer, warnings] = await Promise.all([notPreppedIds(todayEvents, now), slackRepliesOverdue(now), connectorWarnings(now)]);
+  const { events: todayEvents, briefable, unprepped } = calendar;
 
   const waitingOn = waiting
     .map((task) => ({
