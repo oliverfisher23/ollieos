@@ -18,4 +18,6 @@ export interface RoundupContent {
   documents?: RoundupLine[];
   /** Part W: agents whose scorecard dropped on last week. Missing on older round-ups. */
   agents?: RoundupLine[];
+  /** Part R: where meeting time went this week. Missing on older round-ups. */
+  time?: RoundupLine[];
 }

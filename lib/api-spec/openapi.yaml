@@ -1088,6 +1088,60 @@ paths:
               schema: { $ref: "#/components/schemas/AgentsView" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /time:
+    get:
+      operationId: getTimeReport
+      tags: [preparation]
+      summary: "Part R: meeting hours by goal and function, this week and the four before"
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeReport" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /week-check:
+    get:
+      operationId: getWeekCheck
+      tags: [preparation]
+      summary: "Part R: free working hours left this week against what is due"
+      responses:
+        "200":
+          description: Check
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WeekCheck" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /meetings/worth-a-look:
+    get:
+      operationId: listMeetingsWorthALook
+      tags: [preparation]
+      summary: "Part R: repeating meetings where 3 of the last 4 brought no actions or decisions"
+      responses:
+        "200":
+          description: Series
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/WorthALook" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /meetings/worth-a-look/{seriesId}/keep:
+    parameters:
+      - name: seriesId
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      operationId: keepMeetingSeries
+      tags: [preparation]
+      summary: "Part R: keep a repeating meeting; not asked again for 12 weeks"
+      responses:
+        "204":
+          description: Kept
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /organisations-pulse:
     get:
       operationId: listClientPulses
@@ -4168,6 +4222,10 @@ components:
           type: array
           description: "Part W: agents whose scorecard dropped on last week. Missing on older round-ups."
           items: { $ref: "#/components/schemas/RoundupLine" }
+        time:
+          type: array
+          description: "Part R: where meeting time went this week. Missing on older round-ups."
+          items: { $ref: "#/components/schemas/RoundupLine" }
 
     Roundup:
       type: object
@@ -5504,6 +5562,57 @@ components:
         raisedTitle: { type: [string, "null"], description: The meeting it was raised in }
         raisedHow: { type: [string, "null"], description: "notes (Granola showed it covered) or ollie (ticked by hand)" }
         createdAt: { type: string, format: date-time }
+    TimeSlice:
+      type: object
+      required: [key, label, hours]
+      properties:
+        key: { type: string }
+        label: { type: string }
+        hours: { type: number }
+    TimeWeek:
+      type: object
+      required: [weekStart, meetingHours, byGoal, byFunction, internalHours, externalHours, plannedTaskHours]
+      properties:
+        weekStart: { type: string, format: date }
+        meetingHours: { type: number }
+        byGoal: { type: array, items: { $ref: "#/components/schemas/TimeSlice" } }
+        byFunction: { type: array, items: { $ref: "#/components/schemas/TimeSlice" } }
+        internalHours: { type: number }
+        externalHours: { type: number }
+        plannedTaskHours: { type: number }
+    TimeReport:
+      type: object
+      required: [weeks, thinGoals]
+      properties:
+        weeks: { type: array, items: { $ref: "#/components/schemas/TimeWeek" } }
+        thinGoals: { type: array, items: { type: string } }
+    WeekCheck:
+      type: object
+      required: [freeHours, dueHours, overBy, over, movable, dueCount]
+      properties:
+        freeHours: { type: number }
+        dueHours: { type: number }
+        overBy: { type: number }
+        over: { type: boolean }
+        movable: { type: array, items: { $ref: "#/components/schemas/Task" } }
+        dueCount: { type: integer }
+    WorthALook:
+      type: object
+      required: [seriesId, title, howOften, hoursAMonth, lastFour, organiser, note]
+      properties:
+        seriesId: { type: string }
+        title: { type: string }
+        howOften: { type: string }
+        hoursAMonth: { type: number }
+        lastFour:
+          type: object
+          required: [notes, actions, decisions]
+          properties:
+            notes: { type: integer }
+            actions: { type: integer }
+            decisions: { type: integer }
+        organiser: { type: [string, "null"] }
+        note: { type: string }
     ClientPulse:
       type: object
       required: [organisationId, name, slug, quietDays, lastMetAt, lastContactAt, meetings90, emailsWaiting, oldestEmailAt, owedToThem, overdueToThem, theyOwe, tone, needsAttention, reasons, line]

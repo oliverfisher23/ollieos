@@ -195,7 +195,19 @@ async function readCalendar(now: Date) {
   } catch (err) {
     logger.warn({ err }, "Could not record people in meetings together");
   }
-  return { found: r.found, account: r.account, counts: { kept: w.replaced, removed: w.removed, left_out: r.skipped, ...(together ? { relationships: together } : {}) } };
+  // Part R: meetings that ended go into the meeting history; the 12-week backfill runs once.
+  let history = { recorded: 0, backfilled: 0 };
+  try {
+    const { historyFromCalendar } = await import("../timeAndMeetings");
+    history = await historyFromCalendar(now);
+  } catch (err) {
+    logger.warn({ err }, "Could not update the meeting history");
+  }
+  return {
+    found: r.found,
+    account: r.account,
+    counts: { kept: w.replaced, removed: w.removed, left_out: r.skipped, ...(together ? { relationships: together } : {}), ...(history.recorded ? { history: history.recorded } : {}), ...(history.backfilled ? { backfilled: history.backfilled } : {}) },
+  };
 }
 
 /* Where each reader got to, so the next check carries on from there. */

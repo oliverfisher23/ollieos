@@ -2642,6 +2642,146 @@ export const ListAgentsResponse = zod.object({
 
 
 /**
+ * @summary Part R: meeting hours by goal and function, this week and the four before
+ */
+export const GetTimeReportResponse = zod.object({
+  "weeks": zod.array(zod.object({
+  "weekStart": zod.coerce.date(),
+  "meetingHours": zod.number(),
+  "byGoal": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "hours": zod.number()
+})),
+  "byFunction": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "hours": zod.number()
+})),
+  "internalHours": zod.number(),
+  "externalHours": zod.number(),
+  "plannedTaskHours": zod.number()
+})),
+  "thinGoals": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Part R: free working hours left this week against what is due
+ */
+export const GetWeekCheckResponse = zod.object({
+  "freeHours": zod.number(),
+  "dueHours": zod.number(),
+  "overBy": zod.number(),
+  "over": zod.boolean(),
+  "movable": zod.array(zod.object({
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+})),
+  "dueCount": zod.int()
+})
+
+
+/**
+ * @summary Part R: repeating meetings where 3 of the last 4 brought no actions or decisions
+ */
+export const ListMeetingsWorthALookResponseItem = zod.object({
+  "seriesId": zod.string(),
+  "title": zod.string(),
+  "howOften": zod.string(),
+  "hoursAMonth": zod.number(),
+  "lastFour": zod.object({
+  "notes": zod.int(),
+  "actions": zod.int(),
+  "decisions": zod.int()
+}),
+  "organiser": zod.string().nullable(),
+  "note": zod.string()
+})
+export const ListMeetingsWorthALookResponse = zod.array(ListMeetingsWorthALookResponseItem)
+
+
+/**
+ * @summary Part R: keep a repeating meeting; not asked again for 12 weeks
+ */
+export const KeepMeetingSeriesParams = zod.object({
+  "seriesId": zod.coerce.string()
+})
+
+export const KeepMeetingSeriesResponse = zod.void()
+
+
+/**
  * @summary Part S: the pulse of every client organisation, those needing attention first
  */
 export const ListClientPulsesResponseItem = zod.object({
@@ -10313,7 +10453,12 @@ export const GetRoundupsResponse = zod.object({
   "text": zod.string(),
   "detail": zod.string().nullable(),
   "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
-})).optional().describe('Part W: agents whose scorecard dropped on last week. Missing on older round-ups.')
+})).optional().describe('Part W: agents whose scorecard dropped on last week. Missing on older round-ups.'),
+  "time": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})).optional().describe('Part R: where meeting time went this week. Missing on older round-ups.')
 })
 }),zod.null()]),
   "weeks": zod.array(zod.object({
@@ -10378,7 +10523,12 @@ export const MakeRoundupResponse = zod.object({
   "text": zod.string(),
   "detail": zod.string().nullable(),
   "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
-})).optional().describe('Part W: agents whose scorecard dropped on last week. Missing on older round-ups.')
+})).optional().describe('Part W: agents whose scorecard dropped on last week. Missing on older round-ups.'),
+  "time": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})).optional().describe('Part R: where meeting time went this week. Missing on older round-ups.')
 })
 })
 

@@ -48,6 +48,8 @@ export interface RoundupContent {
   documents?: RoundupLine[];
   /** Part W: agents whose scorecard dropped on last week. Missing on older round-ups. */
   agents?: RoundupLine[];
+  /** Part R: where meeting time went this week. Missing on older round-ups. */
+  time?: RoundupLine[];
 }
 
 export interface Roundup {
@@ -1491,6 +1493,53 @@ export interface EmailInbox {
      * @nullable
      */
   problem: string | null;
+}
+
+export interface TimeSlice {
+  key: string;
+  label: string;
+  hours: number;
+}
+
+export interface TimeWeek {
+  weekStart: string;
+  meetingHours: number;
+  byGoal: TimeSlice[];
+  byFunction: TimeSlice[];
+  internalHours: number;
+  externalHours: number;
+  plannedTaskHours: number;
+}
+
+export interface TimeReport {
+  weeks: TimeWeek[];
+  thinGoals: string[];
+}
+
+export interface WeekCheck {
+  freeHours: number;
+  dueHours: number;
+  overBy: number;
+  over: boolean;
+  movable: Task[];
+  dueCount: number;
+}
+
+export type WorthALookLastFour = {
+  notes: number;
+  actions: number;
+  decisions: number;
+};
+
+export interface WorthALook {
+  seriesId: string;
+  title: string;
+  howOften: string;
+  hoursAMonth: number;
+  lastFour: WorthALookLastFour;
+  /** @nullable */
+  organiser: string | null;
+  note: string;
 }
 
 export type ClientPulseToneTone = typeof ClientPulseToneTone[keyof typeof ClientPulseToneTone];

@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { keepSeries, timeReport, weekCheck, worthALook } from "../services/timeAndMeetings";
 import { z } from "zod";
 import { handle } from "../lib/handle";
 import { allowForBrief, briefView, markBriefOpened, nextBriefEventId, updateBriefNotes } from "../services/briefs";
@@ -15,6 +16,18 @@ const DateParams = z.object({ date: z.string().min(1).max(20) });
 
 /* Meetings page (Assist Part B): this week's work meetings and the last two weeks'. */
 router.get("/meetings", handle(async (_req, res) => void res.json(await listMeetings())));
+// Part R: where time went, whether the week fits, and repeating meetings worth a look.
+router.get("/time", handle(async (_req, res) => void res.json(await timeReport())));
+router.get("/week-check", handle(async (_req, res) => void res.json(await weekCheck())));
+router.get("/meetings/worth-a-look", handle(async (_req, res) => void res.json(await worthALook())));
+router.post(
+  "/meetings/worth-a-look/:seriesId/keep",
+  handle(async (req, res) => {
+    const { seriesId } = z.object({ seriesId: z.string().min(1).max(300) }).parse(req.params);
+    await keepSeries(seriesId);
+    res.status(204).end();
+  }),
+);
 
 /* Meeting briefs (feature 03). Written on open when missing or more than 3 hours old. */
 router.get(

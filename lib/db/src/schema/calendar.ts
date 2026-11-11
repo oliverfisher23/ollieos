@@ -33,6 +33,8 @@ export const calendarEventsTable = pgTable(
     personIds: integer("person_ids").array().notNull().default(sql`'{}'::integer[]`),
     projectId: integer("project_id").references(() => projectsTable.id),
     location: text("location"),
+    /** Part R: Google Calendar's id for the repeating series, when the event is one of a series */
+    recurringEventId: text("recurring_event_id"),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()

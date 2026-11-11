@@ -3,6 +3,7 @@
  * Built on the first sweep finish of a weekday (question 32), or on open if a sweep has finished
  * today and there is none yet. No email in phase 1 (question 33). Kept 30 days.
  */
+import { weekCheck } from "./timeAndMeetings";
 import { listPulses } from "./clientPulse";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, notInArray, or, sql } from "drizzle-orm";
 import {
@@ -52,6 +53,7 @@ export function digestWindowStart(date: string): Date {
   return londonWallTimeToInstant(prev, 18, 0);
 }
 
+const hrs = (n: number) => (n === 1 ? "1 hour" : `${n} hours`);
 const clip = (s: string, n = 90) => (s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s);
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -159,6 +161,11 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
   const unprepped = await notPreppedIds(g.events, now);
   for (const e of g.events.filter((x) => unprepped.has(x.id))) {
     needs.push({ text: `Not prepped yet: ${clip(e.title, 70)} at ${formatTime(e.startsAt)}`, href: `/briefs/${e.id}`, refs: [], confidential: false });
+  }
+  // Part R: on Mondays, warn when this week is over full.
+  if (weekday(date) === 1) {
+    const wc = await weekCheck(now);
+    if (wc.over) needs.push({ text: `This week is over by about ${hrs(wc.overBy)}: ${hrs(wc.dueHours)} due against ${wc.freeHours} free`, href: "/", refs: [], confidential: false });
   }
   // Connector warnings (Part Q): a service that stopped working, or stopped bringing anything in.
   for (const w of await connectorWarnings(now)) needs.push({ text: w.text, href: "/settings/connectors", refs: [], confidential: false });

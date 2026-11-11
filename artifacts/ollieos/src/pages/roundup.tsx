@@ -1,4 +1,5 @@
 import { useState } from 'react';
+
 import { Link, useLocation, useSearch } from 'wouter';
 import { makeRoundup, saveRoundupDraft, useGetRoundups, type Roundup, type RoundupContent, type RoundupLine } from '@workspace/api-client-react';
 import { formatDayMonth, londonDate, formatTime } from '@workspace/shared';
@@ -19,6 +20,7 @@ const SECTIONS: { key: keyof RoundupContent; title: string; empty: string }[] = 
   { key: 'products', title: 'New products', empty: 'No new products.' },
   { key: 'documents', title: 'Documents that changed', empty: 'No Library documents changed by others.' },
   { key: 'agents', title: 'Agents that slipped', empty: 'No agent did noticeably worse than last week.' },
+  { key: 'time', title: 'Where time went', empty: 'No meetings on record this week.' },
 ];
 
 /** "4 pm" style hour for the schedule line. */

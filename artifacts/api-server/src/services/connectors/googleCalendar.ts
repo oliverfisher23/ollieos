@@ -11,6 +11,7 @@ const CONNECTOR = "google-calendar";
 /** The parts of a Google Calendar event this reader uses. */
 export interface GoogleEvent {
   id: string;
+  recurringEventId?: string;
   status?: string;
   summary?: string;
   eventType?: string;
@@ -75,6 +76,7 @@ export function mapGoogleEvent(e: GoogleEvent): MapResult {
       personIds: [],
       projectId: null,
       location,
+      recurringEventId: e.recurringEventId ?? null,
     },
   };
 }
@@ -91,7 +93,11 @@ const getJson = (path: string) => proxyJson(CONNECTOR, "Google Calendar", path);
 
 export async function readGoogleCalendar(now = new Date()): Promise<CalendarRead> {
   const today = todayLondon(now);
-  const window = londonRange(today, 8);
+  return readGoogleCalendarRange(londonRange(today, 8));
+}
+
+/** Part R: the events in any window, mapped the same way (used for the 12-week backfill). */
+export async function readGoogleCalendarRange(window: { start: Date; end: Date }): Promise<CalendarRead> {
   const cal = await getJson("/calendar/v3/calendars/primary?fields=id");
   const account = typeof cal.id === "string" ? cal.id : null;
 
@@ -105,7 +111,7 @@ export async function readGoogleCalendar(now = new Date()): Promise<CalendarRead
       orderBy: "startTime",
       maxResults: "250",
       fields:
-        "nextPageToken,items(id,status,summary,eventType,visibility,location,hangoutLink,start,end,conferenceData/conferenceSolution/name,attendees(email,displayName,responseStatus,organizer,self,resource))",
+        "nextPageToken,items(id,recurringEventId,status,summary,eventType,visibility,location,hangoutLink,start,end,conferenceData/conferenceSolution/name,attendees(email,displayName,responseStatus,organizer,self,resource),organizer(email))",
     });
     if (pageToken) q.set("pageToken", pageToken);
     const body = await getJson("/calendar/v3/calendars/primary/events?" + q.toString());

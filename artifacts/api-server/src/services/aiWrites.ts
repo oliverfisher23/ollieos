@@ -299,6 +299,8 @@ export interface CalendarInput {
   personIds: number[];
   projectId: number | null;
   location: string | null;
+  /** Part R: the repeating series it belongs to */
+  recurringEventId?: string | null;
 }
 
 /** Attendees arrive as plain names or emails, or as objects with an email and response. */
@@ -378,6 +380,7 @@ export async function replaceCalendar(
         personIds: e.personIds,
         projectId: e.projectId,
         location: e.location,
+        recurringEventId: e.recurringEventId ?? null,
       };
       await tx.insert(calendarEventsTable).values(values).onConflictDoUpdate({ target: calendarEventsTable.sourceRef, set: values });
     }

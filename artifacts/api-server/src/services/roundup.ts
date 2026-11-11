@@ -4,6 +4,7 @@
  * hand from the page. The page shows everything; the Gmail draft (no recipient, never sent) leaves
  * out anything confidential or hidden from AI.
  */
+import { weekTimeLine } from "./timeAndMeetings";
 import { and, desc, eq, gte, inArray, lt, or } from "drizzle-orm";
 import {
   appSettingsTable,
@@ -93,6 +94,8 @@ export interface RoundupContent {
   documents?: RoundupLine[];
   /** Part W: agents whose scorecard dropped on last week. Missing on older round-ups. */
   agents?: RoundupLine[];
+  /** Part R: where meeting time went this week. Missing on older round-ups. */
+  time?: RoundupLine[];
 }
 
 export const SECTIONS: { key: keyof RoundupContent; title: string }[] = [
@@ -104,6 +107,7 @@ export const SECTIONS: { key: keyof RoundupContent; title: string }[] = [
   { key: "products", title: "New products" },
   { key: "documents", title: "Documents that changed" },
   { key: "agents", title: "Agents that slipped" },
+  { key: "time", title: "Where time went" },
 ];
 
 const KIND_LABEL: Record<string, string> = {
@@ -241,6 +245,8 @@ export async function buildRoundupContent(start: Date, end: Date): Promise<Round
   for (const r of rules) content.rules.push({ text: r.title, detail: `When: ${whenPart(r.appliesWhen)} ${r.rule}${r.enabled ? "" : " (switched off)"}`, private: hidden([toRef("rule", r.id)]) });
   for (const p of playbooks) content.playbooks.push({ text: p.title, detail: `When to use: ${p.whenToUse}`, private: hidden([toRef("playbook", p.id)]) });
   for (const p of products) content.products.push({ text: p.name, detail: p.summary ?? p.description ?? null, private: hidden([toRef("product", p.id)]) });
+  const timeLine = await weekTimeLine(end);
+  content.time = timeLine ? [{ text: timeLine, detail: "See Goals for the split by goal and function.", private: false }] : [];
   content.agents = slipped(await scorecards(end)).map((m) => ({
     text: `${AGENTS[m.agent].name}: ${m.label.toLowerCase()} fell from ${m.lastRate}% to ${m.rate}%`,
     detail: `${m.kept} kept and ${m.undone} undone this week. See Settings, Agents.`,

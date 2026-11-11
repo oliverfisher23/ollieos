@@ -4,6 +4,7 @@
  * for meetings), decisions are suggestions on a project, and the notes are attached to the
  * meeting's brief when the meeting is on the calendar.
  */
+import { markHistoryNotes } from "../timeAndMeetings";
 import { db, meetingTonesTable } from "@workspace/db";
 import { todayLondon } from "@workspace/shared";
 import { logger } from "../../lib/logger";
@@ -46,6 +47,8 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
       .insert(meetingTonesTable)
       .values({ granolaRef: n.noteId, title: event?.title ?? n.title, at: n.at, tone: sorted.tone ?? "neutral", reason: sorted.toneReason ?? null, personIds: [...new Set([...personIds, ...(event?.personIds ?? [])])] })
       .onConflictDoNothing();
+    // Part R: what the notes made of the meeting, for Meetings worth keeping.
+    if (event) await markHistoryNotes(event.sourceRef, sorted.items.length, sorted.decisions.length);
     const offered = new Set(points.map((p) => `point:${p.id}`));
     const covered = (sorted.covered ?? []).filter((r) => offered.has(r)).map((r) => Number(r.split(":")[1]));
     if (covered.length) counts.points_covered = (counts.points_covered ?? 0) + (await markCovered(covered, { eventId: event?.id ?? null, title: event?.title ?? n.title, at: n.at }));

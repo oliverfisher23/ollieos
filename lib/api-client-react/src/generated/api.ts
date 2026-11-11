@@ -229,10 +229,13 @@ import type {
   TaskSummary,
   TaskUpdate,
   ThreadSummary,
+  TimeReport,
   TriageInput,
   TriageResult,
+  WeekCheck,
   WeeklyUpdate,
   WorkingHours,
+  WorthALook,
   WritingStyle,
   WritingStyleInput
 } from './api.schemas';
@@ -4215,6 +4218,383 @@ export function useListAgents<TData = Awaited<ReturnType<typeof listAgents>>, TE
 
 
 
+
+export const getGetTimeReportUrl = () => {
+
+
+
+
+  return `/api/time`
+}
+
+/**
+ * @summary Part R: meeting hours by goal and function, this week and the four before
+ */
+export const getTimeReport = async ( options?: Parameters<typeof customFetch>[1]): Promise<TimeReport> => {
+
+  return customFetch<TimeReport>(getGetTimeReportUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTimeReportQueryKey = () => {
+    return [
+    `/api/time`
+    ] as const;
+    }
+
+
+export const getGetTimeReportQueryOptions = <TData = Awaited<ReturnType<typeof getTimeReport>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTimeReport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTimeReportQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTimeReport>>> = ({ signal }) => getTimeReport({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTimeReport>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTimeReportQueryResult = NonNullable<Awaited<ReturnType<typeof getTimeReport>>>
+export type GetTimeReportQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetTimeReport<TData = Awaited<ReturnType<typeof getTimeReport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTimeReport>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTimeReport>>,
+          TError,
+          Awaited<ReturnType<typeof getTimeReport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTimeReport<TData = Awaited<ReturnType<typeof getTimeReport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTimeReport>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTimeReport>>,
+          TError,
+          Awaited<ReturnType<typeof getTimeReport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTimeReport<TData = Awaited<ReturnType<typeof getTimeReport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTimeReport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Part R: meeting hours by goal and function, this week and the four before
+ */
+
+export function useGetTimeReport<TData = Awaited<ReturnType<typeof getTimeReport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTimeReport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTimeReportQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetWeekCheckUrl = () => {
+
+
+
+
+  return `/api/week-check`
+}
+
+/**
+ * @summary Part R: free working hours left this week against what is due
+ */
+export const getWeekCheck = async ( options?: Parameters<typeof customFetch>[1]): Promise<WeekCheck> => {
+
+  return customFetch<WeekCheck>(getGetWeekCheckUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWeekCheckQueryKey = () => {
+    return [
+    `/api/week-check`
+    ] as const;
+    }
+
+
+export const getGetWeekCheckQueryOptions = <TData = Awaited<ReturnType<typeof getWeekCheck>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWeekCheck>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWeekCheckQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWeekCheck>>> = ({ signal }) => getWeekCheck({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWeekCheck>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetWeekCheckQueryResult = NonNullable<Awaited<ReturnType<typeof getWeekCheck>>>
+export type GetWeekCheckQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetWeekCheck<TData = Awaited<ReturnType<typeof getWeekCheck>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWeekCheck>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWeekCheck>>,
+          TError,
+          Awaited<ReturnType<typeof getWeekCheck>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWeekCheck<TData = Awaited<ReturnType<typeof getWeekCheck>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWeekCheck>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWeekCheck>>,
+          TError,
+          Awaited<ReturnType<typeof getWeekCheck>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWeekCheck<TData = Awaited<ReturnType<typeof getWeekCheck>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWeekCheck>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Part R: free working hours left this week against what is due
+ */
+
+export function useGetWeekCheck<TData = Awaited<ReturnType<typeof getWeekCheck>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWeekCheck>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetWeekCheckQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMeetingsWorthALookUrl = () => {
+
+
+
+
+  return `/api/meetings/worth-a-look`
+}
+
+/**
+ * @summary Part R: repeating meetings where 3 of the last 4 brought no actions or decisions
+ */
+export const listMeetingsWorthALook = async ( options?: Parameters<typeof customFetch>[1]): Promise<WorthALook[]> => {
+
+  return customFetch<WorthALook[]>(getListMeetingsWorthALookUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMeetingsWorthALookQueryKey = () => {
+    return [
+    `/api/meetings/worth-a-look`
+    ] as const;
+    }
+
+
+export const getListMeetingsWorthALookQueryOptions = <TData = Awaited<ReturnType<typeof listMeetingsWorthALook>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetingsWorthALook>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMeetingsWorthALookQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMeetingsWorthALook>>> = ({ signal }) => listMeetingsWorthALook({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMeetingsWorthALook>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMeetingsWorthALookQueryResult = NonNullable<Awaited<ReturnType<typeof listMeetingsWorthALook>>>
+export type ListMeetingsWorthALookQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListMeetingsWorthALook<TData = Awaited<ReturnType<typeof listMeetingsWorthALook>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetingsWorthALook>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMeetingsWorthALook>>,
+          TError,
+          Awaited<ReturnType<typeof listMeetingsWorthALook>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMeetingsWorthALook<TData = Awaited<ReturnType<typeof listMeetingsWorthALook>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetingsWorthALook>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMeetingsWorthALook>>,
+          TError,
+          Awaited<ReturnType<typeof listMeetingsWorthALook>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMeetingsWorthALook<TData = Awaited<ReturnType<typeof listMeetingsWorthALook>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetingsWorthALook>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Part R: repeating meetings where 3 of the last 4 brought no actions or decisions
+ */
+
+export function useListMeetingsWorthALook<TData = Awaited<ReturnType<typeof listMeetingsWorthALook>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMeetingsWorthALook>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMeetingsWorthALookQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getKeepMeetingSeriesUrl = (seriesId: string,) => {
+
+
+
+
+  return `/api/meetings/worth-a-look/${seriesId}/keep`
+}
+
+/**
+ * @summary Part R: keep a repeating meeting; not asked again for 12 weeks
+ */
+export const keepMeetingSeries = async (seriesId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getKeepMeetingSeriesUrl(seriesId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getKeepMeetingSeriesMutationKey = () => ['keepMeetingSeries'] as const;
+
+export const getKeepMeetingSeriesMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof keepMeetingSeries>>, TError,KeepMeetingSeriesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof keepMeetingSeries>>, TError,KeepMeetingSeriesMutationVariables, TContext> => {
+
+const mutationKey = getKeepMeetingSeriesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof keepMeetingSeries>>, KeepMeetingSeriesMutationVariables> = (props) => {
+          const {seriesId} = props ?? {};
+
+          return  keepMeetingSeries(seriesId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type KeepMeetingSeriesMutationResult = NonNullable<Awaited<ReturnType<typeof keepMeetingSeries>>>
+
+    export type KeepMeetingSeriesMutationError = ErrorType<NotAuthorisedResponse>
+    export type KeepMeetingSeriesMutationVariables = {seriesId: string}
+
+    /**
+ * @summary Part R: keep a repeating meeting; not asked again for 12 weeks
+ */
+export const useKeepMeetingSeries = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof keepMeetingSeries>>, TError,KeepMeetingSeriesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof keepMeetingSeries>>,
+        TError,
+        KeepMeetingSeriesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getKeepMeetingSeriesMutationOptions(options), queryClient);
+    }
 
 export const getListClientPulsesUrl = () => {
 
