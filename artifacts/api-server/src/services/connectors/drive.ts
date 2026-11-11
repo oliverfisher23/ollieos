@@ -264,7 +264,7 @@ export async function judgeFiles(files: { f: DriveFile; folder: string | null; p
         .join("\n"),
     )
     .join("\n\n")}\n</files>`;
-  const r = await haikuJson<{ results?: Judgement[] }>(judgePrompt(projects, now), content, JUDGE_SCHEMA, 4096);
+  const r = await haikuJson<{ results?: Judgement[] }>(judgePrompt(projects, now), content, JUDGE_SCHEMA, 4096, "drive_matcher");
   return new Map((r.results ?? []).map((x) => [x.file, x]));
 }
 

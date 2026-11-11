@@ -1431,6 +1431,70 @@ export interface EmailInbox {
   problem: string | null;
 }
 
+export type AgentViewKind = typeof AgentViewKind[keyof typeof AgentViewKind];
+
+
+export const AgentViewKind = {
+  sorter: 'sorter',
+  judge: 'judge',
+  writer: 'writer',
+  researcher: 'researcher',
+  unknown: 'unknown',
+} as const;
+
+export interface AgentView {
+  key: string;
+  name: string;
+  kind: AgentViewKind;
+  does: string;
+  reads: string;
+  /** @nullable */
+  model: string | null;
+  runs: number;
+  failures: number;
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  /** @nullable */
+  avgMs: number | null;
+  /** @nullable */
+  lastRunAt: string | null;
+  /** @nullable */
+  lastError: string | null;
+  /** @nullable */
+  lastErrorAt: string | null;
+  promptVersions: number;
+}
+
+export type ConnectedAiViewProposals = {
+  approved: number;
+  rejected: number;
+  merged: number;
+  pending: number;
+};
+
+export interface ConnectedAiView {
+  id: number;
+  name: string;
+  kind: string;
+  auth: string;
+  revoked: boolean;
+  /** @nullable */
+  lastUsedAt: string | null;
+  reads: number;
+  writes: number;
+  proposals: ConnectedAiViewProposals;
+}
+
+export interface AgentsView {
+  since: string;
+  /** Estimated at list price */
+  totalCostUsd: number;
+  totalRuns: number;
+  agents: AgentView[];
+  connected: ConnectedAiView[];
+}
+
 /**
  * Who reads Slack: only OllieOS's own Slack check fills this list
  */

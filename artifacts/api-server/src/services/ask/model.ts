@@ -1,6 +1,11 @@
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { recordedCreate } from "../../lib/aiRuns";
 import { formatLong, todayLondon } from "@workspace/shared";
 import type { AiDoc } from "../../lib/ai-data/retrieve";
+
+/** What the writers read from a model response. */
+interface ModelResponse {
+  content: { type: string; text?: string }[];
+}
 
 /** The current Sonnet: quick, and good at sticking to the items it is given and citing them. */
 export const ASK_MODEL = "claude-sonnet-5-5";
@@ -77,7 +82,7 @@ export async function answerFromDocs(question: string, docs: AiDoc[], prior: Pri
   const history = prior.length
     ? `Earlier in this conversation:\n${prior.map((p) => `Q: ${p.question}\nA: ${p.summary}`).join("\n")}\n\n`
     : "";
-  const res = await anthropic.messages.create({
+  const res = await recordedCreate<ModelResponse>("ask_answer", {
     model: ASK_MODEL,
     max_tokens: 8192,
     system: systemPrompt(),
@@ -113,7 +118,7 @@ export async function draftReplyFromDocs(opts: { to: string | null; question: st
     `Items marked "Rule" are Ollie's standing rules for anything written as him. Follow every one that applies.`,
     STYLE.replace(`Address Ollie as "you".`, ""),
   ].join("\n");
-  const res = await anthropic.messages.create({
+  const res = await recordedCreate<ModelResponse>("ask_draft", {
     model: ASK_MODEL,
     max_tokens: 8192,
     system,
@@ -182,7 +187,7 @@ export async function draftEmailReplyFromDocs(opts: {
   const thread = `<thread>\n${opts.thread
     .map((m) => `<message from="${m.fromOllie ? "Ollie" : m.from.replace(/"/g, "'")}" when="${m.when}">\n${m.text}\n</message>`)
     .join("\n")}\n</thread>`;
-  const res = await anthropic.messages.create({
+  const res = await recordedCreate<ModelResponse>("email_reply_draft", {
     model: ASK_MODEL,
     max_tokens: 8192,
     system,
@@ -223,7 +228,7 @@ export async function draftCheckInFromDocs(opts: { to: string; lastContact: stri
     `Items marked "Rule" are Ollie's standing rules for anything written as him. Follow every one that applies.`,
     STYLE.replace(`Address Ollie as "you".`, ""),
   ].join("\n");
-  const res = await anthropic.messages.create({
+  const res = await recordedCreate<ModelResponse>("check_in_draft", {
     model: ASK_MODEL,
     max_tokens: 8192,
     system,
@@ -268,7 +273,7 @@ export async function draftSlackReplyFromDocs(opts: {
   const convo = opts.messages
     .map((m) => `<message from="${(m.fromOllie ? "Ollie" : m.from).replace(/"/g, "'")}" when="${m.when}">\n${m.text}\n</message>`)
     .join("\n");
-  const res = await anthropic.messages.create({
+  const res = await recordedCreate<ModelResponse>("slack_reply_draft", {
     model: ASK_MODEL,
     max_tokens: 4096,
     system,
@@ -333,7 +338,7 @@ export async function writeBriefFromDocs(meeting: BriefMeeting, docs: AiDoc[]): 
     RULES_PROMPT.replace(`in "items" or "related"`, `in "refs"`),
     STYLE,
   ].join("\n");
-  const res = await anthropic.messages.create({
+  const res = await recordedCreate<ModelResponse>("brief_writer", {
     model: ASK_MODEL,
     max_tokens: 8192,
     system,
@@ -371,7 +376,7 @@ export async function digestSummaryFromLines(lines: string[]): Promise<string> {
     `One sentence, under 35 words, saying what changed overnight and what needs him first.`,
     STYLE,
   ].join("\n");
-  const res = await anthropic.messages.create({
+  const res = await recordedCreate<ModelResponse>("digest_summary", {
     model: ASK_MODEL,
     max_tokens: 1024,
     system,

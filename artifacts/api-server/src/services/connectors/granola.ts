@@ -6,6 +6,7 @@
  * his actions, his promises, what others owe him and any decisions; the notes are attached to the
  * meeting's brief when the meeting is on his calendar.
  */
+import type { AgentKey } from "../../lib/agents";
 import { formatLong, todayLondon } from "@workspace/shared";
 import { proxyJson, proxyJsonOrNull } from "./http";
 import { trimText, type WorkUnit } from "./messages";
@@ -201,7 +202,7 @@ export function meetingUnit(n: MeetingNote): WorkUnit {
   };
 }
 
-export async function sortMeeting(n: MeetingNote, ctx: { me: string; projects: string[]; now: Date }): Promise<SortedMeeting> {
+export async function sortMeeting(n: MeetingNote, ctx: { me: string; projects: string[]; now: Date; agent?: AgentKey }): Promise<SortedMeeting> {
   const u = meetingUnit(n);
   const who = n.people.map((p) => p.name || p.email).filter(Boolean).join(", ");
   const content = [
@@ -216,7 +217,7 @@ export async function sortMeeting(n: MeetingNote, ctx: { me: string; projects: s
   ]
     .filter(Boolean)
     .join("\n");
-  const r = await haikuJson<{ summary?: string; project?: string; items?: SortedItem[]; decisions?: SortedMeeting["decisions"] }>(meetingPrompt(ctx.me, ctx.projects, ctx.now), content, MEETING_SCHEMA);
+  const r = await haikuJson<{ summary?: string; project?: string; items?: SortedItem[]; decisions?: SortedMeeting["decisions"] }>(meetingPrompt(ctx.me, ctx.projects, ctx.now), content, MEETING_SCHEMA, 8192, ctx.agent ?? "granola_reader");
   return {
     summary: String(r.summary ?? "").trim(),
     project: String(r.project ?? "").trim(),

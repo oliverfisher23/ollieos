@@ -1075,6 +1075,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /agents:
+    get:
+      operationId: listAgents
+      tags: [agents]
+      summary: "Every AI agent in OllieOS with its runs, estimated cost, speed and errors over the last 7 days, and every connected AI (Part V)"
+      responses:
+        "200":
+          description: Agents
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentsView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /email/slack:
     get:
       operationId: listSlackToAnswer
@@ -5253,6 +5266,55 @@ components:
         checkedAt: { type: string, format: date-time, description: When Gmail was last looked at }
         updating: { type: boolean, description: "Gmail is being looked at again, or new emails are being read" }
         problem: { type: [string, "null"], description: "Why the last look at Gmail failed; the list is from the one before" }
+    AgentsView:
+      type: object
+      required: [since, totalCostUsd, totalRuns, agents, connected]
+      properties:
+        since: { type: string, format: date-time }
+        totalCostUsd: { type: number, description: Estimated at list price }
+        totalRuns: { type: integer }
+        agents: { type: array, items: { $ref: "#/components/schemas/AgentView" } }
+        connected: { type: array, items: { $ref: "#/components/schemas/ConnectedAiView" } }
+    AgentView:
+      type: object
+      required: [key, name, kind, does, reads, model, runs, failures, costUsd, inputTokens, outputTokens, avgMs, lastRunAt, lastError, lastErrorAt, promptVersions]
+      properties:
+        key: { type: string }
+        name: { type: string }
+        kind: { type: string, enum: [sorter, judge, writer, researcher, unknown] }
+        does: { type: string }
+        reads: { type: string }
+        model: { type: [string, "null"] }
+        runs: { type: integer }
+        failures: { type: integer }
+        costUsd: { type: number }
+        inputTokens: { type: integer }
+        outputTokens: { type: integer }
+        avgMs: { type: [integer, "null"] }
+        lastRunAt: { type: [string, "null"], format: date-time }
+        lastError: { type: [string, "null"] }
+        lastErrorAt: { type: [string, "null"], format: date-time }
+        promptVersions: { type: integer }
+    ConnectedAiView:
+      type: object
+      required: [id, name, kind, auth, revoked, lastUsedAt, reads, writes, proposals]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        kind: { type: string }
+        auth: { type: string }
+        revoked: { type: boolean }
+        lastUsedAt: { type: [string, "null"], format: date-time }
+        reads: { type: integer }
+        writes: { type: integer }
+        proposals:
+          type: object
+          required: [approved, rejected, merged, pending]
+          properties:
+            approved: { type: integer }
+            rejected: { type: integer }
+            merged: { type: integer }
+            pending: { type: integer }
     SlackToAnswer:
       type: object
       required: [items, readBy, checkedAt]

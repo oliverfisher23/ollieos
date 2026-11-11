@@ -92,7 +92,7 @@ const SYSTEM = [
 /** One line from Haiku on what changed. */
 export async function changeLine(title: string, removed: string[], added: string[]): Promise<string | null> {
   const clip = (ls: string[]) => ls.join("\n").slice(0, DIFF_CHARS);
-  const r = await haikuJson<{ line?: string }>(SYSTEM, `Document: ${title}\n<removed>\n${clip(removed) || "(nothing)"}\n</removed>\n<added>\n${clip(added) || "(nothing)"}\n</added>`, SCHEMA, 200);
+  const r = await haikuJson<{ line?: string }>(SYSTEM, `Document: ${title}\n<removed>\n${clip(removed) || "(nothing)"}\n</removed>\n<added>\n${clip(added) || "(nothing)"}\n</added>`, SCHEMA, 200, "document_change_line");
   return String(r.line ?? "").replace(/\s+/g, " ").replace(/\.$/, "").trim().slice(0, 160) || null;
 }
 

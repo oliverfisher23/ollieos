@@ -18,6 +18,7 @@ import { captureTask, enabledRules, logActivity, matchNoiseRule, type CaptureWri
 import { emailsOf, hasAnyEmail, hasAnySlackId } from "../personMatch";
 import { propose, type Proposal } from "../suggestions";
 import type { WorkMessage, WorkUnit } from "./messages";
+import type { AgentKey } from "../../lib/agents";
 import { sortUnits, type KnownNames, type SortedClaim, type SortedUnit } from "./sorter";
 
 export const CONNECTOR_WRITER: CaptureWriter = { actor: "ollieos", clientId: null };
@@ -253,7 +254,7 @@ export interface SortedRead {
 
 export async function sortAndCapture(
   units: WorkUnit[],
-  ctx: { me: string; now: Date; onSorted?: (r: SortedRead) => Promise<void> },
+  ctx: { me: string; now: Date; agent: AgentKey; onSorted?: (r: SortedRead) => Promise<void> },
 ): Promise<CaptureCounts> {
   const counts = emptyCounts();
   const rules = await enabledRules();
@@ -268,7 +269,7 @@ export async function sortAndCapture(
   const before = await loadPeople(keep, []);
   const known = await knownNames(before);
   const readable = keep.map((u) => mayReadForKnowledge(u, before));
-  const sorted = await sortUnits(keep, { me: ctx.me, projects: choices.map((p) => p.name), now: ctx.now, known, readKnowledge: (i) => readable[i] });
+  const sorted = await sortUnits(keep, { me: ctx.me, projects: choices.map((p) => p.name), now: ctx.now, known, readKnowledge: (i) => readable[i], agent: ctx.agent });
   await captureSorted(keep, sorted, { choices, rules, applyNoise: true, counts });
 
   counts.knowledge = 0;

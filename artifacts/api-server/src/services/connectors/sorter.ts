@@ -3,7 +3,9 @@
  * waiting on, with Claude Haiku through Replit AI Integrations (billed to Replit credits). It only
  * reads the text it is given and returns structured items; it never writes anything itself.
  */
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import type { anthropic } from "@workspace/integrations-anthropic-ai";
+import type { AgentKey } from "../../lib/agents";
+import { recordedCreate } from "../../lib/aiRuns";
 import { formatLong, todayLondon } from "@workspace/shared";
 import { ConnectorError } from "./http";
 import type { WorkUnit } from "./messages";
@@ -235,16 +237,16 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * One structured answer from Haiku, retried up to three times. Shared by the Gmail, Slack, Drive and
  * Granola sorters so they all use the same model and settings.
  */
-export async function haikuJson<T>(system: string, content: string, schema: object, maxTokens = 8192): Promise<T> {
-  return modelJson<T>(SORT_MODEL, system, content, schema, maxTokens);
+export async function haikuJson<T>(system: string, content: string, schema: object, maxTokens: number, agent: AgentKey): Promise<T> {
+  return modelJson<T>(SORT_MODEL, system, content, schema, maxTokens, agent);
 }
 
-/** One structured answer from the given model, retried up to three times. */
-export async function modelJson<T>(model: string, system: string, content: string, schema: object, maxTokens = 8192): Promise<T> {
+/** One structured answer from the given model, retried up to three times. Each attempt is recorded against the agent (Part V). */
+export async function modelJson<T>(model: string, system: string, content: string, schema: object, maxTokens: number, agent: AgentKey): Promise<T> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const res = await anthropic.messages.create({
+      const res = await recordedCreate(agent, {
         model,
         max_tokens: maxTokens,
         system,
@@ -271,7 +273,7 @@ async function sortBatch(units: WorkUnit[], ctx: SortContext, offset: number): P
   const allowed = units.map((_, i) => !!ctx.known && (ctx.readKnowledge?.(offset + i) ?? false));
   const content = `<exchanges>\n${units.map((u, i) => unitBlock(ids[i], u, allowed[i])).join("\n\n")}\n</exchanges>`;
   const known = ctx.known && allowed.some(Boolean) ? ctx.known : null;
-  const parsed = await haikuJson<{ results?: (SortedUnit & { unit: string; reply_needed?: string; reply_ask?: string })[] }>(systemPrompt(ctx.me, ctx.projects, ctx.now, known), content, SCHEMA);
+  const parsed = await haikuJson<{ results?: (SortedUnit & { unit: string; reply_needed?: string; reply_ask?: string })[] }>(systemPrompt(ctx.me, ctx.projects, ctx.now, known), content, SCHEMA, 8192, ctx.agent);
   const byId = new Map((parsed.results ?? []).map((r) => [r.unit, r]));
   return ids.map((id, i) => {
     const r = byId.get(id);
@@ -340,6 +342,8 @@ export interface SortContext {
   known?: KnownNames | null;
   /** Part N: whether the unit at this index may be read for knowledge */
   readKnowledge?: (i: number) => boolean;
+  /** Part V: which sorter this is, for the run record */
+  agent: AgentKey;
 }
 
 /** One sorted result per unit, in the same order. */

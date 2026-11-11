@@ -4,6 +4,7 @@
  * suggestions, briefs for today's and tomorrow's meetings, research on outside companies, the contradiction check, the morning digest, the weekly round-up and the 30-day
  * clean-ups. Each part runs on its own, and a failure in one never stops the others.
  */
+import { clearOldAiRuns } from "../lib/aiRuns";
 import { londonParts } from "@workspace/shared";
 import { logger } from "../lib/logger";
 import { clearOldCalendar } from "./aiWrites";
@@ -46,6 +47,6 @@ export async function scheduledWork(from: "sweep" | "connectors", now = new Date
   if (process.env.NODE_ENV !== "test") await part("research", () => researchUpcoming(now));
   if (from === "sweep" || digestTimeReached(now)) await part("digest", () => buildDigestIfDue(now));
   await part("roundup", () => buildRoundupIfDue(now));
-  await part("cleared", async () => ({ digests: await clearOldDigests(now), calendar_events: await clearOldCalendar(now), roundups: await clearOldRoundups(now) }));
+  await part("cleared", async () => ({ digests: await clearOldDigests(now), calendar_events: await clearOldCalendar(now), roundups: await clearOldRoundups(now), ai_runs: await clearOldAiRuns(now) }));
   return out;
 }

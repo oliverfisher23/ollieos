@@ -209,7 +209,7 @@ async function readGmailRun(now: Date) {
   const saved = await getState<{ after: string }>("gmail");
   const since = saved?.after ? new Date(saved.after) : new Date(now.getTime() - FIRST_LOOK_BACK_MS);
   const r = await readGmail(since);
-  const c = await sortAndCapture(r.units, { me: `His email address is ${r.account}.`, now });
+  const c = await sortAndCapture(r.units, { me: `His email address is ${r.account}.`, now, agent: "gmail_sorter" });
   // Only move on once everything read has been captured, so a failed check is read again.
   await putState("gmail", { after: (r.newest ?? since).toISOString() });
   // Keeps No reply yet up to date; a problem there never fails the Gmail check.
@@ -239,6 +239,7 @@ async function readSlackRun(now: Date) {
   const c = await sortAndCapture(r.units, {
     me: `On Slack he is ${r.account}; his messages are marked "from Ollie".`,
     now,
+    agent: "slack_sorter",
     onSorted: async (x) => void (read = x),
   });
   // Slack to answer (Part P) from the same read; saved before the cursor moves, so a failed check is read again.

@@ -2,7 +2,7 @@
  * The research agent's one model call: Sonnet with Claude's web search, answering in a fixed
  * shape. Kept apart so tests can stand it in.
  */
-import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { recordedCreate } from "../../lib/aiRuns";
 import type { CompanyResearchBody } from "@workspace/db";
 
 export const RESEARCH_MODEL = "claude-sonnet-5-5";
@@ -58,7 +58,7 @@ export async function runResearchModel(system: string, content: string): Promise
   let lastErr: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = (await anthropic.messages.create({
+      const res = (await recordedCreate("research", {
         model: RESEARCH_MODEL,
         max_tokens: 8000,
         system,
@@ -66,7 +66,7 @@ export async function runResearchModel(system: string, content: string): Promise
         output_config: { effort: "medium", format: { type: "json_schema", schema: RESEARCH_SCHEMA } },
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: MAX_SEARCHES }],
         messages: [{ role: "user", content }],
-      } as unknown as Parameters<typeof anthropic.messages.create>[0])) as unknown as {
+      } as unknown as Parameters<typeof recordedCreate>[1])) as unknown as {
         content: { type: string; text?: string }[];
         usage?: { server_tool_use?: { web_search_requests?: number } };
       };

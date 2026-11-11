@@ -114,7 +114,7 @@ export async function suggestProductUsers(): Promise<SuggestProductUsersResult> 
           continue;
         }
         const content = [`<product>`, `${p.name}${p.description ? `: ${p.description}` : ""}`, `</product>`, `<known>`, known, `</known>`].join("\n");
-        const r = await haikuJson<{ primary_user?: string; why?: string }>(system(), content, SCHEMA, 1024);
+        const r = await haikuJson<{ primary_user?: string; why?: string }>(system(), content, SCHEMA, 1024, "product_user_suggester");
         if (!isProductUser(r.primary_user)) {
           result.unclear++;
           continue;

@@ -433,7 +433,7 @@ async function judgeOne(c: Candidate, me: string, taskId: number | null, scope: 
       return `<message from="${who}" when="${formatDayMonth(m.at)}">\n${m.text}\n</message>`;
     });
     const note = copied ? "Ollie is only copied in on the newest message." : "The newest message is addressed to Ollie.";
-    const r = await haikuJson<{ needsReply?: boolean; ask?: string }>(READ_SYSTEM, `Subject: ${c.subject ?? "(none)"}\n${note}\n<thread>\n${blocks.join("\n")}\n</thread>`, READ_SCHEMA, 300);
+    const r = await haikuJson<{ needsReply?: boolean; ask?: string }>(READ_SYSTEM, `Subject: ${c.subject ?? "(none)"}\n${note}\n<thread>\n${blocks.join("\n")}\n</thread>`, READ_SCHEMA, 300, "inbox_reader");
     if (typeof r.needsReply !== "boolean") return { ...base, needs: null, ask: null, why: "failed" };
     const ask = String(r.ask ?? "").replace(/\s+/g, " ").trim().slice(0, 140) || null;
     return { ...base, needs: r.needsReply ? "reply" : "info", ask };

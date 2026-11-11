@@ -2563,6 +2563,50 @@ export const ListEmailInboxResponse = zod.object({
 
 
 /**
+ * @summary Every AI agent in OllieOS with its runs, estimated cost, speed and errors over the last 7 days, and every connected AI (Part V)
+ */
+export const ListAgentsResponse = zod.object({
+  "since": zod.coerce.date(),
+  "totalCostUsd": zod.number().describe('Estimated at list price'),
+  "totalRuns": zod.int(),
+  "agents": zod.array(zod.object({
+  "key": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['sorter', 'judge', 'writer', 'researcher', 'unknown']),
+  "does": zod.string(),
+  "reads": zod.string(),
+  "model": zod.string().nullable(),
+  "runs": zod.int(),
+  "failures": zod.int(),
+  "costUsd": zod.number(),
+  "inputTokens": zod.int(),
+  "outputTokens": zod.int(),
+  "avgMs": zod.int().nullable(),
+  "lastRunAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable(),
+  "lastErrorAt": zod.coerce.date().nullable(),
+  "promptVersions": zod.int()
+})),
+  "connected": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.string(),
+  "auth": zod.string(),
+  "revoked": zod.boolean(),
+  "lastUsedAt": zod.coerce.date().nullable(),
+  "reads": zod.int(),
+  "writes": zod.int(),
+  "proposals": zod.object({
+  "approved": zod.int(),
+  "rejected": zod.int(),
+  "merged": zod.int(),
+  "pending": zod.int()
+})
+}))
+})
+
+
+/**
  * @summary Slack to answer: conversations from the last 14 days whose newest message is from someone else, newest first. Nothing is posted to Slack.
  */
 export const ListSlackToAnswerResponse = zod.object({

@@ -142,7 +142,7 @@ async function makeNote(): Promise<void> {
   try {
     const { samples } = await readSentSamples(STYLE_EMAILS, STYLE_DAYS, EMAIL_CHARS);
     if (samples.length < 5) throw new ConflictError("There is not enough sent email in the last 6 months to learn from yet.");
-    const r = await modelJson<{ note?: string }>(ASK_MODEL, SYSTEM, prompt(samples), SCHEMA, 4096);
+    const r = await modelJson<{ note?: string }>(ASK_MODEL, SYSTEM, prompt(samples), SCHEMA, 4096, "writing_style");
     const note = String(r.note ?? "").trim().slice(0, STYLE_NOTE_CHARS);
     if (!note) throw new Error("The note came back empty");
     Object.assign(s, { note, readAt: new Date().toISOString(), emails: samples.length, editedAt: null, reading: false, error: null });

@@ -82,6 +82,6 @@ function block(items: NoiseCandidate[]): string {
 }
 
 export async function judgeNoise(items: NoiseCandidate[], examples: { rules: string[]; noise: NoiseExample[]; kept: NoiseExample[] }): Promise<NoiseVerdict[]> {
-  const parsed = await haikuJson<{ results?: NoiseVerdict[] }>(system(examples), block(items), SCHEMA, 4096);
+  const parsed = await haikuJson<{ results?: NoiseVerdict[] }>(system(examples), block(items), SCHEMA, 4096, "noise_judge");
   return (parsed.results ?? []).map((r) => ({ id: Number(r.id), noise: !!r.noise, reason: String(r.reason ?? "").trim() }));
 }

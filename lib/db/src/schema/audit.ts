@@ -46,3 +46,34 @@ export const importRunsTable = pgTable("import_runs", {
 
 export type AuditEvent = typeof auditEventsTable.$inferSelect;
 export type AskThread = typeof askThreadsTable.$inferSelect;
+
+/**
+ * Every call OllieOS makes to a model (build plan section 21, Part V): which agent, model and
+ * prompt version, how long it took, whether it worked, tokens, web searches and an estimated cost
+ * at list price. No message, email or document text is kept. Kept 90 days.
+ */
+export const aiRunsTable = pgTable(
+  "ai_runs",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    /** The agent's key in the agent list (lib/agents.ts) */
+    agent: text("agent").notNull(),
+    model: text("model").notNull(),
+    /** A short fingerprint of the instructions, so a prompt change shows as a new version */
+    promptVersion: text("prompt_version").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    durationMs: integer("duration_ms").notNull(),
+    ok: boolean("ok").notNull(),
+    error: text("error"),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
+    cacheWriteTokens: integer("cache_write_tokens").notNull().default(0),
+    webSearches: integer("web_searches").notNull().default(0),
+    /** Estimated cost at list price, in millionths of a US dollar */
+    costMicros: integer("cost_micros").notNull().default(0),
+  },
+  (t) => [index("ai_runs_agent_started_idx").on(t.agent, t.startedAt), index("ai_runs_started_idx").on(t.startedAt)],
+);
+
+export type AiRun = typeof aiRunsTable.$inferSelect;

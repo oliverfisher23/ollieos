@@ -130,7 +130,7 @@ export async function judgeNoReply(list: NoReplyCandidate[], ctx: { me: string; 
   const out: NoReplyVerdict[] = [];
   for (const b of judgeBatches(list)) {
     const content = `<emails>\n${b.map(block).join("\n\n")}\n</emails>`;
-    const parsed = await haikuJson<{ results?: NoReplyVerdict[] }>(systemPrompt(ctx.me, ctx.projects, ctx.now), content, SCHEMA);
+    const parsed = await haikuJson<{ results?: NoReplyVerdict[] }>(systemPrompt(ctx.me, ctx.projects, ctx.now), content, SCHEMA, 8192, "no_reply_judge");
     const byId = new Map((parsed.results ?? []).map((r) => [r.id, r]));
     for (const c of b) {
       const r = byId.get(c.id);
