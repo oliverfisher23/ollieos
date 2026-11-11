@@ -44,6 +44,8 @@ export interface RoundupContent {
   rules: RoundupLine[];
   playbooks: RoundupLine[];
   products: RoundupLine[];
+  /** Part Q: Library documents someone else changed this week. Missing on older round-ups. */
+  documents?: RoundupLine[];
 }
 
 export interface Roundup {
@@ -561,6 +563,11 @@ export interface CalendarEvent {
   hasBrief: boolean;
 }
 
+export type HomeSummaryConnectorWarningsItem = {
+  key: string;
+  text: string;
+};
+
 export type HomeSummaryInbox = {
   count: number;
   bySource: SourceCount[];
@@ -700,6 +707,8 @@ export interface KnowledgeInboxCounts {
 }
 
 export interface HomeSummary {
+  /** Part Q: services OllieOS reads that need a look */
+  connectorWarnings: HomeSummaryConnectorWarningsItem[];
   /** Slack messages that need a reply and have waited over a working day (Part P) */
   slackToAnswer: number;
   /** Ideas set to come back to on or before today */
@@ -1188,6 +1197,8 @@ export interface DigestSections {
   needs: DigestSection | null;
   moved: DigestSection | null;
   quiet: DigestSection | null;
+  /** Part Q: Library documents someone else changed since the last digest. Missing on older digests. */
+  changed?: DigestSection | null;
   today: DigestEvent[];
   quietNight: boolean;
 }
@@ -3631,6 +3642,11 @@ export interface ConnectorService {
   lastGoodAt: string | null;
   /** @nullable */
   lastFromClaudeAt: string | null;
+  /**
+     * Part Q: why this service needs a look (no good check for a while, or checks that bring nothing in)
+     * @nullable
+     */
+  warning: string | null;
   runs: ConnectorRun[];
 }
 

@@ -12,6 +12,7 @@ import { eq, sql } from "drizzle-orm";
 import { db, documentContentsTable, documentsTable } from "@workspace/db";
 import { formatLong, todayLondon } from "@workspace/shared";
 import { titleFromUrl } from "../library";
+import { recordDocumentChange } from "../documentChanges";
 import { propose } from "../suggestions";
 import { projectChoices } from "./capture";
 import { MAX_FILE_BYTES, textFromFile } from "../documents/fileText";
@@ -92,6 +93,8 @@ export interface DriveFile {
   trashed?: boolean;
   parents?: string[];
   owners?: { displayName?: string; emailAddress?: string }[];
+  /** Part Q: who changed it last */
+  lastModifyingUser?: { displayName?: string; emailAddress?: string; me?: boolean };
 }
 
 export interface DriveState {
@@ -112,6 +115,8 @@ export interface DriveCounts {
   /** Library documents Drive no longer has or this account cannot open */
   missing: number;
   left_out: number;
+  /** Part Q: Library documents someone else changed, recorded for the digest */
+  changed: number;
 }
 
 /** Text of a Google file, or null when it is not a Google format or cannot be exported. */
@@ -123,7 +128,7 @@ export async function exportText(f: DriveFile, maxChars: number): Promise<{ text
   return { text: trimText(r.text, maxChars), truncated: r.truncated };
 }
 
-const FILE_FIELDS = "id,name,mimeType,webViewLink,modifiedTime,viewedByMeTime,trashed,parents,owners(displayName,emailAddress)";
+const FILE_FIELDS = "id,name,mimeType,webViewLink,modifiedTime,viewedByMeTime,trashed,parents,owners(displayName,emailAddress),lastModifyingUser(displayName,emailAddress,me)";
 
 /* ---------- Reading whole files for the knowledge step ---------- */
 
@@ -272,16 +277,22 @@ export interface DriveRead {
   state: DriveState;
 }
 
-export async function readDrive(saved: DriveState | null, now: Date): Promise<DriveRead> {
+/**
+ * `me`: Ollie's own addresses, so a change he made himself is not listed as changed by someone
+ * else (Part Q). The Drive account read here is added to them.
+ */
+export async function readDrive(saved: DriveState | null, now: Date, me: ReadonlySet<string> = new Set()): Promise<DriveRead> {
   // Never look back more than 14 days, even when files have waited for a project to match.
   const floor = new Date(now.getTime() - 14 * 86_400_000).toISOString();
   const since = saved?.since && saved.since > floor ? saved.since : saved ? floor : new Date(now.getTime() - 7 * 86_400_000).toISOString();
   const judged: Record<string, number> = {};
   for (const [id, at] of Object.entries(saved?.judged ?? {})) if (now.getTime() - at < JUDGED_REMEMBER_MS) judged[id] = at;
-  const counts: DriveCounts = { recent: 0, suggested: 0, known: 0, read: 0, missing: 0, left_out: 0 };
+  const counts: DriveCounts = { recent: 0, suggested: 0, known: 0, read: 0, missing: 0, left_out: 0, changed: 0 };
 
   const about = await proxyJson(CONNECTOR, NAME, "/drive/v3/about?fields=user(emailAddress)");
   const account = (about.user as { emailAddress?: string } | undefined)?.emailAddress ?? null;
+  const mine = new Set([...me].map((e) => e.toLowerCase()));
+  if (account) mine.add(account.toLowerCase());
 
   // 1. Library documents in Drive: read what is inside when it is new or changed.
   const library = await db
@@ -321,6 +332,15 @@ export async function readDrive(saved: DriveState | null, now: Date): Promise<Dr
     if (unchanged) continue;
     const text = await exportText(f, CONTENT_CHARS);
     if (!text) continue;
+    // Part Q: a change by someone else to a file read before is recorded for the digest.
+    const by = f.lastModifyingUser;
+    const byOther = !!by && !by.me && !(by.emailAddress && mine.has(by.emailAddress.toLowerCase()));
+    if (d.readAt && modified && byOther) {
+      const [before] = await db.select({ text: documentContentsTable.text }).from(documentContentsTable).where(eq(documentContentsTable.documentId, d.id));
+      if (before && (await recordDocumentChange({ documentId: d.id, title: patch.title ?? d.title, before: before.text, after: text.text, modifiedAt: modified, byName: by.displayName ?? by.emailAddress ?? null, byEmail: by.emailAddress?.toLowerCase() ?? null }))) {
+        counts.changed++;
+      }
+    }
     await db
       .insert(documentContentsTable)
       .values({ documentId: d.id, fileId, text: text.text, truncated: text.truncated, fileModifiedAt: modified, readAt: now })

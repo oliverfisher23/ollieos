@@ -156,6 +156,7 @@ export function runLine(key: string, r: ConnectorRun): string {
       c.suggested ? `${plural(c.suggested, 'file')} suggested for your Library` : 'nothing new to suggest',
       c.read ? `read ${plural(c.read, 'Library document')}` : '',
       c.missing ? `${plural(c.missing, 'Library link')} Drive could not open` : '',
+      c.changed ? `${plural(c.changed, 'document')} changed by someone else, for your digest` : '',
     ].filter(Boolean);
     return `Looked at ${plural(c.recent ?? r.found, 'file')} you opened: ${parts.join(', ')}.`;
   }
@@ -295,6 +296,12 @@ function ServiceCard({ s }: { s: ConnectorService }) {
                 ? 'Usually brief. The next check will try again, or press Check now.'
                 : `If this keeps happening, reconnect ${s.name} in Replit under Integrations, then press Check now.`}
             </p>
+          )}
+          {direct && s.warning && (
+            <div className="oo-source" style={{ gap: 4 }} role="status" data-testid={'text-connector-warning-' + s.key}>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>Needs a look</span>
+              <span className="oo-soft" style={{ fontSize: 13, lineHeight: 1.5 }}>{s.warning}</span>
+            </div>
           )}
           {direct && !last && (
             <p className="oo-muted" style={{ margin: 0, fontSize: 13 }}>Not checked yet. Press Check now, or wait for the timer.</p>

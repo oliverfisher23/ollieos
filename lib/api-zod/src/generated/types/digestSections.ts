@@ -12,6 +12,8 @@ export interface DigestSections {
   needs: DigestSection | null;
   moved: DigestSection | null;
   quiet: DigestSection | null;
+  /** Part Q: Library documents someone else changed since the last digest. Missing on older digests. */
+  changed?: DigestSection | null;
   today: DigestEvent[];
   quietNight: boolean;
 }

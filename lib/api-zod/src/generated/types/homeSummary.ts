@@ -8,6 +8,7 @@
 import type { CalendarEvent } from './calendarEvent';
 import type { DoNextItem } from './doNextItem';
 import type { HomeSummaryAccess } from './homeSummaryAccess';
+import type { HomeSummaryConnectorWarningsItem } from './homeSummaryConnectorWarningsItem';
 import type { HomeSummaryDoneThisWeek } from './homeSummaryDoneThisWeek';
 import type { HomeSummaryInbox } from './homeSummaryInbox';
 import type { Idea } from './idea';
@@ -16,6 +17,8 @@ import type { Task } from './task';
 import type { WaitingItem } from './waitingItem';
 
 export interface HomeSummary {
+  /** Part Q: services OllieOS reads that need a look */
+  connectorWarnings: HomeSummaryConnectorWarningsItem[];
   /** Slack messages that need a reply and have waited over a working day (Part P) */
   slackToAnswer: number;
   /** Ideas set to come back to on or before today */

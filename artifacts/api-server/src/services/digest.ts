@@ -31,6 +31,8 @@ import { listCadence } from "./cadence";
 import { inboxCounts } from "./knowledgeInbox";
 import { clearOutMonday, untouchedCount } from "./planning";
 import { slackRepliesOverdue } from "./slackToAnswer";
+import { connectorWarnings } from "./connectorHealth";
+import { changedDocuments, changedText } from "./documentChanges";
 import { dueIdeas } from "./strategy";
 import { NotFoundError, ValidationError } from "./tasks";
 
@@ -151,6 +153,8 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
     const parts = [...g.inbox].sort((a, b) => b.n - a.n).map((r) => `${r.n} ${SOURCE_WORDS[r.source] ?? r.source}`);
     needs.push({ text: `${plural(inboxTotal, "new item", "new items")} in your Inbox (${parts.join(", ")})`, href: "/triage", refs: [], confidential: false });
   }
+  // Connector warnings (Part Q): a service that stopped working, or stopped bringing anything in.
+  for (const w of await connectorWarnings(now)) needs.push({ text: w.text, href: "/settings/connectors", refs: [], confidential: false });
   // Slack to answer (Part P): only messages that have waited over a working day.
   const slackWaiting = await slackRepliesOverdue(now);
   if (slackWaiting) {
@@ -222,18 +226,27 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
     confidential: false,
   }));
 
+  // Library documents someone else changed since the last digest (Part Q). Hidden ones have no AI line.
+  const changed: DigestItem[] = (await changedDocuments(since, now)).map((d) => ({
+    text: changedText(d),
+    href: `/knowledge/library?document=${d.documentId}`,
+    refs: [toRef("document", d.documentId)],
+    confidential: d.hidden,
+  }));
+
   // Lock what is hidden from AI by default, so Ollie can see what an email would leave unnamed.
-  const all = [...needs, ...moved, ...quiet];
+  const all = [...needs, ...moved, ...quiet, ...changed];
   const plain = await visibleRefs(defaultScope(), all.flatMap((i) => i.refs));
   for (const i of all) i.confidential = i.refs.some((r) => !plain.has(r));
 
   const briefable = await briefableIds(g.events);
   const today = g.events.map((e) => ({ eventId: e.id, title: e.title, startsAt: e.startsAt.toISOString(), hasBrief: briefable.has(e.id) }));
-  const quietNight = !needs.length && !moved.length;
+  const quietNight = !needs.length && !moved.length && !changed.length;
   return {
     needs: quietNight ? null : section(needs, null),
     moved: quietNight ? null : section(moved, "/tasks?tab=done"),
     quiet: quietNight ? null : section(quiet, "/people", QUIET_MAX),
+    changed: quietNight ? null : section(changed, "/knowledge/library"),
     today,
     quietNight,
   };
@@ -247,6 +260,7 @@ async function summarise(sections: DigestSections): Promise<string | null> {
     ...(sections.needs?.items ?? []).map((i) => ({ ...i, group: "Needs you" })),
     ...(sections.moved?.items ?? []).map((i) => ({ ...i, group: "Moved" })),
     ...(sections.quiet?.items ?? []).map((i) => ({ ...i, group: "Gone quiet" })),
+    ...(sections.changed?.items ?? []).map((i) => ({ ...i, group: "Changed" })),
   ];
   const ok = await visibleRefs(scope, items.flatMap((i) => i.refs));
   const lines = items.map((i) => `${i.group}: ${i.refs.every((r) => ok.has(r)) ? i.text : "an item hidden from AI (do not name or guess it)"}`);

@@ -3951,6 +3951,10 @@ components:
         rules: { type: array, items: { $ref: "#/components/schemas/RoundupLine" } }
         playbooks: { type: array, items: { $ref: "#/components/schemas/RoundupLine" } }
         products: { type: array, items: { $ref: "#/components/schemas/RoundupLine" } }
+        documents:
+          type: array
+          description: "Part Q: Library documents someone else changed this week. Missing on older round-ups."
+          items: { $ref: "#/components/schemas/RoundupLine" }
 
     Roundup:
       type: object
@@ -4548,8 +4552,17 @@ components:
 
     HomeSummary:
       type: object
-      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access, knowledgeInbox, digestDate, ideasDue, slackToAnswer]
+      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access, knowledgeInbox, digestDate, ideasDue, slackToAnswer, connectorWarnings]
       properties:
+        connectorWarnings:
+          type: array
+          description: "Part Q: services OllieOS reads that need a look"
+          items:
+            type: object
+            required: [key, text]
+            properties:
+              key: { type: string }
+              text: { type: string }
         slackToAnswer: { type: integer, description: "Slack messages that need a reply and have waited over a working day (Part P)" }
         ideasDue:
           type: array
@@ -5035,6 +5048,9 @@ components:
         moved:
           oneOf: [{ $ref: "#/components/schemas/DigestSection" }, { type: "null" }]
         quiet:
+          oneOf: [{ $ref: "#/components/schemas/DigestSection" }, { type: "null" }]
+        changed:
+          description: "Part Q: Library documents someone else changed since the last digest. Missing on older digests."
           oneOf: [{ $ref: "#/components/schemas/DigestSection" }, { type: "null" }]
         today: { type: array, items: { $ref: "#/components/schemas/DigestEvent" } }
         quietNight: { type: boolean }
@@ -6668,7 +6684,7 @@ components:
 
     ConnectorService:
       type: object
-      required: [key, name, readBy, chosen, canReadDirect, account, lastGoodAt, lastFromClaudeAt, runs]
+      required: [key, name, readBy, chosen, canReadDirect, account, lastGoodAt, lastFromClaudeAt, runs, warning]
       properties:
         key: { $ref: "#/components/schemas/ConnectorKey" }
         name: { type: string }
@@ -6678,6 +6694,7 @@ components:
         account: { type: [string, "null"] }
         lastGoodAt: { type: [string, "null"], format: date-time }
         lastFromClaudeAt: { type: [string, "null"], format: date-time }
+        warning: { type: [string, "null"], description: "Part Q: why this service needs a look (no good check for a while, or checks that bring nothing in)" }
         runs: { type: array, items: { $ref: "#/components/schemas/ConnectorRun" } }
 
     ConnectorSchedule:

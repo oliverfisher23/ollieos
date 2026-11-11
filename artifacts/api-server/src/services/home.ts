@@ -18,6 +18,7 @@ import { todaysDigestDate } from "./digest";
 import { ensureSelfPerson, inboxCounts } from "./knowledgeInbox";
 import { ensureSeeds } from "./seeds";
 import { slackRepliesOverdue } from "./slackToAnswer";
+import { connectorWarnings } from "./connectorHealth";
 import { dueIdeas } from "./strategy";
 
 const OPEN = [...OPEN_STATUSES] as TaskStatus[];
@@ -125,7 +126,7 @@ export async function getHome() {
   const [briefable, digestDate] = await Promise.all([briefableIds(todayEvents), todaysDigestDate(now)]);
   await ensureSelfPerson().catch(() => undefined);
   await ensureSeeds();
-  const [candidates, waiting, promises, latestDone, access, knowledgeInbox, ideasDue, slackToAnswer] = await Promise.all([
+  const [candidates, waiting, promises, latestDone, access, knowledgeInbox, ideasDue, slackToAnswer, warnings] = await Promise.all([
     toTaskViews(candidateRows),
     toTaskViews(waitingRows),
     toTaskViews(promiseRows),
@@ -134,6 +135,7 @@ export async function getHome() {
     inboxCounts(),
     dueIdeas(today),
     slackRepliesOverdue(now),
+    connectorWarnings(now),
   ]);
 
   const waitingOn = waiting
@@ -168,5 +170,6 @@ export async function getHome() {
     digestDate,
     ideasDue,
     slackToAnswer,
+    connectorWarnings: warnings.map((w) => ({ key: w.key, text: w.text })),
   };
 }

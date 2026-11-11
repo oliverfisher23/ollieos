@@ -249,7 +249,7 @@ async function readSlackRun(now: Date) {
 }
 
 async function readDriveRun(now: Date) {
-  const r = await readDrive(await getState<DriveState>("drive"), now);
+  const r = await readDrive(await getState<DriveState>("drive"), now, await myAddresses());
   await putState("drive", r.state);
   return { found: r.found, account: r.account, counts: { ...r.counts } };
 }

@@ -428,6 +428,7 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-req-btn:disabled { opacity: 0.6; cursor: default; }
 .oo-dot { width: 7px; height: 7px; border-radius: var(--oo-r-full); background: var(--oo-ok-dot); display: inline-block; }
 .oo-dot[data-off="true"] { background: var(--oo-text-on-dark-4); }
+.oo-dot[data-warn="true"] { background: var(--oo-graph-lit); }
 .oo-tick { color: var(--oo-ok-dot); flex: none; }
 
 .oo-today { box-sizing: border-box; padding: 12px 14px; border-radius: var(--oo-r-card); background: var(--oo-glass-today); border: 1px solid var(--oo-glass-quiet-border); display: flex; flex-direction: column; gap: 4px; }

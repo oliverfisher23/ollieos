@@ -40,6 +40,8 @@ export interface ServiceView {
   lastGoodAt: Date | null;
   lastFromClaudeAt: Date | null;
   runs: RunView[];
+  /** Part Q: why this service needs a look, when it does */
+  warning: string | null;
 }
 
 export interface ConnectorsView {
@@ -89,6 +91,8 @@ export async function connectorsView(now = new Date()): Promise<ConnectorsView> 
   const settings = await getConnectorSettings();
   const lastRunAt = await lastTimerRunAt();
   const services: ServiceView[] = [];
+  const { connectorWarnings } = await import("../connectorHealth");
+  const warnings = new Map((await connectorWarnings(now)).map((w) => [w.key, w.text]));
   for (const key of SERVICE_KEYS) {
     const runs = DIRECT_READY.has(key) ? await recentRuns(key, 6) : [];
     const good = DIRECT_READY.has(key) ? await lastGoodRun(key) : null;
@@ -102,6 +106,7 @@ export async function connectorsView(now = new Date()): Promise<ConnectorsView> 
       lastGoodAt: good?.finishedAt ?? null,
       lastFromClaudeAt: await lastFromClaude(key),
       runs: runs.map(runView),
+      warning: warnings.get(key) ?? null,
     });
   }
   return {

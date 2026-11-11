@@ -113,6 +113,16 @@ export default function HomePage() {
         <span aria-hidden="true" className="oo-dot" data-off={!home.data.lastSweepAt} />
         {home.data.lastSweepAt ? 'Last sweep ' + sweepWhen(home.data.lastSweepAt) : 'No sweep has run yet'}
       </span>
+      {home.data.connectorWarnings.length > 0 && (
+        <>
+          <span aria-hidden="true" className="oo-t4">·</span>
+          <Link href="/settings/connectors" title={home.data.connectorWarnings.map((w) => w.text).join('\n')}
+            style={{ color: 'inherit', textUnderlineOffset: 2, display: 'inline-flex', alignItems: 'center', gap: 6 }} data-testid="link-connector-warning">
+            <span aria-hidden="true" className="oo-dot" data-warn="true" />
+            {home.data.connectorWarnings.length === 1 ? `${home.data.connectorWarnings[0].text.split(':')[0]} needs a look` : `${home.data.connectorWarnings.length} connectors need a look`}
+          </Link>
+        </>
+      )}
       <span aria-hidden="true" className="oo-t4">·</span>
       <span data-testid="text-inbox-new">{home.data.inbox.count} new</span>
       {home.data.knowledgeInbox.total > 0 && (

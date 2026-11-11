@@ -178,6 +178,7 @@ export * from './healthStatus';
 export * from './historyEvent';
 export * from './homeSummary';
 export * from './homeSummaryAccess';
+export * from './homeSummaryConnectorWarningsItem';
 export * from './homeSummaryDoneThisWeek';
 export * from './homeSummaryInbox';
 export * from './idea';

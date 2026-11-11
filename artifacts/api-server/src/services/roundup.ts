@@ -24,6 +24,7 @@ import { writeAudit } from "../lib/audit";
 import { defaultScope, visibleRefs } from "../lib/ai-data/scope";
 import { ACTOR, resolveEntities } from "./knowledge/common";
 import { textOf } from "./knowledgeInbox";
+import { changedDocuments } from "./documentChanges";
 import { saveGmailDraft } from "./connectors/gmail";
 import { NotFoundError } from "./tasks";
 
@@ -86,6 +87,8 @@ export interface RoundupContent {
   rules: RoundupLine[];
   playbooks: RoundupLine[];
   products: RoundupLine[];
+  /** Part Q: Library documents someone else changed this week. Missing on older round-ups. */
+  documents?: RoundupLine[];
 }
 
 export const SECTIONS: { key: keyof RoundupContent; title: string }[] = [
@@ -95,6 +98,7 @@ export const SECTIONS: { key: keyof RoundupContent; title: string }[] = [
   { key: "rules", title: "New rules" },
   { key: "playbooks", title: "New playbooks" },
   { key: "products", title: "New products" },
+  { key: "documents", title: "Documents that changed" },
 ];
 
 const KIND_LABEL: Record<string, string> = {
@@ -184,7 +188,7 @@ export async function buildRoundupContent(start: Date, end: Date): Promise<Round
   const visible = await visibleRefs(defaultScope(), [...allRefs]);
   const hidden = (refs: (string | null)[]) => refs.some((r) => r != null && !visible.has(r));
 
-  const content: RoundupContent = { approved: [], contradictions: [], stale: [], rules: [], playbooks: [], products: [] };
+  const content: RoundupContent = { approved: [], contradictions: [], stale: [], rules: [], playbooks: [], products: [], documents: [] };
 
   for (const s of approved) {
     const conf = (s.payload as { confidential?: boolean | null }).confidential === true;
@@ -232,6 +236,9 @@ export async function buildRoundupContent(start: Date, end: Date): Promise<Round
   for (const r of rules) content.rules.push({ text: r.title, detail: `When: ${whenPart(r.appliesWhen)} ${r.rule}${r.enabled ? "" : " (switched off)"}`, private: hidden([toRef("rule", r.id)]) });
   for (const p of playbooks) content.playbooks.push({ text: p.title, detail: `When to use: ${p.whenToUse}`, private: hidden([toRef("playbook", p.id)]) });
   for (const p of products) content.products.push({ text: p.name, detail: p.summary ?? p.description ?? null, private: hidden([toRef("product", p.id)]) });
+  for (const d of await changedDocuments(start, end)) {
+    content.documents!.push({ text: d.title, detail: [d.summary, d.byName ? `Changed by ${d.byName}` : null].filter(Boolean).join(". ") || null, private: d.hidden });
+  }
   return content;
 }
 
@@ -314,7 +321,7 @@ export function roundupEmail(r: RoundupView): { subject: string; body: string } 
   const endDay = formatLong(londonDate(r.weekEnd), { withYear: true });
   const out: string[] = [`Knowledge round-up for the week to ${endDay}.`, ""];
   for (const s of SECTIONS) {
-    const lines = r.content[s.key].filter((l) => !l.private);
+    const lines = (r.content[s.key] ?? []).filter((l) => !l.private);
     out.push(s.title);
     if (!lines.length) out.push("- Nothing this week.");
     for (const l of lines) out.push(`- ${l.text}${l.detail ? ` (${l.detail})` : ""}`);

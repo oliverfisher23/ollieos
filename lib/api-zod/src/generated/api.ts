@@ -112,6 +112,10 @@ export const LogoutMobileSessionResponse = zod.object({
  * @summary Everything the Home screen needs in one call
  */
 export const GetHomeResponse = zod.object({
+  "connectorWarnings": zod.array(zod.object({
+  "key": zod.string(),
+  "text": zod.string()
+})).describe('Part Q: services OllieOS reads that need a look'),
   "slackToAnswer": zod.int().describe('Slack messages that need a reply and have waited over a working day (Part P)'),
   "ideasDue": zod.array(zod.object({
   "id": zod.int(),
@@ -4678,6 +4682,16 @@ export const GetDigestResponse = zod.object({
   "more": zod.int().describe('Items beyond the 5 shown'),
   "moreHref": zod.string().nullable()
 }),zod.null()]),
+  "changed": zod.union([zod.object({
+  "items": zod.array(zod.object({
+  "text": zod.string(),
+  "href": zod.string().nullable(),
+  "refs": zod.array(zod.string()),
+  "confidential": zod.boolean().describe('Hidden from AI by default. Counted but never named in an email.')
+})),
+  "more": zod.int().describe('Items beyond the 5 shown'),
+  "moreHref": zod.string().nullable()
+}),zod.null()]).optional().describe('Part Q: Library documents someone else changed since the last digest. Missing on older digests.'),
   "today": zod.array(zod.object({
   "eventId": zod.int(),
   "title": zod.string(),
@@ -8903,6 +8917,7 @@ export const GetConnectorsResponse = zod.object({
   "account": zod.string().nullable(),
   "lastGoodAt": zod.coerce.date().nullable(),
   "lastFromClaudeAt": zod.coerce.date().nullable(),
+  "warning": zod.string().nullable().describe('Part Q: why this service needs a look (no good check for a while, or checks that bring nothing in)'),
   "runs": zod.array(zod.object({
   "id": zod.int(),
   "trigger": zod.enum(['timer', 'manual']),
@@ -8964,6 +8979,7 @@ export const UpdateConnectorScheduleResponse = zod.object({
   "account": zod.string().nullable(),
   "lastGoodAt": zod.coerce.date().nullable(),
   "lastFromClaudeAt": zod.coerce.date().nullable(),
+  "warning": zod.string().nullable().describe('Part Q: why this service needs a look (no good check for a while, or checks that bring nothing in)'),
   "runs": zod.array(zod.object({
   "id": zod.int(),
   "trigger": zod.enum(['timer', 'manual']),
@@ -9039,6 +9055,7 @@ export const SetDropboxFolderResponse = zod.object({
   "account": zod.string().nullable(),
   "lastGoodAt": zod.coerce.date().nullable(),
   "lastFromClaudeAt": zod.coerce.date().nullable(),
+  "warning": zod.string().nullable().describe('Part Q: why this service needs a look (no good check for a while, or checks that bring nothing in)'),
   "runs": zod.array(zod.object({
   "id": zod.int(),
   "trigger": zod.enum(['timer', 'manual']),
@@ -9087,6 +9104,7 @@ export const RetryDropboxFilesResponse = zod.object({
   "account": zod.string().nullable(),
   "lastGoodAt": zod.coerce.date().nullable(),
   "lastFromClaudeAt": zod.coerce.date().nullable(),
+  "warning": zod.string().nullable().describe('Part Q: why this service needs a look (no good check for a while, or checks that bring nothing in)'),
   "runs": zod.array(zod.object({
   "id": zod.int(),
   "trigger": zod.enum(['timer', 'manual']),
@@ -9143,6 +9161,7 @@ export const SetConnectorReadByResponse = zod.object({
   "account": zod.string().nullable(),
   "lastGoodAt": zod.coerce.date().nullable(),
   "lastFromClaudeAt": zod.coerce.date().nullable(),
+  "warning": zod.string().nullable().describe('Part Q: why this service needs a look (no good check for a while, or checks that bring nothing in)'),
   "runs": zod.array(zod.object({
   "id": zod.int(),
   "trigger": zod.enum(['timer', 'manual']),
@@ -9813,7 +9832,12 @@ export const GetRoundupsResponse = zod.object({
   "text": zod.string(),
   "detail": zod.string().nullable(),
   "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
-}))
+})),
+  "documents": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})).optional().describe('Part Q: Library documents someone else changed this week. Missing on older round-ups.')
 })
 }),zod.null()]),
   "weeks": zod.array(zod.object({
@@ -9868,7 +9892,12 @@ export const MakeRoundupResponse = zod.object({
   "text": zod.string(),
   "detail": zod.string().nullable(),
   "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
-}))
+})),
+  "documents": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})).optional().describe('Part Q: Library documents someone else changed this week. Missing on older round-ups.')
 })
 })
 

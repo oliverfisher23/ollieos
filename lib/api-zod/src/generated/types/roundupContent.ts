@@ -14,4 +14,6 @@ export interface RoundupContent {
   rules: RoundupLine[];
   playbooks: RoundupLine[];
   products: RoundupLine[];
+  /** Part Q: Library documents someone else changed this week. Missing on older round-ups. */
+  documents?: RoundupLine[];
 }
