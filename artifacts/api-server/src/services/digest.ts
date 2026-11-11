@@ -33,6 +33,7 @@ import { clearOutMonday, untouchedCount } from "./planning";
 import { slackRepliesOverdue } from "./slackToAnswer";
 import { connectorWarnings } from "./connectorHealth";
 import { changedDocuments, changedText } from "./documentChanges";
+import { closedByEvidence } from "./taskEvidence";
 import { dueIdeas } from "./strategy";
 import { NotFoundError, ValidationError } from "./tasks";
 
@@ -201,8 +202,10 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
     }
   }
 
+  // Part U: tasks OllieOS closed from their own conversation say how it knew.
+  const how = await closedByEvidence(g.done.map((t) => t.id));
   const moved: DigestItem[] = [
-    ...g.done.map((t) => ({ text: `Done: ${clip(t.title)}`, href: `/tasks?task=${t.id}`, refs: [toRef("task", t.id)], confidential: false })),
+    ...g.done.map((t) => ({ text: `Done${how.has(t.id) ? ` (${how.get(t.id)})` : ""}: ${clip(t.title)}`, href: `/tasks?task=${t.id}`, refs: [toRef("task", t.id)], confidential: false })),
     ...g.replies.map((r) => ({
       text: `${r.name} replied: ${clip(r.summary, 80)}`,
       href: `/knowledge/people/${r.slug}`,

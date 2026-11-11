@@ -177,6 +177,7 @@ export function runLine(key: string, r: ConnectorRun): string {
       added ? `${added} to your Inbox` : 'nothing new for your Inbox',
       c.decisions ? `${plural(c.decisions, 'decision')} to the Knowledge Inbox` : '',
       c.attached ? `notes added to ${plural(c.attached, 'brief')}` : '',
+      c.looks_done ? `${plural(c.looks_done, 'task')} that looks done` : '',
       c.left_out ? `${c.left_out} left out (meetings you were not in)` : '',
     ].filter(Boolean);
     const more = c.more ? ' More is waiting; the next check carries on.' : '';
@@ -195,6 +196,8 @@ export function runLine(key: string, r: ConnectorRun): string {
     c.drafts_sent ? `${plural(c.drafts_sent, 'draft')} sent, so off your Drafts list` : '',
     c.no_reply_failed ? 'Waiting for a reply could not be updated; the next check tries again' : '',
     c.to_answer ? `${plural(c.to_answer, 'conversation')} to Email, Slack` : '',
+    c.closed ? `${plural(c.closed, 'task')} marked done from your replies` : '',
+    c.looks_done ? `${plural(c.looks_done, 'task')} that looks done` : '',
     c.answered ? `${c.answered} answered, so off Email, Slack` : '',
   ].filter(Boolean);
   const more = c.more ? ' More is waiting; the next check carries on.' : '';

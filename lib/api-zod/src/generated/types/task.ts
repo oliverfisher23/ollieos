@@ -87,4 +87,9 @@ export interface Task {
      * @nullable
      */
   noiseHint: string | null;
+  /**
+     * Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null
+     * @nullable
+     */
+  looksDone?: string | null;
 }

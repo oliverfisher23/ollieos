@@ -430,6 +430,8 @@ function TaskRows({ tab, rows: allRows, selected, onOpen }: { tab: TaskTab; rows
   const hint = (t: Task) =>
     t.noiseHint ? (
       <span className="oo-soft" style={{ fontSize: 12 }} data-testid={'text-noise-hint-' + t.id}>Probably noise: {t.noiseHint}</span>
+    ) : t.looksDone ? (
+      <span className="oo-soft oo-mail-clamp" style={{ fontSize: 12 }} data-testid={'text-looks-done-' + t.id}><span className="oo-pill" data-tone="done">Looks done</span> {t.looksDone}</span>
     ) : null;
 
   const table = (list: Task[], label: string) => (

@@ -198,3 +198,42 @@ export const threadSummariesTable = pgTable("thread_summaries", {
 
 export type ThreadSummary = typeof threadSummariesTable.$inferSelect;
 export type ReplyDraft = typeof replyDraftsTable.$inferSelect;
+
+/**
+ * Evidence on a task (build plan section 20, Part U): a later Slack message, email or meeting note
+ * that shows the task is done or moving. One row per task and message. Evidence from the task's own
+ * conversation that it is done closes the task (`applied`); evidence from anywhere else puts "Looks
+ * done" on it until Ollie marks it done or says it is not (`dismissedAt`). Removed with the task.
+ */
+export const taskEvidenceTable = pgTable(
+  "task_evidence",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasksTable.id, { onDelete: "cascade" }),
+    /** slack, email or meeting */
+    source: text("source").notNull(),
+    /** The message's capture ref, for example slack:D123:1731234567.000100 or gmail:18c2f0 */
+    sourceRef: text("source_ref").notNull(),
+    url: text("url"),
+    /** "You" for Ollie, otherwise the name as written */
+    saidBy: text("said_by"),
+    saidAt: timestamp("said_at", { withTimezone: true }).notNull(),
+    /** Where it was said: the Slack conversation, email subject or meeting title */
+    place: text("place"),
+    quote: text("quote").notNull(),
+    /** done or progress */
+    shows: text("shows").notNull(),
+    /** same: from the task's own conversation; other: anywhere else */
+    strength: text("strength").notNull(),
+    /** True when this evidence closed the task */
+    applied: boolean("applied").notNull().default(false),
+    /** Ollie said "Not done" to a Looks done marker */
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("task_evidence_task_ref_idx").on(t.taskId, t.sourceRef), index("task_evidence_task_idx").on(t.taskId)],
+);
+
+export type TaskEvidence = typeof taskEvidenceTable.$inferSelect;

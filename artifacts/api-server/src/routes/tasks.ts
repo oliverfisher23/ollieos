@@ -15,6 +15,7 @@ import {
 } from "../services/tasks";
 import { getTaskHistory } from "../services/history";
 import { keepTask } from "../services/noiseCheck";
+import { dismissEvidence, listEvidence } from "../services/taskEvidence";
 import { getReplyDraft, saveReplyDraftToGmail, writeReplyDraft } from "../services/replyDraft";
 import { NOISE_MATCH_TYPES } from "../services/noiseRules";
 import {
@@ -250,6 +251,23 @@ router.get(
   handle(async (req, res) => {
     const { id } = IdParams.parse(req.params);
     res.json(await getNoiseRuleOptionsFor(id));
+  }),
+);
+
+// Part U: what OllieOS has seen about a task, and "Not done" on a Looks done marker.
+router.get(
+  "/tasks/:id/evidence",
+  handle(async (req, res) => {
+    const { id } = z.object({ id: z.coerce.number().int().positive() }).parse(req.params);
+    await getTask(id);
+    res.json(await listEvidence(id));
+  }),
+);
+router.post(
+  "/tasks/:id/evidence/:evidenceId/dismiss",
+  handle(async (req, res) => {
+    const { id, evidenceId } = z.object({ id: z.coerce.number().int().positive(), evidenceId: z.coerce.number().int().positive() }).parse(req.params);
+    res.json(await dismissEvidence(id, evidenceId));
   }),
 );
 

@@ -232,7 +232,8 @@ export const GetHomeResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "reason": zod.string().describe('One-line reason, e.g. "Overdue by 2 days" or "High priority, due Friday 13th November"')
 })).describe('Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped.'),
@@ -315,7 +316,8 @@ export const GetHomeResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "daysWaiting": zod.int().describe('Whole days since waitingSince (or updatedAt if unknown). Amber at 5 or more.')
 })),
@@ -390,7 +392,8 @@ export const GetHomeResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })).describe('Open tasks with kind promise'),
   "doneThisWeek": zod.object({
   "count": zod.int(),
@@ -465,7 +468,8 @@ export const GetHomeResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })).describe('Up to 5, most recently completed first')
 }),
   "lastSweepAt": zod.coerce.date().nullable().describe('When the last successful sweep finished. Null until the sweep runs (milestone 5).'),
@@ -609,7 +613,8 @@ export const ListTasksResponseItem = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 export const ListTasksResponse = zod.array(ListTasksResponseItem)
 
@@ -724,7 +729,8 @@ export const QuickAddTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "warnings": zod.array(zod.string()).describe('e.g. "No project called @foo, added without a project"')
 })
@@ -809,7 +815,8 @@ export const GetTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "history": zod.array(zod.object({
   "id": zod.int(),
@@ -926,7 +933,8 @@ export const UpdateTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 
 
@@ -1008,7 +1016,8 @@ export const SnoozeTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 
 
@@ -1129,7 +1138,8 @@ export const TriageTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "noiseRule": zod.union([zod.object({
   "id": zod.int(),
@@ -1224,7 +1234,8 @@ export const UndoTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 
 
@@ -1306,7 +1317,8 @@ export const RestoreTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 
 
@@ -1388,7 +1400,8 @@ export const ContinueRepeatResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 
 
@@ -1474,7 +1487,8 @@ export const GetDayPlanResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "minutes": zod.int(),
   "start": zod.string().nullable().describe('HH:MM. Null when it did not fit today.'),
@@ -1560,7 +1574,8 @@ export const GetDayPlanResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "reason": zod.string(),
   "carriedOver": zod.boolean().describe('In an earlier plan and not finished')
@@ -1657,7 +1672,8 @@ export const SaveDayPlanResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "minutes": zod.int(),
   "start": zod.string().nullable().describe('HH:MM. Null when it did not fit today.'),
@@ -1743,7 +1759,8 @@ export const SaveDayPlanResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "reason": zod.string(),
   "carriedOver": zod.boolean().describe('In an earlier plan and not finished')
@@ -1833,7 +1850,8 @@ export const RefitDayPlanResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "minutes": zod.int(),
   "start": zod.string().nullable().describe('HH:MM. Null when it did not fit today.'),
@@ -1919,7 +1937,8 @@ export const RefitDayPlanResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "reason": zod.string(),
   "carriedOver": zod.boolean().describe('In an earlier plan and not finished')
@@ -2027,7 +2046,8 @@ export const GetClearOutResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })).describe('Oldest first, up to 200')
 })
 
@@ -2119,7 +2139,8 @@ export const KeepInBacklogResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 
 
@@ -2201,7 +2222,8 @@ export const KeepTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 
 
@@ -2604,6 +2626,53 @@ export const ListAgentsResponse = zod.object({
 })
 }))
 })
+
+
+/**
+ * @summary What OllieOS has seen: later messages, emails and meeting notes that show this task is done or moving (Part U), newest first
+ */
+export const ListTaskEvidenceParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ListTaskEvidenceResponseItem = zod.object({
+  "id": zod.int(),
+  "source": zod.string().describe('slack, email or meeting'),
+  "url": zod.string().nullable(),
+  "saidBy": zod.string().nullable().describe('"You" for Ollie, otherwise the name as written'),
+  "saidAt": zod.coerce.date(),
+  "place": zod.string().nullable().describe('The Slack conversation'),
+  "quote": zod.string(),
+  "shows": zod.enum(['done', 'progress']),
+  "strength": zod.enum(['same', 'other']).describe('same: from the task\'s own conversation; other: anywhere else'),
+  "applied": zod.boolean().describe('This evidence closed the task'),
+  "dismissed": zod.boolean().describe('Ollie said Not done')
+})
+export const ListTaskEvidenceResponse = zod.array(ListTaskEvidenceResponseItem)
+
+
+/**
+ * @summary "Not done" on a Looks done marker: that evidence no longer marks the task
+ */
+export const DismissTaskEvidenceParams = zod.object({
+  "id": zod.coerce.number().int(),
+  "evidenceId": zod.coerce.number().int()
+})
+
+export const DismissTaskEvidenceResponseItem = zod.object({
+  "id": zod.int(),
+  "source": zod.string().describe('slack, email or meeting'),
+  "url": zod.string().nullable(),
+  "saidBy": zod.string().nullable().describe('"You" for Ollie, otherwise the name as written'),
+  "saidAt": zod.coerce.date(),
+  "place": zod.string().nullable().describe('The Slack conversation'),
+  "quote": zod.string(),
+  "shows": zod.enum(['done', 'progress']),
+  "strength": zod.enum(['same', 'other']).describe('same: from the task\'s own conversation; other: anywhere else'),
+  "applied": zod.boolean().describe('This evidence closed the task'),
+  "dismissed": zod.boolean().describe('Ollie said Not done')
+})
+export const DismissTaskEvidenceResponse = zod.array(DismissTaskEvidenceResponseItem)
 
 
 /**
@@ -3166,7 +3235,8 @@ export const GetProjectResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })),
   "people": zod.array(zod.object({
   "id": zod.int(),
@@ -3434,7 +3504,8 @@ export const GetPersonResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })),
   "theyOwe": zod.array(zod.object({
   "repeat": zod.union([zod.object({
@@ -3507,7 +3578,8 @@ export const GetPersonResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })),
   "projects": zod.array(zod.object({
   "id": zod.int(),
@@ -7987,7 +8059,8 @@ export const AskOllieOSResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -8124,7 +8197,8 @@ export const GetAskThreadResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -8261,7 +8335,8 @@ export const DraftAskReplyResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -8398,7 +8473,8 @@ export const AllowAskTurnResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -8544,7 +8620,8 @@ export const BundleAskTasksResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -8681,7 +8758,8 @@ export const UndoAskBundleResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),

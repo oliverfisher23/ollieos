@@ -1330,7 +1330,7 @@ Each has a proposal. As before, "agree with 51, 53" (or "agree with all") is eno
 59. **Phone numbers from signatures.** *Proposal:* a plain fact on the person (no attribute), so it never opens a conflict review. The alternative is a new `phone` attribute.
 60. **Commercial data route.** *Proposal:* start with the Claude sweep (step 1), since it needs no new connection, and try the Replit HubSpot connector before building step 2.
 
-## 20. Tasks that close themselves (asked for 11th November 2026, not yet agreed)
+## 20. Tasks that close themselves (asked for 11th November 2026, agreed 11th November 2026: questions 61 to 65 as proposed)
 
 Ollie asked for tasks to update themselves when the work is visibly done. His example: Sam asks on Slack for a contract to be signed, which makes a task. Ollie signs it (the e-signature service emails a confirmation) and replies to Sam "Done". OllieOS should mark the task done without being told. Today nothing does this: email tasks only close when a draft OllieOS wrote is sent in their thread, Slack tasks never close, and the AI read that sorts new messages is never told which tasks are open, so it cannot connect a later message to an earlier task.
 
@@ -1361,6 +1361,12 @@ The fix is a link between data: each task remembers where it came from (already 
   - An e-signature "Completed" email for the contract puts "Looks done" on the open task; one tap marks it Done.
   - Reopening an auto-closed task keeps it open on the next check.
   - A task hidden from AI with a matching reply is left alone.
+- **Built (11th November 2026):**
+  - `task_evidence` (one row per task and message, unique, so the same message never acts twice on a task; removed with the task) and `services/taskEvidence.ts`.
+  - Before the Gmail and Slack sorters run, `openItemsFor` gives each exchange its open tasks: up to 10 from the same Slack conversation (`source_ref` `slack:<conversation>:…`) or Gmail thread (`source_url` ending `#all/<thread>`), and up to 15 more with anyone in the exchange or at their outside organisation (internal ones are left out); a signing confirmation gets the 20 open tasks touched most recently instead. Only tasks visible to AI by default are offered. They go into the exchange as an `<open_items>` block, and the sorter's existing read returns `progress` (item, done or progress, message ref, quote), so there is no extra AI call. Granola notes get the same from the people in the meeting and are always "from elsewhere"; the look back does not check open items.
+  - `applyProgress` ignores the message the task came from (and anything older), then: "done" from the task's own conversation, said by Ollie for a task or promise, or by the other person for a Waiting on task, closes it (status Done by `ollieos`, evidence `applied`); any other "done" is Looks done; "progress" is only listed. Signing confirmations never close a task.
+  - Gmail keeps automatic emails from e-signature services (DocuSign, Adobe Sign, Dropbox Sign, PandaDoc, SignNow, Yousign, Signable) whose subject says completed or signed, marked `confirmation`; they make no tasks, activity or knowledge. Every Gmail exchange now carries its thread id.
+  - Tasks carry `looksDone` (the newest undismissed "done" evidence from elsewhere, while open), shown as a "Looks done" pill on task rows and a card in the task panel with Mark done and Not done (`POST /tasks/:id/evidence/:evidenceId/dismiss`). The panel lists "What OllieOS has seen" (`GET /tasks/:id/evidence`). The digest says "Done (you told Sam on Slack): …" or "Done (Sam delivered on Slack): …" for tasks closed this way, and connector check lines count closed and Looks done tasks.
 
 ### Questions for section 20
 

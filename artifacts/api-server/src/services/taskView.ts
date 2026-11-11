@@ -2,6 +2,7 @@ import { and, inArray, sql } from "drizzle-orm";
 import { db, goalsTable, noiseRulesTable, peopleTable, projectsTable, tasksTable, type Task as TaskRow } from "@workspace/db";
 import { taskVisible } from "../lib/ai-data/visibility";
 import { noiseRuleLabel } from "./noiseRules";
+import { looksDoneFor } from "./taskEvidence";
 import type { DbOrTx } from "../lib/audit";
 
 export interface EntitySummary {
@@ -22,7 +23,12 @@ export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "wait
   hiddenFromAi: boolean;
   /** The goal it counts towards: its own link, else its project's (inherited) */
   goal: { id: number; name: string; inherited: boolean } | null;
+  /** Part U: one line of evidence from elsewhere that this open task is done, or null */
+  looksDone: string | null;
 };
+
+/** Statuses a task can still be marked done from. */
+const OPEN_FOR_EVIDENCE = new Set(["inbox", "now", "backlog", "waiting"]);
 
 const STALE_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -66,6 +72,7 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
       : Promise.resolve([] as { id: number }[]),
   ]);
   const hiddenSet = new Set(hidden.map((h) => h.id));
+  const looks = await looksDoneFor(rows.filter((r) => OPEN_FOR_EVIDENCE.has(r.status)).map((r) => r.id));
   const goalIds = new Set<number>();
   for (const r of rows) if (r.goalId) goalIds.add(r.goalId);
   for (const p of projects) if (p.goalId) goalIds.add(p.goalId);
@@ -102,6 +109,8 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
       goal: goalFor(r),
       // "Probably noise" only matters while the item waits in the Inbox.
       noiseHint: r.status === "inbox" && !noiseHintKept ? r.noiseHint : null,
+      // Part U: evidence from elsewhere that an open task is done.
+      looksDone: OPEN_FOR_EVIDENCE.has(r.status) ? (looks.get(r.id) ?? null) : null,
     };
   });
 }

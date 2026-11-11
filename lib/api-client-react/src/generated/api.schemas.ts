@@ -368,6 +368,11 @@ export interface Task {
      * @nullable
      */
   noiseHint: string | null;
+  /**
+     * Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null
+     * @nullable
+     */
+  looksDone?: string | null;
 }
 
 export interface RepeatInput {
@@ -1429,6 +1434,52 @@ export interface EmailInbox {
      * @nullable
      */
   problem: string | null;
+}
+
+export type TaskEvidenceShows = typeof TaskEvidenceShows[keyof typeof TaskEvidenceShows];
+
+
+export const TaskEvidenceShows = {
+  done: 'done',
+  progress: 'progress',
+} as const;
+
+/**
+ * same: from the task's own conversation; other: anywhere else
+ */
+export type TaskEvidenceStrength = typeof TaskEvidenceStrength[keyof typeof TaskEvidenceStrength];
+
+
+export const TaskEvidenceStrength = {
+  same: 'same',
+  other: 'other',
+} as const;
+
+export interface TaskEvidence {
+  id: number;
+  /** slack, email or meeting */
+  source: string;
+  /** @nullable */
+  url: string | null;
+  /**
+     * "You" for Ollie, otherwise the name as written
+     * @nullable
+     */
+  saidBy: string | null;
+  saidAt: string;
+  /**
+     * The Slack conversation
+     * @nullable
+     */
+  place: string | null;
+  quote: string;
+  shows: TaskEvidenceShows;
+  /** same: from the task's own conversation; other: anywhere else */
+  strength: TaskEvidenceStrength;
+  /** This evidence closed the task */
+  applied: boolean;
+  /** Ollie said Not done */
+  dismissed: boolean;
 }
 
 export type AgentViewKind = typeof AgentViewKind[keyof typeof AgentViewKind];

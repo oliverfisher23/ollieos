@@ -124,6 +124,15 @@ export function stripQuoted(text: string): string {
 }
 
 export const AUTOMATED = /(^|[._-])(no-?reply|do-?not-?reply|notifications?|mailer-daemon|postmaster|bounce)([._+-]|@)/i;
+/** Part U: e-signature services whose confirmation emails can show a task is done. */
+const SIGNING_SENDER = /@([a-z0-9-]+\.)*(docusign\.(net|com)|echosign\.com|adobesign\.com|hellosign\.com|dropboxsign\.com|pandadoc\.(com|net)|signnow\.com|yousign\.(com|app)|signable\.co\.uk)$/i;
+const SIGNING_SUBJECT = /\b(completed|signed|has been signed|all parties have signed|fully executed)\b/i;
+
+/** An automatic "document signed" confirmation from an e-signature service. */
+export function isSigningConfirmation(fromEmail: string | null, subject: string | null): boolean {
+  return !!fromEmail && SIGNING_SENDER.test(fromEmail) && !!subject && SIGNING_SUBJECT.test(subject);
+}
+
 export const INVITE = /^(invitation|updated invitation|accepted|declined|tentatively accepted|cancelled event|canceled event|new event|invitation from an unknown sender)( with note)?:/i;
 
 export interface MappedMessage {
@@ -143,7 +152,9 @@ export function mapGmailMessage(m: GmailMessage, account: string): MappedMessage
   const fromMe = labels.has("SENT") || from.email === me;
   const subject = header("subject")?.trim() || null;
 
-  if (!fromMe) {
+  // Part U: signing confirmations are kept, only to check them against open tasks.
+  const confirmation = !fromMe && isSigningConfirmation(from.email, subject);
+  if (!fromMe && !confirmation) {
     const precedence = header("precedence")?.toLowerCase() ?? "";
     const auto = header("auto-submitted")?.toLowerCase() ?? "";
     if (header("list-unsubscribe") || header("list-id") || /bulk|list|junk/.test(precedence)) return { unit: null, skipped: "bulk", at };
@@ -172,6 +183,8 @@ export function mapGmailMessage(m: GmailMessage, account: string): MappedMessage
       channel: null,
       people,
       messages: [{ ref: `gmail:${m.id}`, at, fromMe, fromName: fromMe ? null : from.name, fromAddress: fromMe ? me : from.email, text, url }],
+      conversation: { id: m.threadId, kind: "thread" },
+      ...(confirmation ? { confirmation: true } : {}),
     },
   };
 }
@@ -191,6 +204,8 @@ export function groupByThread(units: WorkUnit[]): WorkUnit[] {
     }
     cur.messages.push(...u.messages);
     cur.key = u.key;
+    // A thread is only a confirmation when every message in it is one.
+    if (!u.confirmation) delete cur.confirmation;
     for (const p of u.people) if (!cur.people.some((q) => q.email === p.email)) cur.people.push(p);
   }
   return [...byThread.values()];

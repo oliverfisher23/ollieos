@@ -9,7 +9,8 @@ import { logger } from "../../lib/logger";
 import { attachMeetingNotes, findEventBySourceRef } from "../briefs";
 import { propose } from "../suggestions";
 import { ConflictError } from "../tasks";
-import { captureSorted, emptyCounts, projectChoices, type CaptureCounts } from "./capture";
+import { applyProgress, cleanProgress, openItemsBlock, openItemsFor, type ProgressCounts } from "../taskEvidence";
+import { captureSorted, emptyCounts, loadPeople, peopleIdsIn, projectChoices, type CaptureCounts } from "./capture";
 import { meetingUnit, sortMeeting, type MeetingNote } from "./granola";
 
 export const MEETING_PROPOSER = "OllieOS";
@@ -27,8 +28,17 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
 
   for (const n of notes) {
     const event = n.calendarEventId ? await findEventBySourceRef(n.calendarEventId) : null;
-    const sorted = await sortMeeting(n, { me: ctx.me, projects: choices.map((p) => p.name), now: ctx.now });
-    const [taskIds] = await captureSorted([meetingUnit(n)], [sorted], {
+    // Part U: open tasks with the people in the meeting, checked in the same read; always Looks done.
+    const unit = meetingUnit(n);
+    const [open] = await openItemsFor([unit], [peopleIdsIn(unit, await loadPeople([unit], []))]);
+    const sorted = await sortMeeting(n, { me: ctx.me, projects: choices.map((p) => p.name), now: ctx.now, openItems: openItemsBlock(open) });
+    const progress = cleanProgress(sorted.progress, unit, open);
+    if (progress.length) {
+      const pc: ProgressCounts = { closed: 0, looks_done: 0, progress: 0 };
+      await applyProgress(unit, open, progress, pc);
+      if (pc.looks_done) counts.looks_done = (counts.looks_done ?? 0) + pc.looks_done;
+    }
+    const [taskIds] = await captureSorted([unit], [sorted], {
       choices,
       rules: [],
       applyNoise: false,

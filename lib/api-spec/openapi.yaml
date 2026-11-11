@@ -1088,6 +1088,42 @@ paths:
               schema: { $ref: "#/components/schemas/AgentsView" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /tasks/{id}/evidence:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      operationId: listTaskEvidence
+      tags: [tasks]
+      summary: "What OllieOS has seen: later messages, emails and meeting notes that show this task is done or moving (Part U), newest first"
+      responses:
+        "200":
+          description: Evidence
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/TaskEvidence" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /tasks/{id}/evidence/{evidenceId}/dismiss:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+      - name: evidenceId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: dismissTaskEvidence
+      tags: [tasks]
+      summary: "\"Not done\" on a Looks done marker: that evidence no longer marks the task"
+      responses:
+        "200":
+          description: The task's evidence after the change
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/TaskEvidence" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /email/slack:
     get:
       operationId: listSlackToAnswer
@@ -4268,6 +4304,9 @@ components:
         noiseHint:
           type: [string, "null"]
           description: Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.
+        looksDone:
+          type: [string, "null"]
+          description: "Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null"
 
     RepeatEvery:
       type: string
@@ -5266,6 +5305,21 @@ components:
         checkedAt: { type: string, format: date-time, description: When Gmail was last looked at }
         updating: { type: boolean, description: "Gmail is being looked at again, or new emails are being read" }
         problem: { type: [string, "null"], description: "Why the last look at Gmail failed; the list is from the one before" }
+    TaskEvidence:
+      type: object
+      required: [id, source, url, saidBy, saidAt, place, quote, shows, strength, applied, dismissed]
+      properties:
+        id: { type: integer }
+        source: { type: string, description: "slack, email or meeting" }
+        url: { type: [string, "null"] }
+        saidBy: { type: [string, "null"], description: "\"You\" for Ollie, otherwise the name as written" }
+        saidAt: { type: string, format: date-time }
+        place: { type: [string, "null"], description: The Slack conversation, email subject or meeting }
+        quote: { type: string }
+        shows: { type: string, enum: [done, progress] }
+        strength: { type: string, enum: [same, other], description: "same: from the task's own conversation; other: anywhere else" }
+        applied: { type: boolean, description: This evidence closed the task }
+        dismissed: { type: boolean, description: Ollie said Not done }
     AgentsView:
       type: object
       required: [since, totalCostUsd, totalRuns, agents, connected]

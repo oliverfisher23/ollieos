@@ -17,6 +17,7 @@ import { logger } from "../../lib/logger";
 import { captureTask, enabledRules, logActivity, matchNoiseRule, type CaptureWriter } from "../aiWrites";
 import { emailsOf, hasAnyEmail, hasAnySlackId } from "../personMatch";
 import { propose, type Proposal } from "../suggestions";
+import { applyProgress, cleanProgress, openItemsFor, openItemsBlock, type ProgressCounts } from "../taskEvidence";
 import type { WorkMessage, WorkUnit } from "./messages";
 import type { AgentKey } from "../../lib/agents";
 import { sortUnits, type KnownNames, type SortedClaim, type SortedUnit } from "./sorter";
@@ -33,6 +34,9 @@ export interface CaptureCounts {
   activity: number;
   /** Part N: decision and fact cards proposed to the Knowledge Inbox */
   knowledge?: number;
+  /** Part U: tasks closed by evidence from their own conversation, and tasks marked Looks done */
+  closed?: number;
+  looks_done?: number;
 }
 
 /** True when one of Ollie's noise rules covers every message in the exchange from someone else. */
@@ -128,6 +132,20 @@ export async function projectChoices(): Promise<{ id: number; name: string }[]> 
 export const emptyCounts = (): CaptureCounts => ({ inbox: 0, promises: 0, waiting: 0, noise: 0, duplicate: 0, noise_rule: 0, activity: 0 });
 
 const hidden = (p: { confidential: boolean; aiAccess: boolean }) => p.confidential || !p.aiAccess;
+
+/** Part U: the known people in an exchange, Ollie left out. */
+export function peopleIdsIn(u: WorkUnit, people: LoadedPeople): number[] {
+  const ids = new Set<number>();
+  for (const p of u.people) {
+    const row = personIn(people, p) ?? (p.name ? people.byName.get(p.name.toLowerCase()) : undefined);
+    if (row && !row.isSelf) ids.add(row.id);
+  }
+  for (const m of u.messages) {
+    const row = m.fromMe ? null : senderOf(people, m);
+    if (row && !row.isSelf) ids.add(row.id);
+  }
+  return [...ids];
+}
 
 /** False when anyone in the exchange is in People and hidden from AI: such exchanges are never read for knowledge. */
 export function mayReadForKnowledge(u: WorkUnit, people: LoadedPeople): boolean {
@@ -268,9 +286,28 @@ export async function sortAndCapture(
   const choices = await projectChoices();
   const before = await loadPeople(keep, []);
   const known = await knownNames(before);
-  const readable = keep.map((u) => mayReadForKnowledge(u, before));
-  const sorted = await sortUnits(keep, { me: ctx.me, projects: choices.map((p) => p.name), now: ctx.now, known, readKnowledge: (i) => readable[i], agent: ctx.agent });
+  // Confirmation emails are never read for knowledge (Part U).
+  const readable = keep.map((u) => !u.confirmation && mayReadForKnowledge(u, before));
+  // Part U: the open tasks each exchange could show progress on.
+  const open = await openItemsFor(keep, keep.map((u) => peopleIdsIn(u, before)));
+  const blocks = open.map(openItemsBlock);
+  const sorted = await sortUnits(keep, {
+    me: ctx.me,
+    projects: choices.map((p) => p.name),
+    now: ctx.now,
+    known,
+    readKnowledge: (i) => readable[i],
+    agent: ctx.agent,
+    openItems: (i) => blocks[i] ?? null,
+  });
   await captureSorted(keep, sorted, { choices, rules, applyNoise: true, counts });
+  const progress: ProgressCounts = { closed: 0, looks_done: 0, progress: 0 };
+  for (const [i, u] of keep.entries()) {
+    const p = cleanProgress(sorted[i].progress, u, open[i]);
+    if (p.length) await applyProgress(u, open[i], p, progress);
+  }
+  if (progress.closed) counts.closed = progress.closed;
+  if (progress.looks_done) counts.looks_done = progress.looks_done;
 
   counts.knowledge = 0;
   const [self] = await db.select({ name: peopleTable.name }).from(peopleTable).where(eq(peopleTable.isSelf, true));
@@ -304,6 +341,8 @@ export async function captureSorted(
   const projectFor = (name: string): number | null => projects.get(name.toLowerCase().trim()) ?? null;
 
   for (const [i, u] of keep.entries()) {
+    // Part U: a confirmation email only counts as evidence; it makes no tasks or activity.
+    if (u.confirmation) continue;
     const s = sorted[i];
     const linkedProjects = new Set<number>();
     const unitProject = projectFor(s.project) ?? opts.projectFor?.(i) ?? null;

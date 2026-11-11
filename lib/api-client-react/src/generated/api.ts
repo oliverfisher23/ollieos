@@ -217,6 +217,7 @@ import type {
   SweepStatus,
   Task,
   TaskDetail,
+  TaskEvidence,
   TaskSummary,
   TaskUpdate,
   ThreadSummary,
@@ -4206,6 +4207,183 @@ export function useListAgents<TData = Awaited<ReturnType<typeof listAgents>>, TE
 
 
 
+
+export const getListTaskEvidenceUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/evidence`
+}
+
+/**
+ * @summary What OllieOS has seen: later messages, emails and meeting notes that show this task is done or moving (Part U), newest first
+ */
+export const listTaskEvidence = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<TaskEvidence[]> => {
+
+  return customFetch<TaskEvidence[]>(getListTaskEvidenceUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTaskEvidenceQueryKey = (id: number,) => {
+    return [
+    `/api/tasks/${id}/evidence`
+    ] as const;
+    }
+
+
+export const getListTaskEvidenceQueryOptions = <TData = Awaited<ReturnType<typeof listTaskEvidence>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTaskEvidence>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTaskEvidenceQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTaskEvidence>>> = ({ signal }) => listTaskEvidence(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTaskEvidence>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListTaskEvidenceQueryResult = NonNullable<Awaited<ReturnType<typeof listTaskEvidence>>>
+export type ListTaskEvidenceQueryError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+
+
+export function useListTaskEvidence<TData = Awaited<ReturnType<typeof listTaskEvidence>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTaskEvidence>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTaskEvidence>>,
+          TError,
+          Awaited<ReturnType<typeof listTaskEvidence>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTaskEvidence<TData = Awaited<ReturnType<typeof listTaskEvidence>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTaskEvidence>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTaskEvidence>>,
+          TError,
+          Awaited<ReturnType<typeof listTaskEvidence>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTaskEvidence<TData = Awaited<ReturnType<typeof listTaskEvidence>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTaskEvidence>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary What OllieOS has seen: later messages, emails and meeting notes that show this task is done or moving (Part U), newest first
+ */
+
+export function useListTaskEvidence<TData = Awaited<ReturnType<typeof listTaskEvidence>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTaskEvidence>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListTaskEvidenceQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDismissTaskEvidenceUrl = (id: number,
+    evidenceId: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/evidence/${evidenceId}/dismiss`
+}
+
+/**
+ * @summary "Not done" on a Looks done marker: that evidence no longer marks the task
+ */
+export const dismissTaskEvidence = async (id: number,
+    evidenceId: number, options?: Parameters<typeof customFetch>[1]): Promise<TaskEvidence[]> => {
+
+  return customFetch<TaskEvidence[]>(getDismissTaskEvidenceUrl(id,evidenceId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDismissTaskEvidenceMutationKey = () => ['dismissTaskEvidence'] as const;
+
+export const getDismissTaskEvidenceMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissTaskEvidence>>, TError,DismissTaskEvidenceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissTaskEvidence>>, TError,DismissTaskEvidenceMutationVariables, TContext> => {
+
+const mutationKey = getDismissTaskEvidenceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissTaskEvidence>>, DismissTaskEvidenceMutationVariables> = (props) => {
+          const {id,evidenceId} = props ?? {};
+
+          return  dismissTaskEvidence(id,evidenceId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissTaskEvidenceMutationResult = NonNullable<Awaited<ReturnType<typeof dismissTaskEvidence>>>
+
+    export type DismissTaskEvidenceMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type DismissTaskEvidenceMutationVariables = {id: number;evidenceId: number}
+
+    /**
+ * @summary "Not done" on a Looks done marker: that evidence no longer marks the task
+ */
+export const useDismissTaskEvidence = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissTaskEvidence>>, TError,DismissTaskEvidenceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof dismissTaskEvidence>>,
+        TError,
+        DismissTaskEvidenceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDismissTaskEvidenceMutationOptions(options), queryClient);
+    }
 
 export const getListSlackToAnswerUrl = () => {
 
