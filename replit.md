@@ -28,6 +28,7 @@ Ollie's private personal operating system for tasks and work knowledge, readable
 - API contract: `lib/api-spec/openapi.yaml`; server routes in `artifacts/api-server/src/routes`, logic in `src/services`
 - Shared dates, labels and quick-add parser: `lib/shared` (all dates go through it, London time)
 - Theme: `artifacts/ollieos/src/theme/tokens.css` is the only file with colour values
+- Mac app: `desktop/` (Tauri v2 window onto the published app, built by `.github/workflows/desktop-macos.yml`; not in the pnpm workspace, see `desktop/README.md`)
 
 ## Architecture decisions
 

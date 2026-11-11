@@ -1,0 +1,44 @@
+# Builds the OllieOS Mac app (desktop/) and attaches the .dmg to the run.
+# Needs the repository variable OLLIEOS_URL: the published app's https address.
+name: Build Mac app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-macos.yml"
+
+jobs:
+  build:
+    runs-on: macos-latest
+    env:
+      OLLIEOS_URL: ${{ vars.OLLIEOS_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the app address is set
+        run: |
+          if [ -z "$OLLIEOS_URL" ]; then
+            echo "::error::Set the OLLIEOS_URL repository variable (Settings, Secrets and variables, Actions, Variables)."
+            exit 1
+          fi
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+
+      - name: Build (Apple silicon and Intel)
+        working-directory: desktop/src-tauri
+        run: npx --yes @tauri-apps/cli@2.12.4 build --target universal-apple-darwin
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OllieOS-macOS
+          path: desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: error
