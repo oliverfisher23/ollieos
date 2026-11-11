@@ -25,7 +25,7 @@ import {
 } from "@workspace/db";
 import { hasEmail } from "../../services/personMatch";
 import { resolveEntities } from "../../services/knowledge/common";
-import { OPEN_STATUSES, londonRange, parseRef, repeatLabel, todayLondon, toRef, type RepeatRule, type TaskStatus } from "@workspace/shared";
+import { BUSINESS_FUNCTION_LABELS, OPEN_STATUSES, londonRange, parseRef, repeatLabel, todayLondon, toRef, type RepeatRule, type TaskStatus } from "@workspace/shared";
 import {
   activityVisible,
   decisionVisible,
@@ -327,6 +327,10 @@ export interface ContextOut {
     goal?: NamedRef | null;
     /** Projects only: active, paused or complete */
     lifecycle?: string;
+    /** Projects only: the part of the business it belongs to; on a function's own record, that function */
+    function?: string | null;
+    /** True on a function's own record (Delivery, Product, Sales or Marketing) */
+    is_function?: boolean;
     /** People only: how often Ollie wants to be in touch, and where that stands */
     cadence?: string;
     cadence_status?: string;
@@ -387,7 +391,18 @@ export async function getContext(scope: AiScope, pick: EntityPick | string, via 
   let summary: string | null;
   if (type === "project") {
     const [p] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
-    entity = { ref: toRef(type, id), type, name: p.name, slug: p.slug, area: p.area, status: p.status, goal: await goalForProject(p.goalId), lifecycle: p.lifecycle };
+    entity = {
+      ref: toRef(type, id),
+      type,
+      name: p.name,
+      slug: p.slug,
+      area: p.area,
+      status: p.status,
+      goal: await goalForProject(p.goalId),
+      lifecycle: p.lifecycle,
+      function: p.function ? BUSINESS_FUNCTION_LABELS[p.function] : null,
+      ...(p.isFunction ? { is_function: true } : {}),
+    };
     summary = p.summary;
   } else if (type === "person") {
     const [p] = await db.select().from(peopleTable).where(eq(peopleTable.id, id));

@@ -6,8 +6,9 @@
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult, ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { PLAYBOOK_STEPS_MAX, PRODUCT_STATES, PRODUCT_USERS, RELATIONSHIPS, isIsoDate, todayLondon } from "@workspace/shared";
+import { BUSINESS_FUNCTIONS, PLAYBOOK_STEPS_MAX, PRODUCT_STATES, PRODUCT_USERS, RELATIONSHIPS, isIsoDate, todayLondon } from "@workspace/shared";
 import { proposeProductUser } from "../services/productUsers";
+import { proposeProjectClient, proposeProjectFunction } from "../services/projectFunctions";
 import {
   getContext,
   listTasksForAi,
@@ -774,7 +775,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     "upsert_project",
     {
       description: describe(
-        "Proposes a new project, or new details for one that exists. Matches by slug, then exact name. Either way it goes to Ollie's Knowledge Inbox for approval. Fields you leave out are kept.",
+        "Proposes a new project, or new details for one that exists. Matches by slug, then exact name. Either way it goes to Ollie's Knowledge Inbox for approval. Fields you leave out are kept. Give function (the part of Springpod it belongs to) and client (the organisation it is for) when you know them; a client OllieOS does not know yet becomes a new organisation card linked to an existing project. Delivery, Product, Sales and Marketing are functions, not projects: never propose them as projects.",
       ),
       inputSchema: {
         name: z.string().min(1).max(200),
@@ -782,6 +783,10 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
         area: z.string().max(200).optional(),
         status: z.string().max(200).optional(),
         summary: z.string().max(5000).optional(),
+        function: z.enum(BUSINESS_FUNCTIONS).optional().describe("The part of Springpod it belongs to"),
+        function_why: z.string().max(300).optional().describe("What shows the function, in a line"),
+        client: z.string().max(200).optional().describe("The customer or partner organisation it is for, by name"),
+        client_why: z.string().max(300).optional().describe("What shows the client, in a line"),
         ...SourceFields,
       },
     },
@@ -790,8 +795,19 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
         const exact = { partial: false };
         const match =
           (a.slug ? await resolvePick(scope, { slug: a.slug }, ["project"], exact) : null) ?? (await resolvePick(scope, { name: a.name }, ["project"], exact));
-        const r = await proposeProject(metaOf(a), { matchId: match?.id ?? null, name: a.name.trim(), area: a.area, status: a.status, summary: a.summary });
-        return ok({ ...proposalReply(r), ...(match ? { project: { ref: `project:${match.id}`, name: match.name } } : {}) });
+        const r = await proposeProject(metaOf(a), {
+          matchId: match?.id ?? null,
+          name: a.name.trim(),
+          area: a.area,
+          status: a.status,
+          summary: a.summary,
+          ...(match ? {} : { function: a.function ?? null, client: a.client ?? null }),
+        });
+        const extra: Record<string, unknown> = {};
+        const reply = (x: Awaited<ReturnType<typeof proposeProjectFunction>>) => (x.status === "unchanged" ? { status: "unchanged", message: "OllieOS already has that." } : proposalReply(x));
+        if (match && a.function) extra.function = reply(await proposeProjectFunction(metaOf(a), match.id, a.function, a.function_why ?? null));
+        if (match && a.client) extra.client = reply(await proposeProjectClient(metaOf(a), { id: match.id, name: match.name }, a.client, a.client_why ?? null, null));
+        return ok({ ...proposalReply(r), ...extra, ...(match ? { project: { ref: `project:${match.id}`, name: match.name } } : {}) });
       }),
   );
 

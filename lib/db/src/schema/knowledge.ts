@@ -11,7 +11,7 @@ import {
   uniqueIndex,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { activityKindEnum, cadenceEnum, entityTypeEnum, factAttributeEnum, productStateEnum, productUserEnum, projectLifecycleEnum, relationshipEnum, tsvector } from "./enums";
+import { activityKindEnum, businessFunctionEnum, cadenceEnum, entityTypeEnum, factAttributeEnum, productStateEnum, productUserEnum, projectLifecycleEnum, relationshipEnum, tsvector } from "./enums";
 import { goalsTable } from "./goals";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -58,13 +58,20 @@ export const projectsTable = pgTable(
     goalId: integer("goal_id").references(() => goalsTable.id, { onDelete: "set null" }),
     /** Active, paused or complete; paused and complete pause the cadence of people linked only to them */
     lifecycle: projectLifecycleEnum("lifecycle").notNull().default("active"),
+    /** The part of the business this project belongs to; on a function record, the function it is */
+    function: businessFunctionEnum("function"),
+    /** True for the one record per function that holds that function's own documents and knowledge */
+    isFunction: boolean("is_function").notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     search: tsvector("search").generatedAlwaysAs(
       sql`to_tsvector('english', coalesce(name,'') || ' ' || coalesce(area,'') || ' ' || coalesce(summary,''))`,
     ),
   },
-  (t) => [index("projects_search_idx").using("gin", t.search)],
+  (t) => [
+    index("projects_search_idx").using("gin", t.search),
+    uniqueIndex("projects_one_record_per_function").on(t.function).where(sql`is_function`),
+  ],
 );
 
 export const peopleTable = pgTable(

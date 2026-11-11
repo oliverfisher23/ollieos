@@ -21,6 +21,7 @@ import {
   tasksTable,
 } from "@workspace/db";
 import {
+  BUSINESS_FUNCTION_LABELS,
   DOC_LOCATION_LABELS,
   PLAYBOOK_STATE_LABELS,
   PRIORITY_LABELS,
@@ -289,7 +290,9 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
       ref,
       type: "project",
       id: p.id,
-      text: [`[${ref}] Project: ${p.name}`, line([p.area && `Area: ${p.area}`, p.status && `Status: ${p.status}`, `Updated ${day(p.updatedAt)}`]), whoDecides("project", p.id), p.summary && `Summary: ${clip(p.summary)}`]
+      text: [
+        p.isFunction ? `[${ref}] Function: ${p.name} (a part of Springpod, holding its own documents and knowledge)` : `[${ref}] Project: ${p.name}`,
+        line([!p.isFunction && p.function && `Function: ${BUSINESS_FUNCTION_LABELS[p.function]}`, p.area && `Area: ${p.area}`, p.status && `Status: ${p.status}`, `Updated ${day(p.updatedAt)}`]), whoDecides("project", p.id), p.summary && `Summary: ${clip(p.summary)}`]
         .filter(Boolean)
         .join("\n"),
     });

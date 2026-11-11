@@ -11,11 +11,11 @@ import {
   useListPeople,
   useListProjects,
 } from '@workspace/api-client-react';
-import { todayLondon } from '@workspace/shared';
+import { todayLondon, type BusinessFunction } from '@workspace/shared';
 import { useKnowledgeWrite } from '@/lib/knowledge';
 import { InternalSwitch } from './org-options';
 import { Dropdown } from '@/components/dropdown';
-import { orgOptions, personOptions, projectOptions } from '@/components/dropdown-options';
+import { FUNCTION_OPTIONS, orgOptions, personOptions, projectOptions } from '@/components/dropdown-options';
 
 export type CreateKind = 'project' | 'person' | 'organisation' | 'decision' | 'note';
 
@@ -78,7 +78,7 @@ export function CreateDialog({
     setBusy(true);
     let path: string | null = null;
     if (kind === 'project') {
-      const p = await write(() => createProject({ name: val('name')!, area: val('area'), status: val('status'), summary: val('summary'), confidential }), { done: 'Project created', fail: 'Could not create that project' });
+      const p = await write(() => createProject({ name: val('name')!, area: val('area'), status: val('status'), summary: val('summary'), function: (val('function') ?? null) as BusinessFunction | null, confidential }), { done: 'Project created', fail: 'Could not create that project' });
       if (p) path = '/knowledge/projects/' + p.slug;
     } else if (kind === 'person') {
       const p = await write(
@@ -127,6 +127,10 @@ export function CreateDialog({
               {kind === 'project' && (
                 <>
                   {field('name', 'Name', { required: true, placeholder: 'What you call this project' })}
+                  <div className="oo-dd-field">
+                    <label htmlFor="new-project-function">Function <span className="oo-muted">(optional)</span></label>
+                    <Dropdown id="new-project-function" value={v.function ?? ''} onChange={pick('function')} testId="select-new-project-function" options={FUNCTION_OPTIONS} />
+                  </div>
                   {field('area', 'Area', { placeholder: 'Sector or team' })}
                   {field('status', 'Status', { placeholder: 'Where it stands' })}
                   <label>

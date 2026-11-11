@@ -3,10 +3,11 @@ import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, decisionsTable, factReviewsTable, factsTable, peopleTable, rulesTable, suggestionsTable, usersTable, type Fact, type FactReview, type Suggestion } from "@workspace/db";
 import { decidersFor, weigh, whenSaid } from "./contradictions";
 import { hasEmail } from "./personMatch";
-import { CADENCE_LABELS, PRODUCT_STATE_LABELS, PRODUCT_USER_LABELS, RELATIONSHIP_LABELS, formatDayMonth, isProductUser } from "@workspace/shared";
+import { BUSINESS_FUNCTION_LABELS, CADENCE_LABELS, PRODUCT_STATE_LABELS, PRODUCT_USER_LABELS, RELATIONSHIP_LABELS, formatDayMonth, isBusinessFunction, isProductUser } from "@workspace/shared";
 
 /** A change card shows a list value (a product's primary user) by its label. */
-const shown = (key: string, v: string | null): string | null => (key === "primary_user" && isProductUser(v) ? PRODUCT_USER_LABELS[v] : v);
+const shown = (key: string, v: string | null): string | null =>
+  key === "primary_user" && isProductUser(v) ? PRODUCT_USER_LABELS[v] : key === "function" && isBusinessFunction(v) ? BUSINESS_FUNCTION_LABELS[v] : v;
 import { writeAudit } from "../lib/audit";
 import { resolveEntities, uniqueSlug } from "./knowledge/common";
 import { reviewCounts, tidyReviews } from "./factReviews";
@@ -370,11 +371,18 @@ export function textOf(s: Suggestion): string {
     }
     case "organisation": {
       const o = s.payload as OrganisationPayload;
-      return joinParts([o.name, o.type, o.summary]);
+      return joinParts([o.name, o.type, o.summary, o.client_of_project_names?.length ? `Client for ${o.client_of_project_names.join(", ")}` : null]);
     }
     case "project": {
       const p = s.payload as ProjectPayload;
-      return joinParts([p.name, p.area, p.status, p.summary]);
+      return joinParts([
+        p.name,
+        isBusinessFunction(p.function) ? `Function: ${BUSINESS_FUNCTION_LABELS[p.function]}` : null,
+        p.client_name ? `Client: ${p.client_name}` : null,
+        p.area,
+        p.status,
+        p.summary,
+      ]);
     }
     case "summary_change": {
       const c = s.payload as SummaryChangePayload;

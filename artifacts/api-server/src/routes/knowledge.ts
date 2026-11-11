@@ -1,8 +1,9 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
-import { CADENCES, PRODUCT_STATES, PRODUCT_USERS, PROJECT_LIFECYCLES, isIsoDate } from "@workspace/shared";
+import { BUSINESS_FUNCTIONS, CADENCES, PRODUCT_STATES, PRODUCT_USERS, PROJECT_LIFECYCLES, isIsoDate } from "@workspace/shared";
 import { createProduct, getProduct, listProducts, updateProduct } from "../services/products";
 import { suggestProductUsers } from "../services/productUsers";
+import { suggestProjectFunctions } from "../services/projectFunctions";
 import { CADENCE_TABS, listCadence } from "../services/cadence";
 import { checkInDraft } from "../services/checkIn";
 import { handle } from "../lib/handle";
@@ -55,6 +56,7 @@ const ProjectCreate = z
     area: shortText(),
     status: shortText(),
     summary: shortText(20000),
+    function: z.enum(BUSINESS_FUNCTIONS).nullable().optional(),
     confidential: z.boolean().optional(),
     aiAccess: z.boolean().optional(),
   })
@@ -172,6 +174,7 @@ const ListProjectsQuery = z.object({
 /* Projects */
 router.get("/projects", handle(async (req, res) => void res.json(await listProjects(ListProjectsQuery.parse(req.query).includeArchived))));
 router.post("/projects", handle(async (req, res) => void res.status(201).json(await createProject(ProjectCreate.parse(req.body)))));
+router.post("/projects/suggest-functions", handle(async (_req, res) => void res.json(await suggestProjectFunctions())));
 router.get("/projects/:slug", handle(async (req, res) => void res.json(await getProject(SlugParams.parse(req.params).slug))));
 router.patch(
   "/projects/:slug",

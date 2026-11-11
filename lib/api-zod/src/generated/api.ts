@@ -2727,6 +2727,9 @@ export const ListProjectsResponseItem = zod.object({
   "aiAccess": zod.boolean(),
   "area": zod.string().nullable(),
   "status": zod.string().nullable(),
+  "function": zod.union([zod.enum(['delivery', 'product', 'sales', 'marketing']).describe('A part of the business'),zod.null()]),
+  "isFunction": zod.boolean().describe('The record that holds a function\'s own documents and knowledge'),
+  "clients": zod.array(zod.string()).describe('Names of linked organisations typed customer'),
   "openTaskCount": zod.int(),
   "updatedAt": zod.coerce.date()
 })
@@ -2745,6 +2748,7 @@ export const CreateProjectBody = zod.object({
   "area": zod.string().nullish(),
   "status": zod.string().nullish(),
   "summary": zod.string().nullish(),
+  "function": zod.union([zod.enum(['delivery', 'product', 'sales', 'marketing']).describe('A part of the business'),zod.null()]).optional(),
   "confidential": zod.boolean().optional(),
   "aiAccess": zod.boolean().optional()
 })
@@ -2753,6 +2757,8 @@ export const CreateProjectResponse = zod.object({
   "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
+  "function": zod.union([zod.enum(['delivery', 'product', 'sales', 'marketing']).describe('A part of the business'),zod.null()]),
+  "isFunction": zod.boolean(),
   "area": zod.string().nullable(),
   "status": zod.string().nullable(),
   "summary": zod.string().nullable(),
@@ -2763,6 +2769,17 @@ export const CreateProjectResponse = zod.object({
   "lifecycle": zod.enum(['active', 'paused', 'complete']),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Ask AI to suggest the function and client of each project missing one, from what OllieOS knows; suggestions go to the Knowledge Inbox
+ */
+export const SuggestProjectFunctionsResponse = zod.object({
+  "checked": zod.int().describe('Projects missing a function or a client that AI may read'),
+  "functions": zod.int().describe('New function cards sent to the Knowledge Inbox'),
+  "clients": zod.int().describe('New client cards sent to the Knowledge Inbox'),
+  "unclear": zod.int().describe('Projects the documents did not settle')
 })
 
 
@@ -2778,6 +2795,8 @@ export const GetProjectResponse = zod.object({
   "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
+  "function": zod.union([zod.enum(['delivery', 'product', 'sales', 'marketing']).describe('A part of the business'),zod.null()]),
+  "isFunction": zod.boolean(),
   "area": zod.string().nullable(),
   "status": zod.string().nullable(),
   "summary": zod.string().nullable(),
@@ -2789,6 +2808,17 @@ export const GetProjectResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }),
+  "clientIds": zod.array(zod.int()).describe('Which of the organisations are clients (typed customer'),
+  "functionProjects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "lifecycle": zod.enum(['active', 'paused', 'complete']),
+  "clients": zod.array(zod.string()),
+  "documentCount": zod.int(),
+  "openTaskCount": zod.int()
+})).describe('On a function: the projects in it'),
   "goal": zod.union([zod.object({
   "id": zod.int(),
   "name": zod.string(),
@@ -3073,6 +3103,7 @@ export const UpdateProjectBody = zod.object({
   "area": zod.string().nullish(),
   "status": zod.string().nullish(),
   "summary": zod.string().nullish(),
+  "function": zod.union([zod.enum(['delivery', 'product', 'sales', 'marketing']).describe('A part of the business'),zod.null()]).optional(),
   "confidential": zod.boolean().optional(),
   "aiAccess": zod.boolean().optional(),
   "archived": zod.boolean().optional(),
@@ -3084,6 +3115,8 @@ export const UpdateProjectResponse = zod.object({
   "id": zod.int(),
   "name": zod.string(),
   "slug": zod.string(),
+  "function": zod.union([zod.enum(['delivery', 'product', 'sales', 'marketing']).describe('A part of the business'),zod.null()]),
+  "isFunction": zod.boolean(),
   "area": zod.string().nullable(),
   "status": zod.string().nullable(),
   "summary": zod.string().nullable(),

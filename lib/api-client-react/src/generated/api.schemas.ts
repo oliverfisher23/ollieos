@@ -1576,18 +1576,28 @@ export interface WeeklyUpdate {
   weekStart: string;
 }
 
-export interface ProjectListItem {
-  id: number;
-  name: string;
-  slug: string;
-  confidential: boolean;
-  aiAccess: boolean;
-  /** @nullable */
-  area: string | null;
-  /** @nullable */
-  status: string | null;
-  openTaskCount: number;
-  updatedAt: string;
+/**
+ * A part of the business
+ */
+export type BusinessFunction = typeof BusinessFunction[keyof typeof BusinessFunction];
+
+
+export const BusinessFunction = {
+  delivery: 'delivery',
+  product: 'product',
+  sales: 'sales',
+  marketing: 'marketing',
+} as const;
+
+export interface SuggestProjectFunctionsResult {
+  /** Projects missing a function or a client that AI may read */
+  checked: number;
+  /** New function cards sent to the Knowledge Inbox */
+  functions: number;
+  /** New client cards sent to the Knowledge Inbox */
+  clients: number;
+  /** Projects the documents did not settle */
+  unclear: number;
 }
 
 export type ProjectLifecycle = typeof ProjectLifecycle[keyof typeof ProjectLifecycle];
@@ -1599,10 +1609,42 @@ export const ProjectLifecycle = {
   complete: 'complete',
 } as const;
 
+export interface FunctionProject {
+  id: number;
+  name: string;
+  slug: string;
+  confidential: boolean;
+  lifecycle: ProjectLifecycle;
+  clients: string[];
+  documentCount: number;
+  openTaskCount: number;
+}
+
+export interface ProjectListItem {
+  id: number;
+  name: string;
+  slug: string;
+  confidential: boolean;
+  aiAccess: boolean;
+  /** @nullable */
+  area: string | null;
+  /** @nullable */
+  status: string | null;
+  function: BusinessFunction | null;
+  /** The record that holds a function's own documents and knowledge */
+  isFunction: boolean;
+  /** Names of linked organisations typed customer */
+  clients: string[];
+  openTaskCount: number;
+  updatedAt: string;
+}
+
 export interface Project {
   id: number;
   name: string;
   slug: string;
+  function: BusinessFunction | null;
+  isFunction: boolean;
   /** @nullable */
   area: string | null;
   /** @nullable */
@@ -1632,6 +1674,7 @@ export interface ProjectInput {
   status?: string | null;
   /** @nullable */
   summary?: string | null;
+  function?: BusinessFunction | null;
   confidential?: boolean;
   aiAccess?: boolean;
 }
@@ -1648,6 +1691,7 @@ export interface ProjectUpdate {
   status?: string | null;
   /** @nullable */
   summary?: string | null;
+  function?: BusinessFunction | null;
   confidential?: boolean;
   aiAccess?: boolean;
   archived?: boolean;
@@ -2773,6 +2817,10 @@ export interface LinkedProduct {
 
 export interface ProjectDetail {
   project: Project;
+  /** Which of the organisations are clients (typed customer */
+  clientIds: number[];
+  /** On a function: the projects in it */
+  functionProjects: FunctionProject[];
   goal: ProjectGoal | null;
   documents: LibraryDocument[];
   /** Global ones and those linked to the project, its organisations or products, paused ones included */

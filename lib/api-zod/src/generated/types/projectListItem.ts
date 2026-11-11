@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { BusinessFunction } from './businessFunction';
 
 export interface ProjectListItem {
   id: number;
@@ -16,6 +17,11 @@ export interface ProjectListItem {
   area: string | null;
   /** @nullable */
   status: string | null;
+  function: BusinessFunction | null;
+  /** The record that holds a function's own documents and knowledge */
+  isFunction: boolean;
+  /** Names of linked organisations typed customer */
+  clients: string[];
   openTaskCount: number;
   updatedAt: Date;
 }

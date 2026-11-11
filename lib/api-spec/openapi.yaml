@@ -1361,6 +1361,19 @@ paths:
         "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /projects/suggest-functions:
+    post:
+      operationId: suggestProjectFunctions
+      tags: [knowledge]
+      summary: Ask AI to suggest the function and client of each project missing one, from what OllieOS knows; suggestions go to the Knowledge Inbox
+      responses:
+        "200":
+          description: What was checked and suggested
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SuggestProjectFunctionsResult" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /projects/{slug}:
     parameters:
       - $ref: "#/components/parameters/Slug"
@@ -5274,9 +5287,36 @@ components:
           type: string
           format: date
 
+    BusinessFunction:
+      type: string
+      description: A part of the business
+      enum: [delivery, product, sales, marketing]
+
+    SuggestProjectFunctionsResult:
+      type: object
+      required: [checked, functions, clients, unclear]
+      properties:
+        checked: { type: integer, description: Projects missing a function or a client that AI may read }
+        functions: { type: integer, description: New function cards sent to the Knowledge Inbox }
+        clients: { type: integer, description: New client cards sent to the Knowledge Inbox }
+        unclear: { type: integer, description: Projects the documents did not settle }
+
+    FunctionProject:
+      type: object
+      required: [id, name, slug, confidential, lifecycle, clients, documentCount, openTaskCount]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        confidential: { type: boolean }
+        lifecycle: { $ref: "#/components/schemas/ProjectLifecycle" }
+        clients: { type: array, items: { type: string } }
+        documentCount: { type: integer }
+        openTaskCount: { type: integer }
+
     ProjectListItem:
       type: object
-      required: [id, name, slug, confidential, aiAccess, area, status, openTaskCount, updatedAt]
+      required: [id, name, slug, confidential, aiAccess, area, status, function, isFunction, clients, openTaskCount, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -5285,16 +5325,27 @@ components:
         aiAccess: { type: boolean }
         area: { type: [string, "null"] }
         status: { type: [string, "null"] }
+        function:
+          oneOf:
+            - $ref: "#/components/schemas/BusinessFunction"
+            - type: "null"
+        isFunction: { type: boolean, description: The record that holds a function's own documents and knowledge }
+        clients: { type: array, items: { type: string }, description: Names of linked organisations typed customer, client or partner }
         openTaskCount: { type: integer }
         updatedAt: { type: string, format: date-time }
 
     Project:
       type: object
-      required: [id, name, slug, area, status, summary, confidential, aiAccess, archived, goalId, lifecycle, createdAt, updatedAt]
+      required: [id, name, slug, area, status, summary, confidential, aiAccess, archived, goalId, lifecycle, function, isFunction, createdAt, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
         slug: { type: string }
+        function:
+          oneOf:
+            - $ref: "#/components/schemas/BusinessFunction"
+            - type: "null"
+        isFunction: { type: boolean }
         area: { type: [string, "null"] }
         status: { type: [string, "null"] }
         summary: { type: [string, "null"] }
@@ -5314,6 +5365,10 @@ components:
         area: { type: [string, "null"] }
         status: { type: [string, "null"] }
         summary: { type: [string, "null"] }
+        function:
+          oneOf:
+            - $ref: "#/components/schemas/BusinessFunction"
+            - type: "null"
         confidential: { type: boolean }
         aiAccess: { type: boolean }
 
@@ -5324,6 +5379,10 @@ components:
         area: { type: [string, "null"] }
         status: { type: [string, "null"] }
         summary: { type: [string, "null"] }
+        function:
+          oneOf:
+            - $ref: "#/components/schemas/BusinessFunction"
+            - type: "null"
         confidential: { type: boolean }
         aiAccess: { type: boolean }
         archived: { type: boolean }
@@ -5923,9 +5982,11 @@ components:
 
     ProjectDetail:
       type: object
-      required: [project, goal, documents, rules, playbooks, products, facts, decisions, openTasks, people, organisations, notes, activity]
+      required: [project, goal, documents, rules, playbooks, products, facts, decisions, openTasks, people, organisations, clientIds, functionProjects, notes, activity]
       properties:
         project: { $ref: "#/components/schemas/Project" }
+        clientIds: { type: array, items: { type: integer }, description: Which of the organisations are clients (typed customer, client or partner) }
+        functionProjects: { type: array, items: { $ref: "#/components/schemas/FunctionProject" }, description: "On a function: the projects in it" }
         goal:
           oneOf:
             - $ref: "#/components/schemas/ProjectGoal"

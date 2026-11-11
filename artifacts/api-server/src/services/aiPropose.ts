@@ -4,7 +4,8 @@
  * "Changed summary" or "Changed details" suggestion (build plan 26). Shared by MCP and ingest,
  * which resolve names to visible ids first.
  */
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import type { BusinessFunction } from "@workspace/shared";
 import { db, organisationsTable, peopleTable, projectsTable } from "@workspace/db";
 import { cleanText } from "./knowledge/common";
 import { propose, type ProposeMeta, type ProposeResult } from "./suggestions";
@@ -66,12 +67,34 @@ export async function proposePerson(
 
 export async function proposeProject(
   meta: ProposeMeta,
-  input: { matchId: number | null; name: string; area?: string | null; status?: string | null; summary?: string | null },
+  input: {
+    matchId: number | null;
+    name: string;
+    area?: string | null;
+    status?: string | null;
+    summary?: string | null;
+    /** New projects only; for an existing one use proposeProjectFunction */
+    function?: BusinessFunction | null;
+    /** New projects only: a known organisation's name, linked as its client when approved */
+    client?: string | null;
+  },
 ): Promise<AiProposeResult> {
   if (input.matchId == null) {
+    const clientName = cleanText(input.client);
+    const [client] = clientName
+      ? await db.select({ id: organisationsTable.id, name: organisationsTable.name }).from(organisationsTable).where(sql`lower(${organisationsTable.name}) = ${clientName.toLowerCase()}`).limit(1)
+      : [];
     return propose(meta, {
       kind: "project",
-      payload: { name: input.name, area: cleanText(input.area), status: cleanText(input.status), summary: cleanText(input.summary) },
+      payload: {
+        name: input.name,
+        area: cleanText(input.area),
+        status: cleanText(input.status),
+        summary: cleanText(input.summary),
+        function: input.function ?? null,
+        client_id: client?.id ?? null,
+        client_name: client?.name ?? null,
+      },
     });
   }
   const [row] = await db.select().from(projectsTable).where(eq(projectsTable.id, input.matchId));

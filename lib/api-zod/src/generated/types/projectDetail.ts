@@ -7,6 +7,7 @@
  */
 import type { Decision } from './decision';
 import type { Fact } from './fact';
+import type { FunctionProject } from './functionProject';
 import type { LibraryDocument } from './libraryDocument';
 import type { LinkedEntity } from './linkedEntity';
 import type { LinkedProduct } from './linkedProduct';
@@ -21,6 +22,10 @@ import type { TimelineItem } from './timelineItem';
 
 export interface ProjectDetail {
   project: Project;
+  /** Which of the organisations are clients (typed customer */
+  clientIds: number[];
+  /** On a function: the projects in it */
+  functionProjects: FunctionProject[];
   goal: ProjectGoal | null;
   documents: LibraryDocument[];
   /** Global ones and those linked to the project, its organisations or products, paused ones included */

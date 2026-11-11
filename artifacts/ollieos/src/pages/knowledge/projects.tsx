@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, Redirect, useParams } from 'wouter';
-import { updateProject, useGetProject, useListGoalOptions, useListProjects, type ProjectLifecycle, type ProjectUpdate } from '@workspace/api-client-react';
-import { LIFECYCLE_LABELS, PROJECT_LIFECYCLES, formatDayMonth, formatDayMonthShort, DOC_LOCATION_LABELS } from '@workspace/shared';
+import { updateProject, useGetProject, useListGoalOptions, useListProjects, type BusinessFunction, type FunctionProject, type ProjectLifecycle, type ProjectUpdate } from '@workspace/api-client-react';
+import { BUSINESS_FUNCTION_LABELS, LIFECYCLE_LABELS, PROJECT_LIFECYCLES, formatDayMonth, formatDayMonthShort, DOC_LOCATION_LABELS } from '@workspace/shared';
+import { FUNCTION_OPTIONS } from '@/components/dropdown-options';
 import { ContextPackButton } from '@/components/knowledge/context-pack';
 import { KnowledgeLayout } from '@/components/knowledge/layout';
 import { CreateDialog } from '@/components/knowledge/create-dialog';
@@ -76,20 +77,33 @@ export function ProjectPage() {
       </KnowledgeLayout>
     );
   }
-  const { project, goal, documents, rules, playbooks, products, facts, decisions, openTasks, people, organisations, activity } = q.data;
+  const { project, goal, documents, rules, playbooks, products, facts, decisions, openTasks, people, organisations, clientIds, functionProjects, activity } = q.data;
   const topGoals = (goals.data ?? []).filter((g) => g.parentId == null);
+  const isFn = project.isFunction;
+  const fnLabel = project.function ? BUSINESS_FUNCTION_LABELS[project.function] : null;
+  const clients = organisations.filter((o) => clientIds.includes(o.id));
 
   return (
     <KnowledgeLayout testId="page-project">
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: '1 1 320px' }}>
-          <p className="oo-eyebrow">
-            Project ·{' '}
-            <InlineText inline value={project.area} label="Area" placeholder="Add an area" testId="project-area" onSave={(v) => save({ area: v })} />
-          </p>
-          <h1 className="oo-h1">
-            <InlineText value={project.name} label="Project name" required maxLength={200} testId="project-name" onSave={(v) => save({ name: v ?? project.name })} />
-          </h1>
+          {isFn ? (
+            <>
+              <p className="oo-eyebrow" data-testid="text-function-eyebrow">Function</p>
+              <h1 className="oo-h1" data-testid="text-function-name">{project.name}</h1>
+              <p className="oo-soft" style={{ margin: 0, fontSize: 14 }}>Documents and knowledge for {project.name} as a whole. Work for one client goes on its project, filed under {project.name}.</p>
+            </>
+          ) : (
+            <>
+              <p className="oo-eyebrow">
+                Project ·{' '}
+                <InlineText inline value={project.area} label="Area" placeholder="Add an area" testId="project-area" onSave={(v) => save({ area: v })} />
+              </p>
+              <h1 className="oo-h1">
+                <InlineText value={project.name} label="Project name" required maxLength={200} testId="project-name" onSave={(v) => save({ name: v ?? project.name })} />
+              </h1>
+            </>
+          )}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             <span className="oo-pill" data-tone="now" style={{ padding: 0 }}>
               <InlineText inline value={project.status} label="Status" placeholder="Add a status" testId="project-status" style={{ padding: '3px 8px', margin: 0 }} onSave={(v) => save({ status: v })} />
@@ -97,6 +111,34 @@ export function ProjectPage() {
             <span className="oo-pill" data-testid="text-project-updated">Updated {formatDayMonth(project.updatedAt)}</span>
             {project.archived && <span className="oo-pill" data-tone="noise">Archived</span>}
           </div>
+          {!isFn && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', fontSize: 13 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <label htmlFor="project-function" className="oo-muted">Function</label>
+                <Dropdown
+                  id="project-function"
+                  variant="compact"
+                  value={project.function ?? ''}
+                  onChange={(v) => void save({ function: (v || null) as BusinessFunction | null }, v ? `Filed under ${BUSINESS_FUNCTION_LABELS[v as BusinessFunction]}` : 'No function now')}
+                  options={FUNCTION_OPTIONS}
+                  testId="select-project-function"
+                />
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }} data-testid="text-project-clients">
+                <span className="oo-muted">{clients.length > 1 ? 'Clients' : 'Client'}</span>
+                {clients.length ? (
+                  clients.map((c, i) => (
+                    <span key={c.id}>
+                      <Link href={'/knowledge/organisations/' + c.slug} className="oo-link" data-testid={'link-project-client-' + c.id}>{c.name}</Link>
+                      {i < clients.length - 1 ? ',' : ''}
+                    </span>
+                  ))
+                ) : (
+                  <span className="oo-muted">None. Link an organisation typed customer or partner below.</span>
+                )}
+              </span>
+            </div>
+          )}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', fontSize: 13 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <label htmlFor="project-goal" className="oo-muted">Goal</label>
@@ -122,7 +164,7 @@ export function ProjectPage() {
                 testId="select-project-goal"
               />
             </span>
-            <span role="group" aria-label="Lifecycle" className="oo-seg" style={{ display: 'inline-flex', padding: 3 }} data-testid="seg-project-lifecycle">
+            {!isFn && <span role="group" aria-label="Lifecycle" className="oo-seg" style={{ display: 'inline-flex', padding: 3 }} data-testid="seg-project-lifecycle">
               {PROJECT_LIFECYCLES.map((l: ProjectLifecycle) => (
                 <button
                   key={l}
@@ -135,7 +177,7 @@ export function ProjectPage() {
                   {LIFECYCLE_LABELS[l]}
                 </button>
               ))}
-            </span>
+            </span>}
             {goal && (
               <Link href="/goals" className="oo-link" data-testid="link-project-goal">
                 Counts towards {goal.parentName ? `${goal.parentName}: ${goal.name}` : goal.name}
@@ -165,9 +207,18 @@ export function ProjectPage() {
       <section aria-labelledby="sum-h" style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: '72ch' }}>
         <h2 id="sum-h" className="oo-h2">Summary</h2>
         <div style={{ fontSize: 15, lineHeight: 1.6 }} className="oo-soft">
-          <InlineText value={project.summary} label="Summary" multiline placeholder="What this project is, in a few sentences" testId="project-summary" onSave={(v) => save({ summary: v })} />
+          <InlineText
+            value={project.summary}
+            label="Summary"
+            multiline
+            placeholder={isFn ? `What ${project.name} does and how it works, in a few sentences` : 'What this project is, in a few sentences'}
+            testId="project-summary"
+            onSave={(v) => save({ summary: v })}
+          />
         </div>
       </section>
+
+      {isFn && fnLabel && <FunctionProjects label={fnLabel} projects={functionProjects} />}
 
       <div className="oo-kgrid">
         <FactsSection entityType="project" entityId={project.id} facts={facts} />
@@ -189,7 +240,9 @@ export function ProjectPage() {
           <button type="button" className="oo-textbtn" onClick={() => setAddingDoc(true)} data-testid="button-project-add-link">Add a document</button>
         </div>
         {documents.length === 0 ? (
-          <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>No documents linked. Add the proposal, the brief or the shared folder.</p>
+          <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>
+            {isFn ? `No documents yet. Add guides, processes and plans for ${project.name} as a whole; client documents go on their projects.` : 'No documents linked. Add the proposal, the brief or the shared folder.'}
+          </p>
         ) : (
           <div>
             {documents.map((d) => (
@@ -269,16 +322,47 @@ export function ProjectPage() {
 
       <AddNote entityType="project" entityId={project.id} placeholder={`Anything worth remembering about ${project.name}`} />
 
-      <div>
-        <button
-          type="button"
-          className="oo-textbtn"
-          onClick={() => save({ archived: !project.archived }, project.archived ? 'Project restored' : 'Project archived')}
-          data-testid="button-archive-project"
-        >
-          {project.archived ? 'Restore this project' : 'Archive this project'}
-        </button>
-      </div>
+      {!isFn && (
+        <div>
+          <button
+            type="button"
+            className="oo-textbtn"
+            onClick={() => save({ archived: !project.archived }, project.archived ? 'Project restored' : 'Project archived')}
+            data-testid="button-archive-project"
+          >
+            {project.archived ? 'Restore this project' : 'Archive this project'}
+          </button>
+        </div>
+      )}
     </KnowledgeLayout>
+  );
+}
+
+/** On a function's page: the projects filed under it, with their clients. */
+function FunctionProjects({ label, projects }: { label: string; projects: FunctionProject[] }) {
+  return (
+    <section aria-labelledby="fp-h" style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="section-function-projects">
+      <h2 id="fp-h" className="oo-h2">Projects in {label}</h2>
+      {projects.length === 0 ? (
+        <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>None yet. Choose {label} as the function on a project to file it here.</p>
+      ) : (
+        <div>
+          {projects.map((p) => (
+            <Link key={p.id} href={'/knowledge/projects/' + p.slug} className="oo-krow oo-krow-link" style={{ textDecoration: 'none' }} data-testid={'row-function-project-' + p.slug}>
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: '1 1 260px' }}>
+                <span style={{ fontWeight: 500 }}>{p.name}</span>
+                <span className="oo-muted" style={{ fontSize: 13 }}>{p.clients.length ? `For ${p.clients.join(', ')}` : 'No client linked'}</span>
+              </span>
+              <span style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', fontSize: 13 }} className="oo-muted">
+                {p.confidential && <HiddenFromAi confidential />}
+                {p.lifecycle !== 'active' && <span className="oo-pill">{LIFECYCLE_LABELS[p.lifecycle]}</span>}
+                <span className="oo-num">{p.documentCount === 1 ? '1 document' : `${p.documentCount} documents`}</span>
+                <span className="oo-num">{p.openTaskCount === 1 ? '1 open task' : `${p.openTaskCount} open tasks`}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

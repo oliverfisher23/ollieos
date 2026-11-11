@@ -13,3 +13,4 @@
 - [Visibility SQL aliases](visibility-sql-aliases.md) — never alias the outer table `x` around a visibility helper; its subqueries already use it
 - [To answer is the Gmail inbox](email-to-answer.md) — Ollie defined it: inbox mail not replied to, no newsletters; reading must not create tasks
 - [Yes/no AI judges](model-judges.md) — Haiku lists non-matches with a 'no' reason; use reasoning then an explicit boolean, filter on it
+- [Raw SQL subqueries in Drizzle](drizzle-subqueries.md) — outer column in a raw subquery renders bare and binds to the inner table; qualify it

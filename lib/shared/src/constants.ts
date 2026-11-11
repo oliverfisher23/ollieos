@@ -132,6 +132,19 @@ export type ProductUser = (typeof PRODUCT_USERS)[number];
 export const PRODUCT_USER_LABELS: Record<ProductUser, string> = { students: "Students", employers: "Employers", universities: "Universities", colleges: "Colleges", schools: "Schools" };
 export const isProductUser = (v: unknown): v is ProductUser => typeof v === "string" && (PRODUCT_USERS as readonly string[]).includes(v);
 
+/**
+ * The parts of the business (asked for 11th November 2026). Each has one function record (a project
+ * row marked as a function) holding its own documents and knowledge, and any project can belong to
+ * one. Kept in step with the business_function enum in lib/db.
+ */
+export const BUSINESS_FUNCTIONS = ["delivery", "product", "sales", "marketing"] as const;
+export type BusinessFunction = (typeof BUSINESS_FUNCTIONS)[number];
+export const BUSINESS_FUNCTION_LABELS: Record<BusinessFunction, string> = { delivery: "Delivery", product: "Product", sales: "Sales", marketing: "Marketing" };
+export const isBusinessFunction = (v: unknown): v is BusinessFunction => typeof v === "string" && (BUSINESS_FUNCTIONS as readonly string[]).includes(v);
+/** Organisation types that make a linked organisation a project's client */
+export const CLIENT_ORG_TYPES = ["customer", "client", "partner"] as const;
+export const isClientOrgType = (type: string | null | undefined): boolean => !!type && (CLIENT_ORG_TYPES as readonly string[]).includes(type.trim().toLowerCase());
+
 /** Part M: where a playbook is; only In use ones reach AI. Kept in step with the playbook_state enum in lib/db. */
 export const PLAYBOOK_STATES = ["draft", "in_use", "retired"] as const;
 export type PlaybookState = (typeof PLAYBOOK_STATES)[number];

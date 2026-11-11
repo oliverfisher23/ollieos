@@ -1,10 +1,23 @@
+import { BUSINESS_FUNCTIONS, BUSINESS_FUNCTION_LABELS } from '@workspace/shared';
 import type { DropdownOption } from './dropdown';
 
 /** Option lists for the pickers that appear in several places. */
 
-export function projectOptions(projects: { id: number; name: string }[] | undefined): DropdownOption[] {
-  return (projects ?? []).map((p) => ({ value: String(p.id), label: p.name }));
+/** Projects, with the four functions first under their own heading when the list has them. */
+export function projectOptions(projects: { id: number; name: string; isFunction?: boolean }[] | undefined): DropdownOption[] {
+  const list = projects ?? [];
+  if (!list.some((p) => p.isFunction)) return list.map((p) => ({ value: String(p.id), label: p.name }));
+  return [
+    ...list.filter((p) => p.isFunction).map((p) => ({ value: String(p.id), label: p.name, group: 'Functions' })),
+    ...list.filter((p) => !p.isFunction).map((p) => ({ value: String(p.id), label: p.name, group: 'Projects' })),
+  ];
 }
+
+/** The parts of the business, with Not set first. */
+export const FUNCTION_OPTIONS: DropdownOption[] = [
+  { value: '', label: 'Not set' },
+  ...BUSINESS_FUNCTIONS.map((f) => ({ value: f, label: BUSINESS_FUNCTION_LABELS[f] })),
+];
 
 /** People, with their organisation as a hint so two people with similar names are easy to tell apart. */
 export function personOptions(people: { id: number; name: string; organisation?: { name: string } | null }[] | undefined): DropdownOption[] {

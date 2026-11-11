@@ -1220,3 +1220,14 @@ Ollie asked to record who each product is mainly for, picked from a fixed list: 
 - "Suggest primary users" on the products list asks Claude Haiku, for each product AI may read that has none and no card already waiting, to pick from the list using the product's details, facts, linked documents and items that mention it. It answers "unclear" rather than guess from a name. Each answer is a Changed details card in the Knowledge Inbox with a one-line reason; nothing changes until Ollie approves. Confidential and AI-hidden products are never sent.
 - The document reader can give a primary user on a new Product card, and Claude can give one through propose_product, for a new product or (as a change card) an existing one.
 - Ask, briefs, Download for Claude and the AI tools see the primary user with the product's state.
+
+## 18. Functions, clients and projects (asked for 11th November 2026)
+
+Ollie asked to keep work for one client apart from work for a part of the business as a whole. Three layers:
+
+- **Functions:** a fixed list of Delivery, Product, Sales and Marketing. Each has its own page under Knowledge, holding its documents, facts, decisions, tasks and rules the same way a project does, plus "Projects in <function>" listing every project filed under it with its clients. A function cannot be renamed or archived. At start-up the existing Delivery, Product and Go-to-market projects become the Delivery, Product and Sales functions, keeping everything on them; Marketing is created.
+- **Clients:** organisations linked to a project and typed customer, client or partner. The project page shows them under "Client".
+- **Projects:** each can be filed under one function, chosen on its page or when adding it. The Knowledge sidebar lists the functions first, then projects grouped by function, with "No function yet" last.
+- "Suggest functions and clients" in the sidebar asks Claude Haiku, for each project AI may read that is missing a function or a client and has no card already waiting, to pick from what OllieOS knows about it. It answers "unclear" rather than guess from a name. A function is a Changed details card; a client OllieOS knows is a Changed details card that links it when approved; a new client is a new organisation card ("Client for <project>") that creates and links it. Two projects naming the same new client share one card. Nothing changes until Ollie approves.
+- The document reader is told which names are functions: a document about a part of the business in general goes on the function, and one about a single client goes on that client's project.
+- Claude can give a function and client through upsert_project. Ask, briefs, Download for Claude and the AI tools see a project's function.

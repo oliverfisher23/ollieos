@@ -5,6 +5,7 @@
 import { sql } from "drizzle-orm";
 import { appSettingsTable, db } from "@workspace/db";
 import { writeAudit, type DbOrTx } from "../lib/audit";
+import { ensureFunctions } from "./knowledge/functions";
 
 const RULES_FLAG = "migrated_part_m_rules";
 
@@ -101,4 +102,6 @@ export async function recheckContradictions(conn: DbOrTx = db): Promise<boolean>
 export async function runMigrations(): Promise<void> {
   await migrateRules();
   await recheckContradictions();
+  // The four functions; Ollie's Delivery, Product and Go-to-market projects become Delivery, Product and Sales.
+  await ensureFunctions();
 }

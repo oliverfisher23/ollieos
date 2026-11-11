@@ -84,6 +84,9 @@ export const productStateEnum = pgEnum("product_state", PRODUCT_STATES);
 /** Who a product is mainly for. Kept in step with PRODUCT_USERS in lib/shared. */
 export const PRODUCT_USERS = ["students", "employers", "universities", "colleges", "schools"] as const;
 export const productUserEnum = pgEnum("product_user", PRODUCT_USERS);
+/** The parts of the business. Kept in step with BUSINESS_FUNCTIONS in lib/shared. */
+export const BUSINESS_FUNCTIONS = ["delivery", "product", "sales", "marketing"] as const;
+export const businessFunctionEnum = pgEnum("business_function", BUSINESS_FUNCTIONS);
 /** Part M: where a playbook is; only In use ones reach AI. Kept in step with PLAYBOOK_STATES in lib/shared. */
 export const PLAYBOOK_STATES = ["draft", "in_use", "retired"] as const;
 export const playbookStateEnum = pgEnum("playbook_state", PLAYBOOK_STATES);

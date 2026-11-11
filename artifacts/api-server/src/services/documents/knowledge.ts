@@ -10,7 +10,7 @@
 import { eq, sql } from "drizzle-orm";
 import { db, linksTable, organisationsTable, peopleTable, playbooksTable, productsTable, projectsTable } from "@workspace/db";
 import { emailsOf } from "../personMatch";
-import { formatLong, isProductUser, PLAYBOOK_STEPS_MAX, PRODUCT_USERS, RULE_MAX, RELATIONSHIPS, todayLondon, type Relationship } from "@workspace/shared";
+import { BUSINESS_FUNCTIONS, BUSINESS_FUNCTION_LABELS, formatLong, isProductUser, PLAYBOOK_STEPS_MAX, PRODUCT_USERS, RULE_MAX, RELATIONSHIPS, todayLondon, type Relationship } from "@workspace/shared";
 import { proposeOrganisation, proposePerson, type AiProposeResult } from "../aiPropose";
 import { ASK_MODEL } from "../ask/model";
 import { modelJson } from "../connectors/sorter";
@@ -155,7 +155,7 @@ function systemPrompt(k: Known, now: Date, changed: boolean): string {
     `Only keep knowledge the document states that Ollie would still want in a month: who someone is and their role, where a customer or partner stands with Springpod, a project's status, owner, next step, dates and figures agreed, and decisions made. Skip general market research, wording of drafts, plans that are only ideas, and anything uncertain. Fewer, better items: often the right answer is one or two items, or none.`,
     `- "summary": one sentence on what the document is.`,
     `- "confidential": true when it is about the sale of the company, buyers, investors, the board, salaries, bonuses, candidates, HR matters or anyone's health.`,
-    `- "projects": known projects, copied exactly, that this document clearly belongs to. Usually none or one.`,
+    `- "projects": known projects, copied exactly, that this document clearly belongs to. Usually none or one. ${BUSINESS_FUNCTIONS.map((f) => `"${BUSINESS_FUNCTION_LABELS[f]}"`).join(", ")} are functions (parts of Springpod), not projects: use one when the document is about that part of the business in general, such as a delivery process, a product roadmap, a sales playbook or a marketing plan. When it is about one client or piece of work, use that project instead.`,
     `- "facts" (at most ${LIMITS.facts}): "about" is a known project, person, organisation or product copied exactly, or a new person or organisation you also list below. Facts about a new product go inside that product instead. "text" is one sentence that makes sense on its own, with the date when the document gives one. "attribute" is one of ${FACT_ATTRIBUTES.join(", ")} when the fact is that kind of thing, otherwise "".`,
     `- "decisions" (at most ${LIMITS.decisions}): only what was agreed or decided, not proposals or options. "project" is a known project copied exactly, or "". "topic" is a few words on what it is about. "decided_on" is YYYY-MM-DD when the document says, otherwise "". "decided_by" is who decided, or "".`,
     `- "people" (at most ${LIMITS.people}): people who matter to Ollie's work. Give "email" only when the document shows it. "organisation" is where they work. "relationship" is one sentence on how they relate to Ollie's work. Include a known person only when the document gives their role, email or organisation and OllieOS does not have it.`,

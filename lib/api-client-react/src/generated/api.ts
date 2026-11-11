@@ -208,6 +208,7 @@ import type {
   StrategySectionInput,
   StrategySectionUpdate,
   SuggestProductUsersResult,
+  SuggestProjectFunctionsResult,
   SuggestionApprove,
   SuggestionDecision,
   SweepStatus,
@@ -5127,6 +5128,80 @@ export const useCreateProject = <TError = ErrorType<ErrorResponse | NotAuthorise
         TContext
       > => {
       return useMutation(getCreateProjectMutationOptions(options), queryClient);
+    }
+
+export const getSuggestProjectFunctionsUrl = () => {
+
+
+
+
+  return `/api/projects/suggest-functions`
+}
+
+/**
+ * @summary Ask AI to suggest the function and client of each project missing one, from what OllieOS knows; suggestions go to the Knowledge Inbox
+ */
+export const suggestProjectFunctions = async ( options?: Parameters<typeof customFetch>[1]): Promise<SuggestProjectFunctionsResult> => {
+
+  return customFetch<SuggestProjectFunctionsResult>(getSuggestProjectFunctionsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSuggestProjectFunctionsMutationKey = () => ['suggestProjectFunctions'] as const;
+
+export const getSuggestProjectFunctionsMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestProjectFunctions>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof suggestProjectFunctions>>, TError,void, TContext> => {
+
+const mutationKey = getSuggestProjectFunctionsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof suggestProjectFunctions>>, void> = () => {
+
+
+          return  suggestProjectFunctions(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SuggestProjectFunctionsMutationResult = NonNullable<Awaited<ReturnType<typeof suggestProjectFunctions>>>
+
+    export type SuggestProjectFunctionsMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Ask AI to suggest the function and client of each project missing one, from what OllieOS knows; suggestions go to the Knowledge Inbox
+ */
+export const useSuggestProjectFunctions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestProjectFunctions>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof suggestProjectFunctions>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSuggestProjectFunctionsMutationOptions(options), queryClient);
     }
 
 export const getGetProjectUrl = (slug: string,) => {

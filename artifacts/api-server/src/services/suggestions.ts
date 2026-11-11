@@ -12,6 +12,7 @@ import {
   documentsTable,
   factReviewsTable,
   factsTable,
+  linksTable,
   organisationsTable,
   peopleTable,
   productsTable,
@@ -21,7 +22,7 @@ import {
   type Suggestion,
 } from "@workspace/db";
 import { hasEmail } from "./personMatch";
-import { RULE_MAX, RELATIONSHIPS, isProductUser, type Cadence, type ProductState, type ProductUser, type Relationship } from "@workspace/shared";
+import { RULE_MAX, RELATIONSHIPS, isBusinessFunction, type BusinessFunction, isClientOrgType, isProductUser, type Cadence, type ProductState, type ProductUser, type Relationship } from "@workspace/shared";
 import { writeAudit, type DbOrTx } from "../lib/audit";
 import { ACTOR, cleanText, resolveEntity, touch, uniqueSlug, type EntityKind } from "./knowledge/common";
 import { ConflictError, NotFoundError, ValidationError } from "./tasks";
@@ -157,12 +158,21 @@ export interface OrganisationPayload {
   name: string;
   type?: string | null;
   summary?: string | null;
+  /** Projects it is the client of; approving links them */
+  client_of_project_ids?: number[];
+  /** Their names when proposed, for the card */
+  client_of_project_names?: string[];
 }
 export interface ProjectPayload {
   name: string;
   area?: string | null;
   status?: string | null;
   summary?: string | null;
+  /** The part of the business it belongs to */
+  function?: BusinessFunction | null;
+  /** A known organisation it is for, linked as its client when approved */
+  client_id?: number | null;
+  client_name?: string | null;
 }
 /** A stated relationship from the suggestion's item to another one (Part G), read "from <relationship> to". */
 export interface RelationshipPayload {
@@ -182,6 +192,8 @@ export interface SummaryChangePayload {
   before: Record<string, string | null>;
   /** When the change moves a person to another organisation */
   organisation_id?: number | null;
+  /** When the change gives a project a client: the organisation to link */
+  client_id?: number | null;
   /** Why AI suggests it, in a line, when it says (a product's primary user) */
   reason?: string | null;
 }
@@ -267,6 +279,8 @@ export const FIELD_LABELS: Record<string, string> = {
   description: "Description",
   owner: "Owner",
   primary_user: "Primary user",
+  function: "Function",
+  client: "Client",
 };
 const EDITABLE: Record<Exclude<SuggestionKind, "summary_change">, string[]> = {
   fact: ["text"],
@@ -285,13 +299,13 @@ const REQUIRED = new Set(["text", "name", "title", "applies_when", "rule", "when
 /** Columns a summary change may set on each kind of record. */
 const CHANGEABLE: Record<EntityKind, string[]> = {
   person: ["role", "email", "relationship_summary", "organisation"],
-  project: ["area", "status", "summary"],
+  project: ["area", "status", "summary", "function", "client"],
   organisation: ["type", "summary"],
   product: ["description", "summary", "primary_user"],
 };
 
 /** Fields on a change card that are picked from a fixed list, so they are approved or rejected but not typed over. */
-const FIXED_FIELDS = new Set(["organisation", "primary_user"]);
+const FIXED_FIELDS = new Set(["organisation", "primary_user", "function", "client"]);
 
 export function changeableFields(type: EntityKind): string[] {
   return CHANGEABLE[type];
@@ -301,6 +315,27 @@ export function editableFields(s: Pick<Suggestion, "kind" | "payload">): string[
   if (s.kind === "summary_change") return Object.keys((s.payload as SummaryChangePayload).fields).filter((k) => !FIXED_FIELDS.has(k));
   if (s.kind === "document" && (s.payload as DocumentPayload).document_id != null) return [];
   return EDITABLE[s.kind];
+}
+
+/**
+ * Makes an organisation a project's client: links them (if not already) and, when the organisation
+ * is not yet typed as a client, types it "customer". Skips a project or organisation that has gone.
+ */
+async function linkClient(tx: DbOrTx, projectId: number, orgId: number): Promise<void> {
+  const [[project], [org]] = await Promise.all([
+    tx.select({ id: projectsTable.id }).from(projectsTable).where(eq(projectsTable.id, projectId)),
+    tx.select({ id: organisationsTable.id, type: organisationsTable.type }).from(organisationsTable).where(eq(organisationsTable.id, orgId)),
+  ]);
+  if (!project || !org) return;
+  const [linked] = await tx
+    .select({ fromId: linksTable.fromId })
+    .from(linksTable)
+    .where(
+      sql`(${linksTable.fromType} = 'project' and ${linksTable.fromId} = ${projectId} and ${linksTable.toType} = 'organisation' and ${linksTable.toId} = ${orgId})
+        or (${linksTable.toType} = 'project' and ${linksTable.toId} = ${projectId} and ${linksTable.fromType} = 'organisation' and ${linksTable.fromId} = ${orgId})`,
+    );
+  if (!linked) await tx.insert(linksTable).values({ fromType: "project", fromId: projectId, toType: "organisation", toId: orgId, createdBy: ACTOR });
+  if (!isClientOrgType(org.type)) await tx.update(organisationsTable).set({ type: "customer" }).where(eq(organisationsTable.id, orgId));
 }
 
 /** Lower case, single spaces, no trailing full stop: what "the same text" means. */
@@ -370,6 +405,16 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
   if (p.kind === "summary_change" && "primary_user" in p.payload.fields && (p.entityType !== "product" || !isProductUser(p.payload.fields.primary_user))) {
     throw new ValidationError("Choose a primary user from the list");
   }
+  if (p.kind === "summary_change" && "function" in p.payload.fields && (p.entityType !== "project" || !isBusinessFunction(p.payload.fields.function))) {
+    throw new ValidationError("Choose a function from the list");
+  }
+  if (p.kind === "summary_change" && "client" in p.payload.fields) {
+    const id = p.payload.client_id;
+    const [org] = p.entityType === "project" && id != null ? await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, id)) : [];
+    if (!org) throw new ValidationError("Choose a client organisation OllieOS knows");
+    p.payload.fields.client = org.name;
+  }
+  if (p.kind === "project" && p.payload.function != null && !isBusinessFunction(p.payload.function)) throw new ValidationError("Choose a function from the list");
   if (p.kind === "product" && p.payload.primary_user != null && !isProductUser(p.payload.primary_user)) throw new ValidationError("Choose a primary user from the list");
   if (p.kind === "rule" && p.payload.rule.length > RULE_MAX) throw new ValidationError(`Keep the rule to ${RULE_MAX} characters or fewer`);
   const norm = normalise(text);
@@ -660,6 +705,7 @@ export async function applySuggestion(
         .values({ name: p.name, slug, type: str(p.type), summary: str(p.summary) })
         .returning({ id: organisationsTable.id });
       await audit("create", "organisation", row.id, { name: p.name });
+      for (const projectId of p.client_of_project_ids ?? []) await linkClient(tx, projectId, row.id);
       return { type: "organisation", id: row.id };
     }
     case "project": {
@@ -667,9 +713,10 @@ export async function applySuggestion(
       const slug = await uniqueSlug(tx, "project", p.name);
       const [row] = await tx
         .insert(projectsTable)
-        .values({ name: p.name, slug, area: str(p.area), status: str(p.status), summary: str(p.summary) })
+        .values({ name: p.name, slug, area: str(p.area), status: str(p.status), summary: str(p.summary), function: isBusinessFunction(p.function) ? p.function : null })
         .returning({ id: projectsTable.id });
       await audit("create", "project", row.id, { name: p.name });
+      if (p.client_id != null) await linkClient(tx, row.id, p.client_id);
       return { type: "project", id: row.id };
     }
     case "summary_change": {
@@ -701,7 +748,13 @@ export async function applySuggestion(
         if (f.area !== undefined) set.area = f.area;
         if (f.status !== undefined) set.status = f.status;
         if (f.summary !== undefined) set.summary = f.summary;
+        if (isBusinessFunction(f.function)) {
+          const [row] = await tx.select({ isFunction: projectsTable.isFunction }).from(projectsTable).where(eq(projectsTable.id, id));
+          if (row?.isFunction) throw new ValidationError("This is a function, so it cannot move to another one");
+          set.function = f.function;
+        }
         if (Object.keys(set).length) await tx.update(projectsTable).set(set).where(eq(projectsTable.id, id));
+        if (f.client !== undefined && p.client_id != null) await linkClient(tx, id, p.client_id);
       } else {
         const set: Partial<typeof organisationsTable.$inferInsert> = {};
         if (f.type !== undefined) set.type = f.type;

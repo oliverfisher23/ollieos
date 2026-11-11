@@ -12,7 +12,7 @@ import {
 } from "@workspace/db";
 import { hasEmail } from "../personMatch";
 import { domainsForOrganisation, researchViews, type ResearchView } from "../research";
-import { OPEN_STATUSES, type Cadence, type CadenceState, type ProjectLifecycle, type TaskStatus } from "@workspace/shared";
+import { BUSINESS_FUNCTION_LABELS, OPEN_STATUSES, isBusinessFunction, isClientOrgType, type BusinessFunction, type Cadence, type CadenceState, type ProjectLifecycle, type TaskStatus } from "@workspace/shared";
 import { writeAudit } from "../../lib/audit";
 import { ConflictError, NotFoundError, ValidationError } from "../tasks";
 import { toTaskViews, type TaskView } from "../taskView";
@@ -24,6 +24,7 @@ import { listDocuments, rulesForProject, type DocumentView, type RuleView } from
 import { cadenceFor } from "../cadence";
 import { playbooksFor, type PlaybookView } from "../playbooks";
 import { productsLinkedTo, type LinkedSummary } from "../products";
+import { clientNamesSql, ensureFunctions, projectsInFunction, type FunctionProject } from "./functions";
 
 const OPEN = [...OPEN_STATUSES] as TaskStatus[];
 const priorityRank = sql`case ${tasksTable.priority} when 'high' then 0 when 'medium' then 1 else 2 end`;
@@ -50,11 +51,15 @@ export interface ProjectListItem extends EntitySummary {
   aiAccess: boolean;
   area: string | null;
   status: string | null;
+  function: BusinessFunction | null;
+  isFunction: boolean;
+  clients: string[];
   openTaskCount: number;
   updatedAt: Date;
 }
 
 export async function listProjects(includeArchived = false): Promise<ProjectListItem[]> {
+  await ensureFunctions();
   const counts = db
     .select({ projectId: tasksTable.projectId, n: sql<number>`count(*)::int`.as("n") })
     .from(tasksTable)
@@ -70,6 +75,9 @@ export async function listProjects(includeArchived = false): Promise<ProjectList
       aiAccess: projectsTable.aiAccess,
       area: projectsTable.area,
       status: projectsTable.status,
+      function: projectsTable.function,
+      isFunction: projectsTable.isFunction,
+      clients: clientNamesSql(projectsTable.id),
       updatedAt: projectsTable.updatedAt,
       openTaskCount: sql<number>`coalesce(${counts.n}, 0)`,
     })
@@ -77,7 +85,7 @@ export async function listProjects(includeArchived = false): Promise<ProjectList
     .leftJoin(counts, eq(counts.projectId, projectsTable.id))
     .where(includeArchived ? undefined : eq(projectsTable.archived, false))
     .orderBy(asc(projectsTable.name));
-  return rows.map((r) => ({ ...r, openTaskCount: Number(r.openTaskCount) }));
+  return rows.map((r) => ({ ...r, clients: r.clients ?? [], openTaskCount: Number(r.openTaskCount) }));
 }
 
 export interface PersonChip extends EntitySummary {
@@ -106,6 +114,10 @@ export interface ProjectDetail {
   openTasks: TaskView[];
   people: PersonChip[];
   organisations: LinkedEntity[];
+  /** Which of the organisations are clients: typed customer, client or partner */
+  clientIds: number[];
+  /** On a function: the projects in it */
+  functionProjects: FunctionProject[];
   notes: NoteView[];
   activity: TimelineItem[];
 }
@@ -165,12 +177,17 @@ export async function getProject(slug: string): Promise<ProjectDetail> {
     productsLinkedTo("project", id),
   ]);
   const peopleIds = [...new Set([...linkedPeople, ...taskPeople.map((p) => p.id!)])];
-  const [people, organisations, activity] = await Promise.all([
+  const [people, organisations, activity, orgTypes, functionProjects] = await Promise.all([
     personChips(peopleIds, new Set(linkedPeople)),
     summaries(organisationsTable, linkedOrgs, new Set(linkedOrgs)),
     timelineFor("project", id, notes),
+    linkedOrgs.length
+      ? db.select({ id: organisationsTable.id, type: organisationsTable.type }).from(organisationsTable).where(inArray(organisationsTable.id, linkedOrgs))
+      : Promise.resolve([] as { id: number; type: string | null }[]),
+    project.isFunction && project.function ? projectsInFunction(project.function) : Promise.resolve([] as FunctionProject[]),
   ]);
-  return { project: stripSearch(project), goal, documents, rules, playbooks, products, facts, decisions, openTasks, people, organisations, notes, activity };
+  const clientIds = orgTypes.filter((o) => isClientOrgType(o.type)).map((o) => o.id);
+  return { project: stripSearch(project), goal, documents, rules, playbooks, products, facts, decisions, openTasks, people, organisations, clientIds, functionProjects, notes, activity };
 }
 
 async function projectGoal(goalId: number | null): Promise<ProjectDetail["goal"]> {
@@ -187,8 +204,15 @@ export interface ProjectInput {
   area?: string | null;
   status?: string | null;
   summary?: string | null;
+  function?: BusinessFunction | null;
   confidential?: boolean;
   aiAccess?: boolean;
+}
+
+function checkFunction(fn: unknown): BusinessFunction | null {
+  if (fn == null) return null;
+  if (!isBusinessFunction(fn)) throw new ValidationError("Choose a function from the list");
+  return fn;
 }
 
 export async function createProject(input: ProjectInput): Promise<ProjectView> {
@@ -204,6 +228,7 @@ export async function createProject(input: ProjectInput): Promise<ProjectView> {
         area: cleanText(input.area),
         status: cleanText(input.status),
         summary: cleanText(input.summary),
+        function: checkFunction(input.function),
         confidential: input.confidential ?? false,
         aiAccess: input.aiAccess ?? true,
       })
@@ -219,11 +244,20 @@ export type ProjectUpdate = Partial<ProjectInput> & { archived?: boolean; goalId
 export async function updateProject(slug: string, input: ProjectUpdate): Promise<ProjectView> {
   const current = await loadProject(slug);
   const set: Partial<ProjectRow> = {};
+  if (current.isFunction) {
+    // A function's name, function and place are fixed; everything else edits as on a project.
+    const fixedName = input.name !== undefined && cleanText(input.name) !== current.name;
+    const fixedFn = input.function !== undefined && input.function !== current.function;
+    if (fixedName || fixedFn || input.archived === true) {
+      throw new ValidationError(`${BUSINESS_FUNCTION_LABELS[current.function!]} is a function, so it cannot be renamed, moved or archived`);
+    }
+  }
   if (input.name !== undefined) {
     const name = cleanText(input.name);
     if (!name) throw new ValidationError("A project needs a name");
     set.name = name;
   }
+  if (input.function !== undefined && !current.isFunction) set.function = checkFunction(input.function);
   if (input.area !== undefined) set.area = cleanText(input.area);
   if (input.status !== undefined) set.status = cleanText(input.status);
   if (input.summary !== undefined) set.summary = cleanText(input.summary);
