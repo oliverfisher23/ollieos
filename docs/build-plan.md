@@ -1329,3 +1329,43 @@ Each has a proposal. As before, "agree with 51, 53" (or "agree with all") is eno
 58. **Client pulse quiet period.** *Proposal:* 30 days by default, changeable per organisation on its page.
 59. **Phone numbers from signatures.** *Proposal:* a plain fact on the person (no attribute), so it never opens a conflict review. The alternative is a new `phone` attribute.
 60. **Commercial data route.** *Proposal:* start with the Claude sweep (step 1), since it needs no new connection, and try the Replit HubSpot connector before building step 2.
+
+## 20. Tasks that close themselves (asked for 11th November 2026, not yet agreed)
+
+Ollie asked for tasks to update themselves when the work is visibly done. His example: Sam asks on Slack for a contract to be signed, which makes a task. Ollie signs it (the e-signature service emails a confirmation) and replies to Sam "Done". OllieOS should mark the task done without being told. Today nothing does this: email tasks only close when a draft OllieOS wrote is sent in their thread, Slack tasks never close, and the AI read that sorts new messages is never told which tasks are open, so it cannot connect a later message to an earlier task.
+
+The fix is a link between data: each task remembers where it came from (already true: source, conversation or thread, people), and each later message, email or meeting note that shows progress on it is recorded as **evidence** on the task. One part, its own sign-off.
+
+| Part | Features | Size |
+|---|---|---|
+| U | Evidence on tasks; tasks closed from their own conversation; "Looks done" from other sources; a record of what closed each task | Medium to large |
+
+### Part U: Tasks that close themselves
+
+- **Evidence, the new link.** A new table `task_evidence`: task, source (Slack, email, meeting), the message's ref and link, who said it and when, the exact sentence, and what it shows (done, or progress). A task page gets a "What OllieOS has seen" list, newest first, so Ollie can see why a task moved. The knowledge map shows evidence as "shows progress on" links from the message's person to the task.
+- **Same conversation, closes the task** (question 61). The Slack and Gmail reads already send each new exchange to Haiku. Each exchange now also lists the open tasks that came from that same conversation or email thread, and Haiku says which of them the new messages show are finished, quoting the sentence. No extra AI call.
+  - A message from Ollie saying it is done ("Done, signed and sent back") closes a task or promise.
+  - A message from the other person delivering what Ollie was waiting for ("Signed copy attached") closes a Waiting on task.
+  - "On it", "will do tomorrow" and questions do not close anything (question 64).
+  - The task is marked Done by "OllieOS", with the evidence on it. It appears in the digest under Moved as "Done (you told Sam on Slack): Sign the contract". Restore works as for any task, and a task Ollie reopens is never closed again by the same evidence.
+- **Another source, "Looks done"** (question 62). Evidence that is not in the task's own conversation is weaker: an e-signature confirmation email, a message to the same person in a different conversation, or Granola notes saying it was done. These put a "Looks done" marker on the task, with the evidence, and one tap marks it Done.
+  - Which open tasks each exchange is checked against (question 63): open tasks with anyone in the exchange or their organisation (at most 15), and, for automatic confirmation emails (e-signature, receipts, "your document is complete"), the 20 open tasks touched most recently.
+  - Granola notes are checked the same way when they arrive.
+- **Slack to answer and email.** Ollie's reply already takes a conversation off Slack to answer (Part P). An email task now also closes when Ollie's own reply in Gmail or Superhuman says it is done, not only when he sends an OllieOS draft. A reply that only acknowledges leaves the task open.
+- **Never:** a task hidden from AI or confidential is never sent to the AI, so it never closes itself or gets "Looks done". Nothing is changed in Slack or Gmail.
+- **Not included:** reading Slack thread replies inside DMs (the Slack connection does not return them, as in Part P); closing tasks from Drive or calendar activity.
+- **Checked by:**
+  - Sam asks on Slack for a contract to be signed (task made); Ollie replies "Done" in the same conversation; the next Slack check marks the task Done with the evidence, and the digest says so.
+  - Ollie replies "Will do tomorrow" instead: the task stays open.
+  - A Waiting on task "Sam to send the signed contract" closes when Sam posts "Signed copy attached" in the same conversation.
+  - An e-signature "Completed" email for the contract puts "Looks done" on the open task; one tap marks it Done.
+  - Reopening an auto-closed task keeps it open on the next check.
+  - A task hidden from AI with a matching reply is left alone.
+
+### Questions for section 20
+
+61. **Same conversation: close, or only mark?** *Proposal:* close it (Done, by OllieOS, with the evidence shown and Restore available), since Ollie said so himself, or the other person delivered, in the very conversation the task came from.
+62. **Other sources: close, or only mark?** *Proposal:* "Looks done" with one tap to finish, because a confirmation email or a note can match the wrong task. Once it has proved reliable, a setting can let these close on their own too.
+63. **Which open tasks are checked against an exchange from another source.** *Proposal:* tasks with anyone in it or their organisation (up to 15), plus the 20 most recently touched open tasks for automatic confirmation emails only. This keeps the AI read small and stops random matches.
+64. **Acknowledgements.** *Proposal:* "on it", "will do", "looking now" leave the task as it is. The promise capture that already exists still turns "I'll send it Friday" into a promise.
+65. **Order.** *Proposal:* build Part U next, before Parts R, S and T, since it fixes tasks Ollie already has piling up.
