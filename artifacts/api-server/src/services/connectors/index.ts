@@ -10,7 +10,7 @@
  * the same check.
  */
 import { and, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
-import { appSettingsTable, connectorRunsTable, db, peopleTable, type ConnectorRun } from "@workspace/db";
+import { appSettingsTable, calendarEventsTable, connectorRunsTable, db, peopleTable, type ConnectorRun } from "@workspace/db";
 import { addDays, londonParts, londonWallTimeToInstant, todayLondon } from "@workspace/shared";
 import { emailsOf } from "../personMatch";
 import { logger } from "../../lib/logger";
@@ -183,7 +183,19 @@ export interface RunOutcome {
 async function readCalendar(now: Date) {
   const r = await readGoogleCalendar(now);
   const w = await replaceCalendar({ actor: RUN_ACTOR, clientId: null }, r.events, now);
-  return { found: r.found, account: r.account, counts: { kept: w.replaced, removed: w.removed, left_out: r.skipped } };
+  // Part S: people who were in meetings together (meetings that have happened, in the last 2 days).
+  let together = 0;
+  try {
+    const { recordTogether } = await import("../peopleSignals");
+    const recent = await db
+      .select()
+      .from(calendarEventsTable)
+      .where(and(eq(calendarEventsTable.personal, false), lt(calendarEventsTable.endsAt, now), gte(calendarEventsTable.endsAt, new Date(now.getTime() - 2 * 86_400_000))));
+    for (const e of recent) if (e.personIds.length > 1) together += await recordTogether("meeting", e.sourceRef, e.title, e.startsAt, e.personIds, now);
+  } catch (err) {
+    logger.warn({ err }, "Could not record people in meetings together");
+  }
+  return { found: r.found, account: r.account, counts: { kept: w.replaced, removed: w.removed, left_out: r.skipped, ...(together ? { relationships: together } : {}) } };
 }
 
 /* Where each reader got to, so the next check carries on from there. */

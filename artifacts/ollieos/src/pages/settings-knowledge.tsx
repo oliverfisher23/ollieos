@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { RelationshipLookBackPanel } from '@/components/client-pulse';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -152,7 +153,7 @@ export default function KnowledgeSettings() {
         )}
       </section>
 
-      <RoundupSettings />
+      <RoundupSettingsAndPeople />
     </>
   );
 }
@@ -161,6 +162,15 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 /** Part O: when the weekly round-up is made. */
+function RoundupSettingsAndPeople() {
+  return (
+    <>
+      <RoundupSettings />
+      <RelationshipLookBackPanel />
+    </>
+  );
+}
+
 function RoundupSettings() {
   const q = useGetRoundupSchedule();
   const qc = useQueryClient();

@@ -1,4 +1,6 @@
 import { Router, type IRouter } from "express";
+import { getRelationshipLookBack, startRelationshipLookBack } from "../services/peopleSignals";
+import { listPulses, pulseFor, setQuietDays } from "../services/clientPulse";
 import { addPoint, deletePoint, listPoints, POINT_CHARS, setPointRaised } from "../services/talkingPoints";
 import { z } from "zod";
 import { BUSINESS_FUNCTIONS, CADENCES, PRODUCT_STATES, PRODUCT_USERS, PROJECT_LIFECYCLES, isIsoDate } from "@workspace/shared";
@@ -256,6 +258,27 @@ router.patch(
 
 /* Organisations */
 router.get("/organisations", handle(async (_req, res) => void res.json(await listOrganisations())));
+// Part S: the client pulse, for every client organisation and for one.
+router.get("/organisations-pulse", handle(async (_req, res) => void res.json(await listPulses())));
+// Part S: the one-off look back over 6 months of email headers for "works with" cards.
+router.get("/relationships/look-back", handle(async (_req, res) => void res.json(await getRelationshipLookBack())));
+router.post("/relationships/look-back", handle(async (_req, res) => void res.status(202).json(await startRelationshipLookBack())));
+router.get(
+  "/organisations/:slug/pulse",
+  handle(async (req, res) => {
+    const d = await getOrganisation(SlugParams.parse(req.params).slug);
+    res.json(await pulseFor(d.organisation.id));
+  }),
+);
+router.patch(
+  "/organisations/:slug/pulse",
+  handle(async (req, res) => {
+    const d = await getOrganisation(SlugParams.parse(req.params).slug);
+    const b = z.object({ quietDays: z.number().int().nullable() }).strict().parse(req.body ?? {});
+    await setQuietDays(d.organisation.id, b.quietDays);
+    res.json(await pulseFor(d.organisation.id));
+  }),
+);
 router.post("/organisations", handle(async (req, res) => void res.status(201).json(await createOrganisation(OrganisationCreate.parse(req.body)))));
 router.get("/organisations/:slug", handle(async (req, res) => void res.json(await getOrganisation(SlugParams.parse(req.params).slug))));
 router.patch(

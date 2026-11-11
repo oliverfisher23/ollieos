@@ -2642,6 +2642,129 @@ export const ListAgentsResponse = zod.object({
 
 
 /**
+ * @summary Part S: the pulse of every client organisation, those needing attention first
+ */
+export const ListClientPulsesResponseItem = zod.object({
+  "organisationId": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "quietDays": zod.int(),
+  "lastMetAt": zod.coerce.date().nullable(),
+  "lastContactAt": zod.coerce.date().nullable(),
+  "meetings90": zod.int(),
+  "emailsWaiting": zod.int(),
+  "oldestEmailAt": zod.coerce.date().nullable(),
+  "owedToThem": zod.int(),
+  "overdueToThem": zod.int(),
+  "theyOwe": zod.int(),
+  "tone": zod.union([zod.null(),zod.object({
+  "tone": zod.enum(['positive', 'neutral', 'concerned']),
+  "reason": zod.string().nullable(),
+  "at": zod.coerce.date(),
+  "title": zod.string()
+})]),
+  "needsAttention": zod.boolean(),
+  "reasons": zod.array(zod.string()),
+  "line": zod.string()
+})
+export const ListClientPulsesResponse = zod.array(ListClientPulsesResponseItem)
+
+
+/**
+ * @summary Part S: one organisation's pulse
+ */
+export const GetClientPulseParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const GetClientPulseResponse = zod.object({
+  "organisationId": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "quietDays": zod.int(),
+  "lastMetAt": zod.coerce.date().nullable(),
+  "lastContactAt": zod.coerce.date().nullable(),
+  "meetings90": zod.int(),
+  "emailsWaiting": zod.int(),
+  "oldestEmailAt": zod.coerce.date().nullable(),
+  "owedToThem": zod.int(),
+  "overdueToThem": zod.int(),
+  "theyOwe": zod.int(),
+  "tone": zod.union([zod.null(),zod.object({
+  "tone": zod.enum(['positive', 'neutral', 'concerned']),
+  "reason": zod.string().nullable(),
+  "at": zod.coerce.date(),
+  "title": zod.string()
+})]),
+  "needsAttention": zod.boolean(),
+  "reasons": zod.array(zod.string()),
+  "line": zod.string()
+})
+
+
+/**
+ * @summary Part S: days without contact before the organisation shows Needs attention (null for 30)
+ */
+export const SetClientQuietDaysParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const SetClientQuietDaysBody = zod.object({
+  "quietDays": zod.int().nullable()
+})
+
+export const SetClientQuietDaysResponse = zod.object({
+  "organisationId": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "quietDays": zod.int(),
+  "lastMetAt": zod.coerce.date().nullable(),
+  "lastContactAt": zod.coerce.date().nullable(),
+  "meetings90": zod.int(),
+  "emailsWaiting": zod.int(),
+  "oldestEmailAt": zod.coerce.date().nullable(),
+  "owedToThem": zod.int(),
+  "overdueToThem": zod.int(),
+  "theyOwe": zod.int(),
+  "tone": zod.union([zod.null(),zod.object({
+  "tone": zod.enum(['positive', 'neutral', 'concerned']),
+  "reason": zod.string().nullable(),
+  "at": zod.coerce.date(),
+  "title": zod.string()
+})]),
+  "needsAttention": zod.boolean(),
+  "reasons": zod.array(zod.string()),
+  "line": zod.string()
+})
+
+
+/**
+ * @summary Part S: the one-off look back over 6 months of email headers for works-with cards
+ */
+export const GetRelationshipLookBackResponse = zod.object({
+  "status": zod.enum(['idle', 'running', 'done', 'failed']),
+  "total": zod.int(),
+  "done": zod.int(),
+  "proposed": zod.int(),
+  "error": zod.string().nullable(),
+  "finishedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Part S: starts the look back in the background
+ */
+export const StartRelationshipLookBackResponse = zod.object({
+  "status": zod.enum(['idle', 'running', 'done', 'failed']),
+  "total": zod.int(),
+  "done": zod.int(),
+  "proposed": zod.int(),
+  "error": zod.string().nullable(),
+  "finishedAt": zod.coerce.date().nullable()
+})
+
+
+/**
  * @summary Part K: a person's Next time I see points, open and recently raised
  */
 export const ListTalkingPointsParams = zod.object({
@@ -4099,6 +4222,13 @@ export const GetNextBriefResponse = zod.object({
   "createdAt": zod.coerce.date()
 })).optional().describe('Part K: open Next time I see points for people in the meeting, shown at the top of the agenda'),
   "followUpTaskId": zod.int().nullish().describe('Part K: the follow-up task drafted from this meeting\'s Granola notes'),
+  "pulse": zod.array(zod.object({
+  "name": zod.string(),
+  "slug": zod.string(),
+  "line": zod.string(),
+  "needsAttention": zod.boolean(),
+  "reasons": zod.array(zod.string())
+})).optional().describe('Part S: the pulse of each client organisation in an external meeting'),
   "openedAt": zod.coerce.date().nullish().describe('Part K: when Ollie first opened this prep page'),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
@@ -4323,6 +4453,13 @@ export const GetBriefResponse = zod.object({
   "createdAt": zod.coerce.date()
 })).optional().describe('Part K: open Next time I see points for people in the meeting, shown at the top of the agenda'),
   "followUpTaskId": zod.int().nullish().describe('Part K: the follow-up task drafted from this meeting\'s Granola notes'),
+  "pulse": zod.array(zod.object({
+  "name": zod.string(),
+  "slug": zod.string(),
+  "line": zod.string(),
+  "needsAttention": zod.boolean(),
+  "reasons": zod.array(zod.string())
+})).optional().describe('Part S: the pulse of each client organisation in an external meeting'),
   "openedAt": zod.coerce.date().nullish().describe('Part K: when Ollie first opened this prep page'),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
@@ -4571,6 +4708,13 @@ export const RefreshBriefResponse = zod.object({
   "createdAt": zod.coerce.date()
 })).optional().describe('Part K: open Next time I see points for people in the meeting, shown at the top of the agenda'),
   "followUpTaskId": zod.int().nullish().describe('Part K: the follow-up task drafted from this meeting\'s Granola notes'),
+  "pulse": zod.array(zod.object({
+  "name": zod.string(),
+  "slug": zod.string(),
+  "line": zod.string(),
+  "needsAttention": zod.boolean(),
+  "reasons": zod.array(zod.string())
+})).optional().describe('Part S: the pulse of each client organisation in an external meeting'),
   "openedAt": zod.coerce.date().nullish().describe('Part K: when Ollie first opened this prep page'),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
@@ -4795,6 +4939,13 @@ export const AllowForBriefResponse = zod.object({
   "createdAt": zod.coerce.date()
 })).optional().describe('Part K: open Next time I see points for people in the meeting, shown at the top of the agenda'),
   "followUpTaskId": zod.int().nullish().describe('Part K: the follow-up task drafted from this meeting\'s Granola notes'),
+  "pulse": zod.array(zod.object({
+  "name": zod.string(),
+  "slug": zod.string(),
+  "line": zod.string(),
+  "needsAttention": zod.boolean(),
+  "reasons": zod.array(zod.string())
+})).optional().describe('Part S: the pulse of each client organisation in an external meeting'),
   "openedAt": zod.coerce.date().nullish().describe('Part K: when Ollie first opened this prep page'),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),

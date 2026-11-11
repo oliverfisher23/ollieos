@@ -203,6 +203,21 @@ function Brief({ brief }: { brief: BriefView }) {
             )}
           </Panel>
 
+          {(brief.pulse ?? []).length > 0 && (
+            <Panel id="b-pulse" title="Client pulse">
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }} data-testid="list-brief-pulse">
+                {(brief.pulse ?? []).map((p) => (
+                  <li key={p.slug} style={{ fontSize: 14, lineHeight: 1.5 }}>
+                    <Link href={'/knowledge/organisations/' + p.slug} className="oo-link">{p.name}</Link>
+                    {p.needsAttention && <span className="oo-pill" data-tone="high" style={{ marginLeft: 8 }}>Needs attention</span>}
+                    <span className="oo-soft">: {p.line}.</span>
+                    {p.reasons.length > 0 && <span className="oo-muted"> {p.reasons.join('. ')}.</span>}
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          )}
+
           {brief.research.length > 0 && (
             <Panel id="b-research" title={brief.research.length === 1 ? 'Research on the company' : 'Research on the companies'}>
               <ResearchList items={brief.research} />

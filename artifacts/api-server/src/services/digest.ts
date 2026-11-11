@@ -3,6 +3,7 @@
  * Built on the first sweep finish of a weekday (question 32), or on open if a sweep has finished
  * today and there is none yet. No email in phase 1 (question 33). Kept 30 days.
  */
+import { listPulses } from "./clientPulse";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, notInArray, or, sql } from "drizzle-orm";
 import {
   activityTable,
@@ -227,12 +228,16 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
   ];
 
   const quietPeople = g.cadence.people;
-  const quiet: DigestItem[] = quietPeople.map((p) => ({
+  // Part S: client organisations with no contact for their quiet period join Gone quiet.
+  const quietClients: DigestItem[] = (await listPulses(now))
+    .filter((p) => p.reasons.some((r) => r.startsWith("No contact")))
+    .map((p) => ({ text: `${p.name}: ${p.reasons.find((r) => r.startsWith("No contact"))!.toLowerCase()}`, href: `/knowledge/organisations/${p.slug}`, refs: [toRef("organisation", p.organisationId)], confidential: false }));
+  const quiet: DigestItem[] = [...quietClients, ...quietPeople.map((p) => ({
     text: `${p.name}${p.organisation ? `, ${p.organisation.name}` : ""}: ${p.lastContactAt ? `no contact since ${formatLong(p.lastContactAt)}` : "no contact on file"}`,
     href: `/knowledge/people/${p.slug}`,
     refs: [toRef("person", p.id)],
     confidential: false,
-  }));
+  }))];
 
   // Library documents someone else changed since the last digest (Part Q). Hidden ones have no AI line.
   const changed: DigestItem[] = (await changedDocuments(since, now)).map((d) => ({

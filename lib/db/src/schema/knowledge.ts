@@ -30,6 +30,8 @@ export const organisationsTable = pgTable(
     type: text("type"),
     /** Ollie's own company (Springpod), as opposed to clients, partners and suppliers */
     internal: boolean("internal").notNull().default(false),
+    /** Part S: days without a meeting or email before a client shows Needs attention; null means 30 */
+    pulseQuietDays: integer("pulse_quiet_days"),
     summary: text("summary"),
     confidential: boolean("confidential").notNull().default(false),
     aiAccess: boolean("ai_access").notNull().default(true),

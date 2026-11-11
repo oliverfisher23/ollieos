@@ -963,6 +963,14 @@ export interface ResearchStart {
   organisationId?: number;
 }
 
+export type BriefViewPulseItem = {
+  name: string;
+  slug: string;
+  line: string;
+  needsAttention: boolean;
+  reasons: string[];
+};
+
 export type BriefViewTasksItem = {
   id: number;
   title: string;
@@ -1101,6 +1109,8 @@ export interface BriefView {
      * @nullable
      */
   followUpTaskId?: number | null;
+  /** Part S: the pulse of each client organisation in an external meeting */
+  pulse?: BriefViewPulseItem[];
   /**
      * Part K: when Ollie first opened this prep page
      * @nullable
@@ -1481,6 +1491,71 @@ export interface EmailInbox {
      * @nullable
      */
   problem: string | null;
+}
+
+export type ClientPulseToneTone = typeof ClientPulseToneTone[keyof typeof ClientPulseToneTone];
+
+
+export const ClientPulseToneTone = {
+  positive: 'positive',
+  neutral: 'neutral',
+  concerned: 'concerned',
+} as const;
+
+export type ClientPulseTone = {
+  tone: ClientPulseToneTone;
+  /** @nullable */
+  reason: string | null;
+  at: string;
+  title: string;
+} | null;
+
+export interface ClientPulse {
+  organisationId: number;
+  name: string;
+  slug: string;
+  quietDays: number;
+  /** @nullable */
+  lastMetAt: string | null;
+  /** @nullable */
+  lastContactAt: string | null;
+  meetings90: number;
+  emailsWaiting: number;
+  /** @nullable */
+  oldestEmailAt: string | null;
+  owedToThem: number;
+  overdueToThem: number;
+  theyOwe: number;
+  tone: ClientPulseTone;
+  needsAttention: boolean;
+  reasons: string[];
+  line: string;
+}
+
+export interface QuietDaysInput {
+  /** @nullable */
+  quietDays: number | null;
+}
+
+export type RelationshipLookBackStatus = typeof RelationshipLookBackStatus[keyof typeof RelationshipLookBackStatus];
+
+
+export const RelationshipLookBackStatus = {
+  idle: 'idle',
+  running: 'running',
+  done: 'done',
+  failed: 'failed',
+} as const;
+
+export interface RelationshipLookBack {
+  status: RelationshipLookBackStatus;
+  total: number;
+  done: number;
+  proposed: number;
+  /** @nullable */
+  error: string | null;
+  /** @nullable */
+  finishedAt: string | null;
 }
 
 export interface TalkingPointInput {

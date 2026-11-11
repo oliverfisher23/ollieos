@@ -16,6 +16,7 @@ import type { BriefViewGoalsItem } from './briefViewGoalsItem';
 import type { BriefViewPlaybooksItem } from './briefViewPlaybooksItem';
 import type { BriefViewProductsItem } from './briefViewProductsItem';
 import type { BriefViewProjectsItem } from './briefViewProjectsItem';
+import type { BriefViewPulseItem } from './briefViewPulseItem';
 import type { BriefViewRulesItem } from './briefViewRulesItem';
 import type { BriefViewTasksItem } from './briefViewTasksItem';
 import type { BriefViewThreadsItem } from './briefViewThreadsItem';
@@ -33,6 +34,8 @@ export interface BriefView {
      * @nullable
      */
   followUpTaskId?: number | null;
+  /** Part S: the pulse of each client organisation in an external meeting */
+  pulse?: BriefViewPulseItem[];
   /**
      * Part K: when Ollie first opened this prep page
      * @nullable

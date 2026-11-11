@@ -1088,6 +1088,77 @@ paths:
               schema: { $ref: "#/components/schemas/AgentsView" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /organisations-pulse:
+    get:
+      operationId: listClientPulses
+      tags: [knowledge]
+      summary: "Part S: the pulse of every client organisation, those needing attention first"
+      responses:
+        "200":
+          description: Pulses
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/ClientPulse" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /organisations/{slug}/pulse:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    get:
+      operationId: getClientPulse
+      tags: [knowledge]
+      summary: "Part S: one organisation's pulse"
+      responses:
+        "200":
+          description: Pulse
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClientPulse" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      operationId: setClientQuietDays
+      tags: [knowledge]
+      summary: "Part S: days without contact before the organisation shows Needs attention (null for 30)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QuietDaysInput" }
+      responses:
+        "200":
+          description: Pulse
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClientPulse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /relationships/look-back:
+    get:
+      operationId: getRelationshipLookBack
+      tags: [knowledge]
+      summary: "Part S: the one-off look back over 6 months of email headers for works-with cards"
+      responses:
+        "200":
+          description: State
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelationshipLookBack" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: startRelationshipLookBack
+      tags: [knowledge]
+      summary: "Part S: starts the look back in the background"
+      responses:
+        "202":
+          description: Started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelationshipLookBack" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /people/{slug}/points:
     parameters:
       - $ref: "#/components/parameters/Slug"
@@ -4981,6 +5052,18 @@ components:
           description: "Part K: open Next time I see points for people in the meeting, shown at the top of the agenda"
           items: { $ref: "#/components/schemas/TalkingPoint" }
         followUpTaskId: { type: [integer, "null"], description: "Part K: the follow-up task drafted from this meeting's Granola notes" }
+        pulse:
+          type: array
+          description: "Part S: the pulse of each client organisation in an external meeting"
+          items:
+            type: object
+            required: [name, slug, line, needsAttention, reasons]
+            properties:
+              name: { type: string }
+              slug: { type: string }
+              line: { type: string }
+              needsAttention: { type: boolean }
+              reasons: { type: array, items: { type: string } }
         openedAt: { type: [string, "null"], format: date-time, description: "Part K: when Ollie first opened this prep page" }
         generatedAt: { type: string, format: date-time }
         failed: { type: boolean, description: The model could not write the brief. Refresh to try again. }
@@ -5421,6 +5504,50 @@ components:
         raisedTitle: { type: [string, "null"], description: The meeting it was raised in }
         raisedHow: { type: [string, "null"], description: "notes (Granola showed it covered) or ollie (ticked by hand)" }
         createdAt: { type: string, format: date-time }
+    ClientPulse:
+      type: object
+      required: [organisationId, name, slug, quietDays, lastMetAt, lastContactAt, meetings90, emailsWaiting, oldestEmailAt, owedToThem, overdueToThem, theyOwe, tone, needsAttention, reasons, line]
+      properties:
+        organisationId: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        quietDays: { type: integer }
+        lastMetAt: { type: [string, "null"], format: date-time }
+        lastContactAt: { type: [string, "null"], format: date-time }
+        meetings90: { type: integer }
+        emailsWaiting: { type: integer }
+        oldestEmailAt: { type: [string, "null"], format: date-time }
+        owedToThem: { type: integer }
+        overdueToThem: { type: integer }
+        theyOwe: { type: integer }
+        tone:
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [tone, reason, at, title]
+              properties:
+                tone: { type: string, enum: [positive, neutral, concerned] }
+                reason: { type: [string, "null"] }
+                at: { type: string, format: date-time }
+                title: { type: string }
+        needsAttention: { type: boolean }
+        reasons: { type: array, items: { type: string } }
+        line: { type: string }
+    QuietDaysInput:
+      type: object
+      additionalProperties: false
+      required: [quietDays]
+      properties: { quietDays: { type: [integer, "null"] } }
+    RelationshipLookBack:
+      type: object
+      required: [status, total, done, proposed, error, finishedAt]
+      properties:
+        status: { type: string, enum: [idle, running, done, failed] }
+        total: { type: integer }
+        done: { type: integer }
+        proposed: { type: integer }
+        error: { type: [string, "null"] }
+        finishedAt: { type: [string, "null"], format: date-time }
     TalkingPointInput:
       type: object
       additionalProperties: false

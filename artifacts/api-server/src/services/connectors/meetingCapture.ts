@@ -4,6 +4,7 @@
  * for meetings), decisions are suggestions on a project, and the notes are attached to the
  * meeting's brief when the meeting is on the calendar.
  */
+import { db, meetingTonesTable } from "@workspace/db";
 import { todayLondon } from "@workspace/shared";
 import { logger } from "../../lib/logger";
 import { attachMeetingNotes, findEventBySourceRef } from "../briefs";
@@ -40,6 +41,11 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
     // Part K: points Ollie wanted to raise with the people in the meeting.
     const points = await openPointsFor([...new Set([...personIds, ...(event?.personIds ?? [])])]);
     const sorted = await sortMeeting(n, { me: ctx.me, projects: choices.map((p) => p.name), now: ctx.now, openItems: openItemsBlock(open), talkingPoints: pointsBlock(points) });
+    // Part S: the tone of the meeting, for the client pulse.
+    await db
+      .insert(meetingTonesTable)
+      .values({ granolaRef: n.noteId, title: event?.title ?? n.title, at: n.at, tone: sorted.tone ?? "neutral", reason: sorted.toneReason ?? null, personIds: [...new Set([...personIds, ...(event?.personIds ?? [])])] })
+      .onConflictDoNothing();
     const offered = new Set(points.map((p) => `point:${p.id}`));
     const covered = (sorted.covered ?? []).filter((r) => offered.has(r)).map((r) => Number(r.split(":")[1]));
     if (covered.length) counts.points_covered = (counts.points_covered ?? 0) + (await markCovered(covered, { eventId: event?.id ?? null, title: event?.title ?? n.title, at: n.at }));

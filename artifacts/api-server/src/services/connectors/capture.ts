@@ -18,6 +18,7 @@ import { captureTask, enabledRules, logActivity, matchNoiseRule, type CaptureWri
 import { emailsOf, hasAnyEmail, hasAnySlackId } from "../personMatch";
 import { propose, type Proposal } from "../suggestions";
 import { applyProgress, cleanProgress, openItemsFor, openItemsBlock, type ProgressCounts } from "../taskEvidence";
+import { proposeSignature, proposeWorksAt, recordTogether } from "../peopleSignals";
 import type { WorkMessage, WorkUnit } from "./messages";
 import type { AgentKey } from "../../lib/agents";
 import { sortUnits, type KnownNames, type SortedClaim, type SortedUnit } from "./sorter";
@@ -37,6 +38,9 @@ export interface CaptureCounts {
   /** Part U: tasks closed by evidence from their own conversation, and tasks marked Looks done */
   closed?: number;
   looks_done?: number;
+  /** Part S: relationship and works-at cards, and details from signatures */
+  relationships?: number;
+  details?: number;
 }
 
 /** True when one of Ollie's noise rules covers every message in the exchange from someone else. */
@@ -308,6 +312,25 @@ export async function sortAndCapture(
   }
   if (progress.closed) counts.closed = progress.closed;
   if (progress.looks_done) counts.looks_done = progress.looks_done;
+
+  // Part S: people seen together on email threads, and details from email signatures.
+  for (const [i, u] of keep.entries()) {
+    if (u.source !== "email" || u.confirmation) continue;
+    try {
+      const ids = peopleIdsIn(u, before);
+      const last = u.messages[u.messages.length - 1];
+      if (u.conversation && ids.length > 1) counts.relationships = (counts.relationships ?? 0) + (await recordTogether("email", u.conversation.id, u.subject, last.at, ids, ctx.now));
+      if (ids.length) counts.relationships = (counts.relationships ?? 0) + (await proposeWorksAt(ids, ctx.now));
+      const sig = sorted[i].signature;
+      const theirs = [...u.messages].reverse().find((m) => !m.fromMe);
+      const sender = theirs ? senderOf(before, theirs) : null;
+      if (sig && readable[i] && sender && !sender.isSelf && (sig.title || sig.company || sig.phone)) {
+        counts.details = (counts.details ?? 0) + (await proposeSignature({ id: sender.id, name: sender.name }, sig, { ref: theirs!.ref, url: theirs!.url, label: sourceLabel(u, theirs!), at: theirs!.at }, ctx.now));
+      }
+    } catch (err) {
+      logger.warn({ err, unit: u.key }, "Could not read people signals from an email");
+    }
+  }
 
   counts.knowledge = 0;
   const [self] = await db.select({ name: peopleTable.name }).from(peopleTable).where(eq(peopleTable.isSelf, true));
