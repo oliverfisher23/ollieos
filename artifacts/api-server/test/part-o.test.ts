@@ -6,6 +6,7 @@ import type { SortedUnit } from "../src/services/connectors/sorter";
 import type { WorkUnit } from "../src/services/connectors/messages";
 import type { JudgeCard, JudgeItem, JudgeVerdict } from "../src/services/contradictionJudge";
 import { checkNewCards } from "../src/services/contradictions";
+import { recheckContradictions } from "../src/services/migrations";
 import { buildRoundupIfDue, lastRoundupTime } from "../src/services/roundup";
 import { decision, fact, project } from "./helpers";
 import { api, call, connect, mcp, useServer } from "./harness";
@@ -191,6 +192,24 @@ describe("contradiction check", () => {
     expect((await api(`fact-reviews/${r2.id}/resolve`, { body: { action: "both_true" } })).status).toBe(200);
     const facts = (await api(`projects/${p.slug}`)).body.facts as { text: string }[];
     expect(facts.map((f) => f.text).sort()).toEqual(["Atlas launch has a soft start in February", "Atlas launch is in February"]);
+  });
+
+  it("the one-off redo withdraws open contradictions, lifts their out-of-date mark and checks the cards again", async () => {
+    const { feb } = await atlas();
+    const card = await marchEmail(new Date(Date.now() - DAY));
+    verdicts = disagreesWith("February");
+    await checkNewCards(new Date());
+    expect((await db.select().from(factsTable).where(eq(factsTable.id, feb.id)))[0].needsCheck).toBe(true);
+
+    expect(await recheckContradictions()).toBe(true);
+    expect(await db.select().from(factReviewsTable)).toHaveLength(0);
+    expect((await db.select().from(factsTable).where(eq(factsTable.id, feb.id)))[0].needsCheck).toBe(false);
+    expect((await db.select().from(suggestionsTable).where(eq(suggestionsTable.id, card.id)))[0].checkedAt).toBeNull();
+    // Runs once only.
+    expect(await recheckContradictions()).toBe(false);
+
+    verdicts = () => [];
+    expect(await checkNewCards(new Date())).toEqual({ checked: 1, contradictions: 0 });
   });
 
   it("a decision replaced by New one is right stays as history and AI no longer sees it", async () => {

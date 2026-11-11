@@ -65,7 +65,40 @@ export async function migrateRules(conn: DbOrTx = db): Promise<boolean> {
   });
 }
 
+const RECHECK_FLAG = "recheck_contradictions_v2";
+
+/**
+ * Part O: the first contradiction judge flagged items its own reason said did not clash. Withdraws
+ * the open contradiction reviews it made (settled ones are left as Ollie decided them), lifts the
+ * "May be out of date" mark they put on facts, and sends every waiting card back for a fresh check
+ * by the stricter judge.
+ */
+export async function recheckContradictions(conn: DbOrTx = db): Promise<boolean> {
+  return conn.transaction(async (tx) => {
+    const flagged = await tx
+      .insert(appSettingsTable)
+      .values({ key: RECHECK_FLAG, value: { at: new Date().toISOString() } })
+      .onConflictDoNothing()
+      .returning({ key: appSettingsTable.key });
+    if (!flagged.length) return false;
+    const removed = await tx.execute(sql`delete from fact_reviews where kind = 'contradiction' and status = 'pending' returning fact_ids`);
+    const factIds = [...new Set((removed.rows as { fact_ids: number[] }[]).flatMap((r) => r.fact_ids))];
+    if (factIds.length) {
+      await tx.execute(sql`update facts set needs_check = false where id in (${sql.join(factIds.map((id) => sql`${id}`), sql`, `)})
+        and not exists (select 1 from fact_reviews r where r.status = 'pending' and facts.id = any(r.fact_ids))`);
+    }
+    const reset = await tx.execute(sql`update suggestions set contradiction_checked_at = null where status = 'pending' and contradiction_checked_at is not null`);
+    await writeAudit(tx, {
+      actor: "ollie",
+      action: "migrate",
+      payload: { change: "contradiction check redone with the stricter judge", withdrawn: removed.rowCount ?? 0, rechecked: reset.rowCount ?? 0 },
+    });
+    return true;
+  });
+}
+
 /** Every start-up data change, in order. */
 export async function runMigrations(): Promise<void> {
   await migrateRules();
+  await recheckContradictions();
 }

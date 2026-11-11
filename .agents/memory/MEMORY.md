@@ -12,3 +12,4 @@
 - [Connecting Claude, ChatGPT and Gemini](ai-assistant-connections.md) — private publishing blocks Claude (307); Gemini app cannot add MCP; ChatGPT plan-limited
 - [Visibility SQL aliases](visibility-sql-aliases.md) — never alias the outer table `x` around a visibility helper; its subqueries already use it
 - [To answer is the Gmail inbox](email-to-answer.md) — Ollie defined it: inbox mail not replied to, no newsletters; reading must not create tasks
+- [Yes/no AI judges](model-judges.md) — Haiku lists non-matches with a 'no' reason; use reasoning then an explicit boolean, filter on it
