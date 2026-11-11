@@ -10,6 +10,8 @@ import { attachMeetingNotes, findEventBySourceRef } from "../briefs";
 import { propose } from "../suggestions";
 import { ConflictError } from "../tasks";
 import { applyProgress, cleanProgress, openItemsBlock, openItemsFor, type ProgressCounts } from "../taskEvidence";
+import { markCovered, openPointsFor, pointsBlock } from "../talkingPoints";
+import { writeFollowUp } from "../meetingFollowUp";
 import { captureSorted, emptyCounts, loadPeople, peopleIdsIn, projectChoices, type CaptureCounts } from "./capture";
 import { meetingUnit, sortMeeting, type MeetingNote } from "./granola";
 
@@ -18,9 +20,12 @@ export const MEETING_PROPOSER = "OllieOS";
 export interface MeetingCounts extends CaptureCounts {
   decisions: number;
   attached: number;
+  /** Part K: talking points the notes covered, and follow-up drafts written */
+  points_covered?: number;
+  follow_ups?: number;
 }
 
-export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; now: Date }): Promise<MeetingCounts> {
+export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; now: Date; myEmails?: Set<string> }): Promise<MeetingCounts> {
   const counts: MeetingCounts = { ...emptyCounts(), decisions: 0, attached: 0 };
   if (!notes.length) return counts;
   const choices = await projectChoices();
@@ -30,8 +35,14 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
     const event = n.calendarEventId ? await findEventBySourceRef(n.calendarEventId) : null;
     // Part U: open tasks with the people in the meeting, checked in the same read; always Looks done.
     const unit = meetingUnit(n);
-    const [open] = await openItemsFor([unit], [peopleIdsIn(unit, await loadPeople([unit], []))]);
-    const sorted = await sortMeeting(n, { me: ctx.me, projects: choices.map((p) => p.name), now: ctx.now, openItems: openItemsBlock(open) });
+    const personIds = peopleIdsIn(unit, await loadPeople([unit], []));
+    const [open] = await openItemsFor([unit], [personIds]);
+    // Part K: points Ollie wanted to raise with the people in the meeting.
+    const points = await openPointsFor([...new Set([...personIds, ...(event?.personIds ?? [])])]);
+    const sorted = await sortMeeting(n, { me: ctx.me, projects: choices.map((p) => p.name), now: ctx.now, openItems: openItemsBlock(open), talkingPoints: pointsBlock(points) });
+    const offered = new Set(points.map((p) => `point:${p.id}`));
+    const covered = (sorted.covered ?? []).filter((r) => offered.has(r)).map((r) => Number(r.split(":")[1]));
+    if (covered.length) counts.points_covered = (counts.points_covered ?? 0) + (await markCovered(covered, { eventId: event?.id ?? null, title: event?.title ?? n.title, at: n.at }));
     const progress = cleanProgress(sorted.progress, unit, open);
     if (progress.length) {
       const pc: ProgressCounts = { closed: 0, looks_done: 0, progress: 0 };
@@ -60,6 +71,16 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
         ctx.now,
       );
       if (r.status === "suggested" || r.status === "conflict") counts.decisions++;
+    }
+
+    // Part K: a follow-up draft for external meetings, saved to Gmail; never sent. A problem never stops the check.
+    if (event && !event.personal) {
+      try {
+        const f = await writeFollowUp(event, n, sorted, ctx.myEmails ?? new Set());
+        if (f) counts.follow_ups = (counts.follow_ups ?? 0) + 1;
+      } catch (err) {
+        logger.warn({ err, note: n.noteId }, "Could not write the meeting follow-up");
+      }
     }
 
     if (event && !event.personal) {

@@ -363,6 +363,8 @@ function sweepWhen(at: string): string {
 function BriefLink({ e, phone = false }: { e: CalendarEvent; phone?: boolean }) {
   if (!e.hasBrief) return null;
   return (
+    <>
+    {e.notPrepped && <span className="oo-pill" data-tone="high" style={{ fontSize: 11 }} data-testid={'pill-not-prepped-' + e.id}>Not prepped</span>}
     <Link
       href={'/briefs/' + e.id}
       className="oo-amber"
@@ -372,6 +374,7 @@ function BriefLink({ e, phone = false }: { e: CalendarEvent; phone?: boolean }) 
     >
       Brief me{!phone && <IconArrowOut size={12} />}
     </Link>
+    </>
   );
 }
 

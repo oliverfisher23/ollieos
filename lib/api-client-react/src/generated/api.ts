@@ -40,6 +40,7 @@ import type {
   AuthUserEnvelope,
   BeginBrowserLoginParams,
   BriefNotesInput,
+  BriefTalkingPointInput,
   BriefView,
   BundleInput,
   BundleResult,
@@ -215,6 +216,10 @@ import type {
   SuggestionApprove,
   SuggestionDecision,
   SweepStatus,
+  TalkingPoint,
+  TalkingPointInput,
+  TalkingPointRaisedInput,
+  TalkingPoints,
   Task,
   TaskDetail,
   TaskEvidence,
@@ -4207,6 +4212,448 @@ export function useListAgents<TData = Awaited<ReturnType<typeof listAgents>>, TE
 
 
 
+
+export const getListTalkingPointsUrl = (slug: string,) => {
+
+
+
+
+  return `/api/people/${slug}/points`
+}
+
+/**
+ * @summary Part K: a person's Next time I see points, open and recently raised
+ */
+export const listTalkingPoints = async (slug: string, options?: Parameters<typeof customFetch>[1]): Promise<TalkingPoints> => {
+
+  return customFetch<TalkingPoints>(getListTalkingPointsUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTalkingPointsQueryKey = (slug: string,) => {
+    return [
+    `/api/people/${slug}/points`
+    ] as const;
+    }
+
+
+export const getListTalkingPointsQueryOptions = <TData = Awaited<ReturnType<typeof listTalkingPoints>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTalkingPoints>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTalkingPointsQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTalkingPoints>>> = ({ signal }) => listTalkingPoints(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTalkingPoints>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListTalkingPointsQueryResult = NonNullable<Awaited<ReturnType<typeof listTalkingPoints>>>
+export type ListTalkingPointsQueryError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+
+
+export function useListTalkingPoints<TData = Awaited<ReturnType<typeof listTalkingPoints>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ slug: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTalkingPoints>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTalkingPoints>>,
+          TError,
+          Awaited<ReturnType<typeof listTalkingPoints>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTalkingPoints<TData = Awaited<ReturnType<typeof listTalkingPoints>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTalkingPoints>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTalkingPoints>>,
+          TError,
+          Awaited<ReturnType<typeof listTalkingPoints>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTalkingPoints<TData = Awaited<ReturnType<typeof listTalkingPoints>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTalkingPoints>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Part K: a person's Next time I see points, open and recently raised
+ */
+
+export function useListTalkingPoints<TData = Awaited<ReturnType<typeof listTalkingPoints>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ slug: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTalkingPoints>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListTalkingPointsQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddTalkingPointUrl = (slug: string,) => {
+
+
+
+
+  return `/api/people/${slug}/points`
+}
+
+/**
+ * @summary Part K: adds a point to raise next time
+ */
+export const addTalkingPoint = async (slug: string,
+    talkingPointInput: TalkingPointInput, options?: Parameters<typeof customFetch>[1]): Promise<TalkingPoint> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TalkingPoint>(getAddTalkingPointUrl(slug),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(talkingPointInput)
+  }
+);}
+
+
+
+
+
+export const getAddTalkingPointMutationKey = () => ['addTalkingPoint'] as const;
+
+export const getAddTalkingPointMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addTalkingPoint>>, TError,AddTalkingPointMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addTalkingPoint>>, TError,AddTalkingPointMutationVariables, TContext> => {
+
+const mutationKey = getAddTalkingPointMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addTalkingPoint>>, AddTalkingPointMutationVariables> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  addTalkingPoint(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddTalkingPointMutationResult = NonNullable<Awaited<ReturnType<typeof addTalkingPoint>>>
+    export type AddTalkingPointMutationBody = BodyType<TalkingPointInput>
+    export type AddTalkingPointMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type AddTalkingPointMutationVariables = {slug: string;data: BodyType<TalkingPointInput>}
+
+    /**
+ * @summary Part K: adds a point to raise next time
+ */
+export const useAddTalkingPoint = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addTalkingPoint>>, TError,AddTalkingPointMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addTalkingPoint>>,
+        TError,
+        AddTalkingPointMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddTalkingPointMutationOptions(options), queryClient);
+    }
+
+export const getSetTalkingPointRaisedUrl = (id: number,) => {
+
+
+
+
+  return `/api/points/${id}`
+}
+
+/**
+ * @summary Part K: ticks a point as raised by hand, or puts it back
+ */
+export const setTalkingPointRaised = async (id: number,
+    talkingPointRaisedInput: TalkingPointRaisedInput, options?: Parameters<typeof customFetch>[1]): Promise<TalkingPoint> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TalkingPoint>(getSetTalkingPointRaisedUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(talkingPointRaisedInput)
+  }
+);}
+
+
+
+
+
+export const getSetTalkingPointRaisedMutationKey = () => ['setTalkingPointRaised'] as const;
+
+export const getSetTalkingPointRaisedMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setTalkingPointRaised>>, TError,SetTalkingPointRaisedMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setTalkingPointRaised>>, TError,SetTalkingPointRaisedMutationVariables, TContext> => {
+
+const mutationKey = getSetTalkingPointRaisedMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setTalkingPointRaised>>, SetTalkingPointRaisedMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setTalkingPointRaised(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetTalkingPointRaisedMutationResult = NonNullable<Awaited<ReturnType<typeof setTalkingPointRaised>>>
+    export type SetTalkingPointRaisedMutationBody = BodyType<TalkingPointRaisedInput>
+    export type SetTalkingPointRaisedMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type SetTalkingPointRaisedMutationVariables = {id: number;data: BodyType<TalkingPointRaisedInput>}
+
+    /**
+ * @summary Part K: ticks a point as raised by hand, or puts it back
+ */
+export const useSetTalkingPointRaised = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setTalkingPointRaised>>, TError,SetTalkingPointRaisedMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setTalkingPointRaised>>,
+        TError,
+        SetTalkingPointRaisedMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetTalkingPointRaisedMutationOptions(options), queryClient);
+    }
+
+export const getDeleteTalkingPointUrl = (id: number,) => {
+
+
+
+
+  return `/api/points/${id}`
+}
+
+/**
+ * @summary Part K: removes a point
+ */
+export const deleteTalkingPoint = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteTalkingPointUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteTalkingPointMutationKey = () => ['deleteTalkingPoint'] as const;
+
+export const getDeleteTalkingPointMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTalkingPoint>>, TError,DeleteTalkingPointMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTalkingPoint>>, TError,DeleteTalkingPointMutationVariables, TContext> => {
+
+const mutationKey = getDeleteTalkingPointMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTalkingPoint>>, DeleteTalkingPointMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteTalkingPoint(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTalkingPointMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTalkingPoint>>>
+
+    export type DeleteTalkingPointMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type DeleteTalkingPointMutationVariables = {id: number}
+
+    /**
+ * @summary Part K: removes a point
+ */
+export const useDeleteTalkingPoint = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTalkingPoint>>, TError,DeleteTalkingPointMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTalkingPoint>>,
+        TError,
+        DeleteTalkingPointMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteTalkingPointMutationOptions(options), queryClient);
+    }
+
+export const getAddBriefTalkingPointUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/briefs/${eventId}/points`
+}
+
+/**
+ * @summary Part K: adds a Next time I see point for someone in the meeting, from its prep page
+ */
+export const addBriefTalkingPoint = async (eventId: number,
+    briefTalkingPointInput: BriefTalkingPointInput, options?: Parameters<typeof customFetch>[1]): Promise<TalkingPoint> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TalkingPoint>(getAddBriefTalkingPointUrl(eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(briefTalkingPointInput)
+  }
+);}
+
+
+
+
+
+export const getAddBriefTalkingPointMutationKey = () => ['addBriefTalkingPoint'] as const;
+
+export const getAddBriefTalkingPointMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addBriefTalkingPoint>>, TError,AddBriefTalkingPointMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addBriefTalkingPoint>>, TError,AddBriefTalkingPointMutationVariables, TContext> => {
+
+const mutationKey = getAddBriefTalkingPointMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addBriefTalkingPoint>>, AddBriefTalkingPointMutationVariables> = (props) => {
+          const {eventId,data} = props ?? {};
+
+          return  addBriefTalkingPoint(eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddBriefTalkingPointMutationResult = NonNullable<Awaited<ReturnType<typeof addBriefTalkingPoint>>>
+    export type AddBriefTalkingPointMutationBody = BodyType<BriefTalkingPointInput>
+    export type AddBriefTalkingPointMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type AddBriefTalkingPointMutationVariables = {eventId: number;data: BodyType<BriefTalkingPointInput>}
+
+    /**
+ * @summary Part K: adds a Next time I see point for someone in the meeting, from its prep page
+ */
+export const useAddBriefTalkingPoint = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addBriefTalkingPoint>>, TError,AddBriefTalkingPointMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addBriefTalkingPoint>>,
+        TError,
+        AddBriefTalkingPointMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddBriefTalkingPointMutationOptions(options), queryClient);
+    }
 
 export const getListTaskEvidenceUrl = (id: number,) => {
 

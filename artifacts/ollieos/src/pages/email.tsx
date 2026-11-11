@@ -270,7 +270,7 @@ function DraftRow({ it, current, onPick }: { it: EmailDraftItem; current: boolea
         {d.state === 'writing' ? `Writing from your brief: ${d.brief ?? ''}` : d.state === 'failed' ? 'Could not be written. Open it to try again.' : firstLine(d.body)}
       </span>
       <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 3 }}>
-        <span className="oo-pill">{it.chase ? 'Chase' : 'Reply'}</span>
+        <span className="oo-pill">{it.followUp ? 'Meeting follow-up' : it.chase ? 'Chase' : 'Reply'}</span>
         {d.state === 'writing' ? (
           <span className="oo-pill" data-testid={'pill-draft-writing-' + it.task.id}>Writing…</span>
         ) : d.state === 'failed' ? (

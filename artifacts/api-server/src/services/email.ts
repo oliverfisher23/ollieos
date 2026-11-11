@@ -66,6 +66,7 @@ export async function listEmailDrafts(): Promise<{ items: EmailDraftItem[] }> {
         confidential: t.confidential === true,
       },
       chase: !!t.sourceRef?.endsWith("#chase"),
+      followUp: !!t.sourceRef?.endsWith("#follow-up"),
     })),
   };
 }

@@ -480,7 +480,8 @@ export const GetHomeResponse = zod.object({
   "endsAt": zod.coerce.date(),
   "personal": zod.boolean(),
   "location": zod.string().nullable(),
-  "hasBrief": zod.boolean().describe('A work meeting with someone or something OllieOS knows about. "Brief me" opens /briefs/{id}.')
+  "hasBrief": zod.boolean().describe('A work meeting with someone or something OllieOS knows about. "Brief me" opens /briefs/{id}.'),
+  "notPrepped": zod.boolean().optional().describe('Part K: an external meeting today whose prep page has not been opened yet')
 })).describe('Today\'s calendar events, in start order. Empty until the sweep writes calendar data (milestone 5).'),
   "access": zod.object({
   "pending": zod.array(zod.object({
@@ -2552,6 +2553,7 @@ export const ListEmailDraftsResponse = zod.object({
   "sourceUrl": zod.string().nullable(),
   "confidential": zod.boolean()
 }),
+  "followUp": zod.boolean().optional().describe('Part K: a recap drafted after an external meeting'),
   "chase": zod.boolean().describe('A follow-up to an email nobody answered, rather than a reply')
 }))
 })
@@ -2636,6 +2638,135 @@ export const ListAgentsResponse = zod.object({
   "pending": zod.int()
 })
 }))
+})
+
+
+/**
+ * @summary Part K: a person's Next time I see points, open and recently raised
+ */
+export const ListTalkingPointsParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const ListTalkingPointsResponse = zod.object({
+  "open": zod.array(zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+})),
+  "raised": zod.array(zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Part K: adds a point to raise next time
+ */
+export const AddTalkingPointParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const addTalkingPointBodyTextMax = 300;
+
+
+
+export const AddTalkingPointBody = zod.object({
+  "text": zod.string().min(1).max(addTalkingPointBodyTextMax)
+})
+
+export const AddTalkingPointResponse = zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Part K: ticks a point as raised by hand, or puts it back
+ */
+export const SetTalkingPointRaisedParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const SetTalkingPointRaisedBody = zod.object({
+  "raised": zod.boolean()
+})
+
+export const SetTalkingPointRaisedResponse = zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Part K: removes a point
+ */
+export const DeleteTalkingPointParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteTalkingPointResponse = zod.void()
+
+
+/**
+ * @summary Part K: adds a Next time I see point for someone in the meeting, from its prep page
+ */
+export const AddBriefTalkingPointParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const addBriefTalkingPointBodyTextMax = 300;
+
+
+
+export const AddBriefTalkingPointBody = zod.object({
+  "personId": zod.int(),
+  "text": zod.string().min(1).max(addBriefTalkingPointBodyTextMax)
+})
+
+export const AddBriefTalkingPointResponse = zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
 })
 
 
@@ -3955,6 +4086,20 @@ export const GetNextBriefResponse = zod.object({
   "stale": zod.boolean().describe('Older than 30 days'),
   "error": zod.string().nullable()
 })),
+  "talkingPoints": zod.array(zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+})).optional().describe('Part K: open Next time I see points for people in the meeting, shown at the top of the agenda'),
+  "followUpTaskId": zod.int().nullish().describe('Part K: the follow-up task drafted from this meeting\'s Granola notes'),
+  "openedAt": zod.coerce.date().nullish().describe('Part K: when Ollie first opened this prep page'),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
   "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),
@@ -4165,6 +4310,20 @@ export const GetBriefResponse = zod.object({
   "stale": zod.boolean().describe('Older than 30 days'),
   "error": zod.string().nullable()
 })),
+  "talkingPoints": zod.array(zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+})).optional().describe('Part K: open Next time I see points for people in the meeting, shown at the top of the agenda'),
+  "followUpTaskId": zod.int().nullish().describe('Part K: the follow-up task drafted from this meeting\'s Granola notes'),
+  "openedAt": zod.coerce.date().nullish().describe('Part K: when Ollie first opened this prep page'),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
   "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),
@@ -4399,6 +4558,20 @@ export const RefreshBriefResponse = zod.object({
   "stale": zod.boolean().describe('Older than 30 days'),
   "error": zod.string().nullable()
 })),
+  "talkingPoints": zod.array(zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+})).optional().describe('Part K: open Next time I see points for people in the meeting, shown at the top of the agenda'),
+  "followUpTaskId": zod.int().nullish().describe('Part K: the follow-up task drafted from this meeting\'s Granola notes'),
+  "openedAt": zod.coerce.date().nullish().describe('Part K: when Ollie first opened this prep page'),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
   "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),
@@ -4609,6 +4782,20 @@ export const AllowForBriefResponse = zod.object({
   "stale": zod.boolean().describe('Older than 30 days'),
   "error": zod.string().nullable()
 })),
+  "talkingPoints": zod.array(zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+})).optional().describe('Part K: open Next time I see points for people in the meeting, shown at the top of the agenda'),
+  "followUpTaskId": zod.int().nullish().describe('Part K: the follow-up task drafted from this meeting\'s Granola notes'),
+  "openedAt": zod.coerce.date().nullish().describe('Part K: when Ollie first opened this prep page'),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
   "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),

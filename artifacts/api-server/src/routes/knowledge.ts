@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { addPoint, deletePoint, listPoints, POINT_CHARS, setPointRaised } from "../services/talkingPoints";
 import { z } from "zod";
 import { BUSINESS_FUNCTIONS, CADENCES, PRODUCT_STATES, PRODUCT_USERS, PROJECT_LIFECYCLES, isIsoDate } from "@workspace/shared";
 import { createProduct, getProduct, listProducts, updateProduct } from "../services/products";
@@ -216,6 +217,38 @@ router.post(
 );
 router.post("/people/:slug/check-in-draft", handle(async (req, res) => void res.json(await checkInDraft(SlugParams.parse(req.params).slug))));
 router.get("/people/:slug", handle(async (req, res) => void res.json(await getPerson(SlugParams.parse(req.params).slug))));
+// Part K: "Next time I see…" points.
+router.get(
+  "/people/:slug/points",
+  handle(async (req, res) => {
+    const p = await getPerson(SlugParams.parse(req.params).slug);
+    res.json(await listPoints(p.person.id));
+  }),
+);
+router.post(
+  "/people/:slug/points",
+  handle(async (req, res) => {
+    const p = await getPerson(SlugParams.parse(req.params).slug);
+    const b = z.object({ text: z.string().min(1).max(POINT_CHARS) }).strict().parse(req.body ?? {});
+    res.status(201).json(await addPoint(p.person.id, b.text, "ollie"));
+  }),
+);
+router.patch(
+  "/points/:id",
+  handle(async (req, res) => {
+    const { id } = z.object({ id: z.coerce.number().int().positive() }).parse(req.params);
+    const b = z.object({ raised: z.boolean() }).strict().parse(req.body ?? {});
+    res.json(await setPointRaised(id, b.raised, "ollie"));
+  }),
+);
+router.delete(
+  "/points/:id",
+  handle(async (req, res) => {
+    const { id } = z.object({ id: z.coerce.number().int().positive() }).parse(req.params);
+    await deletePoint(id, "ollie");
+    res.status(204).end();
+  }),
+);
 router.patch(
   "/people/:slug",
   handle(async (req, res) => void res.json(await updatePerson(SlugParams.parse(req.params).slug, PersonUpdate.parse(req.body)))),

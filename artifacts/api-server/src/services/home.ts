@@ -13,7 +13,7 @@ import {
 } from "@workspace/shared";
 import { toTaskViews, type TaskView } from "./taskView";
 import { listAccessRequests } from "./access";
-import { briefableIds } from "./briefs";
+import { briefableIds, notPreppedIds } from "./briefs";
 import { todaysDigestDate } from "./digest";
 import { ensureSelfPerson, inboxCounts } from "./knowledgeInbox";
 import { ensureSeeds } from "./seeds";
@@ -123,7 +123,7 @@ export async function getHome() {
         .orderBy(asc(calendarEventsTable.startsAt)),
     ]);
 
-  const [briefable, digestDate] = await Promise.all([briefableIds(todayEvents), todaysDigestDate(now)]);
+  const [briefable, digestDate, unprepped] = await Promise.all([briefableIds(todayEvents), todaysDigestDate(now), notPreppedIds(todayEvents, now)]);
   await ensureSelfPerson().catch(() => undefined);
   await ensureSeeds();
   const [candidates, waiting, promises, latestDone, access, knowledgeInbox, ideasDue, slackToAnswer, warnings] = await Promise.all([
@@ -164,6 +164,7 @@ export async function getHome() {
       personal: e.personal,
       location: e.location,
       hasBrief: briefable.has(e.id),
+      notPrepped: unprepped.has(e.id),
     })),
     access: { pending: access.pending, open: access.open },
     knowledgeInbox,

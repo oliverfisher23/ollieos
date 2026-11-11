@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { BriefTalkingPoints } from '@/components/talking-points';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -208,14 +209,21 @@ function Brief({ brief }: { brief: BriefView }) {
             </Panel>
           )}
 
-          {showContext && brief.agenda && brief.agenda.length > 0 && (
+          {((brief.talkingPoints ?? []).length > 0 || brief.attendees.some((a) => a.person) || (showContext && brief.agenda && brief.agenda.length > 0)) && (
             <Panel id="b-agenda" title="Suggested agenda">
-              <ol style={{ margin: 0, paddingLeft: 20, listStyle: 'decimal', display: 'flex', flexDirection: 'column', gap: 8, fontSize: 15, lineHeight: 1.5 }} data-testid="list-agenda">
+              <BriefTalkingPoints eventId={brief.event.id} points={brief.talkingPoints ?? []} people={brief.attendees.flatMap((a) => (a.person ? [{ id: a.person.id, name: a.person.name }] : []))} />
+              {showContext && brief.agenda && brief.agenda.length > 0 && <ol style={{ margin: 0, paddingLeft: 20, listStyle: 'decimal', display: 'flex', flexDirection: 'column', gap: 8, fontSize: 15, lineHeight: 1.5 }} data-testid="list-agenda">
                 {brief.agenda.map((l, i) => (
                   <li key={i}>{l.text}<Cites sources={l.sources} /></li>
                 ))}
-              </ol>
+              </ol>}
             </Panel>
+          )}
+
+          {brief.followUpTaskId != null && (
+            <p className="oo-soft" style={{ margin: 0, fontSize: 14 }} data-testid="text-brief-follow-up">
+              A follow-up email was drafted from the meeting notes and saved to Gmail. <Link href={'/email?tab=drafts&id=' + brief.followUpTaskId} className="oo-link">Open it in Drafts</Link>
+            </p>
           )}
 
           {showContext && brief.questions && brief.questions.length > 0 && (

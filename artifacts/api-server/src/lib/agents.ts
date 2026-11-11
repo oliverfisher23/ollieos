@@ -36,6 +36,7 @@ export const AGENTS = {
   email_reply_draft: { name: "Email replies and chases", kind: "writer", does: "Writes replies, briefed replies and chases in your style, saved to Gmail as drafts.", reads: "The email thread, items AI may see about it, your rules and How you write." },
   check_in_draft: { name: "Check-in drafts", kind: "writer", does: "Drafts a check-in to someone you have not been in touch with.", reads: "The person and open threads with them that AI may see." },
   slack_reply_draft: { name: "Slack reply drafts", kind: "writer", does: "Drafts a Slack reply for you to copy.", reads: "The Slack conversation, the person and their open tasks AI may see." },
+  meeting_follow_up: { name: "Meeting follow-ups", kind: "writer", does: "Drafts a recap email after an external meeting from its Granola notes, saved to Gmail as a draft.", reads: "The meeting's Granola notes, its actions and decisions, your rules and How you write." },
   brief_writer: { name: "Meeting briefs", kind: "writer", does: "Writes why a meeting matters, an agenda and questions for the prep page.", reads: "Items AI may see about the people, organisations and projects in the meeting." },
   digest_summary: { name: "Digest summary", kind: "writer", does: "Writes the one-sentence summary at the top of the daily digest.", reads: "Digest lines AI may see; hidden ones are only counted." },
 } as const satisfies Record<string, AgentInfo>;

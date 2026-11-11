@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { handle } from "../lib/handle";
-import { allowForBrief, briefView, nextBriefEventId, updateBriefNotes } from "../services/briefs";
+import { allowForBrief, briefView, markBriefOpened, nextBriefEventId, updateBriefNotes } from "../services/briefs";
+import { addPoint, POINT_CHARS } from "../services/talkingPoints";
 import { getDigest, listDigests } from "../services/digest";
 import { listMeetings } from "../services/meetings";
 import { NotFoundError } from "../services/tasks";
@@ -24,7 +25,25 @@ router.get(
     res.json(await briefView(id));
   }),
 );
-router.get("/briefs/:eventId", handle(async (req, res) => void res.json(await briefView(EventParams.parse(req.params).eventId))));
+router.get(
+  "/briefs/:eventId",
+  handle(async (req, res) => {
+    const { eventId } = EventParams.parse(req.params);
+    const view = await briefView(eventId);
+    // Part K: opening the prep page clears "Not prepped".
+    await markBriefOpened(eventId);
+    res.json({ ...view, openedAt: view.openedAt ?? new Date() });
+  }),
+);
+// Part K: add a "Next time I see…" point for someone in the meeting.
+router.post(
+  "/briefs/:eventId/points",
+  handle(async (req, res) => {
+    EventParams.parse(req.params);
+    const b = z.object({ personId: z.number().int().positive(), text: z.string().min(1).max(POINT_CHARS) }).strict().parse(req.body ?? {});
+    res.status(201).json(await addPoint(b.personId, b.text, "ollie"));
+  }),
+);
 router.post("/briefs/:eventId/refresh", handle(async (req, res) => void res.json(await briefView(EventParams.parse(req.params).eventId, { force: true }))));
 router.post("/briefs/:eventId/allow", handle(async (req, res) => void res.json(await allowForBrief(EventParams.parse(req.params).eventId))));
 router.patch(

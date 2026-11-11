@@ -20,13 +20,13 @@ import {
   type DigestSection,
   type DigestSections,
 } from "@workspace/db";
-import { addDays, formatLong, isIsoDate, londonRange, londonWallTimeToInstant, todayLondon, toRef, weekday } from "@workspace/shared";
+import { addDays, formatLong, formatTime, isIsoDate, londonRange, londonWallTimeToInstant, todayLondon, toRef, weekday } from "@workspace/shared";
 import { defaultScope, visibleRefs } from "../lib/ai-data/scope";
 import { writeAudit } from "../lib/audit";
 import { logger } from "../lib/logger";
 import { askScope } from "./ask/ask";
 import { digestSummaryFromLines } from "./ask/model";
-import { briefableIds } from "./briefs";
+import { briefableIds, notPreppedIds } from "./briefs";
 import { listCadence } from "./cadence";
 import { inboxCounts } from "./knowledgeInbox";
 import { clearOutMonday, untouchedCount } from "./planning";
@@ -153,6 +153,11 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
   if (inboxTotal) {
     const parts = [...g.inbox].sort((a, b) => b.n - a.n).map((r) => `${r.n} ${SOURCE_WORDS[r.source] ?? r.source}`);
     needs.push({ text: `${plural(inboxTotal, "new item", "new items")} in your Inbox (${parts.join(", ")})`, href: "/triage", refs: [], confidential: false });
+  }
+  // Part K: today's external meetings whose prep page has not been opened.
+  const unprepped = await notPreppedIds(g.events, now);
+  for (const e of g.events.filter((x) => unprepped.has(x.id))) {
+    needs.push({ text: `Not prepped yet: ${clip(e.title, 70)} at ${formatTime(e.startsAt)}`, href: `/briefs/${e.id}`, refs: [], confidential: false });
   }
   // Connector warnings (Part Q): a service that stopped working, or stopped bringing anything in.
   for (const w of await connectorWarnings(now)) needs.push({ text: w.text, href: "/settings/connectors", refs: [], confidential: false });

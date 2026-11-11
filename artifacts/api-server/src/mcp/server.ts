@@ -41,6 +41,7 @@ import { AttendeeSchema, syncCalendarFeed } from "../services/calendarSync";
 import { briefForAi, resolveEventForAi } from "../services/briefs";
 import { saveSession, SESSION_LIMITS, type SessionAction } from "../services/sessions";
 import { addIdeaFromAi } from "../services/strategy";
+import { addPoint, POINT_CHARS } from "../services/talkingPoints";
 
 export const SOURCE_OF_TRUTH =
   "OllieOS is the source of truth for Ollie's work: tasks, projects, people and decisions. Check it before asking Ollie for context.";
@@ -535,6 +536,26 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
         });
         if (!r.visible) return ok(HIDDEN_SAVE);
         return ok({ idea: { ref: `idea:${r.id}`, title: a.title.trim(), status: "new" }, message: "Added to Ollie's ideas as New, marked as yours." });
+      }),
+  );
+
+  server.registerTool(
+    "add_talking_point",
+    {
+      description: describe(
+        "Adds a \"Next time I see…\" point to a person: something Ollie wants to raise with them. It goes straight onto their page and to the top of the agenda of the next meeting they are in, and is marked raised once that meeting's notes show it was covered. Use it when Ollie says to remember to ask or tell someone something.",
+      ),
+      inputSchema: {
+        person: Pick.describe("The person: a ref such as person:4, a slug or a name"),
+        text: z.string().min(1).max(POINT_CHARS).describe("The point, in a line"),
+      },
+    },
+    async (a) =>
+      guard(async () => {
+        const person = await pickOrNull(scope, a.person, ["person"]);
+        if (!person) return NOT_FOUND("person");
+        const p = await addPoint(person.id, a.text, writer.actor, writer.clientId);
+        return ok({ point: { person: `person:${p.personId}`, text: p.text, status: "open" }, message: "Added to their Next time I see list." });
       }),
   );
 

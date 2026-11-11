@@ -277,7 +277,7 @@ async function readGranolaRun(now: Date) {
   const me = await myAddresses();
   if (!me.size) throw new ConnectorError("OllieOS does not know your email address yet. Check Google Calendar first.");
   const r = await readGranola(await getState<GranolaState>("granola"), me, now);
-  const c = await captureMeetings(r.notes, { me: `His email address is ${[...me][0]}.`, now });
+  const c = await captureMeetings(r.notes, { me: `His email address is ${[...me][0]}.`, now, myEmails: me });
   await putState("granola", r.state);
   return { found: r.found, account: null, counts: { ...c, meetings: r.notes.length, left_out: r.leftOut, more: r.more ? 1 : 0 } };
 }

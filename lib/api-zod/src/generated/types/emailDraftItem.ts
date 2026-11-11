@@ -11,6 +11,8 @@ import type { ReplyDraft } from './replyDraft';
 export interface EmailDraftItem {
   draft: ReplyDraft;
   task: EmailDraftItemTask;
+  /** Part K: a recap drafted after an external meeting */
+  followUp?: boolean;
   /** A follow-up to an email nobody answered, rather than a reply */
   chase: boolean;
 }

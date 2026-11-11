@@ -3,6 +3,8 @@
  * hidden attendee or project is left out unless Ollie opens it up. Built when a sweep finishes for
  * today's and tomorrow's work meetings, and again on open when more than 3 hours old.
  */
+import { openPointsFor, type TalkingPointView } from "./talkingPoints";
+import { followUpRef } from "./meetingFollowUp";
 import { createHash } from "node:crypto";
 import { and, arrayOverlaps, asc, desc, eq, gt, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import {
@@ -535,6 +537,12 @@ export interface BriefView {
   event: { id: number; title: string; startsAt: Date; endsAt: Date; location: string | null; platform: string | null; scope: MeetingScope; companies: string[] };
   /** What the research agent found about each outside company on the meeting */
   research: ResearchView[];
+  /** Part K: open "Next time I see…" points for people in the meeting, top of the agenda */
+  talkingPoints: TalkingPointView[];
+  /** Part K: the follow-up task drafted from this meeting's Granola notes, if there is one */
+  followUpTaskId: number | null;
+  /** Part K: when Ollie first opened this prep page */
+  openedAt: Date | null;
   generatedAt: Date;
   failed: boolean;
   notMuch: boolean;
@@ -774,6 +782,9 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
       companies: inputs.match.companies,
     },
     research: await researchViews(inputs.match.domains),
+    talkingPoints: await openPointsFor(people),
+    followUpTaskId: brief.granolaRef ? await followUpTaskFor(brief.granolaRef) : null,
+    openedAt: brief.openedAt,
     generatedAt: brief.generatedAt,
     failed: brief.failed,
     notMuch: !brief.why && !brief.failed,
@@ -952,6 +963,38 @@ export async function allowForBrief(eventId: number): Promise<BriefView> {
 
 /* ---------- Granola notes after the meeting (rule 6) ---------- */
 
+/**
+ * Part K: external work meetings today that have a prep page Ollie has not opened yet and have not
+ * started. Used by the digest and the Home Today strip.
+ */
+export async function notPreppedIds(events: CalendarEvent[], now = new Date()): Promise<Set<number>> {
+  const upcoming = events.filter((e) => !e.personal && e.startsAt > now);
+  if (!upcoming.length) return new Set();
+  const [briefable, m, opened] = await Promise.all([
+    briefableIds(upcoming),
+    loadMatchers(),
+    db
+      .select({ id: meetingBriefsTable.calendarEventId })
+      .from(meetingBriefsTable)
+      .where(and(inArray(meetingBriefsTable.calendarEventId, upcoming.map((e) => e.id)), sql`${meetingBriefsTable.openedAt} is not null`)),
+  ]);
+  const seen = new Set(opened.map((o) => o.id));
+  return new Set(upcoming.filter((e) => briefable.has(e.id) && !seen.has(e.id) && matchEvent(e, m).scope === "external").map((e) => e.id));
+}
+
+/** Part K: Ollie opened the prep page, so the meeting no longer counts as "Not prepped". */
+export async function markBriefOpened(eventId: number): Promise<void> {
+  await db
+    .update(meetingBriefsTable)
+    .set({ openedAt: new Date() })
+    .where(and(eq(meetingBriefsTable.calendarEventId, eventId), isNull(meetingBriefsTable.openedAt)));
+}
+
+async function followUpTaskFor(granolaRef: string): Promise<number | null> {
+  const [t] = await db.select({ id: tasksTable.id }).from(tasksTable).where(and(eq(tasksTable.source, "meeting"), eq(tasksTable.sourceRef, followUpRef(granolaRef)))).limit(1);
+  return t?.id ?? null;
+}
+
 export async function findEventBySourceRef(sourceRef: string): Promise<CalendarEvent | null> {
   const [event] = await db.select().from(calendarEventsTable).where(eq(calendarEventsTable.sourceRef, sourceRef));
   return event ?? null;
@@ -1009,6 +1052,8 @@ export interface BriefOut {
   products: { ref: string; name: string; description: string | null; rules: string[] }[];
   /** Playbooks in use for the meeting's projects and organisations */
   playbooks: { ref: string; title: string; when_to_use: string }[];
+  /** Part K: points Ollie wants to raise with people in the meeting */
+  talking_points: { person: string; text: string }[];
 }
 
 /**
@@ -1069,6 +1114,7 @@ export async function briefForAi(scope: AiScope, eventId: number): Promise<Brief
         rules: p.ruleIds.map((id) => toRef("rule", id)).filter((r) => ok.has(r)),
       })),
     playbooks: view.playbooks.filter((p) => ok.has(toRef("playbook", p.id))).map((p) => ({ ref: toRef("playbook", p.id), title: p.title, when_to_use: p.whenToUse })),
+    talking_points: view.talkingPoints.filter((p) => ok.has(toRef("person", p.personId))).map((p) => ({ person: toRef("person", p.personId), text: p.text })),
   };
   if (!out.why.length) {
     out.questions = [];

@@ -568,6 +568,8 @@ export interface CalendarEvent {
   location: string | null;
   /** A work meeting with someone or something OllieOS knows about. "Brief me" opens /briefs/{id}. */
   hasBrief: boolean;
+  /** Part K: an external meeting today whose prep page has not been opened yet */
+  notPrepped?: boolean;
 }
 
 export type HomeSummaryConnectorWarningsItem = {
@@ -1058,9 +1060,52 @@ export type BriefViewActionsItem = {
   status: string;
 };
 
+export type TalkingPointStatus = typeof TalkingPointStatus[keyof typeof TalkingPointStatus];
+
+
+export const TalkingPointStatus = {
+  open: 'open',
+  raised: 'raised',
+} as const;
+
+export interface TalkingPoint {
+  id: number;
+  personId: number;
+  /** @nullable */
+  personName: string | null;
+  text: string;
+  createdBy: string;
+  status: TalkingPointStatus;
+  /** @nullable */
+  raisedAt: string | null;
+  /**
+     * The meeting it was raised in
+     * @nullable
+     */
+  raisedTitle: string | null;
+  /**
+     * notes (Granola showed it covered) or ollie (ticked by hand)
+     * @nullable
+     */
+  raisedHow: string | null;
+  createdAt: string;
+}
+
 export interface BriefView {
   event: BriefEvent;
   research: CompanyResearch[];
+  /** Part K: open Next time I see points for people in the meeting, shown at the top of the agenda */
+  talkingPoints?: TalkingPoint[];
+  /**
+     * Part K: the follow-up task drafted from this meeting's Granola notes
+     * @nullable
+     */
+  followUpTaskId?: number | null;
+  /**
+     * Part K: when Ollie first opened this prep page
+     * @nullable
+     */
+  openedAt?: string | null;
   generatedAt: string;
   /** The model could not write the brief. Refresh to try again. */
   failed: boolean;
@@ -1438,6 +1483,32 @@ export interface EmailInbox {
   problem: string | null;
 }
 
+export interface TalkingPointInput {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  text: string;
+}
+
+export interface TalkingPointRaisedInput {
+  raised: boolean;
+}
+
+export interface BriefTalkingPointInput {
+  personId: number;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  text: string;
+}
+
+export interface TalkingPoints {
+  open: TalkingPoint[];
+  raised: TalkingPoint[];
+}
+
 export type TaskEvidenceShows = typeof TaskEvidenceShows[keyof typeof TaskEvidenceShows];
 
 
@@ -1727,6 +1798,8 @@ export type EmailDraftItemTask = {
 export interface EmailDraftItem {
   draft: ReplyDraft;
   task: EmailDraftItemTask;
+  /** Part K: a recap drafted after an external meeting */
+  followUp?: boolean;
   /** A follow-up to an email nobody answered, rather than a reply */
   chase: boolean;
 }

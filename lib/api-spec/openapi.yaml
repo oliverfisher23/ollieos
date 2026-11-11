@@ -1088,6 +1088,95 @@ paths:
               schema: { $ref: "#/components/schemas/AgentsView" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /people/{slug}/points:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    get:
+      operationId: listTalkingPoints
+      tags: [knowledge]
+      summary: "Part K: a person's Next time I see points, open and recently raised"
+      responses:
+        "200":
+          description: Points
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TalkingPoints" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    post:
+      operationId: addTalkingPoint
+      tags: [knowledge]
+      summary: "Part K: adds a point to raise next time"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TalkingPointInput" }
+      responses:
+        "201":
+          description: The point
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TalkingPoint" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /points/{id}:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    patch:
+      operationId: setTalkingPointRaised
+      tags: [knowledge]
+      summary: "Part K: ticks a point as raised by hand, or puts it back"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TalkingPointRaisedInput" }
+      responses:
+        "200":
+          description: The point
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TalkingPoint" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteTalkingPoint
+      tags: [knowledge]
+      summary: "Part K: removes a point"
+      responses:
+        "204":
+          description: Removed
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /briefs/{eventId}/points:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: addBriefTalkingPoint
+      tags: [preparation]
+      summary: "Part K: adds a Next time I see point for someone in the meeting, from its prep page"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BriefTalkingPointInput" }
+      responses:
+        "201":
+          description: The point
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TalkingPoint" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /tasks/{id}/evidence:
     parameters:
       - $ref: "#/components/parameters/TaskId"
@@ -4605,6 +4694,9 @@ components:
         hasBrief:
           type: boolean
           description: A work meeting with someone or something OllieOS knows about. "Brief me" opens /briefs/{id}.
+        notPrepped:
+          type: boolean
+          description: "Part K: an external meeting today whose prep page has not been opened yet"
 
     HomeSummary:
       type: object
@@ -4884,6 +4976,12 @@ components:
       properties:
         event: { $ref: "#/components/schemas/BriefEvent" }
         research: { type: array, items: { $ref: "#/components/schemas/CompanyResearch" } }
+        talkingPoints:
+          type: array
+          description: "Part K: open Next time I see points for people in the meeting, shown at the top of the agenda"
+          items: { $ref: "#/components/schemas/TalkingPoint" }
+        followUpTaskId: { type: [integer, "null"], description: "Part K: the follow-up task drafted from this meeting's Granola notes" }
+        openedAt: { type: [string, "null"], format: date-time, description: "Part K: when Ollie first opened this prep page" }
         generatedAt: { type: string, format: date-time }
         failed: { type: boolean, description: The model could not write the brief. Refresh to try again. }
         notMuch: { type: boolean, description: Nothing citable on file. Show attendees and promises only. }
@@ -5309,6 +5407,43 @@ components:
         checkedAt: { type: string, format: date-time, description: When Gmail was last looked at }
         updating: { type: boolean, description: "Gmail is being looked at again, or new emails are being read" }
         problem: { type: [string, "null"], description: "Why the last look at Gmail failed; the list is from the one before" }
+    TalkingPoint:
+      type: object
+      required: [id, personId, personName, text, createdBy, status, raisedAt, raisedTitle, raisedHow, createdAt]
+      properties:
+        id: { type: integer }
+        personId: { type: integer }
+        personName: { type: [string, "null"] }
+        text: { type: string }
+        createdBy: { type: string }
+        status: { type: string, enum: [open, raised] }
+        raisedAt: { type: [string, "null"], format: date-time }
+        raisedTitle: { type: [string, "null"], description: The meeting it was raised in }
+        raisedHow: { type: [string, "null"], description: "notes (Granola showed it covered) or ollie (ticked by hand)" }
+        createdAt: { type: string, format: date-time }
+    TalkingPointInput:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties: { text: { type: string, minLength: 1, maxLength: 300 } }
+    TalkingPointRaisedInput:
+      type: object
+      additionalProperties: false
+      required: [raised]
+      properties: { raised: { type: boolean } }
+    BriefTalkingPointInput:
+      type: object
+      additionalProperties: false
+      required: [personId, text]
+      properties:
+        personId: { type: integer }
+        text: { type: string, minLength: 1, maxLength: 300 }
+    TalkingPoints:
+      type: object
+      required: [open, raised]
+      properties:
+        open: { type: array, items: { $ref: "#/components/schemas/TalkingPoint" } }
+        raised: { type: array, items: { $ref: "#/components/schemas/TalkingPoint" } }
     TaskEvidence:
       type: object
       required: [id, source, url, saidBy, saidAt, place, quote, shows, strength, applied, dismissed]
@@ -5458,6 +5593,9 @@ components:
             sourceSubject: { type: [string, "null"] }
             sourceUrl: { type: [string, "null"] }
             confidential: { type: boolean }
+        followUp:
+          type: boolean
+          description: "Part K: a recap drafted after an external meeting"
         chase:
           type: boolean
           description: A follow-up to an email nobody answered, rather than a reply
