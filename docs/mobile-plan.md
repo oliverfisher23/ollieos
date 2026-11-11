@@ -1,6 +1,6 @@
 # Mobile responsiveness and optimisation plan
 
-Status: Parts A and B built (11th November 2026); B waiting for sign-off. Parts C to E not started. Each part is its own sign-off, in the order below.
+Status: Parts A to C built (11th November 2026); C waiting for sign-off. Parts D and E not started. Each part is its own sign-off, in the order below.
 
 Relates to: PRD section 5 ("works at 375px", "touch targets at least 44px", saved to the home screen), PRD acceptance criterion 8, and build plan milestone 9 (phone Home and Triage, swipe, home screen install, voice).
 
@@ -109,6 +109,22 @@ Mostly CSS in `index.css`, one change fixes many pages.
 - Fade edge on sideways-scrolling tab rows (Tasks, Email, Settings) so it is clear there is more.
 - Fix the "this your inbox" wording.
 
+**Built (11th November 2026):**
+
+- **Tap areas.** One phone block at the end of `index.css`. Pills, text buttons, back links, inline edits, task titles, Knowledge row links, chips, filter chips and small controls get an invisible layer centred on them, at least 44 × 44, with `min(0px, calc(50% - 22px))` insets so a control already that big gets nothing extra. That is the same idea `.oo-check` and `.oo-switch` already used. The look does not change. `oo-tap` does the same for one-off links (the phone header logo, Home's Weekly round-up, All meetings and See everything done, the breadcrumb links on note, playbook and product pages, and the ChatGPT or Gemini expander). Buttons whose box is their look (small, mini, chase, the Claude prompt buttons, text fields, the compact Internal/External toggle) are 44px tall on phones. Search boxes are 44px tall with no extra padding.
+- **Tick circle fixed.** Its layer started inside the 1.5px border, so the tap area was 42px, not 44. It is now 44+.
+- **Task cards.** On phones a tap anywhere on a card opens the task; the tick, pills and other buttons sit above that layer. Wrapped pill rows are 14px apart and the title sits 12px above the pills, so no layer covers a neighbour. Checked with real taps: blank card area opens the task, a pill opens its menu, just outside the tick hits the tick, just under a title opens the task.
+- **Goals.** The confidential switch's tap area (10px, at every width) covered the bottom of the Target field, so a tap there could flip the switch. The switch row now has 10px more space above it. This page is 10px taller on desktop too.
+- **Text fields 16px on phones**, with `!important` because some fields set a smaller size inline. Pinch zoom is back (`maximum-scale=1` removed).
+- **Safe areas.** `viewport-fit=cover`; both shells pad their sides with the left and right insets at every width (a phone held sideways is wider than 640px and gets the rail); the tab bar adds them to its own padding; the task detail sheet and the modal and triage backdrops clear the home indicator. The tab bar, add sheet and triage panel already did.
+- **Sideways rows fade.** `ScrollRow` (`components/scroll-row.tsx`) on the tab rows of Tasks, Email, Library, Knowledge Inbox, People and Strategy ideas: it fades the edge that has more beyond it, hides the scrollbar, brings the selected tab clear of the fade on open (again when the counts load, until the row is touched) and whenever the selection changes. The Settings menu is left as it was: fading it dissolved its white panel, and Part D replaces it on phones.
+- **Wording.** Email errors now read "Could not load this inbox." and "Could not load this list of drafts."
+- **Audit.** Measures tap layers (`::before`/`::after`, against their real containing block), allows half a pixel for rounding, skips what sits behind an open modal, and has a new failing check: a control that would lose taps to anything over it, sampled per line box so a wrapped link is not judged by its overall rectangle.
+
+**Results:** with one record of every kind added locally so no page is skipped, `mobile-audit --strict` passes all 88 checks (44 pages at 360 and 375px): no tap target under 44px, no text field under 16px, nothing covered. The add sheet, an open dropdown and the task detail sheet pass the same checks. Desktop at 1280px is pixel-identical on 12 of 16 pages; the others differ only as intended (the Goals spacing, the Email wording, the tab-row fade when the task detail narrows the list, and a port number in the Connectors addresses that comes from the test setup).
+
+**Not checked:** a real iPhone (safe areas, the keyboard, how the fades look on a real screen); the many dialogs the audit does not open (forms for new projects, rules, playbooks and so on).
+
 ### Part D. Phone layouts that read well (2 to 3 days)
 
 Same routes, different layout below 640px, as the build plan already says.
@@ -132,7 +148,7 @@ Same routes, different layout below 640px, as the build plan already says.
 |---|---|---|---|
 | A | Audit script, bundle budget, rules in DESIGN.md | 0.5 day | Built: audit passes (78 checks), budget fails the build when exceeded |
 | B | Route splitting, fonts, waterfall, caching | 1 to 2 days | Built: first load 141.5 KB (budget 145, see Part B for 120); first paint 0.89s; content 0.4s to 0.8s sooner |
-| C | Touch targets, 16px inputs, safe areas | 1 to 2 days | Audit shows no targets under 44px on Home, Tasks, task detail, Email |
+| C | Touch targets, 16px inputs, safe areas | 1 to 2 days | Built: strict audit passes on every page (88 checks) |
 | D | Tasks, Knowledge, Settings, tables on phone | 2 to 3 days | Screens reviewed by Ollie on his phone |
 | E | Manifest, icons, shell service worker | 1 day | Added to home screen, opens full screen, tab bar clear of home indicator |
 

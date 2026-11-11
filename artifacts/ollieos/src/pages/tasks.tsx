@@ -26,6 +26,7 @@ import { notify, notifyUndo } from '@/lib/notify';
 import { useTaskActions } from '@/lib/task-actions';
 import { Dot, Dropdown } from '@/components/dropdown';
 import { lazyPage } from '@/lib/lazy-page';
+import { ScrollRow } from '@/components/scroll-row';
 
 /** Opens on a tap, so its code (with reply drafting and checklists) loads after the list is on screen. */
 const TaskDetailPanel = lazyPage(() => import('@/components/task-detail'), 'TaskDetailPanel');
@@ -132,7 +133,7 @@ export default function TasksPage() {
           </span>
         </div>
 
-        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <ScrollRow className="-mx-4 px-4 sm:mx-0 sm:px-0">
           <div role="tablist" aria-label="Task views" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--oo-line)', minWidth: 'max-content' }}>
             {TABS.map((t) => (
               <button key={t.value} type="button" role="tab" className="oo-tab" aria-selected={t.value === tab}
@@ -141,7 +142,7 @@ export default function TasksPage() {
               </button>
             ))}
           </div>
-        </div>
+        </ScrollRow>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
           <span className="oo-serif" style={{ fontSize: 22, marginRight: 6 }} data-testid="text-shown-count">
@@ -485,14 +486,14 @@ function TaskRows({ tab, rows: allRows, selected, onOpen }: { tab: TaskTab; rows
   const cards = (list: Task[]) => (
     <div className="oo-cards">
       {list.map((t) => (
-        <div key={t.id} className="oo-card-row" data-leaving={leaving(t)} data-testid={'card-task-' + t.id}>
+        <div key={t.id} className="oo-card-row oo-card-open" data-leaving={leaving(t)} data-testid={'card-task-' + t.id}>
           <div style={{ paddingTop: 2 }}>{check(t)}</div>
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="oo-card-body">
             <button type="button" className="oo-row-title" data-done={doneOf(t)} style={{ fontSize: 15, minHeight: 24 }} onClick={() => onOpen(t.id)}
               onFocus={() => inbox && setCursor(t.id)} data-testid={'button-open-task-mobile-' + t.id}>{t.title}</button>
             {hint(t)}
             <TaskMarks task={t} />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+            <div className="oo-card-pills">
               <SourceMark source={t.source} size={20} />
               {priorityCell(t, 'select-card-priority-' + t.id)}
               {statusCell(t, 'select-card-status-' + t.id)}

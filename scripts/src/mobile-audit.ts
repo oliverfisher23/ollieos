@@ -3,6 +3,7 @@
  *
  * Opens every page of the web app at phone widths as a touch device and checks:
  *   - sideways scroll (fails the run)
+ *   - a control partly under another control's tap area, so it would lose taps (fails the run)
  *   - pages that crash or show the error screen (fails the run)
  *   - tap targets under 44px and text fields under 16px (reported; fail only with --strict)
  *   - pages that do not load or stay blank (fails the run)
@@ -164,6 +165,7 @@ async function loadSamples(): Promise<Samples> {
 type PageFindings = {
   sideways: number;
   overflowers: string[];
+  covered: string[];
   smallTargets: string[];
   smallInputs: string[];
   errorScreen: boolean;
@@ -187,6 +189,8 @@ const IN_PAGE = `(() => {
   const visible = (el) => {
     const r = el.getBoundingClientRect();
     if (r.width <= 1 || r.height <= 1) return false;
+    // Behind an open modal the page ignores taps (pointer-events: none), so it is not a target there.
+    if (getComputedStyle(el).pointerEvents === 'none') return false;
     return el.checkVisibility ? el.checkVisibility({ opacityProperty: true, visibilityProperty: true }) : true;
   };
   // Is el cut off by a scroll or clip box? An absolutely positioned element escapes
@@ -217,6 +221,37 @@ const IN_PAGE = `(() => {
     overflowers.push(label(el) + ' right edge ' + Math.round(r.right) + 'px');
   }
 
+  // The tap area: the element's box, grown by an absolutely positioned ::before or ::after that takes
+  // taps (the .oo-check / .oo-tap pattern: an invisible layer with negative insets).
+  const hitArea = (el) => {
+    const r = el.getBoundingClientRect();
+    let left = r.left, top = r.top, right = r.right, bottom = r.bottom;
+    // The layer is placed against its containing block: the element if positioned, else the nearest
+    // positioned ancestor (how a title's layer can cover a whole card).
+    let cb = el;
+    while (cb && cb !== document.body) {
+      const cs = getComputedStyle(cb);
+      if (cs.position !== 'static' || cs.transform !== 'none') break;
+      cb = cb.parentElement;
+    }
+    if (cb && cb !== document.body) {
+      const c = cb.getBoundingClientRect();
+      const s = getComputedStyle(cb);
+      const bl = parseFloat(s.borderLeftWidth) || 0, bt = parseFloat(s.borderTopWidth) || 0, br = parseFloat(s.borderRightWidth) || 0, bb = parseFloat(s.borderBottomWidth) || 0;
+      for (const which of ['::before', '::after']) {
+        const p = getComputedStyle(el, which);
+        if (p.content === 'none' || p.content === 'normal' || p.position !== 'absolute' || p.pointerEvents === 'none' || p.display === 'none') continue;
+        const t = parseFloat(p.top), l = parseFloat(p.left), rt = parseFloat(p.right), bo = parseFloat(p.bottom);
+        if ([t, l, rt, bo].some((v) => Number.isNaN(v))) continue;
+        left = Math.min(left, c.left + bl + l);
+        top = Math.min(top, c.top + bt + t);
+        right = Math.max(right, c.right - br - rt);
+        bottom = Math.max(bottom, c.bottom - bb - bo);
+      }
+    }
+    return { width: right - left, height: bottom - top };
+  };
+
   const small = new Set();
   const targets = 'a[href], button, select, summary, input:not([type=hidden]), textarea, [role=button], [role=tab], [role=switch], [role=checkbox], [role=radio], [role=combobox], [role=link], [role=menuitem], [role=option]';
   for (const el of document.querySelectorAll(targets)) {
@@ -229,9 +264,36 @@ const IN_PAGE = `(() => {
       const around = (el.parentElement && el.parentElement.textContent || '').trim().length;
       if (around > own + 10) continue;
     }
-    const r = el.getBoundingClientRect();
-    if (r.height < MIN_TARGET || r.width < MIN_TARGET) small.add(label(el) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
+    const r = hitArea(el);
+    // Half a pixel of slack: a layer sized with calc() can land at 43.9px.
+    if (r.height < MIN_TARGET - 0.5 || r.width < MIN_TARGET - 0.5) small.add(label(el) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
   }
+
+  // A control whose own box is partly under another control's tap area would lose taps to it.
+  // Checked by asking the browser what a tap would hit at points inside each control.
+  const covered = new Set();
+  const all = [...document.querySelectorAll(targets)].filter((el) => visible(el) && !inFixed(el));
+  const scrollY = window.scrollY;
+  for (const el of all) {
+    el.scrollIntoView({ block: 'center', inline: 'nearest' });
+    // One box per line for a link that wraps; its overall rectangle would take in text beside it.
+    for (const r of el.getClientRects()) {
+      if (r.width < 6 || r.height < 6) continue;
+      for (const fx of [0.15, 0.5, 0.85]) {
+        for (const fy of [0.2, 0.5, 0.8]) {
+          const x = r.left + r.width * fx, y = r.top + r.height * fy;
+          if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) continue;
+          const hit = document.elementFromPoint(x, y);
+          if (!hit || el === hit || el.contains(hit)) continue;
+          // Whatever would take the tap: another control, or anything else sitting over this one.
+          const owner = hit.closest(targets) || hit;
+          if (owner === el || owner.contains(el) || el.contains(owner) || inFixed(owner)) continue;
+          covered.add(label(el) + ' is partly under ' + label(owner));
+        }
+      }
+    }
+  }
+  window.scrollTo(0, scrollY);
 
   const inputs = new Set();
   const textTypes = new Set(['', 'text', 'search', 'email', 'url', 'tel', 'password', 'number', 'date', 'time', 'datetime-local', 'month', 'week']);
@@ -245,6 +307,7 @@ const IN_PAGE = `(() => {
   return {
     sideways: Math.max(0, document.documentElement.scrollWidth - vw),
     overflowers: overflowers.slice(0, 10),
+    covered: [...covered],
     smallTargets: [...small],
     smallInputs: [...inputs],
     errorScreen: /Something went wrong/.test(document.body.innerText),
@@ -279,7 +342,7 @@ async function auditPage(page: Page, width: number, route: RouteCheck, url: stri
 }
 
 function failed(r: Result) {
-  return r.loadError !== null || r.blank || r.sideways > 0 || r.errorScreen || r.pageErrors.length > 0 || (STRICT && (r.smallTargets.length > 0 || r.smallInputs.length > 0));
+  return r.loadError !== null || r.blank || r.sideways > 0 || r.covered.length > 0 || r.errorScreen || r.pageErrors.length > 0 || (STRICT && (r.smallTargets.length > 0 || r.smallInputs.length > 0));
 }
 
 function writeReport(results: Result[], skipped: string[]) {
@@ -289,9 +352,9 @@ function writeReport(results: Result[], skipped: string[]) {
     "",
     `Widths ${WIDTHS.join(", ")}px. Targets under ${MIN_TARGET}px and text fields under ${MIN_INPUT_FONT}px ${STRICT ? "fail the run" : "are reported only (use --strict to fail on them)"}.`,
     "",
-    "| Width | Page | Sideways | Small targets | Small text fields | Errors |",
-    "|---|---|---|---|---|---|",
-    ...results.map((r) => `| ${r.width} | \`${r.url}\` | ${r.sideways ? r.sideways + "px" : "none"} | ${r.smallTargets.length} | ${r.smallInputs.length} | ${r.loadError ? "did not load (" + r.loadError + ") " : ""}${r.blank ? "blank page " : ""}${r.errorScreen ? "error screen " : ""}${r.pageErrors.length ? r.pageErrors.length + " script" : ""} |`),
+    "| Width | Page | Sideways | Covered controls | Small targets | Small text fields | Errors |",
+    "|---|---|---|---|---|---|---|",
+    ...results.map((r) => `| ${r.width} | \`${r.url}\` | ${r.sideways ? r.sideways + "px" : "none"} | ${r.covered.length} | ${r.smallTargets.length} | ${r.smallInputs.length} | ${r.loadError ? "did not load (" + r.loadError + ") " : ""}${r.blank ? "blank page " : ""}${r.errorScreen ? "error screen " : ""}${r.pageErrors.length ? r.pageErrors.length + " script" : ""} |`),
     "",
     skipped.length ? `Skipped (no record to open, or brief pages without --include-briefs): ${skipped.map((s) => "`" + s + "`").join(", ")}` : "",
     "",
@@ -299,9 +362,10 @@ function writeReport(results: Result[], skipped: string[]) {
     "",
   ];
   for (const r of results) {
-    if (!r.loadError && !r.blank && !r.sideways && !r.smallTargets.length && !r.smallInputs.length && !r.errorScreen && !r.pageErrors.length) continue;
+    if (!r.loadError && !r.blank && !r.sideways && !r.covered.length && !r.smallTargets.length && !r.smallInputs.length && !r.errorScreen && !r.pageErrors.length) continue;
     lines.push(`### ${r.width}px \`${r.url}\``, "");
     if (r.sideways) lines.push(`Sideways scroll of ${r.sideways}px, caused by:`, ...r.overflowers.map((o) => "- " + o), "");
+    if (r.covered.length) lines.push("Controls that would lose taps to another control:", ...r.covered.map((c) => "- " + c), "");
     if (r.pageErrors.length) lines.push("Script errors:", ...r.pageErrors.map((e) => "- " + e), "");
     if (r.smallTargets.length) lines.push("Small targets:", ...r.smallTargets.map((t) => "- " + t), "");
     if (r.smallInputs.length) lines.push("Small text fields:", ...r.smallInputs.map((t) => "- " + t), "");
@@ -348,7 +412,7 @@ async function main() {
         const r = await auditPage(page, width, route, url);
         results.push(r);
         const mark = failed(r) ? "FAIL" : "ok  ";
-        console.log(`${mark} ${width} ${url.padEnd(34)} sideways=${r.sideways} targets=${r.smallTargets.length} fields=${r.smallInputs.length}${r.loadError ? " DID-NOT-LOAD " + r.loadError : ""}${r.blank ? " BLANK" : ""}${r.errorScreen ? " ERROR-SCREEN" : ""}${r.pageErrors.length ? " SCRIPT-ERRORS=" + r.pageErrors.length : ""}`);
+        console.log(`${mark} ${width} ${url.padEnd(34)} sideways=${r.sideways} covered=${r.covered.length} targets=${r.smallTargets.length} fields=${r.smallInputs.length}${r.loadError ? " DID-NOT-LOAD " + r.loadError : ""}${r.blank ? " BLANK" : ""}${r.errorScreen ? " ERROR-SCREEN" : ""}${r.pageErrors.length ? " SCRIPT-ERRORS=" + r.pageErrors.length : ""}`);
       }
       await context.close();
     }

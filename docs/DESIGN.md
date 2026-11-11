@@ -136,9 +136,12 @@ Checked by `pnpm --filter @workspace/scripts run mobile-audit` (see `docs/mobile
 - One phone breakpoint: below 640px. `sm:` in Tailwind, `@media (max-width: 639px)` in CSS. Phone layouts are the same route with a different layout, never a separate page.
 - Nothing scrolls sideways at 360px or 375px. Wide content (tables, tab rows, filter rows) scrolls inside its own box.
 - A box that scrolls sideways is `position: relative` whenever anything inside it is absolutely positioned (including `sr-only` text). Otherwise that element escapes the box and widens the whole page.
-- Tap targets at least 44 × 44px on phones. A link inside a sentence is exempt. Grow the element itself (padding, min-height), not a pseudo-element, so the audit can measure it.
-- Text fields 16px on phones, so iPhone does not zoom in on focus.
-- Fixed bars and sheets use `env(safe-area-inset-*)` for their outer padding.
+- Tap targets at least 44 × 44px on phones. A link inside a sentence is exempt. Where the control's box is its look (buttons, fields), it gets taller. Where it is small on purpose (pills, text buttons, the tick circle, switches), an invisible absolutely positioned `::before` grows the tap area without changing the look: add `oo-tap` to a one-off link or button, the shared classes already have it (`index.css`, end of file). The audit measures these layers.
+- Keep about 10px between a small control and its neighbours, so its tap layer does not cover them. The audit fails a page where a control would lose taps to something over it.
+- Task cards on phones: a tap anywhere on the card opens the task; the tick, pills and buttons sit above that.
+- Text fields 16px on phones, so iPhone does not zoom in on focus. Pinch zoom stays on (no `maximum-scale`).
+- The viewport uses `viewport-fit=cover`, so fixed bars, sheets and full-screen panels use `env(safe-area-inset-*)` for their outer padding, and both shells pad their sides with the left and right insets (a phone held sideways gets the desktop rail).
+- A row that scrolls sideways uses `ScrollRow` (`components/scroll-row.tsx`): it fades the edge with more beyond it and keeps the selected tab in view.
 
 ## 7. Behaviour
 

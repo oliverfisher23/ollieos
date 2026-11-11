@@ -925,3 +925,65 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-map-list li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--oo-line-soft); font-size: 14px; }
 @media (max-width: 639px) { .oo-map-panel { max-width: none; } }
 @media (prefers-reduced-motion: reduce) { .oo-gedge, .oo-gnode { transition: none; } }
+
+/* ---------- Phones: tap areas, text fields and safe areas (docs/mobile-plan.md, Part C) ---------- */
+/* Outside the layers on purpose, like the component rules above it, so these win on phones. */
+
+/* With viewport-fit=cover the page runs under a notch or rounded corners. env() is 0 elsewhere.
+   At every width: a phone held sideways is wider than 640px and gets the rail. */
+.oo-light, .oo-dark { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+.oo-tabbar { padding-left: calc(12px + env(safe-area-inset-left)); padding-right: calc(12px + env(safe-area-inset-right)); }
+
+/* Smaller controls for desktop; phones override them below. */
+.oo-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.oo-card-pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.oo-input-sm { min-height: 32px; padding: 3px 8px; }
+.oo-seg[data-compact] button { min-height: 28px; }
+
+/* Rows that scroll sideways (components/scroll-row.tsx) fade the edge with more beyond it. */
+.oo-scroll-row { position: relative; overflow-x: auto; scrollbar-width: none; }
+.oo-scroll-row::-webkit-scrollbar { display: none; }
+.oo-scroll-row[data-more-right] { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.oo-scroll-row[data-more-left] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); }
+.oo-scroll-row[data-more-left][data-more-right] { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+
+@media (max-width: 639px) {
+  /* Text fields at 16px, so iPhone does not zoom in when one is focused. !important because some
+     fields set a smaller size inline, and a zoom on focus is worse than a slightly larger field. */
+  :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]), textarea, select) { font-size: 16px !important; }
+
+  /* Tap areas of at least 44 x 44 without changing the look: an invisible layer centred on the control,
+     grown only where the control is smaller (50% - 22px is negative then, 0 otherwise). Same idea as
+     .oo-check and .oo-switch. Give a one-off small link or button the class oo-tap. Keep 10px between a
+     small control and its neighbours, or the layer covers them (the mobile audit checks this). */
+  :is(.oo-tap, .oo-textbtn, .oo-dd, .oo-back, .oo-link, .oo-edit, .oo-row-title, .oo-krow-link, button.oo-chip, .oo-chip-toggle, .oo-control) { position: relative; }
+  :is(.oo-tap, .oo-textbtn, .oo-dd, .oo-back, .oo-link, .oo-edit, .oo-row-title, .oo-krow-link, button.oo-chip, .oo-chip-toggle, .oo-control)::before {
+    content: '';
+    position: absolute;
+    top: min(0px, calc(50% - 22px));
+    bottom: min(0px, calc(50% - 22px));
+    left: min(0px, calc(50% - 22px));
+    right: min(0px, calc(50% - 22px));
+  }
+  /* The circle is 22px including its border; the layer starts inside the border, so it needs 13px a side. */
+  .oo-check::before { inset: -13px; }
+
+  /* Where the control's own box is its look, it simply gets taller. */
+  :is(.oo-btn-sm, .oo-mini, .oo-btn-chase, .oo-claude-btn, .oo-input, .oo-seg[data-compact] button) { min-height: 44px; }
+  .oo-search { padding-top: 0; padding-bottom: 0; }
+  .oo-search input { min-height: 44px; }
+
+  /* Task cards: a tap anywhere on the card opens the task (the title's layer covers the card),
+     while the tick, pills and buttons sit above it. Wrapped pill rows are 14px apart so their
+     own tap layers do not overlap, and the title sits 12px above them for the same reason. */
+  .oo-card-open { position: relative; }
+  .oo-card-open .oo-row-title { position: static; }
+  .oo-card-open .oo-row-title::before { inset: 0; }
+  .oo-card-open :is(a, button, input, select, textarea, summary, [role="button"], [role="switch"], [tabindex]):not(.oo-row-title) { position: relative; z-index: 1; }
+  .oo-card-pills { row-gap: 14px; }
+  .oo-card-open .oo-card-body { gap: 12px; }
+
+  /* Full-screen panels and modals clear the home indicator. */
+  .oo-detail { padding-top: calc(20px + env(safe-area-inset-top)); padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+  .oo-modal-scrim, .oo-tri-scrim { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+}

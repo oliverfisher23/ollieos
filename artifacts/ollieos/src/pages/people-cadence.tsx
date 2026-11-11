@@ -16,6 +16,7 @@ import { LockMark, PageProblem } from '@/components/knowledge/parts';
 import { copyText, firstName, useKnowledgeWrite } from '@/lib/knowledge';
 import { Dropdown } from '@/components/dropdown';
 import { errorMessage, notify } from '@/lib/notify';
+import { ScrollRow } from '@/components/scroll-row';
 
 const TABS: { id: CadenceTab; url: string; label: string }[] = [
   { id: 'all', url: 'all', label: 'All' },
@@ -70,7 +71,7 @@ export default function PeopleCadencePage() {
         </div>
       </div>
 
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0" style={{ marginTop: -6 }}>
+      <ScrollRow className="-mx-4 px-4 sm:mx-0 sm:px-0" style={{ marginTop: -6 }}>
         <div role="tablist" aria-label="Cadence status" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--oo-line)', minWidth: 'max-content' }}>
           {TABS.map((t) => (
             <button
@@ -86,7 +87,7 @@ export default function PeopleCadencePage() {
             </button>
           ))}
         </div>
-      </div>
+      </ScrollRow>
 
       <div role="tabpanel" aria-label={TABS.find((t) => t.id === tab)!.label} style={{ marginTop: -10 }}>
         {q.isLoading ? (

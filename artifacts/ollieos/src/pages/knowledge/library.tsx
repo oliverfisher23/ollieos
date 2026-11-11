@@ -23,6 +23,7 @@ import { HiddenFromAi, OutOfDateMark, PageProblem, TriStateAccess } from '@/comp
 import { useKnowledgeWrite } from '@/lib/knowledge';
 import { DocumentDialog, MultiPick } from '@/components/knowledge/document-dialog';
 import { PlaybookDialog, PlaybooksTab } from '@/pages/knowledge/playbooks';
+import { ScrollRow } from '@/components/scroll-row';
 
 export { DocumentDialog };
 
@@ -77,7 +78,7 @@ export default function LibraryPage() {
         </button>
       </div>
 
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0" style={{ marginTop: -6 }}>
+      <ScrollRow className="-mx-4 px-4 sm:mx-0 sm:px-0" style={{ marginTop: -6 }}>
         <div role="tablist" aria-label="Library" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--oo-line)', minWidth: 'max-content' }}>
           {TABS.map((t) => (
             <button
@@ -93,7 +94,7 @@ export default function LibraryPage() {
             </button>
           ))}
         </div>
-      </div>
+      </ScrollRow>
 
       <div role="tabpanel" aria-label={current.label} style={{ marginTop: -10 }}>
         {tab === 'documents' ? <DocumentsTab openId={openDoc} onCloseDoc={() => navigate('/knowledge/library', { replace: true })} /> : tab === 'rules' ? <RulesTab /> : <PlaybooksTab />}

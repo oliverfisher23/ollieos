@@ -100,7 +100,8 @@ Ollie's private personal operating system for tasks and work knowledge, readable
 ## Gotchas
 
 - The web build fails when the JavaScript a first page load needs goes over `INITIAL_JS_BUDGET_KB` (gzipped) in `artifacts/ollieos/vite.config.ts`. Lazy-load new pages rather than raising it; raise it only on purpose.
-- A sideways-scrolling box needs `position: relative` if anything inside it is absolutely positioned (`sr-only` included), or that element widens the page on phones.
+- A sideways-scrolling box needs `position: relative` if anything inside it is absolutely positioned (`sr-only` included), or that element widens the page on phones. Use `ScrollRow` for rows of tabs.
+- Phone tap areas come from an invisible `::before` layer (end of `index.css`); give a small one-off link or button the class `oo-tap`, and keep about 10px between small controls. Run `mobile-audit -- --strict` after layout changes: it fails on small targets, small text fields, and controls covered by another's tap layer.
 - OllieOS component CSS in `index.css` sits in `@layer components` so Tailwind utilities like `hidden sm:flex` can override it.
 
 ## Pointers

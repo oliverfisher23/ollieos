@@ -135,7 +135,7 @@ export default function HomePage() {
         </>
       )}
       <span aria-hidden="true" className="oo-t4">·</span>
-      <Link href="/digest/week" style={{ color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-roundup">
+      <Link href="/digest/week" className="oo-tap" style={{ color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-roundup">
         Weekly round-up
       </Link>
       <AccessStatus access={home.data.access} />
@@ -372,7 +372,7 @@ function TodayStrip({ events }: { events: CalendarEvent[] }) {
     <section aria-labelledby="h-today" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }} data-testid="section-today">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, margin: '0 4px' }}>
         <h2 id="h-today" className="oo-label oo-t2" style={{ fontWeight: 500 }}>Today</h2>
-        <Link href="/meetings" className="oo-t2" style={{ fontSize: 12, textUnderlineOffset: 2 }} data-testid="link-all-meetings">All meetings this week</Link>
+        <Link href="/meetings" className="oo-t2 oo-tap" style={{ fontSize: 12, textUnderlineOffset: 2 }} data-testid="link-all-meetings">All meetings this week</Link>
       </div>
       {events.length === 0 ? (
         <div className="oo-today" data-testid="text-today-empty"><span className="oo-t2" style={{ fontSize: 13 }}>{EMPTY_CAL}</span></div>
@@ -401,7 +401,7 @@ function TodayPhone({ events }: { events: CalendarEvent[] }) {
     <section aria-labelledby="h-today-p" className="oo-dark-card oo-glass" style={{ padding: 16 }} data-testid="section-today">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
         <h2 id="h-today-p" className="oo-label" style={{ fontSize: 12 }}>Today</h2>
-        <Link href="/meetings" className="oo-t2" style={{ fontSize: 13, textUnderlineOffset: 2, padding: '6px 0' }} data-testid="link-all-meetings">All meetings</Link>
+        <Link href="/meetings" className="oo-t2 oo-tap" style={{ fontSize: 13, textUnderlineOffset: 2, padding: '6px 0' }} data-testid="link-all-meetings">All meetings</Link>
       </div>
       {events.length === 0 ? (
         <p className="oo-t2" style={{ margin: 0, fontSize: 13 }} data-testid="text-today-empty">{EMPTY_CAL}</p>
@@ -546,7 +546,7 @@ function DoneCard({ home }: { home: HomeSummary }) {
       )}
       <div style={{ marginTop: 'auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14 }}>
         <WeeklyCopyButton />
-        <Link href="/tasks?tab=done" style={{ fontSize: 13 }} data-testid="link-done-all">See everything done</Link>
+        <Link href="/tasks?tab=done" className="oo-tap" style={{ fontSize: 13 }} data-testid="link-done-all">See everything done</Link>
       </div>
     </section>
   );

@@ -218,7 +218,7 @@ function mcpAddress(): string {
 function OtherAssistants() {
   return (
     <details style={{ fontSize: 13 }} data-testid="details-other-assistants">
-      <summary className="oo-soft" style={{ cursor: 'pointer' }}>Connecting ChatGPT or Gemini</summary>
+      <summary className="oo-soft oo-tap" style={{ cursor: 'pointer' }}>Connecting ChatGPT or Gemini</summary>
       <div className="oo-soft" style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10, maxWidth: '70ch', lineHeight: 1.6 }}>
         <div>
           <strong>ChatGPT.</strong> OpenAI offers custom connectors on Business, Enterprise and Edu plans, and in developer mode on some others. If your plan has it:
