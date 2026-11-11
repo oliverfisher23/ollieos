@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { BriefTalkingPoints } from '@/components/talking-points';
 import { Thumbs } from '@/components/evals';
+import { CommercialLines } from '@/components/client-pulse';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -214,6 +215,7 @@ function Brief({ brief }: { brief: BriefView }) {
                     {p.needsAttention && <span className="oo-pill" data-tone="high" style={{ marginLeft: 8 }}>Needs attention</span>}
                     <span className="oo-soft">: {p.line}.</span>
                     {p.reasons.length > 0 && <span className="oo-muted"> {p.reasons.join('. ')}.</span>}
+                    <div style={{ marginTop: 4 }}><CommercialLines c={p.commercial} /></div>
                   </li>
                 ))}
               </ul>

@@ -30,6 +30,9 @@ const ROWS: { key: keyof ShelfLives; label: string; line: string }[] = [
   { key: 'general', label: 'General facts', line: 'Any fact without a kind' },
   { key: 'job_title', label: 'Job title', line: 'Someone’s role' },
   { key: 'organisation', label: 'Organisation', line: 'Where someone works' },
+  { key: 'renewal_date', label: 'Renewal date', line: 'When a client renews' },
+  { key: 'contract_value', label: 'Contract value', line: 'What a client contract is worth' },
+  { key: 'account_health', label: 'Account health', line: 'How a client account is doing' },
 ];
 
 export default function KnowledgeSettings() {

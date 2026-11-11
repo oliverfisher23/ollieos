@@ -235,6 +235,9 @@ const ATTRIBUTE_LABELS: Record<string, string> = {
   status: "Status",
   next_step: "Next step",
   decision_date: "Decision date",
+  renewal_date: "Renewal date",
+  contract_value: "Contract value",
+  account_health: "Account health",
 };
 
 function sourceOf(s: Suggestion): string | null {

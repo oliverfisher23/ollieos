@@ -6,7 +6,7 @@ export const OPEN_STATUSES: readonly TaskStatus[] = ["inbox", "now", "backlog", 
 export const PRIORITIES = ["high", "medium", "low"] as const;
 export type Priority = (typeof PRIORITIES)[number];
 
-export const TASK_SOURCES = ["email", "slack", "meeting", "quarterly", "manual", "session"] as const;
+export const TASK_SOURCES = ["email", "slack", "meeting", "quarterly", "manual", "session", "voice"] as const;
 export type TaskSource = (typeof TASK_SOURCES)[number];
 
 export const TASK_KINDS = ["task", "promise"] as const;
@@ -36,6 +36,7 @@ export const SOURCE_LABELS: Record<TaskSource, string> = {
   quarterly: "Quarterly",
   manual: "Manual",
   session: "Cowork",
+  voice: "Voice",
 };
 
 /** Letter shown in the 24px source mark circle. */
@@ -46,6 +47,7 @@ export const SOURCE_MARKS: Record<TaskSource, string> = {
   quarterly: "Q",
   manual: "O",
   session: "C",
+  voice: "V",
 };
 
 /** Waiting items turn amber at this many days. */

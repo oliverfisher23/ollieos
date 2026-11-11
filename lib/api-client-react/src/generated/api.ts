@@ -249,6 +249,10 @@ import type {
   TriageInput,
   TriageResult,
   UsageView,
+  VoiceParse,
+  VoiceParseInput,
+  VoiceSaveInput,
+  VoiceSaveResult,
   WeekCheck,
   WeeklyUpdate,
   WorkingHours,
@@ -4891,6 +4895,283 @@ export const useSetFeedback = <TError = ErrorType<ErrorResponse | NotAuthorisedR
       > => {
       return useMutation(getSetFeedbackMutationOptions(options), queryClient);
     }
+
+export const getParseVoiceUrl = () => {
+
+
+
+
+  return `/api/voice/parse`
+}
+
+/**
+ * @summary Feature 09: split what Ollie said into tasks, promises and facts to check. Saves nothing.
+ */
+export const parseVoice = async (voiceParseInput: VoiceParseInput, options?: Parameters<typeof customFetch>[1]): Promise<VoiceParse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<VoiceParse>(getParseVoiceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(voiceParseInput)
+  }
+);}
+
+
+
+
+
+export const getParseVoiceMutationKey = () => ['parseVoice'] as const;
+
+export const getParseVoiceMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof parseVoice>>, TError,ParseVoiceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof parseVoice>>, TError,ParseVoiceMutationVariables, TContext> => {
+
+const mutationKey = getParseVoiceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof parseVoice>>, ParseVoiceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  parseVoice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ParseVoiceMutationResult = NonNullable<Awaited<ReturnType<typeof parseVoice>>>
+    export type ParseVoiceMutationBody = BodyType<VoiceParseInput>
+    export type ParseVoiceMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type ParseVoiceMutationVariables = {data: BodyType<VoiceParseInput>}
+
+    /**
+ * @summary Feature 09: split what Ollie said into tasks, promises and facts to check. Saves nothing.
+ */
+export const useParseVoice = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof parseVoice>>, TError,ParseVoiceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof parseVoice>>,
+        TError,
+        ParseVoiceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getParseVoiceMutationOptions(options), queryClient);
+    }
+
+export const getSaveVoiceUrl = () => {
+
+
+
+
+  return `/api/voice/save`
+}
+
+/**
+ * @summary Feature 09: save what Ollie confirmed (tasks to the Inbox, facts to the Knowledge Inbox)
+ */
+export const saveVoice = async (voiceSaveInput: VoiceSaveInput, options?: Parameters<typeof customFetch>[1]): Promise<VoiceSaveResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<VoiceSaveResult>(getSaveVoiceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(voiceSaveInput)
+  }
+);}
+
+
+
+
+
+export const getSaveVoiceMutationKey = () => ['saveVoice'] as const;
+
+export const getSaveVoiceMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveVoice>>, TError,SaveVoiceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveVoice>>, TError,SaveVoiceMutationVariables, TContext> => {
+
+const mutationKey = getSaveVoiceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveVoice>>, SaveVoiceMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveVoice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveVoiceMutationResult = NonNullable<Awaited<ReturnType<typeof saveVoice>>>
+    export type SaveVoiceMutationBody = BodyType<VoiceSaveInput>
+    export type SaveVoiceMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SaveVoiceMutationVariables = {data: BodyType<VoiceSaveInput>}
+
+    /**
+ * @summary Feature 09: save what Ollie confirmed (tasks to the Inbox, facts to the Knowledge Inbox)
+ */
+export const useSaveVoice = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveVoice>>, TError,SaveVoiceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveVoice>>,
+        TError,
+        SaveVoiceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveVoiceMutationOptions(options), queryClient);
+    }
+
+export const getExportTasksCsvUrl = () => {
+
+
+
+
+  return `/api/export/tasks.csv`
+}
+
+/**
+ * @summary Milestone 9: every task as a CSV file
+ */
+export const exportTasksCsv = async ( options?: Parameters<typeof customFetch>[1]): Promise<string> => {
+
+  return customFetch<string>(getExportTasksCsvUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportTasksCsvQueryKey = () => {
+    return [
+    `/api/export/tasks.csv`
+    ] as const;
+    }
+
+
+export const getExportTasksCsvQueryOptions = <TData = Awaited<ReturnType<typeof exportTasksCsv>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportTasksCsv>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportTasksCsvQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportTasksCsv>>> = ({ signal }) => exportTasksCsv({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportTasksCsv>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportTasksCsvQueryResult = NonNullable<Awaited<ReturnType<typeof exportTasksCsv>>>
+export type ExportTasksCsvQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useExportTasksCsv<TData = Awaited<ReturnType<typeof exportTasksCsv>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportTasksCsv>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportTasksCsv>>,
+          TError,
+          Awaited<ReturnType<typeof exportTasksCsv>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportTasksCsv<TData = Awaited<ReturnType<typeof exportTasksCsv>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportTasksCsv>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportTasksCsv>>,
+          TError,
+          Awaited<ReturnType<typeof exportTasksCsv>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportTasksCsv<TData = Awaited<ReturnType<typeof exportTasksCsv>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportTasksCsv>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Milestone 9: every task as a CSV file
+ */
+
+export function useExportTasksCsv<TData = Awaited<ReturnType<typeof exportTasksCsv>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportTasksCsv>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportTasksCsvQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getSearchDriveUrl = (params: SearchDriveParams,) => {
   const normalizedParams = new URLSearchParams();

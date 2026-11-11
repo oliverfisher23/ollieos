@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useListPeople, useListTasks, type Task, type TriageInputAction } from '@workspace/api-client-react';
 import { SOURCE_LABELS, formatDayMonth, formatTime, todayLondon } from '@workspace/shared';
@@ -114,6 +114,9 @@ export function TriageDialog({ onClose }: { onClose: () => void }) {
     if (res) setLast({ task: res.task, action: 'waiting' });
   };
 
+  // Phone: swipe right for Now, left for Noise (PRD 6.2).
+  const swipe = useSwipe((dir) => void act(dir === 'right' ? 'now' : 'noise'), busy || !current);
+
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
     const k = e.key.toLowerCase();
@@ -186,7 +189,14 @@ export function TriageDialog({ onClose }: { onClose: () => void }) {
               </div>
             ) : current ? (
               <>
-                <section className="oo-tri-item" aria-label="Inbox item" data-testid={'triage-item-' + current.id}>
+                <section className="oo-tri-item" aria-label="Inbox item" data-testid={'triage-item-' + current.id}
+                  {...(phone ? swipe.handlers : {})}
+                  style={phone && swipe.dx ? { transform: `translateX(${swipe.dx}px) rotate(${swipe.dx / 40}deg)`, transition: swipe.dragging ? 'none' : 'transform 160ms ease-out', touchAction: 'pan-y' } : phone ? { touchAction: 'pan-y' } : undefined}>
+                  {phone && Math.abs(swipe.dx) > 24 && (
+                    <span className="oo-tri-swipe" data-dir={swipe.dx > 0 ? 'now' : 'noise'} aria-hidden="true" data-testid="text-triage-swipe">
+                      {swipe.dx > 0 ? 'Now' : 'Noise'}
+                    </span>
+                  )}
                   <span className="oo-tri-meta">
                     <SourceMark source={current.source} size={phone ? 26 : 22} />
                     {[SOURCE_LABELS[current.source], current.fromName, when(current)].filter(Boolean).join(' · ')}
@@ -249,4 +259,62 @@ function LastStrip({
       {last.action === 'noise' && <NoiseRuleChooser key={t.id} task={t} dark toast={false} />}
     </div>
   );
+}
+
+/** How far a card must travel, in pixels, before letting go moves it. */
+const SWIPE_AT = 90;
+
+/**
+ * A horizontal swipe on a card. Follows the finger, springs back under SWIPE_AT, and calls `onSwipe`
+ * past it. Vertical scrolling is left alone (touch-action: pan-y on the card).
+ */
+function useSwipe(onSwipe: (dir: 'left' | 'right') => void, disabled: boolean) {
+  const start = useRef<{ x: number; y: number; id: number } | null>(null);
+  const [dx, setDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const end = (e: PointerEvent<HTMLElement>) => {
+    if (!start.current || start.current.id !== e.pointerId) return;
+    const moved = e.clientX - start.current.x;
+    start.current = null;
+    setDragging(false);
+    if (Math.abs(moved) >= SWIPE_AT && !disabled) {
+      setDx(0);
+      onSwipe(moved > 0 ? 'right' : 'left');
+    } else setDx(0);
+  };
+  return {
+    dx,
+    dragging,
+    handlers: {
+      onPointerDown: (e: PointerEvent<HTMLElement>) => {
+        if (disabled || (e.pointerType === 'mouse' && e.button !== 0)) return;
+        start.current = { x: e.clientX, y: e.clientY, id: e.pointerId };
+      },
+      onPointerMove: (e: PointerEvent<HTMLElement>) => {
+        const s = start.current;
+        if (!s || s.id !== e.pointerId) return;
+        const x = e.clientX - s.x;
+        const y = e.clientY - s.y;
+        // A mostly vertical move is a scroll, not a swipe.
+        if (!dragging && Math.abs(y) > Math.abs(x) && Math.abs(y) > 10) {
+          start.current = null;
+          setDx(0);
+          return;
+        }
+        if (Math.abs(x) > 6) {
+          if (!dragging) {
+            setDragging(true);
+            e.currentTarget.setPointerCapture?.(e.pointerId);
+          }
+          setDx(x);
+        }
+      },
+      onPointerUp: end,
+      onPointerCancel: () => {
+        start.current = null;
+        setDragging(false);
+        setDx(0);
+      },
+    },
+  };
 }

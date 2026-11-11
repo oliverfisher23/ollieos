@@ -57,6 +57,7 @@ export const SERVER_INSTRUCTIONS = [
   "To see how things connect (who knows whom, which organisations sit behind a project), use explore and find_connection. Propose a missing relationship with propose_relationship.",
   "In a Cowork session, call get_context for the project or person it is about before you start, and call save_session once at the end with what was done.",
   "For questions of direction or priority, read Ollie's strategy and open ideas with get_strategy. When an idea worth coming back to comes up, add it with add_idea; it goes straight onto his list, marked as yours.",
+  "When you can read HubSpot or the KPI Portal (for example in the sweep), propose each client organisation's renewal_date, contract_value and account_health with add_fact, giving the source; a value OllieOS already holds is recognised as unchanged, and a changed one goes to Ollie as a conflict.",
 ].join(" ");
 
 const STATUSES = ["inbox", "now", "backlog", "waiting", "done", "noise", "dropped", "archived"] as const;
@@ -614,7 +615,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
         entity: Pick.optional(),
         product: z.string().min(1).max(200).optional().describe("Instead of entity: a product, by name or ref such as product:2"),
         text: z.string().min(1).max(2000),
-        attribute: z.enum(FACT_ATTRIBUTES).optional().describe("job_title, organisation, status, next_step or decision_date"),
+        attribute: z.enum(FACT_ATTRIBUTES).optional().describe("job_title, organisation, status, next_step or decision_date; for client organisations also renewal_date (YYYY-MM-DD), contract_value (with currency, e.g. £48,000 a year) and account_health (healthy, watch or at risk, with the reason)"),
         supersedes: z.string().max(40).optional().describe("Ref of the fact this replaces, such as fact:7"),
         ...SourceFields,
       },

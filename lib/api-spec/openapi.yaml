@@ -1201,6 +1201,57 @@ paths:
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
+  /voice/parse:
+    post:
+      operationId: parseVoice
+      tags: [tasks]
+      summary: "Feature 09: split what Ollie said into tasks, promises and facts to check. Saves nothing."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VoiceParseInput" }
+      responses:
+        "200":
+          description: Items to check
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VoiceParse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /voice/save:
+    post:
+      operationId: saveVoice
+      tags: [tasks]
+      summary: "Feature 09: save what Ollie confirmed (tasks to the Inbox, facts to the Knowledge Inbox)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VoiceSaveInput" }
+      responses:
+        "201":
+          description: What was saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VoiceSaveResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /export/tasks.csv:
+    get:
+      operationId: exportTasksCsv
+      tags: [tasks]
+      summary: "Milestone 9: every task as a CSV file"
+      responses:
+        "200":
+          description: CSV
+          content:
+            text/csv:
+              schema: { type: string }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /library/drive-search:
     get:
       operationId: searchDrive
@@ -4596,7 +4647,7 @@ components:
       enum: [high, medium, low]
     TaskSource:
       type: string
-      enum: [email, slack, meeting, quarterly, manual, session]
+      enum: [email, slack, meeting, quarterly, manual, session, voice]
     TaskTab:
       type: string
       enum: [inbox, open, now, backlog, waiting, done, noise, dropped, archived]
@@ -5350,13 +5401,14 @@ components:
           description: "Part S: the pulse of each client organisation in an external meeting"
           items:
             type: object
-            required: [name, slug, line, needsAttention, reasons]
+            required: [name, slug, line, needsAttention, reasons, commercial]
             properties:
               name: { type: string }
               slug: { type: string }
               line: { type: string }
               needsAttention: { type: boolean }
               reasons: { type: array, items: { type: string } }
+              commercial: { $ref: "#/components/schemas/Commercial" }
         openedAt: { type: [string, "null"], format: date-time, description: "Part K: when Ollie first opened this prep page" }
         generatedAt: { type: string, format: date-time }
         failed: { type: boolean, description: The model could not write the brief. Refresh to try again. }
@@ -5905,7 +5957,7 @@ components:
         note: { type: string }
     ClientPulse:
       type: object
-      required: [organisationId, name, slug, quietDays, lastMetAt, lastContactAt, meetings90, emailsWaiting, oldestEmailAt, owedToThem, overdueToThem, theyOwe, tone, needsAttention, reasons, line]
+      required: [organisationId, name, slug, quietDays, lastMetAt, lastContactAt, meetings90, emailsWaiting, oldestEmailAt, owedToThem, overdueToThem, theyOwe, tone, needsAttention, reasons, line, commercial]
       properties:
         organisationId: { type: integer }
         name: { type: string }
@@ -5932,6 +5984,32 @@ components:
         needsAttention: { type: boolean }
         reasons: { type: array, items: { type: string } }
         line: { type: string }
+        commercial: { $ref: "#/components/schemas/Commercial" }
+    CommercialFact:
+      type: object
+      required: [text, at, needsCheck]
+      properties:
+        text: { type: string }
+        at: { type: string, format: date-time, description: When it was last confirmed }
+        needsCheck: { type: boolean }
+    Commercial:
+      type: object
+      description: "Part T: a client's renewal date, contract value and account health, from approved facts"
+      required: [renewalDate, renewsOn, contractValue, accountHealth]
+      properties:
+        renewalDate:
+          oneOf:
+            - $ref: "#/components/schemas/CommercialFact"
+            - { type: "null" }
+        renewsOn: { type: [string, "null"], format: date }
+        contractValue:
+          oneOf:
+            - $ref: "#/components/schemas/CommercialFact"
+            - { type: "null" }
+        accountHealth:
+          oneOf:
+            - $ref: "#/components/schemas/CommercialFact"
+            - { type: "null" }
     QuietDaysInput:
       type: object
       additionalProperties: false
@@ -6075,6 +6153,60 @@ components:
         at: { type: string, format: date-time }
         promptVersion: { type: string }
         model: { type: string }
+    VoiceParseInput:
+      type: object
+      additionalProperties: false
+      required: [transcript]
+      properties:
+        transcript: { type: string, maxLength: 4000 }
+    VoiceAbout:
+      type: object
+      required: [type, id, name]
+      properties:
+        type: { type: string, enum: [project, person, organisation] }
+        id: { type: integer }
+        name: { type: string }
+    VoiceItem:
+      type: object
+      additionalProperties: false
+      required: [kind, text, dueDate, priority, projectId, personId, about]
+      properties:
+        kind: { type: string, enum: [task, promise, fact] }
+        text: { type: string, maxLength: 300 }
+        dueDate: { type: [string, "null"], format: date }
+        priority: { type: string, enum: [high, medium, low] }
+        projectId: { type: [integer, "null"] }
+        personId: { type: [integer, "null"] }
+        about:
+          oneOf:
+            - $ref: "#/components/schemas/VoiceAbout"
+            - { type: "null" }
+    VoiceParse:
+      type: object
+      required: [items, usedAi]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/VoiceItem" } }
+        usedAi: { type: boolean, description: False when something hidden from AI was named and the transcript was split in code }
+    VoiceSaveInput:
+      type: object
+      additionalProperties: false
+      required: [transcript, items]
+      properties:
+        transcript: { type: string, maxLength: 4000 }
+        items: { type: array, items: { $ref: "#/components/schemas/VoiceItem" } }
+    VoiceSaveResult:
+      type: object
+      required: [tasks, facts]
+      properties:
+        tasks: { type: array, items: { type: integer } }
+        facts:
+          type: array
+          items:
+            type: object
+            required: [status]
+            properties:
+              status: { type: string }
+              suggestionId: { type: integer }
     TestCaseAvailability:
       type: object
       required: [available, expected, caseId]
@@ -6491,7 +6623,7 @@ components:
 
     ShelfLives:
       type: object
-      required: [general, status, next_step, decision_date, job_title, organisation]
+      required: [general, status, next_step, decision_date, job_title, organisation, renewal_date, contract_value, account_health]
       properties:
         general: { type: integer, minimum: 1, maximum: 3650 }
         status: { type: integer, minimum: 1, maximum: 3650 }
@@ -6499,6 +6631,9 @@ components:
         decision_date: { type: integer, minimum: 1, maximum: 3650 }
         job_title: { type: integer, minimum: 1, maximum: 3650 }
         organisation: { type: integer, minimum: 1, maximum: 3650 }
+        renewal_date: { type: integer, minimum: 1, maximum: 3650 }
+        contract_value: { type: integer, minimum: 1, maximum: 3650 }
+        account_health: { type: integer, minimum: 1, maximum: 3650 }
 
     KnowledgeSettings:
       type: object
@@ -6520,6 +6655,9 @@ components:
             decision_date: { type: integer, minimum: 1, maximum: 3650 }
             job_title: { type: integer, minimum: 1, maximum: 3650 }
             organisation: { type: integer, minimum: 1, maximum: 3650 }
+            renewal_date: { type: integer, minimum: 1, maximum: 3650 }
+            contract_value: { type: integer, minimum: 1, maximum: 3650 }
+            account_health: { type: integer, minimum: 1, maximum: 3650 }
 
     FactCheckResult:
       type: object
@@ -6921,14 +7059,14 @@ components:
 
     Fact:
       type: object
-      required: [id, entityType, entityId, text, source, attribute, createdBy, createdAt, lastConfirmedAt, needsCheck, outOfDate, approvedAt, history]
+      required: [id, entityType, entityId, text, source, attribute, createdBy, createdAt, lastConfirmedAt, needsCheck, outOfDate, approvedAt, history, alsoFrom]
       properties:
         id: { type: integer }
         entityType: { type: string }
         entityId: { type: integer }
         text: { type: string }
         source: { type: [string, "null"] }
-        attribute: { type: [string, "null"], enum: [job_title, organisation, status, next_step, decision_date, null] }
+        attribute: { type: [string, "null"], enum: [job_title, organisation, status, next_step, decision_date, renewal_date, contract_value, account_health, null] }
         createdBy: { type: string }
         createdAt: { type: string, format: date-time }
         lastConfirmedAt: { type: string, format: date-time }
@@ -6939,6 +7077,16 @@ components:
           type: array
           description: Earlier versions this fact replaced, newest first
           items: { $ref: "#/components/schemas/FactVersion" }
+        alsoFrom:
+          type: array
+          description: Cards marked "Same as existing" for this fact, its other sources, newest first
+          items:
+            type: object
+            required: [source, url, at]
+            properties:
+              source: { type: string }
+              url: { type: [string, "null"] }
+              at: { type: string, format: date-time }
 
     FactInput:
       type: object
@@ -6950,7 +7098,7 @@ components:
         source: { type: [string, "null"] }
         attribute:
           type: [string, "null"]
-          enum: [job_title, organisation, status, next_step, decision_date, null]
+          enum: [job_title, organisation, status, next_step, decision_date, renewal_date, contract_value, account_health, null]
           description: With an attribute, the new fact replaces any current fact with the same attribute
 
     FactSupersede:

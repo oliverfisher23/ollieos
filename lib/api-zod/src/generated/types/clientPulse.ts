@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ClientPulseTone } from './clientPulseTone';
+import type { Commercial } from './commercial';
 
 export interface ClientPulse {
   organisationId: number;
@@ -27,4 +28,5 @@ export interface ClientPulse {
   needsAttention: boolean;
   reasons: string[];
   line: string;
+  commercial: Commercial;
 }

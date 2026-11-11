@@ -214,6 +214,9 @@ const FACT_ATTRIBUTES: { value: NonNullable<FactInputAttribute>; label: string }
   { value: 'status', label: 'Status' },
   { value: 'next_step', label: 'Next step' },
   { value: 'decision_date', label: 'Decision date' },
+  { value: 'renewal_date', label: 'Renewal date' },
+  { value: 'contract_value', label: 'Contract value' },
+  { value: 'account_health', label: 'Account health' },
 ];
 const ATTRIBUTE_LABEL = Object.fromEntries(FACT_ATTRIBUTES.map((a) => [a.value, a.label])) as Record<string, string>;
 
@@ -304,6 +307,17 @@ function FactItem({ fact }: { fact: Fact }) {
               </button>
             )}
           </span>
+          {(fact.alsoFrom ?? []).length > 0 && (
+            <span className="oo-muted" style={{ display: 'block', fontSize: 12, marginTop: 2 }} data-testid={'text-fact-also-' + fact.id}>
+              Also from{' '}
+              {fact.alsoFrom.map((a, i) => (
+                <span key={i}>
+                  {i > 0 && ', '}
+                  {a.url ? <a href={a.url} target="_blank" rel="noreferrer" className="oo-link">{a.source}</a> : a.source} ({formatDayMonthShort(a.at)})
+                </span>
+              ))}
+            </span>
+          )}
           {showHistory && (
             <div className="oo-history" data-testid={'list-fact-history-' + fact.id}>
               {fact.history.map((h) => (

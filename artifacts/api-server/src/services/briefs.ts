@@ -3,7 +3,7 @@
  * hidden attendee or project is left out unless Ollie opens it up. Built when a sweep finishes for
  * today's and tomorrow's work meetings, and again on open when more than 3 hours old.
  */
-import { pulsesFor } from "./clientPulse";
+import { pulsesFor, type Commercial } from "./clientPulse";
 import { openPointsFor, type TalkingPointView } from "./talkingPoints";
 import { followUpRef } from "./meetingFollowUp";
 import { createHash } from "node:crypto";
@@ -548,7 +548,7 @@ export interface BriefView {
   /** What the research agent found about each outside company on the meeting */
   research: ResearchView[];
   /** Part S: the pulse of each client organisation in the meeting */
-  pulse: { name: string; slug: string; line: string; needsAttention: boolean; reasons: string[] }[];
+  pulse: { name: string; slug: string; line: string; needsAttention: boolean; reasons: string[]; commercial: Commercial }[];
   /** Part K: open "Next time I see…" points for people in the meeting, top of the agenda */
   talkingPoints: TalkingPointView[];
   /** Part K: the follow-up task drafted from this meeting's Granola notes, if there is one */
@@ -795,7 +795,7 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
     },
     research: await researchViews(inputs.match.domains),
     talkingPoints: await openPointsFor(people),
-    pulse: inputs.match.scope === "external" ? (await pulsesFor(inputs.match.orgIds)).map((p) => ({ name: p.name, slug: p.slug, line: p.line, needsAttention: p.needsAttention, reasons: p.reasons })) : [],
+    pulse: inputs.match.scope === "external" ? (await pulsesFor(inputs.match.orgIds)).map((p) => ({ name: p.name, slug: p.slug, line: p.line, needsAttention: p.needsAttention, reasons: p.reasons, commercial: p.commercial })) : [],
     followUpTaskId: brief.granolaRef ? await followUpTaskFor(brief.granolaRef) : null,
     openedAt: brief.openedAt,
     id: brief.id,

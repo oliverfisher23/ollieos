@@ -35,7 +35,7 @@ const days = z.number().int().min(1).max(3650);
 const SettingsBody = z
   .object({
     shelfLifeDays: z
-      .object({ general: days, status: days, next_step: days, decision_date: days, job_title: days, organisation: days })
+      .object({ general: days, status: days, next_step: days, decision_date: days, job_title: days, organisation: days, renewal_date: days, contract_value: days, account_health: days })
       .partial()
       .strict(),
   })

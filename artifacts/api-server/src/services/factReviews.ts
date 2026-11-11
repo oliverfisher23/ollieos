@@ -23,6 +23,10 @@ export const DEFAULT_SHELF_LIVES: ShelfLives = {
   decision_date: 30,
   job_title: 365,
   organisation: 365,
+  // Part T: commercial facts on client organisations, read again by the sweep.
+  renewal_date: 90,
+  contract_value: 90,
+  account_health: 30,
 };
 
 /** At most this many stale facts are added each week, oldest first. */

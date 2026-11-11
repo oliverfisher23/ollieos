@@ -121,6 +121,7 @@ export default function TasksPage() {
             )}
             <Link href="/email" className="oo-link sm:hidden" style={{ fontSize: 14 }} data-testid="link-email">Email</Link>
             <Link href="/meetings" className="oo-link sm:hidden" style={{ fontSize: 14 }} data-testid="link-meetings">Meetings</Link>
+            <a href="/api/export/tasks.csv" download className="oo-link" style={{ fontSize: 14 }} data-testid="link-export-tasks">Export</a>
           </span>
         </div>
 

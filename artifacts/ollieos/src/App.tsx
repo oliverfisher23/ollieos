@@ -6,6 +6,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { DarkShell } from '@/components/dark-shell';
+import VoicePage from '@/pages/voice';
 import { LightShell } from '@/components/light-shell';
 import NotFound from '@/pages/not-found';
 import HomePage from '@/pages/home';
@@ -67,6 +68,7 @@ function Router() {
         <Route path="/triage" component={TriagePage} />
         <Route path="/clear-out" component={ClearOutPage} />
         <Route path="/tasks" component={TasksPage} />
+        <Route path="/voice" component={VoicePage} />
         <Route path="/review" component={ReviewPage} />
         <Route path="/email" component={EmailPage} />
         <Route path="/ask" component={AskPage} />
@@ -127,7 +129,7 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
 
 function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  if (location === '/' || location === '/triage' || location === '/clear-out' || location === '/ask' || location.startsWith('/ask/')) return <DarkShell>{children}</DarkShell>;
+  if (location === '/' || location === '/triage' || location === '/clear-out' || location === '/ask' || location.startsWith('/ask/') || location === '/voice') return <DarkShell>{children}</DarkShell>;
   return <LightShell>{children}</LightShell>;
 }
 

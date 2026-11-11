@@ -29,6 +29,7 @@ import { proposalReply, proposeOrganisation, proposePerson, proposeProject, type
 import { FACT_ATTRIBUTES, SUGGESTION_SOURCES, propose, type ProposeMeta } from "../../services/suggestions";
 import { ConflictError, NotFoundError, ValidationError } from "../../services/tasks";
 import { parseLink, titleFromUrl } from "../../services/library";
+import { runImport } from "../capture";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -386,6 +387,15 @@ const ActivityEntry = z.object({
   person_hint: hintList,
   project_hint: hintList,
 });
+
+/** PRD 14: Claude posts the reviewed one-off imports here. Each kind runs once. */
+router.post(
+  "/ingest/import",
+  handle(async (req, res) => {
+    const { writer } = req.ingest!;
+    res.status(201).json(await runImport(req.body, writer.actor));
+  }),
+);
 
 const asList = (...vals: (string | string[] | null | undefined)[]) => vals.flatMap((v) => (v == null ? [] : Array.isArray(v) ? v : [v])).filter((s) => s.trim());
 

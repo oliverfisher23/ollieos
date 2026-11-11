@@ -38,6 +38,22 @@ export function MainNav({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const { logout } = useSession();
   const [sheet, setSheet] = useState(false);
+  const [, navigate] = useLocation();
+  // Feature 09: holding the add button opens voice capture.
+  const held = useRef(false);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdToSpeak = {
+    onPointerDown: () => {
+      held.current = false;
+      holdTimer.current = setTimeout(() => {
+        held.current = true;
+        navigate('/voice');
+      }, 500);
+    },
+    onPointerUp: () => holdTimer.current && clearTimeout(holdTimer.current),
+    onPointerLeave: () => holdTimer.current && clearTimeout(holdTimer.current),
+    onContextMenu: (e: { preventDefault: () => void }) => e.preventDefault(),
+  };
   const cur = (href: string) => (navActive(href, location) ? 'page' : undefined);
 
   return (
@@ -69,7 +85,7 @@ export function MainNav({ children }: { children: ReactNode }) {
       <nav className="oo-tabbar oo-on-dark sm:hidden" aria-label="Main">
         <Link href="/" aria-current={cur('/')} data-testid="link-tab-home"><IconHome size={22} />Home</Link>
         <Link href="/tasks" aria-current={cur('/tasks')} data-testid="link-tab-tasks"><IconTasks size={22} />Tasks</Link>
-        <button type="button" aria-label="Add a task" onClick={() => setSheet(true)} data-testid="button-tab-add">
+        <button type="button" aria-label="Add a task. Hold to speak." onClick={() => { if (!held.current) setSheet(true); held.current = false; }} {...holdToSpeak} data-testid="button-tab-add">
           <span className="oo-add"><IconPlus size={22} /></span>
         </button>
         <Link href="/people" aria-current={cur('/people')} data-testid="link-tab-people"><IconPeople size={22} />People</Link>

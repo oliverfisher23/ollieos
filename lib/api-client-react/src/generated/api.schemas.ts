@@ -220,6 +220,7 @@ export const TaskSource = {
   quarterly: 'quarterly',
   manual: 'manual',
   session: 'session',
+  voice: 'voice',
 } as const;
 
 export type TaskTab = typeof TaskTab[keyof typeof TaskTab];
@@ -965,12 +966,31 @@ export interface ResearchStart {
   organisationId?: number;
 }
 
+export interface CommercialFact {
+  text: string;
+  /** When it was last confirmed */
+  at: string;
+  needsCheck: boolean;
+}
+
+/**
+ * Part T: a client's renewal date, contract value and account health, from approved facts
+ */
+export interface Commercial {
+  renewalDate: CommercialFact | null;
+  /** @nullable */
+  renewsOn: string | null;
+  contractValue: CommercialFact | null;
+  accountHealth: CommercialFact | null;
+}
+
 export type BriefViewPulseItem = {
   name: string;
   slug: string;
   line: string;
   needsAttention: boolean;
   reasons: string[];
+  commercial: Commercial;
 };
 
 export type BriefViewTasksItem = {
@@ -1652,6 +1672,7 @@ export interface ClientPulse {
   needsAttention: boolean;
   reasons: string[];
   line: string;
+  commercial: Commercial;
 }
 
 export interface QuietDaysInput {
@@ -1883,6 +1904,80 @@ export interface AgentsView {
   totalRuns: number;
   agents: AgentView[];
   connected: ConnectedAiView[];
+}
+
+export interface VoiceParseInput {
+  /** @maxLength 4000 */
+  transcript: string;
+}
+
+export type VoiceAboutType = typeof VoiceAboutType[keyof typeof VoiceAboutType];
+
+
+export const VoiceAboutType = {
+  project: 'project',
+  person: 'person',
+  organisation: 'organisation',
+} as const;
+
+export interface VoiceAbout {
+  type: VoiceAboutType;
+  id: number;
+  name: string;
+}
+
+export type VoiceItemKind = typeof VoiceItemKind[keyof typeof VoiceItemKind];
+
+
+export const VoiceItemKind = {
+  task: 'task',
+  promise: 'promise',
+  fact: 'fact',
+} as const;
+
+export type VoiceItemPriority = typeof VoiceItemPriority[keyof typeof VoiceItemPriority];
+
+
+export const VoiceItemPriority = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+} as const;
+
+export interface VoiceItem {
+  kind: VoiceItemKind;
+  /** @maxLength 300 */
+  text: string;
+  /** @nullable */
+  dueDate: string | null;
+  priority: VoiceItemPriority;
+  /** @nullable */
+  projectId: number | null;
+  /** @nullable */
+  personId: number | null;
+  about: VoiceAbout | null;
+}
+
+export interface VoiceParse {
+  items: VoiceItem[];
+  /** False when something hidden from AI was named and the transcript was split in code */
+  usedAi: boolean;
+}
+
+export interface VoiceSaveInput {
+  /** @maxLength 4000 */
+  transcript: string;
+  items: VoiceItem[];
+}
+
+export type VoiceSaveResultFactsItem = {
+  status: string;
+  suggestionId?: number;
+};
+
+export interface VoiceSaveResult {
+  tasks: number[];
+  facts: VoiceSaveResultFactsItem[];
 }
 
 export type TestCaseAvailabilityExpected = typeof TestCaseAvailabilityExpected[keyof typeof TestCaseAvailabilityExpected];
@@ -2419,6 +2514,21 @@ export interface ShelfLives {
      * @maximum 3650
      */
   organisation: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  renewal_date: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  contract_value: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  account_health: number;
 }
 
 export interface KnowledgeSettings {
@@ -2458,6 +2568,21 @@ export type KnowledgeSettingsUpdateShelfLifeDays = {
      * @maximum 3650
      */
   organisation?: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  renewal_date?: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  contract_value?: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  account_health?: number;
 };
 
 export interface KnowledgeSettingsUpdate {
@@ -3074,7 +3199,17 @@ export const FactAttribute = {
   status: 'status',
   next_step: 'next_step',
   decision_date: 'decision_date',
+  renewal_date: 'renewal_date',
+  contract_value: 'contract_value',
+  account_health: 'account_health',
 } as const;
+
+export type FactAlsoFromItem = {
+  source: string;
+  /** @nullable */
+  url: string | null;
+  at: string;
+};
 
 export interface Fact {
   id: number;
@@ -3099,6 +3234,8 @@ export interface Fact {
   approvedAt: string | null;
   /** Earlier versions this fact replaced, newest first */
   history: FactVersion[];
+  /** Cards marked "Same as existing" for this fact, its other sources, newest first */
+  alsoFrom: FactAlsoFromItem[];
 }
 
 export type FactInputEntityType = typeof FactInputEntityType[keyof typeof FactInputEntityType];
@@ -3124,6 +3261,9 @@ export const FactInputAttribute = {
   status: 'status',
   next_step: 'next_step',
   decision_date: 'decision_date',
+  renewal_date: 'renewal_date',
+  contract_value: 'contract_value',
+  account_health: 'account_health',
 } as const;
 
 export interface FactInput {

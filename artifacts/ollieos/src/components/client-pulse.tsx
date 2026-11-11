@@ -8,6 +8,7 @@ import {
   startRelationshipLookBack,
   useGetClientPulse,
   useGetRelationshipLookBack,
+  type Commercial,
 } from '@workspace/api-client-react';
 import { formatShort } from '@workspace/shared';
 import { Dropdown } from '@/components/dropdown';
@@ -49,6 +50,7 @@ export function ClientPulseCard({ slug }: { slug: string }) {
           {p.reasons.map((r) => <li key={r}>{r}</li>)}
         </ul>
       )}
+      <CommercialLines c={p.commercial} />
       {p.tone && (
         <span className="oo-muted" style={{ fontSize: 12 }}>Last meeting ({p.tone.title}, {formatShort(p.tone.at)}): {p.tone.tone}{p.tone.reason ? `, ${p.tone.reason}` : ''}</span>
       )}
@@ -57,6 +59,32 @@ export function ClientPulseCard({ slug }: { slug: string }) {
         <Dropdown value={p.quietDays === 30 ? '' : String(p.quietDays)} onChange={(v) => void change(v)} options={QUIET_OPTIONS} ariaLabel="Quiet period" variant="compact" testId="select-quiet-days" />
       </span>
     </section>
+  );
+}
+
+/**
+ * Part T: renewal date, contract value and account health from approved facts, each with when it
+ * was last confirmed. Shown on client organisation pages and in external meeting briefs.
+ */
+export function CommercialLines({ c, dark = false }: { c: Commercial; dark?: boolean }) {
+  const rows = [
+    { key: 'renewal', label: 'Renewal', f: c.renewalDate },
+    { key: 'value', label: 'Contract value', f: c.contractValue },
+    { key: 'health', label: 'Account health', f: c.accountHealth },
+  ].filter((r) => r.f);
+  if (!rows.length) return null;
+  return (
+    <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 2, fontSize: 13 }} data-testid="list-commercial">
+      {rows.map((r) => (
+        <li key={r.key} data-testid={'text-commercial-' + r.key}>
+          <span style={{ color: dark ? 'var(--oo-text-on-dark-2)' : undefined }} className={dark ? undefined : 'oo-soft'}>{r.label}: </span>
+          <span>{r.f!.text}</span>
+          <span style={{ fontSize: 12, color: dark ? 'var(--oo-text-on-dark-3)' : undefined }} className={dark ? undefined : 'oo-muted'}>
+            {' '}(as of {formatShort(r.f!.at)}{r.f!.needsCheck ? ', needs a check' : ''})
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

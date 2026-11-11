@@ -3,6 +3,7 @@ import { getRelationshipLookBack, startRelationshipLookBack } from "../services/
 import { listPulses, pulseFor, setQuietDays } from "../services/clientPulse";
 import { addPoint, deletePoint, listPoints, POINT_CHARS, setPointRaised } from "../services/talkingPoints";
 import { z } from "zod";
+import { FACT_ATTRIBUTES } from "@workspace/db";
 import { BUSINESS_FUNCTIONS, CADENCES, PRODUCT_STATES, PRODUCT_USERS, PROJECT_LIFECYCLES, isIsoDate } from "@workspace/shared";
 import { createProduct, getProduct, listProducts, updateProduct } from "../services/products";
 import { suggestProductUsers } from "../services/productUsers";
@@ -149,7 +150,7 @@ const FactCreate = z
     entityId: id,
     text: z.string().min(1).max(2000),
     source: shortText(500),
-    attribute: z.enum(["job_title", "organisation", "status", "next_step", "decision_date"]).nullable().optional(),
+    attribute: z.enum(FACT_ATTRIBUTES).nullable().optional(),
   })
   .strict();
 const FactSupersede = z.object({ text: z.string().min(1).max(2000), source: shortText(500) }).strict();

@@ -577,6 +577,18 @@ Dates and times always go through `lib/shared/dates.ts`: long form "Friday 13th 
 
 At each sign-off I will list every relevant criterion as met or not met, with how it was checked.
 
+**Milestone 9 built (11th November 2026, in the "build everything" run):**
+
+- **Phone.** Home and Triage already had their phone layouts. Triage now takes a swipe on a phone: right for Now, left for Noise, with the card following the finger and a Now or Noise label; under 90 pixels it springs back, and a mostly vertical move scrolls.
+- **Home screen install.** `manifest.webmanifest` (standalone, portrait, dark theme colour, shortcuts to Triage and voice), icons at 192 and 512 pixels plus a maskable one and an Apple touch icon, and the iOS meta tags. "Add to Home Screen" opens it full screen.
+- **CSV export.** Tasks, Export downloads every task (`GET /api/export/tasks.csv`): status, kind, priority, due date, project, person, waiting on, source and link, notes, confidential, created and completed. Cells starting with = + - or @ are made safe for spreadsheets.
+- **Imports (PRD 14).** `POST /api/import` (Ollie) and `POST /api/ingest/import` (Claude, with the ingest key), each kind once: `tasks` (status, priority, due date, project and person by name; Backlog unless given) and `knowledge` (organisations, projects and people, matched by name or email before adding, with `confidential` kept; facts with `source: "claude-memory"` and their own date as last confirmed, so old ones come up in the fact check). Items Ollie has reviewed are written straight in, as the PRD sets out.
+- **Voice capture (feature 09).** `/voice`, from holding the yellow add button on a phone, the microphone in the Home add box, or the home screen shortcut. The browser's speech recognition turns speech into text (en-GB, two minutes at most, live transcript and timer); no audio reaches OllieOS. Without a microphone it offers a text box. The new agent "Voice capture" (Haiku) splits the transcript into tasks, promises and facts, with due dates, priority, project and person matched against OllieOS; a transcript naming anything hidden from AI is split in code instead, one task per sentence. Each card can be edited or removed; Save all puts tasks in the Inbox (source Voice, with the transcript as the source quote) and facts in the Knowledge Inbox; Discard saves nothing. Token `--oo-voice-base` added.
+- **Noise clean-up.** Noise items are deleted 90 days after they went to Noise (PRD section 13), with the other clean-ups.
+- **`APP_GUIDE.md`** written: how to use each part of OllieOS, and the commands for whoever maintains it.
+- **Not built:** the Notion task import and the Claude memory export themselves (the endpoints are ready; Claude prepares and posts the lists), and a hosted speech-to-text fallback for browsers without speech recognition (they get the text box).
+- **Loose ends also done:** a fact merged with "Same as existing" shows the card's source under it ("Also from Email from Sam Lee"); the Knowledge map can show one kind of relationship at a time. **Still open:** the 07:45 digest email (question 33 agreed no email in phase 1, and OllieOS sends nothing), and importing earlier Cowork sessions (needs a real Claude data export to check its format).
+
 Secrets needed: `ALLOWED_EMAIL` at milestone 1, `INBOX_API_KEY` at milestone 5, `ANTHROPIC_API_KEY` at milestone 3 only if you choose your own key (question 2).
 
 ---
@@ -1335,6 +1347,7 @@ Claude's sessions can read HubSpot and the KPI Portal (account health, renewal r
   - *Step 2:* if the Replit HubSpot connector connects for Ollie, OllieOS reads deals and company records itself on the timer, as with Gmail, and the sweep step for HubSpot is ignored. The KPI Portal stays with the sweep unless it offers an API OllieOS can call.
 - **Not included:** writing to HubSpot; showing commercial data for organisations that are not clients.
 - **Checked by:** a client with a renewal date in HubSpot shows it on its page and in the brief for its next meeting; a changed renewal date opens a conflict review.
+- **Built (11th November 2026, in the "build everything" run), step 1:** facts have three new kinds, `renewal_date`, `contract_value` and `account_health` (Settings, Knowledge gives each a shelf life: 90, 90 and 30 days). The connector's instructions and `add_fact` tell Claude to propose them for each client organisation when it can read HubSpot or the KPI Portal. A value OllieOS already holds counts as confirmed today ("unchanged"); a changed one opens a conflict review. The client pulse (organisation page, organisations list, external meeting briefs) shows renewal date, contract value and account health with when each was last confirmed; a renewal within 60 days, or account health "at risk", counts towards Needs attention, and the pulse line says when it renews. **Step 2 not built:** reading HubSpot directly needs the Replit HubSpot connector connected for Ollie first.
 
 ### Questions for section 19
 

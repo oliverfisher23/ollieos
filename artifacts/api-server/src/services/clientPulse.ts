@@ -6,9 +6,9 @@
  * quiet period (30 days unless changed per organisation), something owed to them overdue, an email
  * from them waiting over 3 working days, or a concerned last meeting.
  */
-import { and, arrayOverlaps, desc, eq, gte, inArray, lt } from "drizzle-orm";
-import { activityTable, appSettingsTable, calendarEventsTable, db, meetingTonesTable, organisationsTable, peopleTable, tasksTable } from "@workspace/db";
-import { isClientOrgType, todayLondon } from "@workspace/shared";
+import { and, arrayOverlaps, desc, eq, gte, inArray, isNull, lt } from "drizzle-orm";
+import { activityTable, appSettingsTable, calendarEventsTable, db, factsTable, meetingTonesTable, organisationsTable, peopleTable, tasksTable } from "@workspace/db";
+import { formatLong, isClientOrgType, todayLondon } from "@workspace/shared";
 import { emailsOf } from "./personMatch";
 import { oneWorkingDayBefore } from "./slackToAnswer";
 import { NotFoundError, ValidationError } from "./tasks";
@@ -35,6 +35,40 @@ export interface ClientPulse {
   reasons: string[];
   /** One plain line for briefs and lists */
   line: string;
+  /** Part T: renewal date, contract value and account health, from approved facts, with when each was last confirmed */
+  commercial: Commercial;
+}
+
+export interface CommercialFact {
+  text: string;
+  at: Date;
+  needsCheck: boolean;
+}
+
+export interface Commercial {
+  renewalDate: CommercialFact | null;
+  /** The renewal date when the fact holds one (YYYY-MM-DD) */
+  renewsOn: string | null;
+  contractValue: CommercialFact | null;
+  accountHealth: CommercialFact | null;
+}
+
+/** Renewals this close count towards Needs attention. */
+export const RENEWAL_SOON_DAYS = 60;
+
+/** Part T: the current commercial facts on an organisation (the newest of each, not replaced). */
+export async function commercialFor(orgId: number): Promise<Commercial> {
+  const rows = await db
+    .select({ attribute: factsTable.attribute, text: factsTable.text, at: factsTable.lastConfirmedAt, needsCheck: factsTable.needsCheck })
+    .from(factsTable)
+    .where(and(eq(factsTable.entityType, "organisation"), eq(factsTable.entityId, orgId), inArray(factsTable.attribute, ["renewal_date", "contract_value", "account_health"]), isNull(factsTable.supersededBy)))
+    .orderBy(desc(factsTable.createdAt));
+  const pick = (a: string) => {
+    const r = rows.find((x) => x.attribute === a);
+    return r ? { text: r.text, at: r.at, needsCheck: r.needsCheck } : null;
+  };
+  const renewalDate = pick("renewal_date");
+  return { renewalDate, renewsOn: renewalDate ? (/\b(\d{4}-\d{2}-\d{2})\b/.exec(renewalDate.text)?.[1] ?? null) : null, contractValue: pick("contract_value"), accountHealth: pick("account_health") };
 }
 
 interface Candidate {
@@ -116,6 +150,10 @@ export async function pulseFor(orgId: number, now = new Date()): Promise<ClientP
   for (let i = 0; i < 3; i++) cutoff = oneWorkingDayBefore(cutoff);
   if (oldestEmailAt && oldestEmailAt <= cutoff) reasons.push("An email from them has waited over 3 working days");
   if (tone?.tone === "concerned") reasons.push(`Last meeting sounded concerned${tone.reason ? `: ${tone.reason}` : ""}`);
+  const commercial = await commercialFor(org.id);
+  const renewIn = commercial.renewsOn ? Math.round((Date.parse(commercial.renewsOn + "T12:00:00Z") - now.getTime()) / DAY) : null;
+  if (renewIn != null && renewIn >= 0 && renewIn <= RENEWAL_SOON_DAYS) reasons.push(`Renews in ${renewIn} day${renewIn === 1 ? "" : "s"}`);
+  if (commercial.accountHealth && /\bat risk\b/i.test(commercial.accountHealth.text)) reasons.push(`Account health: ${commercial.accountHealth.text}`);
 
   const parts = [
     lastMetAt ? `last met ${daysBetween(lastMetAt, now)} days ago` : "not met in 90 days",
@@ -124,6 +162,7 @@ export async function pulseFor(orgId: number, now = new Date()): Promise<ClientP
     owed.length ? `you owe ${owed.length}` : null,
     theyOwe.length ? `they owe ${theyOwe.length}` : null,
     tone ? `last meeting ${tone.tone}` : null,
+    commercial.renewsOn ? `renews ${formatLong(commercial.renewsOn)}` : null,
   ].filter(Boolean);
   return {
     organisationId: org.id,
@@ -142,6 +181,7 @@ export async function pulseFor(orgId: number, now = new Date()): Promise<ClientP
     needsAttention: reasons.length > 0,
     reasons,
     line: parts.join(", ").replace(/^./, (c) => c.toUpperCase()),
+    commercial,
   };
 }
 

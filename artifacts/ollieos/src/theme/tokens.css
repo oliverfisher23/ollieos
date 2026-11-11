@@ -51,6 +51,9 @@
     radial-gradient(110% 60% at 10% 0%, #39507a 0%, rgba(57, 80, 122, 0) 60%),
     linear-gradient(180deg, #2c3a55 0%, #6f7277 50%, #8b6a55 100%);
   --oo-dark-base: #1b1d22;
+  /* Milestone 9: the phone voice screen's darker base, and the recording state of its button */
+  --oo-voice-base: #16171b;
+  --oo-recording: #e5484d;
   --oo-grain-opacity: 0.22;
   --oo-glass: rgba(30, 30, 32, 0.66);
   --oo-glass-border: rgba(255, 255, 255, 0.10);

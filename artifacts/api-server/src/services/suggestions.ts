@@ -35,6 +35,9 @@ import { insertProduct } from "./products";
 export { FACT_ATTRIBUTES };
 export type FactAttribute = (typeof FACT_ATTRIBUTES)[number];
 /** Where a suggestion came from. */
+/** Part T: facts read from commercial systems, refreshed when proposed again unchanged. */
+const COMMERCIAL_ATTRIBUTES = new Set<string>(["renewal_date", "contract_value", "account_health"]);
+
 export const SUGGESTION_SOURCES = ["email", "meeting", "chat", "recording", "voice", "calendar", "slack", "document"] as const;
 export type SuggestionKind = Suggestion["kind"];
 
@@ -468,7 +471,11 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
   if (p.kind === "fact") {
     const facts = await currentFacts(db, p.entityType, p.entityId);
     const same = facts.find((f) => normalise(f.text) === norm);
-    if (same) return { status: "duplicate", factId: same.id };
+    if (same) {
+      // Part T: a commercial fact read again from HubSpot or the KPI Portal is confirmed as of now.
+      if (same.attribute && COMMERCIAL_ATTRIBUTES.has(same.attribute)) await db.update(factsTable).set({ lastConfirmedAt: now }).where(eq(factsTable.id, same.id));
+      return { status: "duplicate", factId: same.id };
+    }
     if (p.payload.attribute) {
       conflictWith = facts
         .filter((f) => f.attribute === p.payload.attribute && f.id !== p.payload.supersedes)

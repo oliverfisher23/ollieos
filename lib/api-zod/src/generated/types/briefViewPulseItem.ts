@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { Commercial } from './commercial';
 
 export type BriefViewPulseItem = {
   name: string;
@@ -12,4 +13,5 @@ export type BriefViewPulseItem = {
   line: string;
   needsAttention: boolean;
   reasons: string[];
+  commercial: Commercial;
 };

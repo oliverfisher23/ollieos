@@ -9,6 +9,7 @@ import { gradeIfDue } from "./writerChecks";
 import { clearOldHistory } from "./timeAndMeetings";
 import { clearOldAiRuns } from "../lib/aiRuns";
 import { clearOldInputs } from "./evals";
+import { clearOldNoise } from "./exports";
 import { londonParts } from "@workspace/shared";
 import { logger } from "../lib/logger";
 import { clearOldCalendar } from "./aiWrites";
@@ -54,6 +55,6 @@ export async function scheduledWork(from: "sweep" | "connectors", now = new Date
   // Part L: rules from Ollie's edits, once a week. Calls the model, so tests run it directly.
   if (process.env.NODE_ENV !== "test") await part("rules_from_edits", () => learnRulesIfDue(now));
   if (process.env.NODE_ENV !== "test") await part("writer_grades", () => gradeIfDue(now));
-  await part("cleared", async () => ({ digests: await clearOldDigests(now), calendar_events: await clearOldCalendar(now), roundups: await clearOldRoundups(now), ai_runs: await clearOldAiRuns(now), meeting_history: await clearOldHistory(now), ai_inputs: await clearOldInputs(now) }));
+  await part("cleared", async () => ({ digests: await clearOldDigests(now), calendar_events: await clearOldCalendar(now), roundups: await clearOldRoundups(now), ai_runs: await clearOldAiRuns(now), meeting_history: await clearOldHistory(now), ai_inputs: await clearOldInputs(now), noise: await clearOldNoise(now) }));
   return out;
 }
