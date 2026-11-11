@@ -1153,3 +1153,52 @@ Ollie asked where information about products and processes lives. Today neither 
   - Products are a full knowledge item (`products`) with facts, notes, links, relationships and the map, AI access and confidential switches, and no one-hour access grants. A product's rules apply on projects and organisations linked to it, in the app, for Claude and in briefs.
   - Knowledge Inbox: "Playbook", "Playbook change" (steps marked new, changed or removed, with what each was) and "Product" cards. The document and session reader proposes them (at most 2 playbooks and 3 products a read), and only knows playbooks that are In use and not confidential.
   - Claude: `get_rules` (with a product option), `get_playbooks` kept as the old name, `get_playbook`, `propose_playbook`, `propose_product`. The Cowork instructions mention the new tools, so the block needs pasting into Cowork again.
+
+## 16. Knowledge you can trust (asked for 11th November 2026)
+
+Ollie shared a diagram of how OllieOS should work: sources are read, claims are checked against what is already approved and against who has the say, Ollie approves, and the result reaches every AI. Compared with what is built, the flow is right but three parts are thin: Slack and Gmail only make tasks, not knowledge; a person is matched by one email and nothing records who decides what; and only two facts of the same kind about the same thing are caught as a conflict. Agreed with Ollie on 11th November 2026: the "owner confirms" invite loop stays out for now, so OllieOS stays a one-person app and Ollie's approval is the only confirmation. Two parts, each its own sign-off. N comes first because the contradiction check in O weighs claims by who said them.
+
+| Part | Features | Size |
+|---|---|---|
+| N | Who's who (several emails and a Slack account per person, merge two people, who decides), who said each claim, knowledge from Slack and Gmail, Merge in the Knowledge Inbox | Medium to large |
+| O | Contradiction check across every source, context packs for Claude Projects, weekly round-up to forward | Large |
+
+### Part N: Who's who, and knowledge from Slack and Gmail
+
+- **One person across every tool.**
+  - A person can have several email addresses and a Slack account. Gmail, Calendar, Granola and Slack all match on any of them, so the same person is found wherever they turn up.
+  - Merge two people: everything on one (facts, decisions, notes, tasks, links, relationships, meetings, emails) moves to the other, and the merged one is removed. The person page offers "Same person as…", and a short "Possible duplicates" list shows people with the same name or a matching email.
+- **Who decides.** A project, product or organisation can name the people who decide on it (for example "Sam Lee decides on Atlas launch"), shown on its page and editable there. Claude can read it, and the brief shows it beside each person in the room. Ollie decides everywhere unless he names someone else.
+- **Who said it.** Every Knowledge Inbox card shows who said the claim and when (a known person where one matches, otherwise the name as written), next to where it came from. This applies to every source: Granola, documents, Claude sessions, the sweep and now Slack and Gmail.
+- **Knowledge from Slack and Gmail.** The Slack and Gmail checks already read each new exchange with AI to find tasks. The same read now also picks out firm decisions and facts about people, projects, organisations and products OllieOS already knows, and proposes them as cards citing the message. Small talk, questions and maybes are left out. Messages hidden from AI, Noise and newsletters are never read for knowledge. It adds very little cost, since it is the same AI read.
+- **Merge in the Knowledge Inbox.** Beside Approve and Reject, "Same as existing" picks an approved decision, fact or rule that already says this. The existing item counts as checked today and keeps the card's source as a second source, so nothing is added twice.
+- **Not included:** other people confirming anything (the invite loop); reading Slack channels Ollie is not in; Slack search (the connection does not allow it).
+- **Checked by:**
+  - A person with two email addresses is matched from an email to either address, and from Slack.
+  - Merging two people moves a fact, a task and a meeting onto the one kept.
+  - "Sam Lee decides on Atlas launch" shows on the project page and in a brief with Sam in the room.
+  - A Slack message stating a decision about a known project produces a Decision card that says who said it, citing the message.
+  - "Same as existing" on a card marks the approved fact as checked and adds no new fact.
+
+### Part O: Contradictions, context packs and the weekly round-up
+
+- **Contradiction check across every source.**
+  - Every new card, from any source, is checked by AI against the approved decisions, facts and rules about the same people, projects, organisations and products. A card that disagrees shows "Contradicts" with the approved item, who said each and when. It goes to the Conflicts tab, which already handles conflicting facts.
+  - Each side is weighed. A claim is stronger when the person who said it decides on that area (Part N) and when it is newer. The card says which side looks stronger and why in one line, for example "Stronger: Sam decides on Atlas launch, and this is three weeks newer". Ollie still chooses: "New one is right" (the old item is kept in history as replaced), "Old one stands" (the card is rejected), or "Both are true".
+  - Going stale: when an approved item is contradicted by a newer source, it shows "May be out of date" on its page and in Needs a check until Ollie decides. Claude is told the item is in question.
+  - Hidden items are never sent to the AI for this check, so a claim about something hidden is only checked against what AI may see.
+  - Cost: about 1p a card.
+- **Context packs.** "Download for Claude" on project, product and organisation pages makes one file, ready to add to a Claude Project. It holds the summary, current facts, decisions, the rules that apply, playbooks in use, linked documents (titles and links) and who decides, each with its date and source. It only includes what AI may see; anything confidential or hidden is left out, and the page says how many items were left out. It is a copy as of the day it was made, and the file says so.
+- **Weekly round-up.** Every Friday at 16:00 (changeable in Settings), a round-up at `/digest/week`. It covers what was approved this week, contradictions found and how each was settled, what went stale, and new rules, playbooks and products. "Save as Gmail draft" makes a draft with no one addressed, ready to forward (never sent). The draft leaves out anything confidential or hidden from AI; the page itself shows everything.
+- **Not included:** the invite loop; sending the round-up; context packs that update themselves inside Claude (a pack is a copy, and the Claude connection stays the live route).
+- **Checked by:**
+  - A Gmail message saying a project's launch moved to March, against an approved fact saying February, appears under Conflicts with both dates, who said each, and which looks stronger.
+  - Choosing "New one is right" replaces the fact and keeps the old one in history.
+  - The contradicted fact shows "May be out of date" until Ollie decides.
+  - A context pack for a project includes its facts, decisions and rules, and leaves out a confidential decision.
+  - The weekly round-up lists the week's approvals and the conflict, and its Gmail draft leaves out a confidential item.
+
+### Questions for Ollie
+
+- Build N and O before Part K (Meetings), or after K and L?
+- Weekly round-up: Friday at 16:00, and leave confidential items out of the version to forward?
