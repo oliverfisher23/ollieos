@@ -209,7 +209,13 @@ async function toDocumentViews(rows: Omit<Document, "search">[]): Promise<Docume
           .from(documentContentsTable)
           .where(inArray(documentContentsTable.documentId, ids))
       : [],
-    ids.length ? db.select().from(knowledgeSourcesTable).where(inArray(knowledgeSourcesTable.documentId, ids)) : [],
+    ids.length ? db.select({
+      documentId: knowledgeSourcesTable.documentId,
+      status: knowledgeSourcesTable.status,
+      lastReadAt: knowledgeSourcesTable.lastReadAt,
+      lastCounts: knowledgeSourcesTable.lastCounts,
+      lastError: knowledgeSourcesTable.lastError,
+    }).from(knowledgeSourcesTable).where(inArray(knowledgeSourcesTable.documentId, ids)) : [],
   ]);
   const readAt = new Map(contents.map((c) => [c.id, c]));
   const knowledge = new Map(
@@ -326,6 +332,18 @@ export async function createDocument(input: DocumentInput): Promise<DocumentView
 
 export async function documentView(id: number): Promise<DocumentView> {
   return (await toDocumentViews([await loadDocument(id)]))[0];
+}
+
+/** Enrich a set once, returning the caller's order (including repeated ids). */
+export async function documentViews(ids: number[]): Promise<DocumentView[]> {
+  if (!ids.length) return [];
+  const rows = await db.select(documentColumns).from(documentsTable).where(inArray(documentsTable.id, [...new Set(ids)]));
+  const views = new Map((await toDocumentViews(rows)).map((v) => [v.id, v]));
+  return ids.map((id) => {
+    const view = views.get(id);
+    if (!view) throw new NotFoundError("That document does not exist");
+    return view;
+  });
 }
 
 /** Longest text kept for one document */

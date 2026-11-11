@@ -44,6 +44,7 @@ export const suggestionsTable = pgTable(
   },
   (t) => [
     index("suggestions_status_idx").on(t.status),
+    index("suggestions_source_status_result_idx").on(t.sourceRef, t.status, t.resultType),
     index("suggestions_entity_idx").on(t.entityType, t.entityId),
     index("suggestions_text_idx").on(t.normalisedText),
   ],

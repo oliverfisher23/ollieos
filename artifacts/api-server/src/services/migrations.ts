@@ -100,8 +100,24 @@ export async function recheckContradictions(conn: DbOrTx = db): Promise<boolean>
 
 /** Every start-up data change, in order. */
 export async function runMigrations(): Promise<void> {
+  await backfillAiActivityGroups();
   await migrateRules();
   await recheckContradictions();
   // The four functions; Ollie's Delivery, Product and Go-to-market projects become Delivery, Product and Sales.
   await ensureFunctions();
+}
+
+/** One historical aggregation at migration time, never on the polled activity path. */
+export async function backfillAiActivityGroups(conn: DbOrTx = db): Promise<void> {
+  await conn.transaction(async (tx) => {
+    const flag = await tx.insert(appSettingsTable).values({ key: "ai_activity_groups_backfilled", value: true })
+      .onConflictDoNothing().returning();
+    if (!flag.length) return;
+    await tx.execute(sql`
+      insert into ai_activity_groups (key, at)
+      select coalesce(payload->>'batch', 'e' || id::text), max(created_at)
+      from audit_events where client_id is not null and actor <> 'ollie'
+      group by coalesce(payload->>'batch', 'e' || id::text)
+      on conflict (key) do update set at = greatest(ai_activity_groups.at, excluded.at)`);
+  });
 }

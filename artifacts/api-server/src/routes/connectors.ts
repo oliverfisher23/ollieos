@@ -7,7 +7,7 @@ import { retryFailedDropbox } from "../services/documents/reader";
 import { logger } from "../lib/logger";
 import { ACTION_RANGES, DECISION_RANGES, getLookBack, resumeLookBack, startLookBack, stopLookBack } from "../services/connectors/lookBack";
 import { connectorsView } from "../services/connectors/status";
-import { scheduledWork } from "../services/scheduledWork";
+import { enqueueScheduledWork } from "../services/scheduledWorkQueue";
 import { ValidationError } from "../services/tasks";
 
 const router: IRouter = Router();
@@ -96,7 +96,7 @@ router.post(
   "/connectors/:key/check",
   handle(async (req, res) => {
     const run = await runConnector(parseKey(req.params), "manual");
-    if (run.ok) await scheduledWork("connectors");
+    if (run.ok) await enqueueScheduledWork();
     res.json({ ok: run.ok, found: run.found, counts: run.counts, account: run.account, error: run.error, needsReconnect: run.needsReconnect });
   }),
 );

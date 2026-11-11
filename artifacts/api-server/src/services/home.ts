@@ -78,7 +78,13 @@ export async function getHome() {
   const week = londonRange(weekStartOf(today), 7);
   const day = londonRange(today, 1);
 
-  const [candidateRows, inboxBySource, waitingRows, promiseRows, doneCount, doneRows, lastSweep, todayEvents] =
+  // Only enrichment reads seeded goals and the self profile. Other branches can start now.
+  const readyForTaskViews = Promise.all([ensureSeeds(), ensureSelfPerson().catch(() => undefined)]);
+  const enrich = async (rows: Parameters<typeof toTaskViews>[0]) => {
+    await readyForTaskViews;
+    return toTaskViews(rows);
+  };
+  const [candidates, inboxBySource, waiting, promises, doneCount, latestDone, lastSweep, calendar, digestDate, access, knowledgeInbox, ideasDue] =
     await Promise.all([
       db
         .select()
@@ -88,18 +94,18 @@ export async function getHome() {
             sql`(${tasksTable.status} = 'now' or (${tasksTable.kind} = 'promise' and ${tasksTable.status} in ('inbox','now','backlog')))`,
             sql`(${tasksTable.snoozedUntil} is null or ${tasksTable.snoozedUntil} <= ${now.toISOString()})`,
           ),
-        ),
+        ).then(enrich),
       db
         .select({ source: tasksTable.source, count: sql<number>`count(*)::int` })
         .from(tasksTable)
         .where(eq(tasksTable.status, "inbox"))
         .groupBy(tasksTable.source),
-      db.select().from(tasksTable).where(eq(tasksTable.status, "waiting")),
+      db.select().from(tasksTable).where(eq(tasksTable.status, "waiting")).then(enrich),
       db
         .select()
         .from(tasksTable)
         .where(and(eq(tasksTable.kind, "promise"), inArray(tasksTable.status, OPEN)))
-        .orderBy(sql`${tasksTable.dueDate} asc nulls last`, asc(tasksTable.createdAt)),
+        .orderBy(sql`${tasksTable.dueDate} asc nulls last`, asc(tasksTable.createdAt)).then(enrich),
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(tasksTable)
@@ -109,7 +115,7 @@ export async function getHome() {
         .from(tasksTable)
         .where(and(eq(tasksTable.status, "done"), gte(tasksTable.completedAt, week.start), lt(tasksTable.completedAt, week.end)))
         .orderBy(desc(tasksTable.completedAt))
-        .limit(5),
+        .limit(5).then(enrich),
       db
         .select({ finishedAt: sweepRunsTable.finishedAt })
         .from(sweepRunsTable)
@@ -120,23 +126,16 @@ export async function getHome() {
         .select()
         .from(calendarEventsTable)
         .where(and(gte(calendarEventsTable.startsAt, day.start), lt(calendarEventsTable.startsAt, day.end)))
-        .orderBy(asc(calendarEventsTable.startsAt)),
+        .orderBy(asc(calendarEventsTable.startsAt))
+        .then(async (events) => ({ events, briefable: await briefableIds(events) })),
+      todaysDigestDate(now),
+      listAccessRequests(),
+      inboxCounts(),
+      dueIdeas(today),
+      readyForTaskViews,
     ]);
-
-  const [briefable, digestDate, unprepped] = await Promise.all([briefableIds(todayEvents), todaysDigestDate(now), notPreppedIds(todayEvents, now)]);
-  await ensureSelfPerson().catch(() => undefined);
-  await ensureSeeds();
-  const [candidates, waiting, promises, latestDone, access, knowledgeInbox, ideasDue, slackToAnswer, warnings] = await Promise.all([
-    toTaskViews(candidateRows),
-    toTaskViews(waitingRows),
-    toTaskViews(promiseRows),
-    toTaskViews(doneRows),
-    listAccessRequests(),
-    inboxCounts(),
-    dueIdeas(today),
-    slackRepliesOverdue(now),
-    connectorWarnings(now),
-  ]);
+  const { events: todayEvents, briefable } = calendar;
+  const [unprepped, slackToAnswer, warnings] = await Promise.all([notPreppedIds(todayEvents, now), slackRepliesOverdue(now), connectorWarnings(now)]);
 
   const waitingOn = waiting
     .map((task) => ({

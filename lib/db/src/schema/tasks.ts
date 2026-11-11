@@ -90,6 +90,9 @@ export const tasksTable = pgTable(
     index("tasks_person_idx").on(t.personId),
     index("tasks_waiting_on_idx").on(t.waitingOnPersonId),
     index("tasks_completed_idx").on(t.completedAt),
+    // Same normalisation as inbox linking, including older account-specific Gmail URLs.
+    index("tasks_gmail_thread_idx").on(sql`substring(${t.sourceUrl} from '#all/([A-Za-z0-9]+)[[:space:]]*$')`)
+      .where(sql`${t.source} = 'email'`),
     uniqueIndex("tasks_source_ref_unique").on(t.source, t.sourceRef).where(sql`source_ref is not null`),
     index("tasks_search_idx").using("gin", t.search),
   ],

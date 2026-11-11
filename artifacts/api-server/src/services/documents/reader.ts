@@ -7,7 +7,7 @@
  * behind a folder being read for the first time. A read is claimed in the database first, so two
  * server instances never read the same thing.
  */
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import { coworkSessionsTable, db, documentContentsTable, documentsTable, knowledgeSourcesTable, type KnowledgeSource } from "@workspace/db";
 import { formatLong } from "@workspace/shared";
 import { logger } from "../../lib/logger";
@@ -16,11 +16,12 @@ import { ConnectorError } from "../connectors/http";
 import { cleanDriveLink, driveFile, driveFileId, driveFileText, driveFolderId, folderFiles, canReadText, CONTENT_CHARS } from "../connectors/drive";
 import { dropboxText, pathFromDropboxLink } from "../connectors/dropbox";
 import { gmailThreadUrl } from "../connectors/gmail";
-import { documentView, insertDocument, keepDocumentText, parseLink, type DocumentView } from "../library";
+import { documentView, documentViews, keepDocumentText, parseLink, type DocumentView } from "../library";
+import { appendAuditEvents } from "../../lib/audit";
 import { ACTOR } from "../knowledge/common";
 import { NotFoundError, ValidationError } from "../tasks";
 import { emptyKnowledgeCounts, type KnowledgeCounts } from "./counts";
-import { enqueueDocument } from "./enqueue";
+import { enqueueDocument, enqueueDocuments } from "./enqueue";
 import { changedLines, DOCUMENT_PROPOSER, extractKnowledge, proposeExtracted } from "./knowledge";
 
 const WORKERS = 2;
@@ -325,26 +326,54 @@ export async function importFromDrive(link: string): Promise<DriveImport> {
   }
   const out: DriveImport = { folder, added: 0, alreadyThere: 0, skipped: 0, queued: 0, documents: [] };
   const ids: number[] = [];
+  const eligible: { url: string; title: string }[] = [];
   for (const f of files) {
     if (!canReadText(f.mimeType) || !f.webViewLink) {
       if (f.mimeType !== "application/vnd.google-apps.folder") out.skipped++;
       continue;
     }
-    const href = parseLink(cleanDriveLink(f.webViewLink)).toString();
-    const [have] = await db.select({ id: documentsTable.id, title: documentsTable.title, url: documentsTable.url }).from(documentsTable).where(eq(documentsTable.url, href));
-    const doc = have ?? (await db.transaction(async (tx) => {
-      const id = await insertDocument(tx, { url: href, title: f.name }, ACTOR);
-      return { id, title: f.name, url: href };
-    }));
-    if (have) out.alreadyThere++;
-    else out.added++;
-    await enqueueDocument(db, doc);
-    out.queued++;
-    ids.push(doc.id);
+    eligible.push({ url: parseLink(cleanDriveLink(f.webViewLink)).toString(), title: f.name.trim() });
   }
+  const urls = [...new Set(eligible.map((f) => f.url))];
+  const columns = { id: documentsTable.id, title: documentsTable.title, url: documentsTable.url };
+  const existing = urls.length ? await db.select(columns).from(documentsTable).where(inArray(documentsTable.url, urls)) : [];
+  const byUrl = new Map(existing.map((d) => [d.url!, d]));
+  // Bounded chunks, not one connection per file. The unique URL constraint protects
+  // concurrent imports; only rows actually inserted receive create audits.
+  for (let offset = 0; offset < eligible.length; offset += 25) {
+    const chunk = eligible.slice(offset, offset + 25);
+    await db.transaction(async (tx) => {
+      const missing = [...new Map(chunk.filter((f) => !byUrl.has(f.url)).map((f) => [f.url, f])).values()];
+      if (missing.length) {
+        const created = await tx.insert(documentsTable).values(missing.map((f) => ({
+          url: f.url, title: f.title || "Google Drive document", location: "gdrive" as const, createdBy: ACTOR,
+        }))).onConflictDoNothing({ target: documentsTable.url }).returning(columns);
+        await appendAuditEvents(tx, created.map((d) => ({
+          actor: ACTOR, action: "create", entityType: "document", entityId: d.id,
+          payload: { projects: [], suggestionId: null },
+        })));
+        out.added += created.length;
+        for (const doc of created) byUrl.set(doc.url!, doc);
+        const raced = missing.filter((f) => !byUrl.has(f.url));
+        if (raced.length) {
+          const found = await tx.select(columns).from(documentsTable).where(inArray(documentsTable.url, raced.map((f) => f.url)));
+          for (const doc of found) byUrl.set(doc.url!, doc);
+        }
+      }
+      const docs = chunk.map((f) => {
+        const doc = byUrl.get(f.url);
+        if (!doc) throw new NotFoundError("That document does not exist");
+        return doc;
+      });
+      await enqueueDocuments(tx, docs);
+      ids.push(...docs.map((d) => d.id));
+    });
+  }
+  out.alreadyThere = eligible.length - out.added;
+  out.queued = eligible.length;
   if (!ids.length && out.skipped) throw new ValidationError(folder ? "That folder has no files OllieOS can read." : "OllieOS cannot read this kind of file.");
   kickKnowledgeReader();
-  for (const id of ids.slice(0, 50)) out.documents.push(await documentView(id));
+  out.documents = await documentViews(ids.slice(0, 50));
   return out;
 }
 

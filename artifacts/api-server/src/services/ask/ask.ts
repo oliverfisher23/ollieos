@@ -329,33 +329,50 @@ async function loadRow(id: number): Promise<AskThread> {
 }
 
 /** The turns before and including this one, oldest first. */
-async function ancestors(row: AskThread): Promise<AskThread[]> {
-  const chain = [row];
-  let cur = row;
-  while (cur.parentId && chain.length < 50) {
-    const [parent] = await db.select().from(askThreadsTable).where(eq(askThreadsTable.id, cur.parentId));
-    if (!parent) break;
-    chain.unshift(parent);
-    cur = parent;
-  }
-  return chain;
+async function ancestors(row: AskThread, budget = 50): Promise<AskThread[]> {
+  if (!row.parentId || budget <= 1) return [row];
+  const result = await db.execute(sql`
+    with recursive chain as (
+      select t.*, 1 as depth from ask_threads t where t.id = ${row.parentId}
+      union all
+      select t.*, c.depth + 1 from chain c join ask_threads t on t.id = c.parent_id
+      where c.depth < ${budget - 1}
+    )
+    select ${threadColumns} from chain order by depth desc`);
+  return [...threadRows(result.rows), row];
+}
+
+const threadColumns = sql.raw(`id, parent_id as "parentId", question, answer, cited_ids as "citedIds",
+  used_confidential as "usedConfidential", model, created_at as "createdAt"`);
+
+function threadRows(rows: unknown[]): AskThread[] {
+  return (rows as AskThread[]).map((r) => ({ ...r, createdAt: new Date(r.createdAt) }));
+}
+
+/** Extend already-loaded prior context without fetching the same ancestors again. */
+async function conversationRows(row: AskThread, known?: AskThread[]): Promise<AskThread[]> {
+  const seed = known?.length ? [...known, row] : [row];
+  const prefix = await ancestors(seed[0], 50 - seed.length + 1);
+  const chain = [...prefix, ...seed.slice(1)].slice(-50);
+  const budget = 50 - chain.length;
+  if (!budget) return chain;
+  const result = await db.execute(sql`
+    with recursive children as (
+      select t.*, 1 as depth from (
+        select * from ask_threads where parent_id = ${row.id} order by created_at desc, id desc limit 1
+      ) t
+      union all
+      select t.*, c.depth + 1 from children c cross join lateral (
+        select * from ask_threads where parent_id = c.id order by created_at desc, id desc limit 1
+      ) t where c.depth < ${budget}
+    )
+    select ${threadColumns} from children order by depth`);
+  return [...chain, ...threadRows(result.rows)];
 }
 
 /** The whole conversation a turn belongs to: up to the first question, then down the latest follow-ups. */
 export async function getThread(id: number): Promise<{ turns: AskTurnView[] }> {
-  const chain = await ancestors(await loadRow(id));
-  let last = chain[chain.length - 1];
-  while (chain.length < 50) {
-    const [child] = await db
-      .select()
-      .from(askThreadsTable)
-      .where(eq(askThreadsTable.parentId, last.id))
-      .orderBy(desc(askThreadsTable.createdAt))
-      .limit(1);
-    if (!child) break;
-    chain.push(child);
-    last = child;
-  }
+  const chain = await conversationRows(await loadRow(id));
   return { turns: await toTurnViews(chain) };
 }
 
@@ -458,10 +475,11 @@ async function usesConfidential(answer: StoredAnswer): Promise<boolean> {
   return used.some((r) => !open.has(r));
 }
 
-async function priorFor(parentId: number | null | undefined): Promise<{ prior: PriorTurn[]; carry: string[] }> {
-  if (!parentId) return { prior: [], carry: [] };
-  const chain = (await ancestors(await loadRow(parentId))).slice(-PRIOR_TURNS);
+async function priorFor(parentId: number | null | undefined): Promise<{ prior: PriorTurn[]; carry: string[]; chain: AskThread[] }> {
+  if (!parentId) return { prior: [], carry: [], chain: [] };
+  const chain = await ancestors(await loadRow(parentId), PRIOR_TURNS);
   return {
+    chain,
     prior: chain.map((r) => ({ question: r.question, summary: (r.answer as StoredAnswer).summary })),
     carry: chain[chain.length - 1].citedIds,
   };
@@ -475,7 +493,7 @@ export async function ask(question: string, parentId?: number | null): Promise<{
   const q = question.trim();
   if (!q) throw new ValidationError("Ask a question first");
 
-  const { prior, carry } = await priorFor(parentId);
+  const { prior, carry, chain } = await priorFor(parentId);
   const scope = await askScope();
   const { answer, model } = await computeAnswer(scope, q, prior, carry);
   const usedConfidential = await usesConfidential(answer);
@@ -496,7 +514,7 @@ export async function ask(question: string, parentId?: number | null): Promise<{
   await recordReads(scope, answer.retrievedRefs, { via: "ask", threadId: row.id, question: q });
   // Part Y: code checks on the answer; it may only cite what it was given (and earlier turns).
   await recordCheck("ask_answer", `ask:${row.id}`, [answer.summary, ...answer.items.map((i) => i.text)].join("\n"), { given: [...answer.retrievedRefs, ...carry], cited: citedIds, maxWords: 600 });
-  return { id: row.id, ...(await getThread(row.id)) };
+  return { id: row.id, turns: await toTurnViews(await conversationRows(row, chain)) };
 }
 
 /**

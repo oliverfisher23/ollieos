@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { bigint, boolean, index, integer, jsonb, pgTable, smallint, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { entityTypeEnum } from "./enums";
 
@@ -15,13 +16,25 @@ export const auditEventsTable = pgTable(
     entityId: integer("entity_id"),
     payload: jsonb("payload"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * The AI activity group an event belongs to: its batch, or the event on its own. Stored so it
+     * can be a plain indexed column; Replit's publish step garbles an index on the expression.
+     */
+    batchKey: text("batch_key").generatedAlwaysAs(sql`coalesce(payload->>'batch', 'e' || id::text)`),
   },
   (t) => [
     index("audit_events_entity_idx").on(t.entityType, t.entityId),
     index("audit_events_created_idx").on(t.createdAt),
     index("audit_events_action_idx").on(t.action),
+    index("audit_events_ai_batch_idx").on(t.batchKey, t.id).where(sql`${t.clientId} is not null and ${t.actor} <> 'ollie'`),
   ],
 );
+
+/** Indexed group headers; detailed events remain the source of counts and previews. */
+export const aiActivityGroupsTable = pgTable("ai_activity_groups", {
+  key: text("key").primaryKey(),
+  at: timestamp("at", { withTimezone: true }).notNull(),
+}, (t) => [index("ai_activity_groups_recent_idx").on(t.at.desc(), t.key.desc())]);
 
 /** Ask OllieOS history. */
 export const askThreadsTable = pgTable("ask_threads", {
@@ -33,7 +46,7 @@ export const askThreadsTable = pgTable("ask_threads", {
   usedConfidential: boolean("used_confidential").notNull().default(false),
   model: text("model"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [index("ask_threads_parent_created_idx").on(t.parentId, t.createdAt.desc(), t.id.desc())]);
 
 /** One-off imports, once per kind ("tasks", "knowledge"). */
 export const importRunsTable = pgTable("import_runs", {
