@@ -24,6 +24,8 @@ export interface WorkUnit {
   people: { name: string | null; email: string | null; slackId?: string | null }[];
   /** Oldest first */
   messages: WorkMessage[];
+  /** Slack: the conversation this exchange is from (Part P, Slack to answer) */
+  conversation?: { id: string; kind: "im" | "mpim" | "channel" };
 }
 
 /** Collapses runs of blank lines and spaces, and cuts to a length on a word boundary. */

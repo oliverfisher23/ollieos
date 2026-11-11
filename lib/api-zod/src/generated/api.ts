@@ -112,6 +112,7 @@ export const LogoutMobileSessionResponse = zod.object({
  * @summary Everything the Home screen needs in one call
  */
 export const GetHomeResponse = zod.object({
+  "slackToAnswer": zod.int().describe('Slack messages that need a reply and have waited over a working day (Part P)'),
   "ideasDue": zod.array(zod.object({
   "id": zod.int(),
   "title": zod.string(),
@@ -2554,6 +2555,82 @@ export const ListEmailInboxResponse = zod.object({
   "checkedAt": zod.coerce.date().describe('When Gmail was last looked at'),
   "updating": zod.boolean().describe('Gmail is being looked at again, or new emails are being read'),
   "problem": zod.string().nullable().describe('Why the last look at Gmail failed; the list is from the one before')
+})
+
+
+/**
+ * @summary Slack to answer: conversations from the last 14 days whose newest message is from someone else, newest first. Nothing is posted to Slack.
+ */
+export const ListSlackToAnswerResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string().describe('im, mpim or channel'),
+  "place": zod.string().describe('The other person for a DM, the names in a group DM, or #channel'),
+  "fromName": zod.string().nullable(),
+  "personId": zod.int().nullable(),
+  "personSlug": zod.string().nullable(),
+  "text": zod.string().describe('The message'),
+  "at": zod.coerce.date(),
+  "url": zod.string().describe('The message in Slack'),
+  "needs": zod.enum(['reply', 'info', 'unknown']).describe('Needs a reply, for information, or not read by AI'),
+  "ask": zod.string().nullable().describe('One line on what they want'),
+  "hidden": zod.boolean().describe('Someone in it is hidden from AI, so it was not read and cannot be drafted'),
+  "taskId": zod.int().nullable().describe('The open task for it, when there is one')
+})),
+  "readBy": zod.enum(['ollieos', 'claude']).describe('Who reads Slack: only OllieOS\'s own Slack check fills this list'),
+  "checkedAt": zod.coerce.date().nullable().describe('When the last good Slack check finished')
+})
+
+
+/**
+ * @summary Takes a Slack conversation off To answer until a newer message arrives, and marks its open task done
+ */
+export const MarkSlackToAnswerDoneParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const MarkSlackToAnswerDoneResponse = zod.object({
+  "taskId": zod.int().nullable(),
+  "previousStatus": zod.union([zod.literal('inbox'),zod.literal('now'),zod.literal('backlog'),zod.literal('waiting'),zod.literal(null)]).nullable()
+})
+
+
+/**
+ * @summary Puts a Slack conversation back on To answer and its task back where it was
+ */
+export const UndoSlackToAnswerDoneParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UndoSlackToAnswerDoneBody = zod.object({
+  "taskId": zod.int().nullable(),
+  "previousStatus": zod.union([zod.literal('inbox'),zod.literal('now'),zod.literal('backlog'),zod.literal('waiting'),zod.literal(null)]).nullable()
+})
+
+export const UndoSlackToAnswerDoneResponse = zod.void()
+
+
+/**
+ * @summary Make a task: "Reply to <name> on Slack", status Now, linked to the message. An open task already linked is used instead.
+ */
+export const EnsureSlackToAnswerTaskParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const EnsureSlackToAnswerTaskResponse = zod.object({
+  "taskId": zod.int()
+})
+
+
+/**
+ * @summary Drafts a short Slack reply in Ollie's style for him to copy. Nothing is posted.
+ */
+export const DraftSlackToAnswerReplyParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DraftSlackToAnswerReplyResponse = zod.object({
+  "text": zod.string()
 })
 
 

@@ -17,7 +17,7 @@ import { logger } from "../../lib/logger";
 import { replaceCalendar } from "../aiWrites";
 import { scheduledWork } from "../scheduledWork";
 import { ValidationError } from "../tasks";
-import { sortAndCapture } from "./capture";
+import { sortAndCapture, type SortedRead } from "./capture";
 import { readGmail } from "./gmail";
 import { ConnectorError, readGoogleCalendar } from "./googleCalendar";
 import { readDrive, type DriveState } from "./drive";
@@ -235,9 +235,17 @@ async function readGmailRun(now: Date) {
 async function readSlackRun(now: Date) {
   const saved = await getState<SlackState>("slack");
   const r = await readSlack(saved, now);
-  const c = await sortAndCapture(r.units, { me: `On Slack he is ${r.account}; his messages are marked "from Ollie".`, now });
+  let read: SortedRead | null = null;
+  const c = await sortAndCapture(r.units, {
+    me: `On Slack he is ${r.account}; his messages are marked "from Ollie".`,
+    now,
+    onSorted: async (x) => void (read = x),
+  });
+  // Slack to answer (Part P) from the same read; saved before the cursor moves, so a failed check is read again.
+  const { updateSlackToAnswer } = await import("../slackToAnswer");
+  const t = await updateSlackToAnswer({ read, opened: r.opened ?? [], me: r.me ?? null, now });
   await putState("slack", r.state);
-  return { found: r.found, account: r.account, counts: { ...c, left_out: r.leftOut, conversations: r.checked } };
+  return { found: r.found, account: r.account, counts: { ...c, left_out: r.leftOut, conversations: r.checked, to_answer: t.waiting, answered: t.closed } };
 }
 
 async function readDriveRun(now: Date) {

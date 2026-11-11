@@ -242,7 +242,19 @@ export async function proposeClaims(u: WorkUnit, claims: SortedClaim[], known: K
   return made;
 }
 
-export async function sortAndCapture(units: WorkUnit[], ctx: { me: string; now: Date }): Promise<CaptureCounts> {
+/** What the sorter made of the exchanges it read, for readers that keep more than tasks (Part P). */
+export interface SortedRead {
+  keep: WorkUnit[];
+  sorted: SortedUnit[];
+  /** Whether each exchange may be read by AI: false when anyone in it is hidden from AI */
+  readable: boolean[];
+  people: LoadedPeople;
+}
+
+export async function sortAndCapture(
+  units: WorkUnit[],
+  ctx: { me: string; now: Date; onSorted?: (r: SortedRead) => Promise<void> },
+): Promise<CaptureCounts> {
   const counts = emptyCounts();
   const rules = await enabledRules();
   const keep = units.filter((u) => {
@@ -266,6 +278,7 @@ export async function sortAndCapture(units: WorkUnit[], ctx: { me: string; now: 
     const claims = readable[i] ? (sorted[i].knowledge ?? []) : [];
     if (claims.length) counts.knowledge += await proposeClaims(u, claims, known, before, selfName);
   }
+  if (ctx.onSorted) await ctx.onSorted({ keep, sorted, readable, people: before });
   return counts;
 }
 

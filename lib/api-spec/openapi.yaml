@@ -1075,6 +1075,88 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /email/slack:
+    get:
+      operationId: listSlackToAnswer
+      tags: [email]
+      summary: "Slack to answer: conversations from the last 14 days whose newest message is from someone else, newest first. Nothing is posted to Slack."
+      responses:
+        "200":
+          description: The list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackToAnswer" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /email/slack/{id}/done:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: markSlackToAnswerDone
+      tags: [email]
+      summary: Takes a Slack conversation off To answer until a newer message arrives, and marks its open task done
+      responses:
+        "200":
+          description: What was changed, for Undo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailInboxDone" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /email/slack/{id}/undo-done:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: undoSlackToAnswerDone
+      tags: [email]
+      summary: Puts a Slack conversation back on To answer and its task back where it was
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailInboxDone" }
+      responses:
+        "204":
+          description: Back on To answer
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /email/slack/{id}/task:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: ensureSlackToAnswerTask
+      tags: [email]
+      summary: "Make a task: \"Reply to <name> on Slack\", status Now, linked to the message. An open task already linked is used instead."
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailInboxTask" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /email/slack/{id}/draft:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: draftSlackToAnswerReply
+      tags: [email]
+      summary: Drafts a short Slack reply in Ollie's style for him to copy. Nothing is posted.
+      responses:
+        "200":
+          description: Draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackReplyDraft" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
   /email/threads/{threadId}:
     get:
       operationId: getEmailThread
@@ -4466,8 +4548,9 @@ components:
 
     HomeSummary:
       type: object
-      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access, knowledgeInbox, digestDate, ideasDue]
+      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access, knowledgeInbox, digestDate, ideasDue, slackToAnswer]
       properties:
+        slackToAnswer: { type: integer, description: "Slack messages that need a reply and have waited over a working day (Part P)" }
         ideasDue:
           type: array
           description: Ideas set to come back to on or before today
@@ -5154,6 +5237,38 @@ components:
         checkedAt: { type: string, format: date-time, description: When Gmail was last looked at }
         updating: { type: boolean, description: "Gmail is being looked at again, or new emails are being read" }
         problem: { type: [string, "null"], description: "Why the last look at Gmail failed; the list is from the one before" }
+    SlackToAnswer:
+      type: object
+      required: [items, readBy, checkedAt]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SlackToAnswerItem"
+        readBy: { type: string, enum: [ollieos, claude], description: "Who reads Slack: only OllieOS's own Slack check fills this list" }
+        checkedAt: { type: [string, "null"], format: date-time, description: When the last good Slack check finished }
+    SlackToAnswerItem:
+      type: object
+      required: [id, kind, place, fromName, personId, personSlug, text, at, url, needs, ask, hidden, taskId]
+      properties:
+        id: { type: integer }
+        kind: { type: string, description: "im, mpim or channel" }
+        place: { type: string, description: "The other person for a DM, the names in a group DM, or #channel" }
+        fromName: { type: [string, "null"] }
+        personId: { type: [integer, "null"] }
+        personSlug: { type: [string, "null"] }
+        text: { type: string, description: The message, first 300 characters }
+        at: { type: string, format: date-time }
+        url: { type: string, description: The message in Slack }
+        needs: { type: string, enum: [reply, info, unknown], description: "Needs a reply, for information, or not read by AI" }
+        ask: { type: [string, "null"], description: One line on what they want }
+        hidden: { type: boolean, description: "Someone in it is hidden from AI, so it was not read and cannot be drafted" }
+        taskId: { type: [integer, "null"], description: "The open task for it, when there is one" }
+    SlackReplyDraft:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string }
     EmailInboxTask:
       type: object
       required: [taskId]

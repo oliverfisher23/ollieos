@@ -1232,9 +1232,9 @@ Ollie asked to keep work for one client apart from work for a part of the busine
 - The document reader is told which names are functions: a document about a part of the business in general goes on the function, and one about a single client goes on that client's project.
 - Claude can give a function and client through upsert_project. Ask, briefs, Download for Claude and the AI tools see a project's function.
 
-## 19. More from the sources OllieOS already reads (proposed 11th November 2026, not yet agreed)
+## 19. More from the sources OllieOS already reads (asked for 11th November 2026, agreed 11th November 2026)
 
-Ollie asked what else would be useful given the sources OllieOS reads. Most of what follows joins sources that are today read separately (Calendar with Granola, Gmail with Calendar, Drive with the digest), or uses data that is read and then thrown away (Slack conversations, calendar rows after 30 days). No new access is needed except in Part T. Five parts, each its own sign-off. The proposed order is P and Q first (small, close real gaps), then R, S and T. Parts K and L (section 14) are agreed and not yet built; question 51 asks where these go relative to them.
+Ollie asked what else would be useful given the sources OllieOS reads, and agreed every proposal below on 11th November 2026 (questions 51 to 60 as proposed). Most of what follows joins sources that are today read separately (Calendar with Granola, Gmail with Calendar, Drive with the digest), or uses data that is read and then thrown away (Slack conversations, calendar rows after 30 days). No new access is needed except in Part T. Five parts, each its own sign-off. The proposed order is P and Q first (small, close real gaps), then R, S and T. Parts K and L (section 14) are agreed and not yet built; question 51 asks where these go relative to them.
 
 | Part | Features | Size |
 |---|---|---|
@@ -1257,6 +1257,12 @@ Email has To answer and Waiting for a reply; Slack only feeds the sorter, so a D
 - **Digest and Home:** "N Slack messages to answer" joins Needs you, and Home's Inbox line, when any are over one working day old.
 - **Not included:** posting to Slack; channel threads that do not mention Ollie; Slack search (not granted).
 - **Checked by:** a DM whose last message is from someone else appears with its ask; a reply from Ollie in Slack takes it off on the next check; Done hides it until a new message; a DM with someone hidden from AI is listed but not read; Draft a reply copies text and posts nothing.
+- **Built (11th November 2026):**
+  - `slack_to_answer` holds one row per conversation (`services/slackToAnswer.ts`). The Slack check passes what the sorter made of each exchange back through a new `onSorted` hook on `sortAndCapture`; the shared sorter schema gained `reply_needed` and `reply_ask`, kept only for Slack exchanges whose newest message is from someone else (`cleanReply`), so there is no extra AI call. Rows are written before the Slack cursor moves.
+  - A message from Ollie anywhere in the conversation after the waiting one closes it. Channel mentions are also closed when Ollie answers in their thread: each check looks at the threads of the 10 newest open mentions (`conversations.replies`, one a second). Thread replies inside a DM are not seen, as before.
+  - Done stores the message it was done for (`done_ts`), so the same message read again stays hidden and a newer one brings it back. Done also marks a linked open task done; Undo puts both back. Make a task links the row to a Now task "Reply to <name> on Slack", reusing a task the Slack check already made from the same message.
+  - Draft a reply reads the last 8 messages live from Slack (falling back to the saved one), the person and their open tasks and rules through the Ask scope, and Sonnet writes up to 80 words in the "How you write" style. Copy only. Refused (409) when anyone in it is hidden from AI.
+  - Email page: Slack tab after To answer (`/email?tab=slack&id=`), sharing the list and reading pane now in `components/mail-layout.tsx`. When Claude reads Slack the tab says so and links to Settings, Connectors. Digest Needs you and Home's Inbox card show messages needing a reply (or not read by AI) that have waited over one working day (`slackRepliesOverdue`). Settings, Connectors shows how many went to and came off the list in each check. Merging people moves rows.
 
 ### Part Q: Digest: connector warnings and documents that changed
 

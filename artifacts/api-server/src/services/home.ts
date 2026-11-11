@@ -17,6 +17,7 @@ import { briefableIds } from "./briefs";
 import { todaysDigestDate } from "./digest";
 import { ensureSelfPerson, inboxCounts } from "./knowledgeInbox";
 import { ensureSeeds } from "./seeds";
+import { slackRepliesOverdue } from "./slackToAnswer";
 import { dueIdeas } from "./strategy";
 
 const OPEN = [...OPEN_STATUSES] as TaskStatus[];
@@ -124,7 +125,7 @@ export async function getHome() {
   const [briefable, digestDate] = await Promise.all([briefableIds(todayEvents), todaysDigestDate(now)]);
   await ensureSelfPerson().catch(() => undefined);
   await ensureSeeds();
-  const [candidates, waiting, promises, latestDone, access, knowledgeInbox, ideasDue] = await Promise.all([
+  const [candidates, waiting, promises, latestDone, access, knowledgeInbox, ideasDue, slackToAnswer] = await Promise.all([
     toTaskViews(candidateRows),
     toTaskViews(waitingRows),
     toTaskViews(promiseRows),
@@ -132,6 +133,7 @@ export async function getHome() {
     listAccessRequests(),
     inboxCounts(),
     dueIdeas(today),
+    slackRepliesOverdue(now),
   ]);
 
   const waitingOn = waiting
@@ -165,5 +167,6 @@ export async function getHome() {
     knowledgeInbox,
     digestDate,
     ideasDue,
+    slackToAnswer,
   };
 }

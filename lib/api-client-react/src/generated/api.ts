@@ -203,6 +203,8 @@ import type {
   SessionListItem,
   SessionUpdate,
   SlackAccount,
+  SlackReplyDraft,
+  SlackToAnswer,
   StrategyOrder,
   StrategySection,
   StrategySectionInput,
@@ -4102,6 +4104,418 @@ export function useListEmailInbox<TData = Awaited<ReturnType<typeof listEmailInb
 
 
 
+
+export const getListSlackToAnswerUrl = () => {
+
+
+
+
+  return `/api/email/slack`
+}
+
+/**
+ * @summary Slack to answer: conversations from the last 14 days whose newest message is from someone else, newest first. Nothing is posted to Slack.
+ */
+export const listSlackToAnswer = async ( options?: Parameters<typeof customFetch>[1]): Promise<SlackToAnswer> => {
+
+  return customFetch<SlackToAnswer>(getListSlackToAnswerUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSlackToAnswerQueryKey = () => {
+    return [
+    `/api/email/slack`
+    ] as const;
+    }
+
+
+export const getListSlackToAnswerQueryOptions = <TData = Awaited<ReturnType<typeof listSlackToAnswer>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSlackToAnswer>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSlackToAnswerQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSlackToAnswer>>> = ({ signal }) => listSlackToAnswer({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSlackToAnswer>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListSlackToAnswerQueryResult = NonNullable<Awaited<ReturnType<typeof listSlackToAnswer>>>
+export type ListSlackToAnswerQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListSlackToAnswer<TData = Awaited<ReturnType<typeof listSlackToAnswer>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSlackToAnswer>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSlackToAnswer>>,
+          TError,
+          Awaited<ReturnType<typeof listSlackToAnswer>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSlackToAnswer<TData = Awaited<ReturnType<typeof listSlackToAnswer>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSlackToAnswer>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSlackToAnswer>>,
+          TError,
+          Awaited<ReturnType<typeof listSlackToAnswer>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListSlackToAnswer<TData = Awaited<ReturnType<typeof listSlackToAnswer>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSlackToAnswer>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Slack to answer: conversations from the last 14 days whose newest message is from someone else, newest first. Nothing is posted to Slack.
+ */
+
+export function useListSlackToAnswer<TData = Awaited<ReturnType<typeof listSlackToAnswer>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listSlackToAnswer>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListSlackToAnswerQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMarkSlackToAnswerDoneUrl = (id: number,) => {
+
+
+
+
+  return `/api/email/slack/${id}/done`
+}
+
+/**
+ * @summary Takes a Slack conversation off To answer until a newer message arrives, and marks its open task done
+ */
+export const markSlackToAnswerDone = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<EmailInboxDone> => {
+
+  return customFetch<EmailInboxDone>(getMarkSlackToAnswerDoneUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkSlackToAnswerDoneMutationKey = () => ['markSlackToAnswerDone'] as const;
+
+export const getMarkSlackToAnswerDoneMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markSlackToAnswerDone>>, TError,MarkSlackToAnswerDoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markSlackToAnswerDone>>, TError,MarkSlackToAnswerDoneMutationVariables, TContext> => {
+
+const mutationKey = getMarkSlackToAnswerDoneMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markSlackToAnswerDone>>, MarkSlackToAnswerDoneMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  markSlackToAnswerDone(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkSlackToAnswerDoneMutationResult = NonNullable<Awaited<ReturnType<typeof markSlackToAnswerDone>>>
+
+    export type MarkSlackToAnswerDoneMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type MarkSlackToAnswerDoneMutationVariables = {id: number}
+
+    /**
+ * @summary Takes a Slack conversation off To answer until a newer message arrives, and marks its open task done
+ */
+export const useMarkSlackToAnswerDone = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markSlackToAnswerDone>>, TError,MarkSlackToAnswerDoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof markSlackToAnswerDone>>,
+        TError,
+        MarkSlackToAnswerDoneMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkSlackToAnswerDoneMutationOptions(options), queryClient);
+    }
+
+export const getUndoSlackToAnswerDoneUrl = (id: number,) => {
+
+
+
+
+  return `/api/email/slack/${id}/undo-done`
+}
+
+/**
+ * @summary Puts a Slack conversation back on To answer and its task back where it was
+ */
+export const undoSlackToAnswerDone = async (id: number,
+    emailInboxDone: EmailInboxDone, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getUndoSlackToAnswerDoneUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(emailInboxDone)
+  }
+);}
+
+
+
+
+
+export const getUndoSlackToAnswerDoneMutationKey = () => ['undoSlackToAnswerDone'] as const;
+
+export const getUndoSlackToAnswerDoneMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoSlackToAnswerDone>>, TError,UndoSlackToAnswerDoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof undoSlackToAnswerDone>>, TError,UndoSlackToAnswerDoneMutationVariables, TContext> => {
+
+const mutationKey = getUndoSlackToAnswerDoneMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof undoSlackToAnswerDone>>, UndoSlackToAnswerDoneMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  undoSlackToAnswerDone(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UndoSlackToAnswerDoneMutationResult = NonNullable<Awaited<ReturnType<typeof undoSlackToAnswerDone>>>
+    export type UndoSlackToAnswerDoneMutationBody = BodyType<EmailInboxDone>
+    export type UndoSlackToAnswerDoneMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type UndoSlackToAnswerDoneMutationVariables = {id: number;data: BodyType<EmailInboxDone>}
+
+    /**
+ * @summary Puts a Slack conversation back on To answer and its task back where it was
+ */
+export const useUndoSlackToAnswerDone = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoSlackToAnswerDone>>, TError,UndoSlackToAnswerDoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof undoSlackToAnswerDone>>,
+        TError,
+        UndoSlackToAnswerDoneMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUndoSlackToAnswerDoneMutationOptions(options), queryClient);
+    }
+
+export const getEnsureSlackToAnswerTaskUrl = (id: number,) => {
+
+
+
+
+  return `/api/email/slack/${id}/task`
+}
+
+/**
+ * @summary Make a task: "Reply to <name> on Slack", status Now, linked to the message. An open task already linked is used instead.
+ */
+export const ensureSlackToAnswerTask = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<EmailInboxTask> => {
+
+  return customFetch<EmailInboxTask>(getEnsureSlackToAnswerTaskUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEnsureSlackToAnswerTaskMutationKey = () => ['ensureSlackToAnswerTask'] as const;
+
+export const getEnsureSlackToAnswerTaskMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ensureSlackToAnswerTask>>, TError,EnsureSlackToAnswerTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof ensureSlackToAnswerTask>>, TError,EnsureSlackToAnswerTaskMutationVariables, TContext> => {
+
+const mutationKey = getEnsureSlackToAnswerTaskMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof ensureSlackToAnswerTask>>, EnsureSlackToAnswerTaskMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  ensureSlackToAnswerTask(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnsureSlackToAnswerTaskMutationResult = NonNullable<Awaited<ReturnType<typeof ensureSlackToAnswerTask>>>
+
+    export type EnsureSlackToAnswerTaskMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type EnsureSlackToAnswerTaskMutationVariables = {id: number}
+
+    /**
+ * @summary Make a task: "Reply to <name> on Slack", status Now, linked to the message. An open task already linked is used instead.
+ */
+export const useEnsureSlackToAnswerTask = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ensureSlackToAnswerTask>>, TError,EnsureSlackToAnswerTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof ensureSlackToAnswerTask>>,
+        TError,
+        EnsureSlackToAnswerTaskMutationVariables,
+        TContext
+      > => {
+      return useMutation(getEnsureSlackToAnswerTaskMutationOptions(options), queryClient);
+    }
+
+export const getDraftSlackToAnswerReplyUrl = (id: number,) => {
+
+
+
+
+  return `/api/email/slack/${id}/draft`
+}
+
+/**
+ * @summary Drafts a short Slack reply in Ollie's style for him to copy. Nothing is posted.
+ */
+export const draftSlackToAnswerReply = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<SlackReplyDraft> => {
+
+  return customFetch<SlackReplyDraft>(getDraftSlackToAnswerReplyUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDraftSlackToAnswerReplyMutationKey = () => ['draftSlackToAnswerReply'] as const;
+
+export const getDraftSlackToAnswerReplyMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftSlackToAnswerReply>>, TError,DraftSlackToAnswerReplyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof draftSlackToAnswerReply>>, TError,DraftSlackToAnswerReplyMutationVariables, TContext> => {
+
+const mutationKey = getDraftSlackToAnswerReplyMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof draftSlackToAnswerReply>>, DraftSlackToAnswerReplyMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  draftSlackToAnswerReply(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DraftSlackToAnswerReplyMutationResult = NonNullable<Awaited<ReturnType<typeof draftSlackToAnswerReply>>>
+
+    export type DraftSlackToAnswerReplyMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type DraftSlackToAnswerReplyMutationVariables = {id: number}
+
+    /**
+ * @summary Drafts a short Slack reply in Ollie's style for him to copy. Nothing is posted.
+ */
+export const useDraftSlackToAnswerReply = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftSlackToAnswerReply>>, TError,DraftSlackToAnswerReplyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof draftSlackToAnswerReply>>,
+        TError,
+        DraftSlackToAnswerReplyMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDraftSlackToAnswerReplyMutationOptions(options), queryClient);
+    }
 
 export const getGetEmailThreadUrl = (threadId: string,) => {
 

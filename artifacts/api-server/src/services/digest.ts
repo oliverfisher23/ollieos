@@ -30,6 +30,7 @@ import { briefableIds } from "./briefs";
 import { listCadence } from "./cadence";
 import { inboxCounts } from "./knowledgeInbox";
 import { clearOutMonday, untouchedCount } from "./planning";
+import { slackRepliesOverdue } from "./slackToAnswer";
 import { dueIdeas } from "./strategy";
 import { NotFoundError, ValidationError } from "./tasks";
 
@@ -149,6 +150,11 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
   if (inboxTotal) {
     const parts = [...g.inbox].sort((a, b) => b.n - a.n).map((r) => `${r.n} ${SOURCE_WORDS[r.source] ?? r.source}`);
     needs.push({ text: `${plural(inboxTotal, "new item", "new items")} in your Inbox (${parts.join(", ")})`, href: "/triage", refs: [], confidential: false });
+  }
+  // Slack to answer (Part P): only messages that have waited over a working day.
+  const slackWaiting = await slackRepliesOverdue(now);
+  if (slackWaiting) {
+    needs.push({ text: `${plural(slackWaiting, "Slack message", "Slack messages")} to answer, waiting over a working day`, href: "/email?tab=slack", refs: [], confidential: false });
   }
   if (g.deadline?.dueDate) {
     const d = g.deadline.dueDate;

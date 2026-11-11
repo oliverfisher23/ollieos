@@ -193,6 +193,8 @@ export function runLine(key: string, r: ConnectorRun): string {
     c.no_reply_found ? `${plural(c.no_reply_found, 'unanswered email')} to Email, Waiting for a reply` : '',
     c.drafts_sent ? `${plural(c.drafts_sent, 'draft')} sent, so off your Drafts list` : '',
     c.no_reply_failed ? 'Waiting for a reply could not be updated; the next check tries again' : '',
+    c.to_answer ? `${plural(c.to_answer, 'conversation')} to Email, Slack` : '',
+    c.answered ? `${c.answered} answered, so off Email, Slack` : '',
   ].filter(Boolean);
   const more = c.more ? ' More is waiting; the next check carries on.' : '';
   return `Read ${plural(r.found, noun)}: ${parts.join(', ')}.${more}`;

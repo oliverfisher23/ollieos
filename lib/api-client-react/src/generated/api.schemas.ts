@@ -700,6 +700,8 @@ export interface KnowledgeInboxCounts {
 }
 
 export interface HomeSummary {
+  /** Slack messages that need a reply and have waited over a working day (Part P) */
+  slackToAnswer: number;
   /** Ideas set to come back to on or before today */
   ideasDue: Idea[];
   /**
@@ -1416,6 +1418,77 @@ export interface EmailInbox {
      * @nullable
      */
   problem: string | null;
+}
+
+/**
+ * Who reads Slack: only OllieOS's own Slack check fills this list
+ */
+export type SlackToAnswerReadBy = typeof SlackToAnswerReadBy[keyof typeof SlackToAnswerReadBy];
+
+
+export const SlackToAnswerReadBy = {
+  ollieos: 'ollieos',
+  claude: 'claude',
+} as const;
+
+/**
+ * Needs a reply, for information, or not read by AI
+ */
+export type SlackToAnswerItemNeeds = typeof SlackToAnswerItemNeeds[keyof typeof SlackToAnswerItemNeeds];
+
+
+export const SlackToAnswerItemNeeds = {
+  reply: 'reply',
+  info: 'info',
+  unknown: 'unknown',
+} as const;
+
+export interface SlackToAnswerItem {
+  id: number;
+  /** im, mpim or channel */
+  kind: string;
+  /** The other person for a DM, the names in a group DM, or #channel */
+  place: string;
+  /** @nullable */
+  fromName: string | null;
+  /** @nullable */
+  personId: number | null;
+  /** @nullable */
+  personSlug: string | null;
+  /** The message */
+  text: string;
+  at: string;
+  /** The message in Slack */
+  url: string;
+  /** Needs a reply, for information, or not read by AI */
+  needs: SlackToAnswerItemNeeds;
+  /**
+     * One line on what they want
+     * @nullable
+     */
+  ask: string | null;
+  /** Someone in it is hidden from AI, so it was not read and cannot be drafted */
+  hidden: boolean;
+  /**
+     * The open task for it, when there is one
+     * @nullable
+     */
+  taskId: number | null;
+}
+
+export interface SlackToAnswer {
+  items: SlackToAnswerItem[];
+  /** Who reads Slack: only OllieOS's own Slack check fills this list */
+  readBy: SlackToAnswerReadBy;
+  /**
+     * When the last good Slack check finished
+     * @nullable
+     */
+  checkedAt: string | null;
+}
+
+export interface SlackReplyDraft {
+  text: string;
 }
 
 export interface EmailInboxTask {

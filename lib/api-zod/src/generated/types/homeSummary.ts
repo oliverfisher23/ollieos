@@ -16,6 +16,8 @@ import type { Task } from './task';
 import type { WaitingItem } from './waitingItem';
 
 export interface HomeSummary {
+  /** Slack messages that need a reply and have waited over a working day (Part P) */
+  slackToAnswer: number;
   /** Ideas set to come back to on or before today */
   ideasDue: Idea[];
   /**
