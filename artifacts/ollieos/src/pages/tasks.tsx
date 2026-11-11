@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import {
   useGetClearOut,
@@ -20,12 +20,15 @@ import { SOURCE_LABELS, TASK_SOURCES, addDays, formatWeekRange, todayLondon, wee
 import { Skel, SourceLabel, SourceMark } from '@/components/bits';
 import { DueCell, PriorityCell, StatusCell } from '@/components/task-cell-editors';
 import { IconCheck, IconLeft, IconRight, IconSearch } from '@/components/icons';
-import { TaskDetailPanel } from '@/components/task-detail';
 import { TaskMarks } from '@/components/task-marks';
 import { useInvalidateTasks } from '@/lib/task-cache';
 import { notify, notifyUndo } from '@/lib/notify';
 import { useTaskActions } from '@/lib/task-actions';
 import { Dot, Dropdown } from '@/components/dropdown';
+import { lazyPage } from '@/lib/lazy-page';
+
+/** Opens on a tap, so its code (with reply drafting and checklists) loads after the list is on screen. */
+const TaskDetailPanel = lazyPage(() => import('@/components/task-detail'), 'TaskDetailPanel');
 
 const TABS: { value: TaskTab; label: string }[] = [
   { value: 'inbox', label: 'Inbox' },
@@ -70,6 +73,11 @@ function useQueryState() {
 
 export default function TasksPage() {
   const { sp, set } = useQueryState();
+  // Fetch the detail panel's code once the list is up, so opening a task is instant.
+  useEffect(() => {
+    const t = window.setTimeout(() => void TaskDetailPanel.preload().catch(() => {}), 1500);
+    return () => window.clearTimeout(t);
+  }, []);
   const rawTab = sp.get('tab') ?? 'open';
   const tab = (TAB_VALUES.includes(rawTab) ? rawTab : 'open') as TaskTab;
   const rawSource = sp.get('source');
@@ -218,7 +226,11 @@ export default function TasksPage() {
         )}
       </div>
 
-      {taskId && <TaskDetailPanel id={taskId} onClose={() => set({ task: null })} />}
+      {taskId && (
+        <Suspense fallback={null}>
+          <TaskDetailPanel id={taskId} onClose={() => set({ task: null })} />
+        </Suspense>
+      )}
     </section>
   );
 }

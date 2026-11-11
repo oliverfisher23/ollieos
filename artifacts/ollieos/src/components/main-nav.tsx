@@ -4,6 +4,7 @@ import { Logo } from '@/components/bits';
 import { AddBox } from '@/components/add-box';
 import { IconBook, IconCalendar, IconCompass, IconGoal, IconHome, IconLogout, IconPeople, IconPlus, IconSettings, IconTasks, IconMail } from '@/components/icons';
 import { useSession } from '@/lib/auth-context';
+import { preloadRoute } from '@/routes';
 
 const RAIL = [
   { href: '/', label: 'Home', Icon: IconHome },
@@ -34,6 +35,13 @@ export function navActive(href: string, location: string): boolean {
  * The app's one navigation: the icon rail on desktop and the bottom bar on phones, on every page.
  * Both shells wrap their content in this so the rail sits in the same place everywhere.
  */
+/** Starts a page's code downloading as soon as its link is touched, hovered or focused. */
+const preload = (href: string) => ({
+  onPointerEnter: () => preloadRoute(href),
+  onTouchStart: () => preloadRoute(href),
+  onFocus: () => preloadRoute(href),
+});
+
 export function MainNav({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const { logout } = useSession();
@@ -48,13 +56,13 @@ export function MainNav({ children }: { children: ReactNode }) {
             <Logo size={32} radius={10} font={13} />
           </Link>
           {RAIL.map(({ href, label, Icon }) => (
-            <Link key={href} href={href} aria-label={label} aria-current={cur(href)} data-testid={'link-rail-' + label.toLowerCase()}>
+            <Link key={href} href={href} aria-label={label} aria-current={cur(href)} {...preload(href)} data-testid={'link-rail-' + label.toLowerCase()}>
               <Icon />
               <RailTip label={label} />
             </Link>
           ))}
           <div aria-hidden="true" className="oo-rail-sep" />
-          <Link href="/settings" aria-label="Settings" aria-current={cur('/settings')} data-testid="link-rail-settings">
+          <Link href="/settings" aria-label="Settings" aria-current={cur('/settings')} {...preload('/settings')} data-testid="link-rail-settings">
             <IconSettings />
             <RailTip label="Settings" />
           </Link>
@@ -72,8 +80,8 @@ export function MainNav({ children }: { children: ReactNode }) {
         <button type="button" aria-label="Add a task" onClick={() => setSheet(true)} data-testid="button-tab-add">
           <span className="oo-add"><IconPlus size={22} /></span>
         </button>
-        <Link href="/people" aria-current={cur('/people')} data-testid="link-tab-people"><IconPeople size={22} />People</Link>
-        <Link href="/knowledge" aria-current={cur('/knowledge')} data-testid="link-tab-knowledge"><IconBook size={22} />Knowledge</Link>
+        <Link href="/people" aria-current={cur('/people')} {...preload('/people')} data-testid="link-tab-people"><IconPeople size={22} />People</Link>
+        <Link href="/knowledge" aria-current={cur('/knowledge')} {...preload('/knowledge')} data-testid="link-tab-knowledge"><IconBook size={22} />Knowledge</Link>
       </nav>
 
       {sheet && <AddSheet onClose={() => setSheet(false)} />}

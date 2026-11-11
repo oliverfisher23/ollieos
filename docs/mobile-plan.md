@@ -1,6 +1,6 @@
 # Mobile responsiveness and optimisation plan
 
-Status: Part A built (11th November 2026), waiting for sign-off. Parts B to E not started. Each part is its own sign-off, in the order below.
+Status: Parts A and B built (11th November 2026); B waiting for sign-off. Parts C to E not started. Each part is its own sign-off, in the order below.
 
 Relates to: PRD section 5 ("works at 375px", "touch targets at least 44px", saved to the home screen), PRD acceptance criterion 8, and build plan milestone 9 (phone Home and Triage, swipe, home screen install, voice).
 
@@ -36,8 +36,8 @@ Not checked here: real iPhone Safari (safe areas, keyboard covering inputs, rubb
 - Every route: no sideways scroll at 360px and 375px (360 adds small Android phones).
 - Every tappable thing at least 44 × 44 on phones, or 44px tall with at least 8px between neighbours where a row of pills has to stay compact.
 - Every text field 16px on phones; pinch zoom allowed.
-- Throttled phone load (settings above): first paint under 1.2s, largest paint under 1.8s on Home and Tasks.
-- Script needed for Home on first load: under 120 KB gzipped (from 262.6 KB as the budget measures it).
+- Throttled phone load (settings above): first paint under 1.2s on Home and Tasks; real content (Do next card, first task) clearly faster than before. (Largest paint turned out to track a late-loading italic heading font rather than the page being usable, so content time is measured instead; see Part B.)
+- Script needed for Home on first load: under 120 KB gzipped (from 262.6 KB as the budget measures it). Revised to 145 KB in Part B; see there for why.
 - Opens from the home screen full screen, with the tab bar clear of the home indicator.
 
 ## 3. Parts
@@ -68,6 +68,36 @@ So it stays fixed once fixed.
 4. **Stop the auth waterfall.** Start the current route's main query at the same time as `/api/auth/user` (prefetch from the router on boot). Data routes already answer 401 without a session, so asking early is safe; a 401 just shows Sign in as now.
 5. **Calmer refetching.** Default `staleTime` of 30 seconds; keep `refetchOnWindowFocus` but only for Home, Tasks and Email lists. Review Knowledge index's 10 calls (several are only for panels below the fold and can wait until visible).
 6. **Cache the shell.** Long cache headers on hashed assets (check how the published app serves `dist/public`).
+
+**Built (11th November 2026):**
+
+- **Pages load on first visit.** Every page except Home and Tasks is its own file (`src/routes.ts`, using `lazyPage` in `src/lib/lazy-page.ts`). The tab bar, the rail and the phone header links start a page's download when touched, hovered or focused. While one downloads, the page area shows a skeleton, but only after 300ms. Triage and the clear-out keep Home on screen while they load. If a page's file has gone after a deploy, the app reloads once to pick up the new build; if it is still missing, the usual error screen shows (checked both ways).
+- **Task detail loads on demand.** The detail panel (with reply drafting and checklists) is out of the first load. Tasks fetches it in the background 1.5 seconds after the list is up, so opening a task stays instant (checked: preloaded, fetched on tap, and opened from a link).
+- **Library chunks.** React and React Query are their own long-lived files. Radix is deliberately not grouped: Rollup already splits it, and grouping it forced dialogs that only lazy pages use into the first load.
+- **Smaller first load.** `tailwind-merge` is no longer used by the toast and tooltip wrappers (plain `clsx` gives the same classes there; toasts only use the default style plus `oo-toast`, whose rules are all `!important`). The unused `TooltipProvider` is gone.
+- **Fonts self-hosted** (`src/theme/fonts.css`, files and SIL Open Font Licence texts in `src/assets/fonts/`), with hashed names. Latin Extended downloads only when a page needs it. **Not preloaded**, against the plan: on the slow phone link, the 62 KB preload shared bandwidth with the app's script and delayed first paint by about 0.3s in every test. Text now draws in the fallback font and swaps.
+- **Splash in `index.html`.** The same dark splash React shows while checking sign-in is now in the HTML, so the phone draws it as soon as the CSS arrives instead of showing a white page until the script has run. This is most of the first-paint gain.
+- **No more waiting on sign-in.** `startEarlyLoads` (`src/lib/query-client.ts`, called from `main.tsx`) starts the current page's code and, for Home and Knowledge, their first data at the same moment as the sign-in check. On Knowledge it also fetches the latest project, which the page otherwise only asks for after the project list and its own code arrive. Signed out, those calls answer 401 and are dropped.
+- **Calmer refetching.** Queries count as fresh for 30 seconds, so coming back to the app does not refetch everything; writes still refresh at once because they invalidate their queries. Home's own query uses 5 seconds, because its status line carries Claude's access requests (checked: one `/api/home` at start-up, refetched on return after 6 seconds, Tasks not refetched after 3).
+- **Budget** lowered from 280 to 145 KB.
+
+**Results** (throttled phone as in section 1, median of five, the Part A build against this one):
+
+| Page | First paint | Content on screen | Bytes downloaded |
+|---|---|---|---|
+| Home (Do next card) | 2.21s → 0.89s | 2.74s → 1.98s | 310 → 294 KB |
+| Tasks (first task) | 2.20s → 0.89s | 2.76s → 2.15s | 300 → 263 KB |
+| Knowledge (project heading) | 2.20s → 0.89s | 2.94s → 2.56s | 300 → 301 KB |
+
+First load: 262.6 → 141.5 KB gzipped (React 58.6, React Query 10.4, app 72.5). Phone audit: 78 checks, 0 failures. Clicking through the tab bar and header on a phone: every page loads its own code, with no errors and no skeleton left behind.
+
+**Where it differs from the plan:**
+
+- **120 KB was not reachable without bigger changes.** React and React Query alone are 69 KB. The next largest piece is the generated API client: `api.ts` is one module, so every endpoint any page uses lands in the first load (about 40 KB before compression). Splitting it means switching Orval to `tags-split` and regenerating the client. That is worth doing as its own change, probably saving 8 to 10 KB gzipped. Budget set to 145 KB.
+- **Font preload dropped** (measured, above).
+- **Largest paint** stays around 2.2s on Home and 3.4s on Knowledge. The browser counts a small italic heading painted when Instrument Serif arrives, after the data, so it does not show when the page is usable. Content time is the measure used above.
+- **Knowledge's 10 calls** are now 9 and start earlier. Making them lazy per panel is left for Part D's Knowledge layout work.
+- **Cache headers** (item 6) not changed: the published app is served by Replit's static hosting from `artifacts/ollieos/.replit-artifact/artifact.toml`, with no header setting there. File names are hashed, so a stale cache can never serve old code. Worth a look at the published app's response headers some time.
 
 ### Part C. Touch and type (1 to 2 days)
 
@@ -101,7 +131,7 @@ Same routes, different layout below 640px, as the build plan already says.
 | Part | What | Size | Sign-off check |
 |---|---|---|---|
 | A | Audit script, bundle budget, rules in DESIGN.md | 0.5 day | Built: audit passes (78 checks), budget fails the build when exceeded |
-| B | Route splitting, fonts, waterfall, caching | 1 to 2 days | Home entry under 120 KB gzipped; throttled first paint under 1.2s |
+| B | Route splitting, fonts, waterfall, caching | 1 to 2 days | Built: first load 141.5 KB (budget 145, see Part B for 120); first paint 0.89s; content 0.4s to 0.8s sooner |
 | C | Touch targets, 16px inputs, safe areas | 1 to 2 days | Audit shows no targets under 44px on Home, Tasks, task detail, Email |
 | D | Tasks, Knowledge, Settings, tables on phone | 2 to 3 days | Screens reviewed by Ollie on his phone |
 | E | Manifest, icons, shell service worker | 1 day | Added to home screen, opens full screen, tab bar clear of home indicator |

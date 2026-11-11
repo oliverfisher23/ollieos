@@ -3,6 +3,7 @@ import { Link } from 'wouter';
 import { Logo } from '@/components/bits';
 import { MainNav } from '@/components/main-nav';
 import { useSession } from '@/lib/auth-context';
+import { preloadRoute } from '@/routes';
 
 export function LightShell({ children }: { children: ReactNode }) {
   const { logout } = useSession();
@@ -17,8 +18,8 @@ export function LightShell({ children }: { children: ReactNode }) {
               <span style={{ fontWeight: 600, fontSize: 15 }}>OllieOS</span>
             </Link>
             <nav aria-label="Account" className="flex items-center gap-1">
-              <Link href="/goals" className="oo-navpill" data-testid="link-header-goals">Goals</Link>
-              <Link href="/settings" className="oo-navpill" data-testid="link-header-settings">Settings</Link>
+              <Link href="/goals" className="oo-navpill" onTouchStart={() => preloadRoute('/goals')} onPointerEnter={() => preloadRoute('/goals')} data-testid="link-header-goals">Goals</Link>
+              <Link href="/settings" className="oo-navpill" onTouchStart={() => preloadRoute('/settings')} onPointerEnter={() => preloadRoute('/settings')} data-testid="link-header-settings">Settings</Link>
               <button type="button" className="oo-navpill" onClick={logout} data-testid="button-logout-phone">Log out</button>
             </nav>
           </header>

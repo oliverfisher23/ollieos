@@ -5,6 +5,7 @@
  *   - sideways scroll (fails the run)
  *   - pages that crash or show the error screen (fails the run)
  *   - tap targets under 44px and text fields under 16px (reported; fail only with --strict)
+ *   - pages that do not load or stay blank (fails the run)
  * Saves a full-page screenshot of each page and a report to tmp/mobile-audit/.
  *
  *   pnpm --filter @workspace/scripts run mobile-audit
@@ -166,6 +167,7 @@ type PageFindings = {
   smallTargets: string[];
   smallInputs: string[];
   errorScreen: boolean;
+  blank: boolean;
   viewportMeta: string;
 };
 
@@ -246,22 +248,26 @@ const IN_PAGE = `(() => {
     smallTargets: [...small],
     smallInputs: [...inputs],
     errorScreen: /Something went wrong/.test(document.body.innerText),
+    blank: !document.getElementById('root') || !document.getElementById('root').children.length,
     viewportMeta: document.querySelector('meta[name=viewport]')?.getAttribute('content') || '',
   };
 })()`;
 
 /* ---------- run ---------- */
 
-type Result = PageFindings & { width: number; url: string; pattern: string; pageErrors: string[]; screenshot: string };
+type Result = PageFindings & { width: number; url: string; pattern: string; pageErrors: string[]; loadError: string | null; screenshot: string };
 
 async function auditPage(page: Page, width: number, route: RouteCheck, url: string): Promise<Result> {
   const pageErrors: string[] = [];
   const onError = (e: Error) => pageErrors.push(e.message.split("\n")[0]);
   page.on("pageerror", onError);
+  let loadError: string | null = null;
   try {
-    await page.goto(WEB + url, { waitUntil: "networkidle", timeout: 20_000 });
-  } catch {
-    // Pages that keep polling never go idle; check what has drawn by now.
+    const res = await page.goto(WEB + url, { waitUntil: "networkidle", timeout: 20_000 });
+    if (res && !res.ok()) loadError = `HTTP ${res.status()}`;
+  } catch (err) {
+    // Pages that keep polling never go idle; check what has drawn by now. Anything else is a failed load.
+    if (!(err instanceof Error && err.name === "TimeoutError")) loadError = err instanceof Error ? err.message.split("\n")[0] : String(err);
   }
   await page.waitForTimeout(500);
   const findings = (await page.evaluate(IN_PAGE)) as PageFindings;
@@ -269,11 +275,11 @@ async function auditPage(page: Page, width: number, route: RouteCheck, url: stri
   const screenshot = path.join(OUT, String(width), name + ".png");
   await page.screenshot({ path: screenshot, fullPage: true });
   page.off("pageerror", onError);
-  return { ...findings, width, url, pattern: route.pattern, pageErrors, screenshot: path.relative(ROOT, screenshot) };
+  return { ...findings, width, url, pattern: route.pattern, pageErrors, loadError, screenshot: path.relative(ROOT, screenshot) };
 }
 
 function failed(r: Result) {
-  return r.sideways > 0 || r.errorScreen || r.pageErrors.length > 0 || (STRICT && (r.smallTargets.length > 0 || r.smallInputs.length > 0));
+  return r.loadError !== null || r.blank || r.sideways > 0 || r.errorScreen || r.pageErrors.length > 0 || (STRICT && (r.smallTargets.length > 0 || r.smallInputs.length > 0));
 }
 
 function writeReport(results: Result[], skipped: string[]) {
@@ -285,7 +291,7 @@ function writeReport(results: Result[], skipped: string[]) {
     "",
     "| Width | Page | Sideways | Small targets | Small text fields | Errors |",
     "|---|---|---|---|---|---|",
-    ...results.map((r) => `| ${r.width} | \`${r.url}\` | ${r.sideways ? r.sideways + "px" : "none"} | ${r.smallTargets.length} | ${r.smallInputs.length} | ${r.errorScreen ? "error screen " : ""}${r.pageErrors.length ? r.pageErrors.length + " script" : ""} |`),
+    ...results.map((r) => `| ${r.width} | \`${r.url}\` | ${r.sideways ? r.sideways + "px" : "none"} | ${r.smallTargets.length} | ${r.smallInputs.length} | ${r.loadError ? "did not load (" + r.loadError + ") " : ""}${r.blank ? "blank page " : ""}${r.errorScreen ? "error screen " : ""}${r.pageErrors.length ? r.pageErrors.length + " script" : ""} |`),
     "",
     skipped.length ? `Skipped (no record to open, or brief pages without --include-briefs): ${skipped.map((s) => "`" + s + "`").join(", ")}` : "",
     "",
@@ -293,7 +299,7 @@ function writeReport(results: Result[], skipped: string[]) {
     "",
   ];
   for (const r of results) {
-    if (!r.sideways && !r.smallTargets.length && !r.smallInputs.length && !r.errorScreen && !r.pageErrors.length) continue;
+    if (!r.loadError && !r.blank && !r.sideways && !r.smallTargets.length && !r.smallInputs.length && !r.errorScreen && !r.pageErrors.length) continue;
     lines.push(`### ${r.width}px \`${r.url}\``, "");
     if (r.sideways) lines.push(`Sideways scroll of ${r.sideways}px, caused by:`, ...r.overflowers.map((o) => "- " + o), "");
     if (r.pageErrors.length) lines.push("Script errors:", ...r.pageErrors.map((e) => "- " + e), "");
@@ -342,7 +348,7 @@ async function main() {
         const r = await auditPage(page, width, route, url);
         results.push(r);
         const mark = failed(r) ? "FAIL" : "ok  ";
-        console.log(`${mark} ${width} ${url.padEnd(34)} sideways=${r.sideways} targets=${r.smallTargets.length} fields=${r.smallInputs.length}${r.errorScreen ? " ERROR-SCREEN" : ""}${r.pageErrors.length ? " SCRIPT-ERRORS=" + r.pageErrors.length : ""}`);
+        console.log(`${mark} ${width} ${url.padEnd(34)} sideways=${r.sideways} targets=${r.smallTargets.length} fields=${r.smallInputs.length}${r.loadError ? " DID-NOT-LOAD " + r.loadError : ""}${r.blank ? " BLANK" : ""}${r.errorScreen ? " ERROR-SCREEN" : ""}${r.pageErrors.length ? " SCRIPT-ERRORS=" + r.pageErrors.length : ""}`);
       }
       await context.close();
     }

@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   dismissClearOut,
   getGetClearOutQueryKey,
+  getGetHomeQueryKey,
   useGetClearOut,
   useGetHome,
   type CalendarEvent,
@@ -102,7 +103,9 @@ function daysLabel(d: number) {
 export default function HomePage() {
   const { user } = useSession();
   const phone = useMedia(PHONE_QUERY);
-  const home = useGetHome();
+  // Shorter than the app's 30 seconds: the status line carries Claude's access requests, so coming back
+  // to the app re-checks them. 5 seconds still lets the start-up prefetch count.
+  const home = useGetHome({ query: { queryKey: getGetHomeQueryKey(), staleTime: 5_000 } });
   const now = new Date();
   const name = user?.firstName || 'Ollie';
 

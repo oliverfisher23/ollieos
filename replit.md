@@ -28,7 +28,8 @@ Ollie's private personal operating system for tasks and work knowledge, readable
 - DB schema: `lib/db/src/schema/` (all PRD tables, full-text `search` columns are generated)
 - API contract: `lib/api-spec/openapi.yaml`; server routes in `artifacts/api-server/src/routes`, logic in `src/services`
 - Shared dates, labels and quick-add parser: `lib/shared` (all dates go through it, London time)
-- Theme: `artifacts/ollieos/src/theme/tokens.css` is the only file with colour values
+- Theme: `artifacts/ollieos/src/theme/tokens.css` is the only file with colour values; fonts are self-hosted (`src/theme/fonts.css`, files in `src/assets/fonts`), no Google Fonts
+- Pages: every page except Home and Tasks loads on first visit; add a new page to `src/routes.ts` (lazy page and `preloadRoute`) as well as `App.tsx`, and to the mobile audit's route list
 
 ## Architecture decisions
 
@@ -40,6 +41,7 @@ Ollie's private personal operating system for tasks and work knowledge, readable
 - Dropped (Assist Part A) means real but chosen not to do; Noise means it should never have come in and teaches rules. Dropped is closed everywhere: counts, Do next, Waiting on, digest, stale checks, MCP and Ask. Restore works from Noise or Dropped.
 - Probably noise: `scheduledWork` part "noise" asks Haiku about unchecked Inbox email and Slack items, using noise rules, hand-moved Noise and kept items as examples. Items hidden from AI are marked checked without a hint. A hint shows only while the task is in the Inbox and not kept; Keep or restoring a hinted item sets it as kept.
 - Draft reply (email tasks): reads the Gmail thread plus AI-visible context and rules through the Ask client, writes a `reply_drafts` row, and "Save to Gmail" creates or updates a Gmail draft in that thread. OllieOS never sends email. Tasks hidden from AI answer 409; without a findable thread the draft is copy only.
+- Web app loading (mobile plan Part B): `main.tsx` calls `startEarlyLoads` (`src/lib/query-client.ts`) before rendering, which starts the page's code and, for Home and Knowledge, their first queries alongside the sign-in check; keep its query keys identical to the pages' hooks. Queries are fresh for 30 seconds (Home 5, for access requests). `index.html` carries a static copy of the Splash screen so phones draw it before the script runs.
 - All task state changes in the web app go through `useTaskActions()` so cache invalidation and Undo toasts stay consistent.
 - Every AI read goes through `lib/ai-data` with an `AiScope` (client, actor, live grants). Confidential or aiAccess off means hidden; tasks, decisions and notes with confidential null follow their parent, true always hides, false always shows. Every item handed to an AI writes one `read` audit row, grouped by a batch id.
 - Access grants are approved `access_requests` rows that last 1 hour and expire at read time (nothing scheduled). A grant applies only to the requesting client; a project/person/organisation grant also opens children hidden only by inheritance. AI tools always get the same `REQUEST_REPLY`, whether or not the item exists.

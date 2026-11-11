@@ -25,7 +25,7 @@ if (Number.isNaN(port) || port <= 0) {
  * everything it imports statically. Lazy routes do not count. See docs/mobile-plan.md:
  * 280 holds today's single bundle; Part B lowers it to 120 once routes are split.
  */
-const INITIAL_JS_BUDGET_KB = 280;
+const INITIAL_JS_BUDGET_KB = 145;
 
 function bundleBudget(limitKb: number): Plugin {
   return {
@@ -50,6 +50,14 @@ function bundleBudget(limitKb: number): Plugin {
       this.info(line);
     },
   };
+}
+
+/** Libraries that change rarely get their own chunks, so a new app build does not make phones download them again. */
+function vendorChunk(id: string): string | undefined {
+  if (!id.includes('node_modules')) return undefined;
+  if (/node_modules\/(\.pnpm\/[^/]+\/node_modules\/)?(react|react-dom|scheduler)\//.test(id)) return 'react';
+  if (/node_modules\/(\.pnpm\/[^/]+\/node_modules\/)?@tanstack\//.test(id)) return 'query';
+  return undefined;
 }
 
 const basePath = process.env.BASE_PATH;
@@ -97,6 +105,9 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,
+    rollupOptions: {
+      output: { manualChunks: vendorChunk },
+    },
   },
   server: {
     port,

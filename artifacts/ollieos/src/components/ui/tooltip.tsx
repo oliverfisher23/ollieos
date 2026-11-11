@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
-import { cn } from '@/lib/utils';
+// clsx alone: these get no conflicting Tailwind classes, so tailwind-merge (about 8 KB gzipped) stays out of the first load.
+import { clsx as cn } from 'clsx';
 
 const TooltipProvider = TooltipPrimitive.Provider;
 

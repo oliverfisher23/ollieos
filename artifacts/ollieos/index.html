@@ -13,12 +13,10 @@
     <meta name="twitter:title" content="OllieOS" />
     <meta name="twitter:description" content="A private command centre for tasks and work knowledge." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Same as the Splash screen (pages/auth-screens.tsx), drawn as soon as the CSS arrives instead of after the app's script. React replaces it. -->
+    <div id="root"><div class="oo-dark" style="display:flex;align-items:center;justify-content:center" aria-busy="true"><div style="position:relative;z-index:1"><span aria-hidden="true" class="oo-logo" style="width:48px;height:48px;border-radius:14px;font-size:17px">OS</span></div><span class="oo-sr">Loading</span></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

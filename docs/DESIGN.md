@@ -40,7 +40,7 @@ Rebuild each screen as React components using the tokens below. Do not hard-code
 
 | Role | Font | Size and weight |
 |---|---|---|
-| Interface | `'Google Sans', 'DM Sans', system-ui, sans-serif` (load DM Sans 400, 500, 600 from Google Fonts) | Body 14 to 15px / 400 |
+| Interface | `'Google Sans', 'DM Sans', system-ui, sans-serif` (DM Sans self-hosted from `src/assets/fonts`, see `src/theme/fonts.css`) | Body 14 to 15px / 400 |
 | Page title (light) | Interface font | 30 to 32px / 600, letter-spacing −0.015em |
 | Greeting (dark) | Interface font | 34px desktop, 28px phone / 500 |
 | Section label | Interface font | 13px / 600, uppercase, letter-spacing 0.06em |

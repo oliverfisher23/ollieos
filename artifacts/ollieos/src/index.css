@@ -1,4 +1,5 @@
 @import './theme/tokens.css';
+@import './theme/fonts.css';
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
