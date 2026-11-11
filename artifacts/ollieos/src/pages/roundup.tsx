@@ -18,6 +18,7 @@ const SECTIONS: { key: keyof RoundupContent; title: string; empty: string }[] = 
   { key: 'playbooks', title: 'New playbooks', empty: 'No new playbooks.' },
   { key: 'products', title: 'New products', empty: 'No new products.' },
   { key: 'documents', title: 'Documents that changed', empty: 'No Library documents changed by others.' },
+  { key: 'agents', title: 'Agents that slipped', empty: 'No agent did noticeably worse than last week.' },
 ];
 
 /** "4 pm" style hour for the schedule line. */

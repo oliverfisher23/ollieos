@@ -4004,6 +4004,10 @@ components:
           type: array
           description: "Part Q: Library documents someone else changed this week. Missing on older round-ups."
           items: { $ref: "#/components/schemas/RoundupLine" }
+        agents:
+          type: array
+          description: "Part W: agents whose scorecard dropped on last week. Missing on older round-ups."
+          items: { $ref: "#/components/schemas/RoundupLine" }
 
     Roundup:
       type: object
@@ -5331,7 +5335,7 @@ components:
         connected: { type: array, items: { $ref: "#/components/schemas/ConnectedAiView" } }
     AgentView:
       type: object
-      required: [key, name, kind, does, reads, model, runs, failures, costUsd, inputTokens, outputTokens, avgMs, lastRunAt, lastError, lastErrorAt, promptVersions]
+      required: [key, name, kind, does, reads, model, runs, failures, costUsd, inputTokens, outputTokens, avgMs, lastRunAt, lastError, lastErrorAt, promptVersions, measures]
       properties:
         key: { type: string }
         name: { type: string }
@@ -5349,6 +5353,21 @@ components:
         lastError: { type: [string, "null"] }
         lastErrorAt: { type: [string, "null"], format: date-time }
         promptVersions: { type: integer }
+        measures: { type: array, items: { $ref: "#/components/schemas/AgentMeasure" } }
+    AgentMeasure:
+      type: object
+      description: "Part W: how often Ollie kept what the agent did, this week against last"
+      required: [key, agent, label, kept, undone, waiting, rate, lastRate, lastDecided]
+      properties:
+        key: { type: string }
+        agent: { type: string }
+        label: { type: string }
+        kept: { type: integer }
+        undone: { type: integer }
+        waiting: { type: integer }
+        rate: { type: [integer, "null"] }
+        lastRate: { type: [integer, "null"] }
+        lastDecided: { type: integer }
     ConnectedAiView:
       type: object
       required: [id, name, kind, auth, revoked, lastUsedAt, reads, writes, proposals]

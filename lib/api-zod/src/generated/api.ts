@@ -2607,7 +2607,18 @@ export const ListAgentsResponse = zod.object({
   "lastRunAt": zod.coerce.date().nullable(),
   "lastError": zod.string().nullable(),
   "lastErrorAt": zod.coerce.date().nullable(),
-  "promptVersions": zod.int()
+  "promptVersions": zod.int(),
+  "measures": zod.array(zod.object({
+  "key": zod.string(),
+  "agent": zod.string(),
+  "label": zod.string(),
+  "kept": zod.int(),
+  "undone": zod.int(),
+  "waiting": zod.int(),
+  "rate": zod.int().nullable(),
+  "lastRate": zod.int().nullable(),
+  "lastDecided": zod.int()
+}).describe('Part W: how often Ollie kept what the agent did, this week against last'))
 })),
   "connected": zod.array(zod.object({
   "id": zod.int(),
@@ -9959,7 +9970,12 @@ export const GetRoundupsResponse = zod.object({
   "text": zod.string(),
   "detail": zod.string().nullable(),
   "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
-})).optional().describe('Part Q: Library documents someone else changed this week. Missing on older round-ups.')
+})).optional().describe('Part Q: Library documents someone else changed this week. Missing on older round-ups.'),
+  "agents": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})).optional().describe('Part W: agents whose scorecard dropped on last week. Missing on older round-ups.')
 })
 }),zod.null()]),
   "weeks": zod.array(zod.object({
@@ -10019,7 +10035,12 @@ export const MakeRoundupResponse = zod.object({
   "text": zod.string(),
   "detail": zod.string().nullable(),
   "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
-})).optional().describe('Part Q: Library documents someone else changed this week. Missing on older round-ups.')
+})).optional().describe('Part Q: Library documents someone else changed this week. Missing on older round-ups.'),
+  "agents": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})).optional().describe('Part W: agents whose scorecard dropped on last week. Missing on older round-ups.')
 })
 })
 

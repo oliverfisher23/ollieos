@@ -6,6 +6,7 @@
 import { and, count, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
 import { aiClientsTable, aiRunsTable, auditEventsTable, db, suggestionsTable } from "@workspace/db";
 import { AGENTS, AGENT_KEYS, type AgentKind } from "../lib/agents";
+import { scorecards, type Measure } from "./scorecards";
 
 export const AGENTS_WINDOW_DAYS = 7;
 
@@ -29,6 +30,8 @@ export interface AgentView {
   lastErrorAt: Date | null;
   /** Prompt versions it ran on in the window */
   promptVersions: number;
+  /** Part W: how often Ollie kept what it did, this week against last */
+  measures: Measure[];
 }
 
 export interface ConnectedAiView {
@@ -82,6 +85,7 @@ export async function agentsView(now = new Date()): Promise<AgentsView> {
       .orderBy(aiRunsTable.agent, desc(aiRunsTable.startedAt)),
   ]);
   const byStats = new Map(stats.map((s) => [s.agent, s]));
+  const measures = await scorecards(now);
   const byLatest = new Map(latest.map((l) => [l.agent, l]));
   const byError = new Map(errors.map((e) => [e.agent, e]));
 
@@ -109,6 +113,7 @@ export async function agentsView(now = new Date()): Promise<AgentsView> {
       lastError: e?.error ?? null,
       lastErrorAt: e?.at ?? null,
       promptVersions: num(s?.versions),
+      measures: measures.filter((m) => m.agent === key),
     };
   });
   // Most expensive first, then busiest, then by name; agents with no runs last.

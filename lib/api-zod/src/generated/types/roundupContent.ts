@@ -16,4 +16,6 @@ export interface RoundupContent {
   products: RoundupLine[];
   /** Part Q: Library documents someone else changed this week. Missing on older round-ups. */
   documents?: RoundupLine[];
+  /** Part W: agents whose scorecard dropped on last week. Missing on older round-ups. */
+  agents?: RoundupLine[];
 }

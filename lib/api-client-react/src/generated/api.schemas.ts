@@ -46,6 +46,8 @@ export interface RoundupContent {
   products: RoundupLine[];
   /** Part Q: Library documents someone else changed this week. Missing on older round-ups. */
   documents?: RoundupLine[];
+  /** Part W: agents whose scorecard dropped on last week. Missing on older round-ups. */
+  agents?: RoundupLine[];
 }
 
 export interface Roundup {
@@ -1493,6 +1495,23 @@ export const AgentViewKind = {
   unknown: 'unknown',
 } as const;
 
+/**
+ * Part W: how often Ollie kept what the agent did, this week against last
+ */
+export interface AgentMeasure {
+  key: string;
+  agent: string;
+  label: string;
+  kept: number;
+  undone: number;
+  waiting: number;
+  /** @nullable */
+  rate: number | null;
+  /** @nullable */
+  lastRate: number | null;
+  lastDecided: number;
+}
+
 export interface AgentView {
   key: string;
   name: string;
@@ -1515,6 +1534,7 @@ export interface AgentView {
   /** @nullable */
   lastErrorAt: string | null;
   promptVersions: number;
+  measures: AgentMeasure[];
 }
 
 export type ConnectedAiViewProposals = {

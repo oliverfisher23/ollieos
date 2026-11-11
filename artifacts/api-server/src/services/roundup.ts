@@ -25,6 +25,8 @@ import { defaultScope, visibleRefs } from "../lib/ai-data/scope";
 import { ACTOR, resolveEntities } from "./knowledge/common";
 import { textOf } from "./knowledgeInbox";
 import { changedDocuments } from "./documentChanges";
+import { scorecards, slipped } from "./scorecards";
+import { AGENTS } from "../lib/agents";
 import { saveGmailDraft } from "./connectors/gmail";
 import { NotFoundError } from "./tasks";
 
@@ -89,6 +91,8 @@ export interface RoundupContent {
   products: RoundupLine[];
   /** Part Q: Library documents someone else changed this week. Missing on older round-ups. */
   documents?: RoundupLine[];
+  /** Part W: agents whose scorecard dropped on last week. Missing on older round-ups. */
+  agents?: RoundupLine[];
 }
 
 export const SECTIONS: { key: keyof RoundupContent; title: string }[] = [
@@ -99,6 +103,7 @@ export const SECTIONS: { key: keyof RoundupContent; title: string }[] = [
   { key: "playbooks", title: "New playbooks" },
   { key: "products", title: "New products" },
   { key: "documents", title: "Documents that changed" },
+  { key: "agents", title: "Agents that slipped" },
 ];
 
 const KIND_LABEL: Record<string, string> = {
@@ -236,6 +241,11 @@ export async function buildRoundupContent(start: Date, end: Date): Promise<Round
   for (const r of rules) content.rules.push({ text: r.title, detail: `When: ${whenPart(r.appliesWhen)} ${r.rule}${r.enabled ? "" : " (switched off)"}`, private: hidden([toRef("rule", r.id)]) });
   for (const p of playbooks) content.playbooks.push({ text: p.title, detail: `When to use: ${p.whenToUse}`, private: hidden([toRef("playbook", p.id)]) });
   for (const p of products) content.products.push({ text: p.name, detail: p.summary ?? p.description ?? null, private: hidden([toRef("product", p.id)]) });
+  content.agents = slipped(await scorecards(end)).map((m) => ({
+    text: `${AGENTS[m.agent].name}: ${m.label.toLowerCase()} fell from ${m.lastRate}% to ${m.rate}%`,
+    detail: `${m.kept} kept and ${m.undone} undone this week. See Settings, Agents.`,
+    private: false,
+  }));
   for (const d of await changedDocuments(start, end)) {
     content.documents!.push({ text: d.title, detail: [d.summary, d.byName ? `Changed by ${d.byName}` : null].filter(Boolean).join(". ") || null, private: d.hidden });
   }

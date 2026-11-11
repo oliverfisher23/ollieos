@@ -1402,3 +1402,12 @@ Ollie asked how to build evals into OllieOS and to understand its different agen
   - `GET /api/agents` (`services/agents.ts`): every agent in the list, plus any key still in `ai_runs` that is no longer listed, with 7-day runs, failures, estimated cost, tokens, average time, prompt versions, last run (any age) and last error; sorted by cost. Connected AIs come from `ai_clients`, with reads and writes from `audit_events` (search and access requests are not counted as writes) and Knowledge Inbox proposals decided in the week plus all still waiting.
   - Settings, Agents (`/settings/agents`, second in the Settings list): the week's total, a card per agent that ran, the rest folded under "N agents with no runs", then Connected AIs with the share of proposals kept.
   - Runs are cleared after 90 days with the other clean-ups in `scheduledWork`.
+
+
+### Part W: Scorecards from Ollie's decisions (built 11th November 2026, in the "build everything" run Ollie asked for)
+
+- **What it measures.** For each agent, how often Ollie kept what it did, this week (the last 7 days) against the 7 days before, worked out from his own choices with no AI: Inbox items the Gmail, Slack and Granola readers made (kept when acted on, undone when sent to Noise or dropped; items caught by a noise rule or made by hand are left out); Knowledge Inbox cards by proposer (approved or "same as existing" kept, rejected undone); Probably noise hints (Noise kept, Keep undone); Waiting for a reply items (dropped undone); contradictions ("both are true" undone); Drive suggestions; the function, client and primary user suggesters; and, from Part U, tasks closed from their own conversation (reopened is undone) and Looks done markers (Not done is undone). Items still waiting count as waiting, not either way.
+- **Where it shows.** Each agent card on Settings, Agents lists its measures ("Inbox items kept: 82% (28 of 34), last week 90%, 3 waiting for you"), with a drop shown in red.
+- **The round-up.** "Agents that slipped" in the weekly round-up names any measure that fell 15 points or more on last week, with at least 5 decisions in both weeks, so a small sample never raises it.
+- **Not included:** a scorecard for the writers (Part Y adds thumbs and checks), and for Needs a reply, which keeps no record of what Ollie did with each email.
+- Built in `services/scorecards.ts`; `GET /api/agents` carries `measures` on each agent; round-up content gains `agents`.

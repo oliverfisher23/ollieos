@@ -10,6 +10,7 @@ export * from './accessRequest';
 export * from './accessRequestClient';
 export * from './accessRequestList';
 export * from './accessRequestStatus';
+export * from './agentMeasure';
 export * from './agentsView';
 export * from './agentView';
 export * from './agentViewKind';
