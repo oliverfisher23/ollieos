@@ -14,3 +14,17 @@ mtime_ms = 1794252327373
 storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:b838c638-39ab-4317-aede-36d8b741262d/7c0678f8-5906-4f7f-9212-f8a49711abc4/442065f9-aa76-4e7e-a07f-8ce9efb64509"
 storage_version_token = "1794252345046572"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "cf3arEnFuJFRgsN8XttZ9"
+uri = "file://exports/save-session-to-ollieos.zip"
+type = "unspecified"
+title = "Claude skill: Save session to OllieOS"
+description = "Upload this zip in Claude under Settings, Capabilities, Skills."
+logical_id = "1bb02e8a-ba47-4df1-9c85-ee13261e167b"
+content_hash = "sha256:8b9b746111892c7946316f15db89a5a41eb9329a9651b55dfdb448a42818d40f"
+size = 1997
+mtime_ms = 1794396718952
+storage_uri = "gcs://replit-rams-assets-archer/rams/assets/repl:b838c638-39ab-4317-aede-36d8b741262d/1bb02e8a-ba47-4df1-9c85-ee13261e167b/958bdc89-038c-4d58-96e6-c841cc9b1499"
+storage_version_token = "1794396724253309"
+content_type = "application/octet-stream"
