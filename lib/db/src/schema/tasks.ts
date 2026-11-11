@@ -173,6 +173,8 @@ export const replyDraftsTable = pgTable("reply_drafts", {
   sentAt: timestamp("sent_at", { withTimezone: true }),
   /** When Ollie took it off the Drafts list on the Email page; the draft stays on the task */
   dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+  /** Part L: the body as OllieOS last wrote it, to compare with what Ollie saved or sent */
+  writtenBody: text("written_body"),
   /** Ollie's one-line brief from "Brief a reply"; the draft is written from it in the background */
   brief: text("brief"),
   /** Ready to look at, still being written, or the background write failed */
@@ -237,3 +239,22 @@ export const taskEvidenceTable = pgTable(
 );
 
 export type TaskEvidence = typeof taskEvidenceTable.$inferSelect;
+
+/**
+ * Part L (build plan section 14): what OllieOS drafted and what Ollie changed, either by editing the
+ * draft in OllieOS before saving it, or in Gmail or Superhuman before sending. Read once a week to
+ * propose rules for changes made the same way three or more times.
+ */
+export const draftEditsTable = pgTable(
+  "draft_edits",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    taskId: integer("task_id").references(() => tasksTable.id, { onDelete: "set null" }),
+    /** edited: changed in OllieOS before saving; sent: the sent email differed from the draft */
+    kind: text("kind").notNull(),
+    original: text("original").notNull(),
+    final: text("final").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("draft_edits_at_idx").on(t.at)],
+);

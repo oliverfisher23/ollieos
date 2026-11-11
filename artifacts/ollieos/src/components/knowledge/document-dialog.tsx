@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import {
+  searchDrive,
+  type DriveSearchHit,
   buildDocumentKnowledge,
   createDocument,
   createTextDocument,
@@ -15,12 +17,13 @@ import { DOC_LOCATIONS, DOC_LOCATION_LABELS, formatDayMonthShort } from '@worksp
 import { TriStateAccess } from '@/components/knowledge/parts';
 import { Dropdown } from '@/components/dropdown';
 import { useKnowledgeWrite } from '@/lib/knowledge';
-import { notify } from '@/lib/notify';
+import { errorMessage, notify } from '@/lib/notify';
 
-type Mode = 'link' | 'text' | 'file';
+type Mode = 'link' | 'drive' | 'text' | 'file';
 
 const MODES: { id: Mode; label: string }[] = [
   { id: 'link', label: 'Link' },
+  { id: 'drive', label: 'Search Drive' },
   { id: 'text', label: 'Paste text' },
   { id: 'file', label: 'Upload a file' },
 ];
@@ -152,7 +155,9 @@ export function DocumentDialog({ doc, presetProjectId, onClose }: { doc?: Librar
     ? `Updated ${formatDayMonthShort(doc.lastConfirmedAt)}. Added by ${doc.createdBy}.${kept && doc.textOrigin ? ` ${ORIGIN_WORDS[doc.textOrigin] ?? ''}.` : ''}`
     : mode === 'link'
       ? 'Paste a Dropbox, Google Drive or Claude project link, or a Drive folder to add every file in it. OllieOS fills the title and where it lives from the link.'
-      : mode === 'text'
+      : mode === 'drive'
+        ? 'Search every Google Drive file you can open, by name or by words inside it. Pick one to add it as a link.'
+        : mode === 'text'
         ? 'Paste notes, a transcript or anything else. OllieOS keeps the text, so it can read it for knowledge.'
         : `A Markdown, text, Word (.docx) or PDF file up to ${MAX_FILE_MB} MB. OllieOS keeps its text, not the file.`;
 
@@ -172,6 +177,15 @@ export function DocumentDialog({ doc, presetProjectId, onClose }: { doc?: Librar
               </div>
             )}
             <p id="doc-desc" className="oo-muted" style={{ margin: 0, fontSize: 13 }}>{description}</p>
+            {!doc && mode === 'drive' ? (
+              <DriveSearch
+                onPick={(hit) => {
+                  setUrl(hit.url);
+                  setTitle(hit.name);
+                  setMode('link');
+                }}
+              />
+            ) : (
             <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {(doc ? !kept : mode === 'link') && (
                 <label>
@@ -250,6 +264,7 @@ export function DocumentDialog({ doc, presetProjectId, onClose }: { doc?: Librar
                 </button>
               </div>
             </form>
+            )}
           </Dialog.Content>
         </Dialog.Overlay>
       </Dialog.Portal>
@@ -280,5 +295,56 @@ export function MultiPick({ label, items, value, onChange, testId }: { label: st
         </div>
       )}
     </fieldset>
+  );
+}
+
+/** Part L: search all of Drive and pick a file to add. Read only. */
+function DriveSearch({ onPick }: { onPick: (hit: DriveSearchHit) => void }) {
+  const [q, setQ] = useState('');
+  const [hits, setHits] = useState<DriveSearchHit[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const run = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (q.trim().length < 2) return;
+    setBusy(true);
+    setProblem(null);
+    try {
+      setHits(await searchDrive({ q: q.trim() }));
+    } catch (err) {
+      setProblem(errorMessage(err, 'Drive could not be searched just now.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} data-testid="panel-drive-search">
+      <form onSubmit={run} style={{ display: 'flex', gap: 8 }}>
+        <label htmlFor="drive-q" className="sr-only">Search Drive</label>
+        <input id="drive-q" className="oo-input" style={{ flex: 1 }} autoFocus value={q} maxLength={200} onChange={(e) => setQ(e.target.value)} placeholder="Words in the name or the file" data-testid="input-drive-search" />
+        <button type="submit" className="oo-btn oo-btn-outline" disabled={busy || q.trim().length < 2} data-testid="button-drive-search">{busy ? 'Searching…' : 'Search'}</button>
+      </form>
+      {problem && <p role="alert" style={{ margin: 0, fontSize: 13, color: 'var(--oo-danger)' }}>{problem}</p>}
+      {hits && hits.length === 0 && <p className="oo-muted" style={{ margin: 0, fontSize: 13 }}>Nothing in Drive matches that.</p>}
+      {hits && hits.length > 0 && (
+        <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflowY: 'auto' }}>
+          {hits.map((h) => (
+            <li key={h.fileId} className="oo-source" style={{ gap: 2 }} data-testid={'row-drive-hit-' + h.fileId}>
+              <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{h.name}</span>
+                {h.inLibrary ? (
+                  <span className="oo-pill">In the Library</span>
+                ) : (
+                  <button type="button" className="oo-mini" onClick={() => onPick(h)} data-testid={'button-drive-pick-' + h.fileId}>Add</button>
+                )}
+              </span>
+              <span className="oo-muted" style={{ fontSize: 12 }}>
+                {h.kind}{h.owner ? ` · ${h.owner}` : ''}{h.modifiedAt ? ` · changed ${formatDayMonthShort(h.modifiedAt)}` : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

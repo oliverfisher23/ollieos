@@ -1088,6 +1088,127 @@ paths:
               schema: { $ref: "#/components/schemas/AgentsView" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /library/drive-search:
+    get:
+      operationId: searchDrive
+      tags: [library]
+      summary: "Part L: search every Drive file Ollie can open, by name and text"
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, maxLength: 200 }
+      responses:
+        "200":
+          description: Files
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/DriveSearchHit" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /library/unused:
+    get:
+      operationId: listUnusedRulesAndPlaybooks
+      tags: [library]
+      summary: "Part L: rules and playbooks not used by any AI in 90 days"
+      responses:
+        "200":
+          description: Ids
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rules, playbooks]
+                properties:
+                  rules: { type: array, items: { type: integer } }
+                  playbooks: { type: array, items: { type: integer } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /playbooks/{id}/run:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: runPlaybook
+      tags: [library]
+      summary: "Part L: makes the playbook's steps into tasks for a person, organisation or project"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlaybookRunInput" }
+      responses:
+        "201":
+          description: The tasks made
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [taskIds]
+                properties:
+                  taskIds: { type: array, items: { type: integer } }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /playbooks/{id}/usage:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      operationId: getPlaybookUsage
+      tags: [library]
+      summary: "Part L: how often the playbook reached an AI, and the last 10 times"
+      responses:
+        "200":
+          description: Usage
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UsageView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /rules/{id}/usage:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      operationId: getRuleUsage
+      tags: [library]
+      summary: "Part L: how often the rule reached an AI, and the last 10 times"
+      responses:
+        "200":
+          description: Usage
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UsageView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /tasks/{id}/reply-draft/check:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: checkReplyDraft
+      tags: [tasks]
+      summary: "Part L: the lines of a draft that break a rule that applies, with a fix for each"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DraftCheckInput" }
+      responses:
+        "200":
+          description: Issues
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [issues]
+                properties:
+                  issues: { type: array, items: { $ref: "#/components/schemas/DraftIssue" } }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /time:
     get:
       operationId: getTimeReport
@@ -5562,6 +5683,60 @@ components:
         raisedTitle: { type: [string, "null"], description: The meeting it was raised in }
         raisedHow: { type: [string, "null"], description: "notes (Granola showed it covered) or ollie (ticked by hand)" }
         createdAt: { type: string, format: date-time }
+    DriveSearchHit:
+      type: object
+      required: [fileId, name, kind, owner, modifiedAt, url, inLibrary]
+      properties:
+        fileId: { type: string }
+        name: { type: string }
+        kind: { type: string }
+        owner: { type: [string, "null"] }
+        modifiedAt: { type: [string, "null"], format: date-time }
+        url: { type: string }
+        inLibrary: { type: boolean }
+    PlaybookRunInput:
+      type: object
+      additionalProperties: false
+      required: [target, mode]
+      properties:
+        target:
+          type: object
+          additionalProperties: false
+          required: [type, id]
+          properties:
+            type: { type: string, enum: [person, organisation, project] }
+            id: { type: integer }
+        mode: { type: string, enum: [tasks, checklist] }
+        start: { type: [string, "null"], format: date }
+    UsageView:
+      type: object
+      required: [count, lastUsedAt, recent, unused]
+      properties:
+        count: { type: integer }
+        lastUsedAt: { type: [string, "null"], format: date-time }
+        recent:
+          type: array
+          items:
+            type: object
+            required: [at, by, via]
+            properties:
+              at: { type: string, format: date-time }
+              by: { type: string }
+              via: { type: [string, "null"] }
+        unused: { type: boolean }
+    DraftCheckInput:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties: { body: { type: string, minLength: 1, maxLength: 20000 } }
+    DraftIssue:
+      type: object
+      required: [ruleRef, ruleTitle, line, fix]
+      properties:
+        ruleRef: { type: string }
+        ruleTitle: { type: string }
+        line: { type: string }
+        fix: { type: string }
     TimeSlice:
       type: object
       required: [key, label, hours]
@@ -7772,6 +7947,7 @@ components:
         text: { type: string }
         personId: { type: [integer, "null"] }
         afterDays: { type: [integer, "null"], description: Days after starting }
+        status: { type: [string, "null"], enum: [now, backlog, null], description: "Part L: Now or Backlog when the playbook is run; Backlog when not set" }
         personName: { type: [string, "null"] }
         personSlug: { type: [string, "null"] }
 
@@ -7784,6 +7960,7 @@ components:
         text: { type: string, minLength: 1, maxLength: 600 }
         personId: { type: [integer, "null"] }
         afterDays: { type: [integer, "null"], minimum: 0, maximum: 3650 }
+        status: { type: [string, "null"], enum: [now, backlog, null] }
 
     Playbook:
       type: object

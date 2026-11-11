@@ -43,6 +43,8 @@ export interface StepInput {
   text: string;
   personId?: number | null;
   afterDays?: number | null;
+  /** Part L: Now or Backlog when the playbook is run */
+  status?: "now" | "backlog" | null;
 }
 
 async function personNames(ids: number[]): Promise<Map<number, NamedLink>> {
@@ -148,7 +150,7 @@ export function cleanSteps(input: StepInput[]): PlaybookStep[] {
     let id = cleanText(s.id) ?? randomUUID().slice(0, 8);
     if (seen.has(id)) id = randomUUID().slice(0, 8);
     seen.add(id);
-    return { id, text, personId: s.personId ?? null, afterDays };
+    return { id, text, personId: s.personId ?? null, afterDays, ...(s.status ? { status: s.status } : {}) };
   });
 }
 

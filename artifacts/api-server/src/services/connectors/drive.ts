@@ -402,3 +402,43 @@ export async function readDrive(saved: DriveState | null, now: Date, me: Readonl
 
   return { account, found: recent.length, counts, state: { since: newest, judged } };
 }
+
+/* ---------- Part L: search all of Drive from the Library ---------- */
+
+export interface DriveSearchHit {
+  fileId: string;
+  name: string;
+  kind: string;
+  owner: string | null;
+  modifiedAt: string | null;
+  url: string;
+  inLibrary: boolean;
+}
+
+/** Every Drive file Ollie can open whose name or text matches, newest change first. Read only. */
+export async function searchDrive(q: string): Promise<DriveSearchHit[]> {
+  const term = q.replace(/['\\]/g, " ").trim();
+  if (term.length < 2) return [];
+  const p = new URLSearchParams({
+    q: `(name contains '${term}' or fullText contains '${term}') and trashed = false and mimeType != 'application/vnd.google-apps.folder'`,
+    fields: `files(${FILE_FIELDS})`,
+    orderBy: "modifiedTime desc",
+    pageSize: "25",
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true",
+    corpora: "allDrives",
+  });
+  const body = await proxyJson(CONNECTOR, NAME, "/drive/v3/files?" + p.toString());
+  const files = ((body.files as DriveFile[] | undefined) ?? []).filter((f) => isDocument(f.mimeType) && f.webViewLink);
+  const library = await db.select({ url: documentsTable.url }).from(documentsTable).where(eq(documentsTable.location, "gdrive"));
+  const inLibrary = new Set(library.map((d) => (d.url ? driveFileId(d.url) : null)).filter(Boolean));
+  return files.map((f) => ({
+    fileId: f.id,
+    name: f.name,
+    kind: kindOf(f.mimeType),
+    owner: f.owners?.[0]?.displayName ?? f.owners?.[0]?.emailAddress ?? null,
+    modifiedAt: f.modifiedTime ?? null,
+    url: cleanDriveLink(f.webViewLink!),
+    inLibrary: inLibrary.has(f.id),
+  }));
+}

@@ -134,6 +134,8 @@ export interface PlaybookStep {
   personId: number | null;
   /** Days after starting the playbook */
   afterDays: number | null;
+  /** Part L: where the task goes when the playbook is run; Backlog when not set */
+  status?: "now" | "backlog" | null;
 }
 
 /**

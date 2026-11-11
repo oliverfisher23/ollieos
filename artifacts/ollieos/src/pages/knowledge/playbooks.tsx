@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { PlaybookUsage, RunPlaybook } from '@/components/playbook-run';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Link, useLocation, useParams } from 'wouter';
 import {
@@ -12,6 +13,7 @@ import {
   useListPlaybooks,
   useListProducts,
   useListProjects,
+  useListUnusedRulesAndPlaybooks,
   type Playbook,
   type PlaybookState,
   type PlaybookStep,
@@ -42,6 +44,7 @@ const stepsWord = (n: number) => (n === 1 ? '1 step' : `${n} steps`);
 /* ---------- List (Library tab, and the pages a playbook links to) ---------- */
 
 function PlaybookRow({ p }: { p: Playbook }) {
+  const unused = useListUnusedRulesAndPlaybooks({ query: { staleTime: 300_000 } });
   return (
     <Link href={'/knowledge/playbooks/' + p.id} className="oo-krow oo-krow-link" style={{ textDecoration: 'none', alignItems: 'flex-start' }} data-testid={'row-playbook-' + p.id}>
       <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: '1 1 300px' }}>
@@ -51,6 +54,7 @@ function PlaybookRow({ p }: { p: Playbook }) {
       <span style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', fontSize: 13 }} className="oo-muted">
         {p.hiddenFromAi && p.state === 'in_use' && <HiddenFromAi confidential={p.confidential === true} />}
         <PlaybookStatePill state={p.state} />
+        {unused.data?.playbooks.includes(p.id) && <span className="oo-pill" data-tone="stale" data-testid={'pill-unused-' + p.id}>Not used in 90 days</span>}
         <span className="oo-num">{stepsWord(p.steps.length)}</span>
         {p.owner && <span>{p.owner.name}</span>}
       </span>
@@ -262,6 +266,10 @@ export function PlaybookPage() {
 
       <PlaybookLinks playbook={p} />
 
+      <RunPlaybook playbook={p} />
+
+      <PlaybookUsage id={p.id} />
+
       <section aria-labelledby="pbk-notes-h" style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: '72ch' }}>
         <h2 id="pbk-notes-h" className="oo-h2">Notes</h2>
         <div style={{ fontSize: 15, lineHeight: 1.6 }} className="oo-soft">
@@ -286,7 +294,7 @@ function newId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-const toInput = (s: PlaybookStep): PlaybookStepInput => ({ id: s.id, text: s.text, personId: s.personId, afterDays: s.afterDays });
+const toInput = (s: PlaybookStep): PlaybookStepInput => ({ id: s.id, text: s.text, personId: s.personId, afterDays: s.afterDays, status: s.status ?? null });
 
 /** The steps in order. Every change saves the whole list. */
 function PlaybookSteps({ playbook }: { playbook: Playbook }) {
@@ -321,7 +329,7 @@ function PlaybookSteps({ playbook }: { playbook: Playbook }) {
     const step = steps.find((s) => s.id === id);
     if (!step) return;
     const next = { ...step, ...patch };
-    if (next.text === step.text && next.personId === step.personId && next.afterDays === step.afterDays) return;
+    if (next.text === step.text && next.personId === step.personId && next.afterDays === step.afterDays && (next.status ?? null) === (step.status ?? null)) return;
     if (patch.personId !== undefined) {
       const person = people.data?.find((x) => x.id === patch.personId);
       next.personName = person?.name ?? null;
@@ -374,6 +382,7 @@ function PlaybookSteps({ playbook }: { playbook: Playbook }) {
                     testId={'select-pstep-person-' + s.id}
                   />
                   <AfterDays step={s} n={i + 1} onSave={(afterDays) => change(s.id, { afterDays })} />
+                  <Dropdown value={s.status === 'now' ? 'now' : 'backlog'} onChange={(v) => change(s.id, { status: v as 'now' | 'backlog' })} options={[{ value: 'backlog', label: 'Backlog' }, { value: 'now', label: 'Now' }]} ariaLabel={`Where step ${i + 1} goes when run`} variant="compact" testId={'select-pstep-status-' + s.id} />
                 </div>
               </div>
               <span className="oo-step-tools">

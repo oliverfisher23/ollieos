@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Link, useLocation, useSearch } from 'wouter';
 import {
+  useListUnusedRulesAndPlaybooks,
   buildDocumentKnowledge,
   createRule,
   updateRule,
@@ -292,6 +293,8 @@ export function RuleCard({ p, compact }: { p: Rule; compact?: boolean }) {
   const write = useKnowledgeWrite();
   const save = async (patch: RuleUpdate, done?: string) => (await write(() => updateRule(p.id, patch), { done })) ?? false;
   const scope = [...p.projects, ...p.organisations, ...(p.products ?? [])];
+  // Part L: rules no AI has used in 90 days are marked so they can be paused or removed.
+  const unused = useListUnusedRulesAndPlaybooks({ query: { staleTime: 300_000 } });
 
   return (
     <article className="oo-kcard oo-rule" data-enabled={p.enabled} aria-labelledby={`pb-${p.id}-title`} data-testid={'card-rule-' + p.id}>
@@ -324,6 +327,7 @@ export function RuleCard({ p, compact }: { p: Rule; compact?: boolean }) {
         {!p.enabled ? 'Paused: Claude ignores this' : p.sentToAi ? 'Claude reads this before drafting' : 'Linked only to items hidden from AI, so no AI sees it'}
       </span>
       {p.outOfDate && <span><OutOfDateMark testId={`mark-out-of-date-rule-${p.id}`} /></span>}
+      {unused.data?.rules.includes(p.id) && <span><span className="oo-pill" data-tone="stale" data-testid={`pill-unused-rule-${p.id}`}>Not used in 90 days</span></span>}
     </article>
   );
 }

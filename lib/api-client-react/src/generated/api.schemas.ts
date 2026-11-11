@@ -1495,6 +1495,77 @@ export interface EmailInbox {
   problem: string | null;
 }
 
+export interface DriveSearchHit {
+  fileId: string;
+  name: string;
+  kind: string;
+  /** @nullable */
+  owner: string | null;
+  /** @nullable */
+  modifiedAt: string | null;
+  url: string;
+  inLibrary: boolean;
+}
+
+export type PlaybookRunInputTargetType = typeof PlaybookRunInputTargetType[keyof typeof PlaybookRunInputTargetType];
+
+
+export const PlaybookRunInputTargetType = {
+  person: 'person',
+  organisation: 'organisation',
+  project: 'project',
+} as const;
+
+export type PlaybookRunInputTarget = {
+  type: PlaybookRunInputTargetType;
+  id: number;
+};
+
+export type PlaybookRunInputMode = typeof PlaybookRunInputMode[keyof typeof PlaybookRunInputMode];
+
+
+export const PlaybookRunInputMode = {
+  tasks: 'tasks',
+  checklist: 'checklist',
+} as const;
+
+export interface PlaybookRunInput {
+  target: PlaybookRunInputTarget;
+  mode: PlaybookRunInputMode;
+  /** @nullable */
+  start?: string | null;
+}
+
+export type UsageViewRecentItem = {
+  at: string;
+  by: string;
+  /** @nullable */
+  via: string | null;
+};
+
+export interface UsageView {
+  count: number;
+  /** @nullable */
+  lastUsedAt: string | null;
+  recent: UsageViewRecentItem[];
+  unused: boolean;
+}
+
+export interface DraftCheckInput {
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  body: string;
+}
+
+export interface DraftIssue {
+  ruleRef: string;
+  ruleTitle: string;
+  line: string;
+  fix: string;
+}
+
 export interface TimeSlice {
   key: string;
   label: string;
@@ -3157,6 +3228,18 @@ export interface Rule {
   outOfDate: boolean;
 }
 
+/**
+ * Part L: Now or Backlog when the playbook is run; Backlog when not set
+ * @nullable
+ */
+export type PlaybookStepStatus = typeof PlaybookStepStatus[keyof typeof PlaybookStepStatus] | null;
+
+
+export const PlaybookStepStatus = {
+  now: 'now',
+  backlog: 'backlog',
+} as const;
+
 export interface PlaybookStep {
   id: string;
   text: string;
@@ -3167,6 +3250,11 @@ export interface PlaybookStep {
      * @nullable
      */
   afterDays: number | null;
+  /**
+     * Part L: Now or Backlog when the playbook is run; Backlog when not set
+     * @nullable
+     */
+  status?: PlaybookStepStatus;
   /** @nullable */
   personName: string | null;
   /** @nullable */
@@ -4600,6 +4688,17 @@ export interface RuleUpdate {
   productIds?: number[];
 }
 
+/**
+ * @nullable
+ */
+export type PlaybookStepInputStatus = typeof PlaybookStepInputStatus[keyof typeof PlaybookStepInputStatus] | null;
+
+
+export const PlaybookStepInputStatus = {
+  now: 'now',
+  backlog: 'backlog',
+} as const;
+
 export interface PlaybookStepInput {
   /**
      * Keep the id of a step that stays
@@ -4620,6 +4719,8 @@ export interface PlaybookStepInput {
      * @nullable
      */
   afterDays?: number | null;
+  /** @nullable */
+  status?: PlaybookStepInputStatus;
 }
 
 export interface PlaybookInput {
@@ -5002,6 +5103,26 @@ weekStart?: string;
 
 export type GetWeeklyUpdateParams = {
 weekStart?: string;
+};
+
+export type SearchDriveParams = {
+/**
+ * @maxLength 200
+ */
+q: string;
+};
+
+export type ListUnusedRulesAndPlaybooks200 = {
+  rules: number[];
+  playbooks: number[];
+};
+
+export type RunPlaybook201 = {
+  taskIds: number[];
+};
+
+export type CheckReplyDraft200 = {
+  issues: DraftIssue[];
 };
 
 export type ListProjectsParams = {

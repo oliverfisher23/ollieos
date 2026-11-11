@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { checkDraft, taskContextRefs } from "../services/draftLearning";
 import { handle } from "../lib/handle";
 import { z } from "zod";
 import { REPEAT_EVERY, TASK_SOURCES, TASK_STATUSES, PRIORITIES, TASK_KINDS, isIsoDate } from "@workspace/shared";
@@ -178,6 +179,16 @@ router.post(
   handle(async (req, res) => {
     const { id } = IdParams.parse(req.params);
     res.json(await writeReplyDraft(id, ACTOR, WriteReplyBody.parse(req.body ?? {})));
+  }),
+);
+
+// Part L: check a draft against the rules that apply to its task, and fix the lines that break one.
+router.post(
+  "/tasks/:id/reply-draft/check",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    const b = z.object({ body: z.string().min(1).max(20000) }).strict().parse(req.body ?? {});
+    res.json({ issues: await checkDraft(b.body, await taskContextRefs(id)) });
   }),
 );
 

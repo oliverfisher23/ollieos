@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { PlaybookStepStatus } from './playbookStepStatus';
 
 export interface PlaybookStep {
   id: string;
@@ -16,6 +17,11 @@ export interface PlaybookStep {
      * @nullable
      */
   afterDays: number | null;
+  /**
+     * Part L: Now or Backlog when the playbook is run; Backlog when not set
+     * @nullable
+     */
+  status?: PlaybookStepStatus;
   /** @nullable */
   personName: string | null;
   /** @nullable */

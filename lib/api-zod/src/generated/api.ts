@@ -2642,6 +2642,122 @@ export const ListAgentsResponse = zod.object({
 
 
 /**
+ * @summary Part L: search every Drive file Ollie can open, by name and text
+ */
+export const searchDriveQueryQMax = 200;
+
+
+
+export const SearchDriveQueryParams = zod.object({
+  "q": zod.coerce.string().max(searchDriveQueryQMax)
+})
+
+export const SearchDriveResponseItem = zod.object({
+  "fileId": zod.string(),
+  "name": zod.string(),
+  "kind": zod.string(),
+  "owner": zod.string().nullable(),
+  "modifiedAt": zod.coerce.date().nullable(),
+  "url": zod.string(),
+  "inLibrary": zod.boolean()
+})
+export const SearchDriveResponse = zod.array(SearchDriveResponseItem)
+
+
+/**
+ * @summary Part L: rules and playbooks not used by any AI in 90 days
+ */
+export const ListUnusedRulesAndPlaybooksResponse = zod.object({
+  "rules": zod.array(zod.int()),
+  "playbooks": zod.array(zod.int())
+})
+
+
+/**
+ * @summary Part L: makes the playbook's steps into tasks for a person, organisation or project
+ */
+export const RunPlaybookParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RunPlaybookBody = zod.object({
+  "target": zod.object({
+  "type": zod.enum(['person', 'organisation', 'project']),
+  "id": zod.int()
+}),
+  "mode": zod.enum(['tasks', 'checklist']),
+  "start": zod.coerce.date().nullish()
+})
+
+export const RunPlaybookResponse = zod.object({
+  "taskIds": zod.array(zod.int())
+})
+
+
+/**
+ * @summary Part L: how often the playbook reached an AI, and the last 10 times
+ */
+export const GetPlaybookUsageParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetPlaybookUsageResponse = zod.object({
+  "count": zod.int(),
+  "lastUsedAt": zod.coerce.date().nullable(),
+  "recent": zod.array(zod.object({
+  "at": zod.coerce.date(),
+  "by": zod.string(),
+  "via": zod.string().nullable()
+})),
+  "unused": zod.boolean()
+})
+
+
+/**
+ * @summary Part L: how often the rule reached an AI, and the last 10 times
+ */
+export const GetRuleUsageParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetRuleUsageResponse = zod.object({
+  "count": zod.int(),
+  "lastUsedAt": zod.coerce.date().nullable(),
+  "recent": zod.array(zod.object({
+  "at": zod.coerce.date(),
+  "by": zod.string(),
+  "via": zod.string().nullable()
+})),
+  "unused": zod.boolean()
+})
+
+
+/**
+ * @summary Part L: the lines of a draft that break a rule that applies, with a fix for each
+ */
+export const CheckReplyDraftParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const checkReplyDraftBodyBodyMax = 20000;
+
+
+
+export const CheckReplyDraftBody = zod.object({
+  "body": zod.string().min(1).max(checkReplyDraftBodyBodyMax)
+})
+
+export const CheckReplyDraftResponse = zod.object({
+  "issues": zod.array(zod.object({
+  "ruleRef": zod.string(),
+  "ruleTitle": zod.string(),
+  "line": zod.string(),
+  "fix": zod.string()
+}))
+})
+
+
+/**
  * @summary Part R: meeting hours by goal and function, this week and the four before
  */
 export const GetTimeReportResponse = zod.object({
@@ -3486,6 +3602,7 @@ export const GetProjectResponse = zod.object({
   "text": zod.string(),
   "personId": zod.int().nullable(),
   "afterDays": zod.int().nullable().describe('Days after starting'),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish().describe('Part L: Now or Backlog when the playbook is run; Backlog when not set'),
   "personName": zod.string().nullable(),
   "personSlug": zod.string().nullable()
 })),
@@ -6613,6 +6730,7 @@ export const ListPlaybooksResponseItem = zod.object({
   "text": zod.string(),
   "personId": zod.int().nullable(),
   "afterDays": zod.int().nullable().describe('Days after starting'),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish().describe('Part L: Now or Backlog when the playbook is run; Backlog when not set'),
   "personName": zod.string().nullable(),
   "personSlug": zod.string().nullable()
 })),
@@ -6684,7 +6802,8 @@ export const CreatePlaybookBody = zod.object({
   "id": zod.string().max(createPlaybookBodyStepsItemIdMax).nullish().describe('Keep the id of a step that stays'),
   "text": zod.string().min(1).max(createPlaybookBodyStepsItemTextMax),
   "personId": zod.int().nullish(),
-  "afterDays": zod.int().min(createPlaybookBodyStepsItemAfterDaysMin).max(createPlaybookBodyStepsItemAfterDaysMax).nullish()
+  "afterDays": zod.int().min(createPlaybookBodyStepsItemAfterDaysMin).max(createPlaybookBodyStepsItemAfterDaysMax).nullish(),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish()
 })).max(createPlaybookBodyStepsMax).optional(),
   "notes": zod.string().max(createPlaybookBodyNotesMax).nullish(),
   "state": zod.enum(['draft', 'in_use', 'retired']).optional(),
@@ -6706,6 +6825,7 @@ export const CreatePlaybookResponse = zod.object({
   "text": zod.string(),
   "personId": zod.int().nullable(),
   "afterDays": zod.int().nullable().describe('Days after starting'),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish().describe('Part L: Now or Backlog when the playbook is run; Backlog when not set'),
   "personName": zod.string().nullable(),
   "personSlug": zod.string().nullable()
 })),
@@ -6763,6 +6883,7 @@ export const GetPlaybookResponse = zod.object({
   "text": zod.string(),
   "personId": zod.int().nullable(),
   "afterDays": zod.int().nullable().describe('Days after starting'),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish().describe('Part L: Now or Backlog when the playbook is run; Backlog when not set'),
   "personName": zod.string().nullable(),
   "personSlug": zod.string().nullable()
 })),
@@ -6837,7 +6958,8 @@ export const UpdatePlaybookBody = zod.object({
   "id": zod.string().max(updatePlaybookBodyStepsItemIdMax).nullish().describe('Keep the id of a step that stays'),
   "text": zod.string().min(1).max(updatePlaybookBodyStepsItemTextMax),
   "personId": zod.int().nullish(),
-  "afterDays": zod.int().min(updatePlaybookBodyStepsItemAfterDaysMin).max(updatePlaybookBodyStepsItemAfterDaysMax).nullish()
+  "afterDays": zod.int().min(updatePlaybookBodyStepsItemAfterDaysMin).max(updatePlaybookBodyStepsItemAfterDaysMax).nullish(),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish()
 })).max(updatePlaybookBodyStepsMax).optional(),
   "notes": zod.string().max(updatePlaybookBodyNotesMax).nullish(),
   "state": zod.enum(['draft', 'in_use', 'retired']).optional(),
@@ -6860,6 +6982,7 @@ export const UpdatePlaybookResponse = zod.object({
   "text": zod.string(),
   "personId": zod.int().nullable(),
   "afterDays": zod.int().nullable().describe('Days after starting'),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish().describe('Part L: Now or Backlog when the playbook is run; Backlog when not set'),
   "personName": zod.string().nullable(),
   "personSlug": zod.string().nullable()
 })),
@@ -7107,6 +7230,7 @@ export const GetProductResponse = zod.object({
   "text": zod.string(),
   "personId": zod.int().nullable(),
   "afterDays": zod.int().nullable().describe('Days after starting'),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish().describe('Part L: Now or Backlog when the playbook is run; Backlog when not set'),
   "personName": zod.string().nullable(),
   "personSlug": zod.string().nullable()
 })),
@@ -7296,6 +7420,7 @@ export const GetOrganisationResponse = zod.object({
   "text": zod.string(),
   "personId": zod.int().nullable(),
   "afterDays": zod.int().nullable().describe('Days after starting'),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish().describe('Part L: Now or Backlog when the playbook is run; Backlog when not set'),
   "personName": zod.string().nullable(),
   "personSlug": zod.string().nullable()
 })),

@@ -42,6 +42,7 @@ import { briefForAi, resolveEventForAi } from "../services/briefs";
 import { saveSession, SESSION_LIMITS, type SessionAction } from "../services/sessions";
 import { addIdeaFromAi } from "../services/strategy";
 import { addPoint, POINT_CHARS } from "../services/talkingPoints";
+import { checkDraft } from "../services/draftLearning";
 
 export const SOURCE_OF_TRUTH =
   "OllieOS is the source of truth for Ollie's work: tasks, projects, people and decisions. Check it before asking Ollie for context.";
@@ -536,6 +537,28 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
         });
         if (!r.visible) return ok(HIDDEN_SAVE);
         return ok({ idea: { ref: `idea:${r.id}`, title: a.title.trim(), status: "new" }, message: "Added to Ollie's ideas as New, marked as yours." });
+      }),
+  );
+
+  server.registerTool(
+    "check_draft",
+    {
+      description: describe(
+        "Checks a draft written as Ollie (an email, a message, a post) against his standing rules that apply, and returns each line that breaks one with the rule and a suggested fix. Read only: it changes nothing. Use it before handing Ollie a draft you wrote for him.",
+      ),
+      inputSchema: {
+        text: z.string().min(1).max(20000).describe("The draft"),
+        project: Pick.optional().describe("The project it is about, if any"),
+        person: Pick.optional().describe("Who it is to, if they are in OllieOS"),
+        organisation: Pick.optional().describe("The organisation it is to, if any"),
+      },
+    },
+    async (a) =>
+      guard(async () => {
+        const [project, person, org] = await Promise.all([pickOrNull(scope, a.project, ["project"]), pickOrNull(scope, a.person, ["person"]), pickOrNull(scope, a.organisation, ["organisation"])]);
+        const refs = [project && `project:${project.id}`, person && `person:${person.id}`, org && `organisation:${org.id}`].filter((r): r is string => !!r);
+        const issues = await checkDraft(a.text, refs, scope);
+        return ok({ issues: issues.map((i) => ({ rule: i.ruleRef, rule_title: i.ruleTitle, line: i.line, fix: i.fix })), message: issues.length ? `${issues.length} line${issues.length === 1 ? "" : "s"} break a rule.` : "No rule is broken." });
       }),
   );
 
