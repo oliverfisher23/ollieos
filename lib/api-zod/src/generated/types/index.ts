@@ -451,6 +451,7 @@ export * from './taskEvidenceShows';
 export * from './taskEvidenceStrength';
 export * from './taskGoal';
 export * from './taskKind';
+export * from './taskReorderInput';
 export * from './taskSource';
 export * from './taskStatus';
 export * from './taskStep';

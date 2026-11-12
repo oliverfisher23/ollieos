@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useSearch } from 'wouter';
 import {
+  getListTasksQueryKey,
+  reorderTasks,
   useGetClearOut,
   useGetTaskSummary,
   useListReview,
@@ -26,6 +29,7 @@ import { useInvalidateTasks } from '@/lib/task-cache';
 import { notify, notifyUndo } from '@/lib/notify';
 import { useTaskActions } from '@/lib/task-actions';
 import { Dot, Dropdown } from '@/components/dropdown';
+import { DragItemOf, DragList } from '@/components/drag-list';
 
 const TABS: { value: TaskTab; label: string }[] = [
   { value: 'inbox', label: 'Inbox' },
@@ -39,6 +43,8 @@ const TABS: { value: TaskTab; label: string }[] = [
   { value: 'archived', label: 'Archive' },
 ];
 const TAB_VALUES = TABS.map((t) => t.value) as string[];
+/** Tabs Ollie can drag into his own order. Inbox keeps newest first for triage; the rest keep their dates. */
+const REORDERABLE_TABS: TaskTab[] = ['open', 'now', 'backlog', 'waiting'];
 
 const EMPTY: Record<TaskTab, string> = {
   inbox: 'Inbox is clear. New captures land here.',
@@ -159,6 +165,38 @@ export default function TasksPage() {
   const reviewCount = review.data?.actions ?? 0;
 
   const rows = useMemo(() => sortTasks(list.data ?? [], sort), [list.data, sort?.key, sort?.dir]);
+
+  // Dragging tasks into Ollie's own order. A column sort is a temporary view on top, so dragging waits until it is cleared.
+  const qc = useQueryClient();
+  const invalidate = useInvalidateTasks();
+  const reorderable = REORDERABLE_TABS.includes(tab);
+  const placed = reorderable && rows.some((t) => t.position != null);
+  const saveOrder = async (ids: number[]) => {
+    const key = getListTasksQueryKey(params);
+    await qc.cancelQueries({ queryKey: key });
+    const prev = qc.getQueryData<Task[]>(key);
+    if (prev) {
+      const byId = new Map(prev.map((t) => [t.id, t]));
+      const moved = ids.map((id) => byId.get(id)).filter((t): t is Task => !!t);
+      qc.setQueryData(key, [...moved, ...prev.filter((t) => !ids.includes(t.id))]);
+    }
+    try {
+      await reorderTasks({ ids });
+    } catch {
+      if (prev) qc.setQueryData(key, prev);
+      notify('That did not save', 'Try again in a moment.');
+    }
+    invalidate();
+  };
+  const resetOrder = async () => {
+    try {
+      await reorderTasks({ ids: rows.filter((t) => t.position != null).map((t) => t.id), clear: true });
+      notify('Back to due-date order', rows.length === 1 ? '1 task' : `${rows.length} tasks`);
+    } catch {
+      notify('That did not save', 'Try again in a moment.');
+    }
+    invalidate();
+  };
   const tabs = summary.data?.tabs;
   const stats = summary.data?.stats;
 
@@ -274,6 +312,23 @@ export default function TasksPage() {
           ))}
         </div>
 
+        {reorderable && rows.length > 1 && (sort || placed) && (
+          <p className="oo-muted" style={{ margin: 0, fontSize: 13 }} data-testid="text-order-hint">
+            {sort ? (
+              <>
+                Sorted by {SORT_LABELS[sort.key].toLowerCase()}.{' '}
+                <button type="button" className="oo-link" style={{ fontSize: 13 }} onClick={() => set({ sort: null, dir: null })} data-testid="button-clear-sort">Clear the sort</button>
+                {' '}to drag tasks into your own order.
+              </>
+            ) : (
+              <>
+                In your own order.{' '}
+                <button type="button" className="oo-link" style={{ fontSize: 13 }} onClick={resetOrder} data-testid="button-reset-order">Go back to due-date order</button>
+              </>
+            )}
+          </p>
+        )}
+
         {list.isLoading ? (
           <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 18, paddingTop: 8 }}>
             {[0, 1, 2, 3, 4].map((i) => <Skel key={i} h={18} w={i % 2 ? '72%' : '88%'} />)}
@@ -289,7 +344,7 @@ export default function TasksPage() {
             {(q || source || week) && <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>Try another week or clear the search.</p>}
           </div>
         ) : (
-          <TaskRows tab={tab} rows={rows} selected={taskId} sort={sort} onSort={onSort} onOpen={(id) => set({ task: String(id) })} />
+          <TaskRows tab={tab} rows={rows} selected={taskId} sort={sort} onSort={onSort} reorderable={reorderable} onReorder={saveOrder} onOpen={(id) => set({ task: String(id) })} />
         )}
       </div>
 
@@ -353,9 +408,12 @@ function SortHeader({ col, sort, onSort }: { col: SortKey; sort: Sort; onSort: (
   );
 }
 
-function TaskRows({ tab, rows: allRows, selected, sort, onSort, onOpen }: {
-  tab: TaskTab; rows: Task[]; selected: number | null; sort: Sort; onSort: (key: SortKey) => void; onOpen: (id: number) => void;
+function TaskRows({ tab, rows: allRows, selected, sort, onSort, reorderable, onReorder, onOpen }: {
+  tab: TaskTab; rows: Task[]; selected: number | null; sort: Sort; onSort: (key: SortKey) => void;
+  /** This tab keeps a dragged order; the grips show unless a column sort is on */
+  reorderable: boolean; onReorder: (ids: number[]) => void; onOpen: (id: number) => void;
 }) {
+  const canDrag = reorderable && !sort && allRows.length > 1;
   let rows = allRows;
   const update = useUpdateTask();
   const invalidate = useInvalidateTasks();
@@ -524,7 +582,12 @@ function TaskRows({ tab, rows: allRows, selected, sort, onSort, onOpen }: {
       <span className="oo-soft oo-mail-clamp" style={{ fontSize: 12 }} data-testid={'text-looks-done-' + t.id}><span className="oo-pill" data-tone="done">Looks done</span> {t.looksDone}</span>
     ) : null;
 
+  const labels = Object.fromEntries(allRows.map((t) => [t.id, t.title]));
+  // Reorderable tabs keep a grip-wide space even while sorted, so titles do not jump when the sort changes.
+  const gripSlot = (grip: ReactNode) => (grip ?? (reorderable ? <span className="oo-grip-space" aria-hidden="true" /> : null));
+
   const table = (list: Task[], label: string) => (
+    <DragList ids={list.map((t) => t.id)} labels={labels} enabled={canDrag} onReorder={onReorder}>
     <div className="oo-table-wrap" style={{ overflowX: 'auto' }}>
       <table className="oo-table" aria-label={label}>
         <thead>
@@ -535,9 +598,12 @@ function TaskRows({ tab, rows: allRows, selected, sort, onSort, onOpen }: {
         </thead>
         <tbody>
           {list.map((t) => (
-            <tr key={t.id} className="oo-row" data-selected={t.id === selected} data-cursor={inbox && cursorTask?.id === t.id && cursor !== null} data-leaving={leaving(t)} onClick={() => onOpen(t.id)} data-testid={'row-task-' + t.id}>
+            <DragItemOf key={t.id} id={t.id} title={t.title} enabled={canDrag}>
+            {({ ref, style, dragging, grip }) => (
+            <tr ref={ref} style={style} className="oo-row" data-dragging={dragging} data-selected={t.id === selected} data-cursor={inbox && cursorTask?.id === t.id && cursor !== null} data-leaving={leaving(t)} onClick={() => onOpen(t.id)} data-testid={'row-task-' + t.id}>
               <td>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {gripSlot(grip)}
                   {check(t)}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                     <button type="button" className="oo-row-title" data-done={doneOf(t)} onClick={(e) => { e.stopPropagation(); onOpen(t.id); }}
@@ -555,17 +621,23 @@ function TaskRows({ tab, rows: allRows, selected, sort, onSort, onOpen }: {
               <td onClick={(e) => e.stopPropagation()} data-testid={'status-task-' + t.id}>{statusCell(t, 'select-row-status-' + t.id)}</td>
               {extraCol && <td onClick={(e) => e.stopPropagation()}>{rowActions(t)}</td>}
             </tr>
+            )}
+            </DragItemOf>
           ))}
         </tbody>
       </table>
     </div>
+    </DragList>
   );
 
   const cards = (list: Task[]) => (
+    <DragList ids={list.map((t) => t.id)} labels={labels} enabled={canDrag} onReorder={onReorder}>
     <div className="oo-cards">
       {list.map((t) => (
-        <div key={t.id} className="oo-card-row" data-leaving={leaving(t)} data-testid={'card-task-' + t.id}>
-          <div style={{ paddingTop: 2 }}>{check(t)}</div>
+        <DragItemOf key={t.id} id={t.id} title={t.title} enabled={canDrag}>
+        {({ ref, style, dragging, grip }) => (
+        <div ref={ref} style={style} className="oo-card-row" data-dragging={dragging} data-leaving={leaving(t)} data-testid={'card-task-' + t.id}>
+          <div style={{ paddingTop: 2, display: 'flex', alignItems: 'center', gap: 12 }}>{gripSlot(grip)}{check(t)}</div>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
             <button type="button" className="oo-row-title" data-done={doneOf(t)} style={{ fontSize: 15, minHeight: 24 }} onClick={() => onOpen(t.id)}
               onFocus={() => inbox && setCursor(t.id)} data-testid={'button-open-task-mobile-' + t.id}>{t.title}</button>
@@ -581,8 +653,11 @@ function TaskRows({ tab, rows: allRows, selected, sort, onSort, onOpen }: {
             {extraCol && rowActions(t)}
           </div>
         </div>
+        )}
+        </DragItemOf>
       ))}
     </div>
+    </DragList>
   );
 
   return (
