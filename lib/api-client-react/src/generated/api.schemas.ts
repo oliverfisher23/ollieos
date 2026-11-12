@@ -1055,6 +1055,26 @@ export type BriefViewThreadsItem = {
   url: string | null;
 };
 
+export type BriefViewThreadsHiddenItemBy = typeof BriefViewThreadsHiddenItemBy[keyof typeof BriefViewThreadsHiddenItemBy];
+
+
+export const BriefViewThreadsHiddenItemBy = {
+  ollie: 'ollie',
+  ai: 'ai',
+} as const;
+
+export type BriefViewThreadsHiddenItem = {
+  id: number;
+  kind: string;
+  summary: string;
+  occurredAt: string;
+  /** @nullable */
+  url: string | null;
+  by: BriefViewThreadsHiddenItemBy;
+  /** @nullable */
+  reason: string | null;
+};
+
 export type BriefViewProjectsItem = {
   id: number;
   slug: string;
@@ -1194,8 +1214,10 @@ export interface BriefView {
   waitingOn: BriefViewWaitingOnItem[];
   /** Granola notes from earlier meetings with any of the same people, newest first */
   earlier: BriefViewEarlierItem[];
-  /** Recent email and Slack exchanges with people on the meeting */
+  /** Recent email and Slack exchanges with people on the meeting that are about it */
   threads: BriefViewThreadsItem[];
+  /** Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher */
+  threadsHidden: BriefViewThreadsHiddenItem[];
   projects: BriefViewProjectsItem[];
   goals: BriefViewGoalsItem[];
   documents: BriefViewDocumentsItem[];
@@ -1368,6 +1390,19 @@ export interface MeetingView {
   granola: MeetingViewGranola;
   /** True when OllieOS reads Granola itself */
   granolaCheck: boolean;
+}
+
+export interface GranolaLinkInput {
+  /**
+     * A Granola share or note link
+     * @minLength 1
+     * @maxLength 2000
+     */
+  link: string;
+}
+
+export interface ThreadVerdictInput {
+  related: boolean;
 }
 
 export interface AgendaInput {
@@ -3290,6 +3325,8 @@ export interface KnowledgeInboxItem {
   saidAt: string | null;
   /** Contradiction and out-of-date cards: the approved items the new card disagrees with */
   contradicts?: KnowledgeInboxContradicted[];
+  /** Section 25: on a New organisation card, how many New person cards are waiting on it */
+  peopleWaiting?: number;
   /** Suggested cards: the pre-sorter's hint (section 23); null when it gave none or has not looked */
   presort?: PresortHint | null;
   /** Stale facts: what the stale fact checker found (section 23); null until it has looked */
@@ -3451,6 +3488,42 @@ export type LearnLessonsResultResultsItem = {
 export interface LearnLessonsResult {
   failed: boolean;
   results: LearnLessonsResultResultsItem[];
+}
+
+export interface ContactFinderSettings {
+  /** Add the clearest people straight to Contacts instead of as cards */
+  autoAdd: boolean;
+}
+
+export interface ContactFinderResult {
+  looked: number;
+  /** New person cards */
+  people: number;
+  /** New organisation cards */
+  organisations: number;
+  /** Cards adding an email to someone with the same name */
+  emails: number;
+  /** Added to Contacts without a card */
+  added: number;
+  /** Not a person */
+  ignored: number;
+  failed: boolean;
+}
+
+export type ApproveWithPeopleResultOrganisation = {
+  type: string;
+  id: number;
+};
+
+export type ApproveWithPeopleResultSkippedItem = {
+  id: number;
+  reason: string;
+};
+
+export interface ApproveWithPeopleResult {
+  organisation: ApproveWithPeopleResultOrganisation;
+  people: number;
+  skipped: ApproveWithPeopleResultSkippedItem[];
 }
 
 export interface PresortResult {
@@ -4199,6 +4272,11 @@ export interface PersonListItem {
   lastContactAt: string | null;
   iOweCount: number;
   theyOweCount: number;
+  /**
+     * Section 25: when the contact finder added them by itself; Contacts offers Undo
+     * @nullable
+     */
+  autoAddedAt?: string | null;
   cadence: PersonCadence;
 }
 
@@ -6119,6 +6197,10 @@ export type GetFridayUpdateParams = {
  * The Friday the week ends on, YYYY-MM-DD
  */
 week?: string;
+};
+
+export type UndoAutoAddedContact200 = {
+  id: number;
 };
 
 export type ConfirmFoundStillTrue200 = {

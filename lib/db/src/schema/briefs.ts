@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
-import { boolean, date, index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import { peopleTable } from "./knowledge";
+import { boolean, date, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { activityTable, peopleTable } from "./knowledge";
 import { calendarEventsTable } from "./calendar";
 
 /** One sentence or question in a brief, with the refs it relies on (feature 03 rule 3). */
@@ -138,3 +138,43 @@ export const talkingPointsTable = pgTable(
 );
 
 export type TalkingPoint = typeof talkingPointsTable.$inferSelect;
+
+/**
+ * Whether a recent email or Slack thread is about a meeting, for its prep page. Ollie's own
+ * verdicts (source "ollie", from "Not about this meeting") are the examples the thread matcher
+ * learns from; its own verdicts (source "ai") are cached so each thread is judged once per meeting.
+ * Ollie's "not about it" also applies to the rest of a repeating series.
+ */
+export const meetingThreadChecksTable = pgTable(
+  "meeting_thread_checks",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    calendarEventId: integer("calendar_event_id")
+      .notNull()
+      .references(() => calendarEventsTable.id, { onDelete: "cascade" }),
+    /** Google Calendar's series id, so a verdict carries to the next meeting in the series */
+    seriesId: text("series_id"),
+    activityId: integer("activity_id")
+      .notNull()
+      .references(() => activityTable.id, { onDelete: "cascade" }),
+    related: boolean("related").notNull(),
+    /** "ollie" or "ai" */
+    source: text("source").notNull(),
+    reason: text("reason"),
+    /** What the meeting and thread were called when judged: the examples outlive the meeting */
+    meetingTitle: text("meeting_title").notNull(),
+    threadSummary: text("thread_summary").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    uniqueIndex("meeting_thread_checks_event_activity").on(t.calendarEventId, t.activityId),
+    index("meeting_thread_checks_series_idx").on(t.seriesId),
+    index("meeting_thread_checks_source_idx").on(t.source, t.updatedAt),
+  ],
+);
+
+export type MeetingThreadCheck = typeof meetingThreadChecksTable.$inferSelect;

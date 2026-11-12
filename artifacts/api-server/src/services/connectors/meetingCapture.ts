@@ -8,6 +8,7 @@ import { markHistoryNotes } from "../timeAndMeetings";
 import { db, meetingTonesTable } from "@workspace/db";
 import { todayLondon } from "@workspace/shared";
 import { logger } from "../../lib/logger";
+import type { CalendarEvent } from "@workspace/db";
 import { attachMeetingNotes, findEventBySourceRef, findEventForNote } from "../briefs";
 import { propose } from "../suggestions";
 import { applyProgress, cleanProgress, openItemsBlock, openItemsFor, type ProgressCounts } from "../taskEvidence";
@@ -16,6 +17,7 @@ import { writeFollowUp } from "../meetingFollowUp";
 import { captureSorted, emptyCounts, loadPeople, mayReadForKnowledge, peopleIdsIn, projectChoices, type CaptureCounts } from "./capture";
 import { addSpottedIdea } from "../strategy";
 import { lessonsFor } from "../readerLessons";
+import { recordSightings, sightingsFromMeeting } from "../contactFinder";
 import { meetingUnit, sortMeeting, type MeetingNote } from "./granola";
 
 export const MEETING_PROPOSER = "OllieOS";
@@ -28,7 +30,10 @@ export interface MeetingCounts extends CaptureCounts {
   follow_ups?: number;
 }
 
-export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; now: Date; myEmails?: Set<string> }): Promise<MeetingCounts> {
+export async function captureMeetings(
+  notes: MeetingNote[],
+  ctx: { me: string; now: Date; myEmails?: Set<string>; /** Ollie linked the note to this meeting by hand */ event?: CalendarEvent },
+): Promise<MeetingCounts> {
   const counts: MeetingCounts = { ...emptyCounts(), decisions: 0, attached: 0 };
   if (!notes.length) return counts;
   const choices = await projectChoices();
@@ -38,7 +43,7 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
 
   for (const n of notes) {
     // Granola's own calendar link first; otherwise the work meeting at the same time with the same title or people.
-    const event = (n.calendarEventId ? await findEventBySourceRef(n.calendarEventId) : null) ?? (await findEventForNote(n, ctx.myEmails));
+    const event = ctx.event ?? (n.calendarEventId ? await findEventBySourceRef(n.calendarEventId) : null) ?? (await findEventForNote(n, ctx.myEmails));
     // Part U: open tasks with the people in the meeting, checked in the same read; always Looks done.
     const unit = meetingUnit(n);
     const loaded = await loadPeople([unit], []);
@@ -85,6 +90,15 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
         ctx.now,
       );
       if (r.status === "suggested" || r.status === "conflict") counts.decisions++;
+    }
+
+    // Section 25, the contact finder: people at the meeting who are not in Contacts, never from a meeting with anyone hidden from AI.
+    if (mayReadForKnowledge(unit, loaded)) {
+      try {
+        counts.sightings = (counts.sightings ?? 0) + (await recordSightings(sightingsFromMeeting(n, loaded)));
+      } catch (err) {
+        logger.warn({ err, note: n.noteId }, "Could not record contact sightings");
+      }
     }
 
     // Section 23, the idea spotter: never from a meeting with anyone hidden from AI. A problem never stops the check.

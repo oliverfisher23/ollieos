@@ -4546,6 +4546,7 @@ export const ListPeopleResponseItem = zod.object({
   "lastContactAt": zod.coerce.date().nullable(),
   "iOweCount": zod.int(),
   "theyOweCount": zod.int(),
+  "autoAddedAt": zod.coerce.date().nullish().describe('Section 25: when the contact finder added them by itself; Contacts offers Undo'),
   "cadence": zod.object({
   "status": zod.enum(['overdue', 'due_soon', 'on_track', 'paused', 'none']),
   "daysSince": zod.int().nullable().describe('Whole days since the last contact; null when there is none on file'),
@@ -5321,6 +5322,75 @@ export const ClearAgendaChatResponse = zod.void()
 
 
 /**
+ * @summary Link a Granola note to the meeting from its link, when OllieOS did not match it
+ */
+export const LinkGranolaNoteParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const linkGranolaNoteBodyLinkMax = 2000;
+
+
+
+export const LinkGranolaNoteBody = zod.object({
+  "link": zod.string().min(1).max(linkGranolaNoteBodyLinkMax).describe('A Granola share or note link')
+})
+
+export const LinkGranolaNoteResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "platform": zod.string().nullable(),
+  "location": zod.string().nullable(),
+  "scope": zod.enum(['internal', 'external']).describe('External when anyone on the meeting is from outside Ollie\'s own company'),
+  "companies": zod.array(zod.string()),
+  "prep": zod.enum(['ready', 'not_much', 'failed', 'not_written', 'none']).describe('Anything but none means the meeting has a prep page at /briefs/{id}'),
+  "attendees": zod.array(zod.object({
+  "name": zod.string(),
+  "email": zod.string().nullable(),
+  "person": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}).nullable().describe('Set when they are in People')
+})),
+  "notes": zod.string().nullable().describe('Ollie\'s agenda and notes'),
+  "agendaChat": zod.array(zod.object({
+  "role": zod.enum(['ollie', 'ai']),
+  "text": zod.string(),
+  "at": zod.coerce.date()
+})),
+  "granola": zod.object({
+  "url": zod.string().nullable(),
+  "notes": zod.string(),
+  "attachedAt": zod.coerce.date().nullable(),
+  "actions": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string()
+})).describe('Inbox tasks made from the note\'s actions')
+}).nullable().describe('The Granola note, once one is linked to the meeting'),
+  "granolaCheck": zod.boolean().describe('True when OllieOS reads Granola itself')
+})
+
+
+/**
+ * @summary Ollie's verdict on whether an email or Slack thread is about the meeting; the thread matcher learns from it
+ */
+export const SetThreadVerdictParams = zod.object({
+  "eventId": zod.coerce.number().int(),
+  "activityId": zod.coerce.number().int()
+})
+
+export const SetThreadVerdictBody = zod.object({
+  "related": zod.boolean()
+})
+
+export const SetThreadVerdictResponse = zod.void()
+
+
+/**
  * @summary The brief for the next work meeting, today or tomorrow
  */
 export const GetNextBriefResponse = zod.object({
@@ -5517,7 +5587,16 @@ export const GetNextBriefResponse = zod.object({
   "summary": zod.string(),
   "occurredAt": zod.coerce.date(),
   "url": zod.string().nullable()
-})).describe('Recent email and Slack exchanges with people on the meeting'),
+})).describe('Recent email and Slack exchanges with people on the meeting that are about it'),
+  "threadsHidden": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string(),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable(),
+  "by": zod.enum(['ollie', 'ai']),
+  "reason": zod.string().nullable()
+})).describe('Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),
@@ -5767,7 +5846,16 @@ export const GetBriefResponse = zod.object({
   "summary": zod.string(),
   "occurredAt": zod.coerce.date(),
   "url": zod.string().nullable()
-})).describe('Recent email and Slack exchanges with people on the meeting'),
+})).describe('Recent email and Slack exchanges with people on the meeting that are about it'),
+  "threadsHidden": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string(),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable(),
+  "by": zod.enum(['ollie', 'ai']),
+  "reason": zod.string().nullable()
+})).describe('Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),
@@ -6041,7 +6129,16 @@ export const RefreshBriefResponse = zod.object({
   "summary": zod.string(),
   "occurredAt": zod.coerce.date(),
   "url": zod.string().nullable()
-})).describe('Recent email and Slack exchanges with people on the meeting'),
+})).describe('Recent email and Slack exchanges with people on the meeting that are about it'),
+  "threadsHidden": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string(),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable(),
+  "by": zod.enum(['ollie', 'ai']),
+  "reason": zod.string().nullable()
+})).describe('Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),
@@ -6291,7 +6388,16 @@ export const AllowForBriefResponse = zod.object({
   "summary": zod.string(),
   "occurredAt": zod.coerce.date(),
   "url": zod.string().nullable()
-})).describe('Recent email and Slack exchanges with people on the meeting'),
+})).describe('Recent email and Slack exchanges with people on the meeting that are about it'),
+  "threadsHidden": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string(),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable(),
+  "by": zod.enum(['ollie', 'ai']),
+  "reason": zod.string().nullable()
+})).describe('Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),
@@ -9061,6 +9167,7 @@ export const ListKnowledgeInboxResponse = zod.object({
   "stronger": zod.enum(['new', 'old', 'even']),
   "weighing": zod.string().describe('One line on which side looks stronger')
 })).optional().describe('Contradiction and out-of-date cards: the approved items the new card disagrees with'),
+  "peopleWaiting": zod.int().optional().describe('Section 25: on a New organisation card, how many New person cards are waiting on it'),
   "presort": zod.union([zod.object({
   "verdict": zod.enum(['keep', 'reject', 'same', 'duplicate']),
   "why": zod.string(),
@@ -9267,6 +9374,72 @@ export const RedraftFridayUpdateSectionResponse = zod.object({
 }),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Approve a New organisation card and the New person cards waiting on it (section 25)
+ */
+export const ApproveSuggestionWithPeopleParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ApproveSuggestionWithPeopleResponse = zod.object({
+  "organisation": zod.object({
+  "type": zod.string(),
+  "id": zod.int()
+}),
+  "people": zod.int(),
+  "skipped": zod.array(zod.object({
+  "id": zod.int(),
+  "reason": zod.string()
+}))
+})
+
+
+/**
+ * @summary The contact finder's setting (section 25)
+ */
+export const GetContactFinderSettingsResponse = zod.object({
+  "autoAdd": zod.boolean().describe('Add the clearest people straight to Contacts instead of as cards')
+})
+
+
+/**
+ * @summary Turn adding the clearest people automatically on or off
+ */
+export const SetContactFinderSettingsBody = zod.object({
+  "autoAdd": zod.boolean().describe('Add the clearest people straight to Contacts instead of as cards')
+})
+
+export const SetContactFinderSettingsResponse = zod.object({
+  "autoAdd": zod.boolean().describe('Add the clearest people straight to Contacts instead of as cards')
+})
+
+
+/**
+ * @summary Run the contact finder now (section 25)
+ */
+export const FindContactsResponse = zod.object({
+  "looked": zod.int(),
+  "people": zod.int().describe('New person cards'),
+  "organisations": zod.int().describe('New organisation cards'),
+  "emails": zod.int().describe('Cards adding an email to someone with the same name'),
+  "added": zod.int().describe('Added to Contacts without a card'),
+  "ignored": zod.int().describe('Not a person'),
+  "failed": zod.boolean()
+})
+
+
+/**
+ * @summary Undo someone the contact finder added by itself; refused once anything is linked to them
+ */
+export const UndoAutoAddedContactParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UndoAutoAddedContactResponse = zod.object({
+  "id": zod.int()
 })
 
 

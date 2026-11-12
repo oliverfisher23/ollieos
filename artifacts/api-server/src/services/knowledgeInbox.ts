@@ -134,6 +134,8 @@ export interface InboxItem {
   presort?: PresortHint | null;
   /** Section 23: the stale fact checker's finding on a Needs a check card; null until it has looked */
   evidence?: StaleEvidence | null;
+  /** Section 25: on a New organisation card, how many New person cards are waiting on it */
+  peopleWaiting?: number;
 }
 
 export interface InboxContradicted {
@@ -642,6 +644,17 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all", hint
     const replaced = supersedeIds.length ? await db.select({ id: factsTable.id, text: factsTable.text }).from(factsTable).where(inArray(factsTable.id, supersedeIds)) : [];
     const t = await targetsFor(rows.filter((s) => s.entityType && s.entityId != null).map((s) => ({ type: s.entityType!, id: s.entityId! })));
     const said = await saidByFor(rows);
+    // Section 25: New person cards waiting on a New organisation card.
+    const orgCardIds = rows.filter((s) => s.kind === "organisation").map((s) => s.id);
+    const waitingOn = new Map<number, number>();
+    if (orgCardIds.length) {
+      const people = await db
+        .select({ org: sql<number>`(${suggestionsTable.payload}->>'organisation_suggestion_id')::int`, n: sql<number>`count(*)::int` })
+        .from(suggestionsTable)
+        .where(and(eq(suggestionsTable.kind, "person"), eq(suggestionsTable.status, "pending"), sql`(${suggestionsTable.payload}->>'organisation_suggestion_id')::int in (${sql.join(orgCardIds.map((i) => sql`${i}`), sql`, `)})`))
+        .groupBy(sql`1`);
+      for (const p of people) waitingOn.set(Number(p.org), p.n);
+    }
     items = rows.map((s) => {
       const name = newName(s);
       const fp = s.kind === "fact" ? (s.payload as FactPayload) : null;
@@ -671,6 +684,7 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all", hint
         saidBy: said.get(s.id) ?? null,
         saidAt: whenSaid(s),
         presort: s.presort ?? null,
+        ...(s.kind === "organisation" ? { peopleWaiting: waitingOn.get(s.id) ?? 0 } : {}),
       };
     });
   } else {

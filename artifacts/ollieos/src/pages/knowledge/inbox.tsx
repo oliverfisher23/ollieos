@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import {
   approveSuggestion,
+  approveSuggestionWithPeople,
   bulkDecideSuggestions,
   checkStaleEvidence,
   confirmFoundStillTrue,
@@ -502,7 +503,24 @@ function InboxCard({ item: it, done, onDone, picked, onPick }: { item: Knowledge
         <div className="oo-icard-actions">
           {it.group === 'suggested' && (
             <>
-              <button type="button" className="oo-btn oo-btn-ink" disabled={busy || filingBlocked} onClick={() => run(() => approveSuggestion(it.id, filing), approvedText(it, project, newName), true)} data-testid={'button-approve-' + testKey}>Approve</button>
+              {it.kind === 'new_organisation' && (it.peopleWaiting ?? 0) > 0 && (
+                <button
+                  type="button"
+                  className="oo-btn oo-btn-ink"
+                  disabled={busy}
+                  onClick={() =>
+                    run(
+                      () => approveSuggestionWithPeople(it.id),
+                      `Added, with ${it.peopleWaiting} ${it.peopleWaiting === 1 ? 'person' : 'people'}`,
+                      true,
+                    )
+                  }
+                  data-testid={'button-approve-with-people-' + testKey}
+                >
+                  Approve with {it.peopleWaiting} {it.peopleWaiting === 1 ? 'person' : 'people'}
+                </button>
+              )}
+              <button type="button" className={it.kind === 'new_organisation' && (it.peopleWaiting ?? 0) > 0 ? 'oo-btn oo-btn-outline' : 'oo-btn oo-btn-ink'} disabled={busy || filingBlocked} onClick={() => run(() => approveSuggestion(it.id, filing), approvedText(it, project, newName), true)} data-testid={'button-approve-' + testKey}>{it.kind === 'new_organisation' && (it.peopleWaiting ?? 0) > 0 ? 'Approve on its own' : 'Approve'}</button>
               {it.fields.some((f) => f.editable) && (
                 <button type="button" className="oo-btn oo-btn-outline" disabled={busy} onClick={() => setMode('edit')} data-testid={'button-edit-' + testKey}>Edit, then approve</button>
               )}

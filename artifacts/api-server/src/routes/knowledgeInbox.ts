@@ -6,7 +6,7 @@ import { getKnowledgeSettings, resolveFactReview, runFactCheck, updateShelfLives
 import { listInbox, PRESORT_FILTERS } from "../services/knowledgeInbox";
 import { mergeHinted, presortCards } from "../services/presort";
 import { checkStaleFacts, confirmFoundStillTrue } from "../services/staleCheck";
-import { approveSuggestion, bulkDecide, rejectFromSource, rejectSuggestion } from "../services/suggestions";
+import { approveSuggestion, approveWithPeople, bulkDecide, rejectFromSource, rejectSuggestion } from "../services/suggestions";
 import { MERGE_ITEM_TYPES, mergeOptions, mergeSuggestion } from "../services/inboxMerge";
 
 const router: IRouter = Router();
@@ -57,6 +57,8 @@ router.post(
     res.json(await approveSuggestion(IdParams.parse(req.params).id, b.fields, new Date(), { projectId: b.projectId, newProjectName: b.newProjectName }));
   }),
 );
+// Section 25: approve a New organisation card together with the New person cards waiting on it.
+router.post("/suggestions/:id/approve-with-people", handle(async (req, res) => void res.json(await approveWithPeople(IdParams.parse(req.params).id))));
 router.post(
   "/suggestions/bulk",
   handle(async (req, res) => {
