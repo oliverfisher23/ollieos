@@ -1,6 +1,6 @@
 # Mobile responsiveness and optimisation plan
 
-Status: Parts A to C built (11th November 2026); C waiting for sign-off. Parts D and E not started. Each part is its own sign-off, in the order below.
+Status: Parts A to D built (D on 12th November 2026); D waiting for sign-off. Part E not started. Each part is its own sign-off, in the order below.
 
 Relates to: PRD section 5 ("works at 375px", "touch targets at least 44px", saved to the home screen), PRD acceptance criterion 8, and build plan milestone 9 (phone Home and Triage, swipe, home screen install, voice).
 
@@ -135,6 +135,20 @@ Same routes, different layout below 640px, as the build plan already says.
 - **Tables:** Tasks, Library, People cadence and three Settings pages use `<table>`. None overflow at 375px with the seed data, but each needs checking with real, longer content; any that only fit by squeezing become cards below 640px.
 - **Phone nav reach:** Meetings, Email, Goals and Strategy are only reachable through links on other pages. Proposal: a "More" sheet from the Knowledge tab, or swap Knowledge for "More" (Knowledge, Meetings, Email, Goals, Strategy, Settings). Needs Ollie's choice (question 1).
 
+**Built (12th November 2026):**
+
+- **Navigation (Ollie chose More).** The phone tab bar is Home, Tasks, add, People, More. More opens a bottom sheet with Knowledge, Meetings, Email, Goals, Strategy, Settings and Log out; focus moves into it, Escape or a tap outside closes it, opening a page closes it, and the More tab is lit on any of those pages. The add sheet and the More sheet share one `BottomSheet` in `components/main-nav.tsx`. The light pages' phone header is now just the logo, and the Email and Meetings links beside the Tasks heading (there only because phones had no other way in) are gone.
+- **Tasks.** The four stat cards are one strip of four on phones (number above a short label: To triage, Due, Waiting, Done), so the first task is about halfway down the first screen instead of below it. The stats stay non-tappable, as before. The filters still take two lines; a filter sheet was not needed once the list was on screen.
+- **Knowledge.** On phones `/knowledge` is the Knowledge menu itself (search, Knowledge Inbox, Map, functions, projects, library) instead of jumping to the latest project, and every other Knowledge page shows alone with "‹ Knowledge" above it, without the side menu. The start-up prefetch no longer fetches the latest project on phones. On project pages the rules that apply (every global rule as well as the project's own, six with the seed data) fold behind "Show the 6 rules that apply" (`components/phone-fold.tsx`). That was most of the page's length.
+- **Settings.** On phones `/settings` is a list of sections; each section opens alone with "‹ Settings" above it. Wider screens still go to Connectors with the side menu.
+- **Long content.** Added a project, person, document and tasks with very long names, an unbroken long word, a long email address and a long URL: nothing scrolls sideways. The tables on Library, People and Tasks are already cards on phones; the Settings tables scroll inside their own box.
+- **Found on the way:** on the Knowledge menu, "New project" and "Suggest functions and clients" were stacked 2px apart, so one tap layer covered the other. They are 14px apart on phones.
+- **Audit** now visits `/settings` as a page.
+
+**Results:** strict audit passes all 90 checks (45 pages at 360 and 375px), with the long content in place. Tapped through on a phone: More > Meetings, More > Settings > Planning > back, More > Knowledge > a project > Show rules > back, Home. The More sheet passes the size and overlap checks. Desktop at 1280px is pixel-identical to Part C on every page compared, apart from the test port number on Connectors and a few pixels of anti-aliasing in a date field.
+
+**Not done:** a filter sheet for Tasks (not needed, see above); collapsing other long sections (Relationships, Playbooks) which are short until filled in; a real phone.
+
 ### Part E. Home screen app (1 day, then milestone 9 continues)
 
 - `manifest.webmanifest` (name, short name, dark `theme_color`, `display: standalone`, start URL `/`), icons at 192, 512 and maskable, Apple touch icon, `apple-mobile-web-app-capable` and status bar style.
@@ -149,14 +163,14 @@ Same routes, different layout below 640px, as the build plan already says.
 | A | Audit script, bundle budget, rules in DESIGN.md | 0.5 day | Built: audit passes (78 checks), budget fails the build when exceeded |
 | B | Route splitting, fonts, waterfall, caching | 1 to 2 days | Built: first load 141.5 KB (budget 145, see Part B for 120); first paint 0.89s; content 0.4s to 0.8s sooner |
 | C | Touch targets, 16px inputs, safe areas | 1 to 2 days | Built: strict audit passes on every page (88 checks) |
-| D | Tasks, Knowledge, Settings, tables on phone | 2 to 3 days | Screens reviewed by Ollie on his phone |
+| D | Tasks, Knowledge, Settings, tables on phone | 2 to 3 days | Built; screens to be reviewed by Ollie on his phone |
 | E | Manifest, icons, shell service worker | 1 day | Added to home screen, opens full screen, tab bar clear of home indicator |
 
 B and C do not depend on each other and could go in either order. D is the one that changes how screens look, so it is the one to review on a real phone.
 
 ## 5. Questions for Ollie
 
-1. **Phone navigation.** Keep Home, Tasks, add, People, Knowledge and add a "More" sheet, or replace Knowledge with More?
+1. **Phone navigation.** Keep Home, Tasks, add, People, Knowledge and add a "More" sheet, or replace Knowledge with More? *Answered 12th November 2026: replace Knowledge with More.*
 2. **Which phone?** iPhone Safari only, or Android too? Decides how much to test at 360px and whether pinch zoom matters beyond accessibility.
 3. **Offline.** Shell only (proposed), or keep a read-only copy of today's tasks and next meeting brief on the phone? The second means private data stored on the device.
 4. **Phone priorities.** Which pages do you actually use on the phone? Proposal: Home, Tasks, task detail, triage, Email, Meetings and briefs first; Settings, Map and Playbooks only need to work, not shine.

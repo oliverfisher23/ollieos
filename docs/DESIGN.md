@@ -122,7 +122,7 @@ Gaps: 16px between cards, 22 to 26px between sections in a panel. Page gutter 24
 
 - **Icon rail (desktop Home):** floating glass pill, 40px icon buttons, active item white with ink icon. Stroke icons, 1.8px, round caps.
 - **Top nav (light pages):** OllieOS mark (30px yellow square, "OS"), then pill links; active pill is ink with white text.
-- **Bottom tab bar (phone):** 84px including safe area, five slots, centre slot is a 48px yellow round add button.
+- **Bottom tab bar (phone):** 84px including safe area, five slots: Home, Tasks, the centre 48px yellow round add button, People, More. More opens a bottom sheet (glass, 52px rows with icon, label and chevron) with Knowledge, Meetings, Email, Goals, Strategy, Settings and Log out; the More tab is lit on any of those pages. The light pages' phone header is just the logo.
 - **Primary button:** ink on light, white on dark. Secondary: outlined. Destructive: text in `#8a2a10`.
 - **Segmented control:** `field` background track, selected segment ink with white text.
 - **Switch:** 40 × 24px track (ink when on, `#d6d2c8` off; Confidential on uses `#8a2a10`), 18px white knob.

@@ -101,7 +101,7 @@ function Router() {
           <Route path="/strategy" component={StrategyPage} />
           <Route path="/people" component={PeopleCadencePage} />
           <Route path="/people/:slug">{(p) => <Redirect to={'/knowledge/people/' + p.slug} replace />}</Route>
-          <Route path="/settings">{() => <Redirect to="/settings/connectors" replace />}</Route>
+          <Route path="/settings" component={SettingsPage} />
           <Route path="/settings/:section" component={SettingsPage} />
           <Route path="/oauth/consent" component={OAuthConsentPage} />
           <Route component={NotFound} />

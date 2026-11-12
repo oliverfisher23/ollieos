@@ -31,3 +31,4 @@ export const IconLock = (p: P) => <Base strokeWidth={2} {...p}><rect x="5" y="11
 export const IconMail = (p: P) => <Base {...p}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3.5 6.5 8.5 6.5 8.5-6.5" /></Base>;
 export const IconLogout = (p: P) => <Base {...p}><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3" /></Base>;
 export const IconCompass = (p: P) => <Base {...p}><circle cx="12" cy="12" r="9" /><path d="m15.5 8.5-2 5-5 2 2-5z" /></Base>;
+export const IconMore = (p: P) => <Base strokeWidth={2.6} {...p}><path d="M5 12h.01M12 12h.01M19 12h.01" /></Base>;

@@ -17,6 +17,7 @@ import {
 } from '@workspace/api-client-react';
 import { isForbiddenError, reportApiError } from '@/lib/forbidden';
 import { preloadRoute } from '@/routes';
+import { PHONE_QUERY } from '@/lib/use-media';
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({ onError: reportApiError }),
@@ -50,8 +51,13 @@ export function startEarlyLoads(path: string) {
       void queryClient.prefetchQuery({ queryKey: getGetProjectQueryKey(slug), queryFn: ({ signal }) => getProject(slug, { signal }), ...early });
       return;
     }
-    void queryClient
-      .fetchQuery({ queryKey: getListProjectsQueryKey(), queryFn: ({ signal }) => listProjects(undefined, { signal }), ...early })
+    const list = queryClient.fetchQuery({ queryKey: getListProjectsQueryKey(), queryFn: ({ signal }) => listProjects(undefined, { signal }), ...early });
+    // On phones /knowledge is the Knowledge menu, so it does not open the latest project.
+    if (window.matchMedia(PHONE_QUERY).matches) {
+      void list.catch(() => {});
+      return;
+    }
+    void list
       .then((projects) => {
         const latest = [...projects].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
         if (!latest) return;

@@ -128,8 +128,6 @@ export default function TasksPage() {
             {reviewCount > 0 && (
               <Link href="/review" className="oo-link" style={{ fontSize: 14 }} data-testid="link-review">Review {reviewCount}</Link>
             )}
-            <Link href="/email" className="oo-link sm:hidden" style={{ fontSize: 14 }} data-testid="link-email">Email</Link>
-            <Link href="/meetings" className="oo-link sm:hidden" style={{ fontSize: 14 }} data-testid="link-meetings">Meetings</Link>
           </span>
         </div>
 
@@ -194,16 +192,20 @@ export default function TasksPage() {
         {tab === 'done' && <WeeklyCopy weekStart={week ?? thisWeek} />}
         {tab === 'backlog' && <ClearOutStart />}
 
-        <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3.5">
-          {[
-            ['Inbox to triage', stats?.inboxToTriage, 'inbox'],
-            ['Due this week', stats?.dueThisWeek, 'due'],
-            ['Waiting on others', stats?.waitingOnOthers, 'waiting'],
-            ['Done this week', stats?.doneThisWeek, 'done'],
-          ].map(([label, value, id]) => (
-            <div key={id as string} className="oo-stat" data-testid={'stat-' + id}>
-              <span style={{ fontSize: 14, textAlign: 'center' }}>{label}</span>
-              {value === undefined ? <Skel h={40} w={48} /> : <span className="oo-num" style={{ fontSize: 40, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1 }}>{value}</span>}
+        {/* On phones one compact strip with short labels, so the list starts on the first screen. */}
+        <div className="oo-stats grid grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3.5">
+          {([
+            ['Inbox to triage', 'To triage', stats?.inboxToTriage, 'inbox'],
+            ['Due this week', 'Due', stats?.dueThisWeek, 'due'],
+            ['Waiting on others', 'Waiting', stats?.waitingOnOthers, 'waiting'],
+            ['Done this week', 'Done', stats?.doneThisWeek, 'done'],
+          ] as const).map(([label, short, value, id]) => (
+            <div key={id} className="oo-stat" data-testid={'stat-' + id}>
+              <span className="oo-stat-label">
+                <span className="hidden sm:inline">{label}</span>
+                <span className="sm:hidden">{short}</span>
+              </span>
+              {value === undefined ? <Skel h={40} w={48} className="oo-stat-skel" /> : <span className="oo-num oo-stat-value">{value}</span>}
             </div>
           ))}
         </div>

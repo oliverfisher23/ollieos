@@ -4,6 +4,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getListNoiseRulesQueryKey, useListNoiseRules, updateNoiseRule, type NoiseRule } from '@workspace/api-client-react';
 import { SOURCE_LABELS, formatShort } from '@workspace/shared';
 import { Skel } from '@/components/bits';
+import { IconLeft, IconRight } from '@/components/icons';
+import { PHONE_QUERY, useMedia } from '@/lib/use-media';
 import { useInvalidateTasks } from '@/lib/task-cache';
 import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
@@ -26,19 +28,46 @@ const SECTIONS = [
 ];
 
 export default function SettingsPage() {
-  const { section } = useParams<{ section: string }>();
+  const { section } = useParams<{ section?: string }>();
+  const phone = useMedia(PHONE_QUERY);
   const current = SECTIONS.find((s) => s.slug === section);
-  if (MOVED[section]) return <Redirect to={'/settings/' + MOVED[section]} replace />;
+  if (section && MOVED[section]) return <Redirect to={'/settings/' + MOVED[section]} replace />;
+
+  // Phones (docs/mobile-plan.md, Part D): /settings is a list of sections, and each section is a page
+  // of its own with a way back. Wider screens keep the side menu and open on Connectors.
+  if (!section) {
+    if (!phone) return <Redirect to="/settings/connectors" replace />;
+    return (
+      <section className="oo-panel flex flex-col gap-4 px-5 py-7 oo-fade-in" data-testid="page-settings-menu">
+        <h1 style={{ margin: 0, fontSize: 30, fontWeight: 600, letterSpacing: '-0.015em' }}>Settings</h1>
+        <nav aria-label="Settings" className="oo-settings-list">
+          {SECTIONS.map((s) => (
+            <Link key={s.slug} href={'/settings/' + s.slug} data-testid={'link-settings-' + s.slug}>
+              <span>{s.label}</span>
+              <IconRight size={16} />
+            </Link>
+          ))}
+        </nav>
+      </section>
+    );
+  }
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }} className="oo-fade-in">
-      <nav aria-label="Settings" className="oo-panel oo-side" style={{ flex: '1 1 220px', maxWidth: 260, minWidth: 0, boxSizing: 'border-box' }}>
-        {SECTIONS.map((s) => (
-          <Link key={s.slug} href={'/settings/' + s.slug} aria-current={s.slug === section ? 'page' : undefined} data-testid={'link-settings-' + s.slug}>
-            {s.label}
-          </Link>
-        ))}
-      </nav>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: phone ? 8 : 16, alignItems: 'flex-start' }} className="oo-fade-in">
+      {phone ? (
+        <Link href="/settings" className="oo-back" style={{ flexBasis: '100%' }} data-testid="link-settings-menu">
+          <IconLeft size={14} />
+          Settings
+        </Link>
+      ) : (
+        <nav aria-label="Settings" className="oo-panel oo-side" style={{ flex: '1 1 220px', maxWidth: 260, minWidth: 0, boxSizing: 'border-box' }}>
+          {SECTIONS.map((s) => (
+            <Link key={s.slug} href={'/settings/' + s.slug} aria-current={s.slug === section ? 'page' : undefined} data-testid={'link-settings-' + s.slug}>
+              {s.label}
+            </Link>
+          ))}
+        </nav>
+      )}
       <main style={{ flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {!current ? (
           <section className="oo-panel flex flex-col gap-3 px-5 py-8 sm:px-8" data-testid="state-settings-missing">

@@ -113,6 +113,7 @@ const ROUTES: RouteCheck[] = [
   { pattern: "/goals", url: "/goals" },
   { pattern: "/strategy", url: "/strategy" },
   { pattern: "/people", url: "/people" },
+  { pattern: "/settings", url: "/settings" },
   { pattern: "/settings/:section", url: "/settings/connectors" },
   { pattern: "/settings/:section", url: "/settings/email" },
   { pattern: "/settings/:section", url: "/settings/knowledge" },
@@ -123,7 +124,7 @@ const ROUTES: RouteCheck[] = [
 ];
 
 /** Routes that only redirect, so there is no page of their own to check. */
-const REDIRECT_ONLY = new Set(["/people/:slug", "/settings"]);
+const REDIRECT_ONLY = new Set(["/people/:slug"]);
 
 /** Fails loudly when App.tsx gains a route this audit does not visit. */
 function checkCoverage() {

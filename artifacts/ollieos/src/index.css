@@ -403,7 +403,7 @@ body { font-family: var(--oo-font-sans); margin: 0; overflow-x: hidden; }
 /* Bottom bar */
 .oo-tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; min-height: 84px; box-sizing: border-box; padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 18px)); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: var(--oo-glass-bar); border-top: 1px solid var(--oo-glass-quiet-border); backdrop-filter: blur(20px); }
 .oo-tabbar a, .oo-tabbar button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font: inherit; font-size: 11px; text-decoration: none; color: var(--oo-text-on-dark-3); background: none; border: 0; min-height: 48px; cursor: pointer; }
-.oo-tabbar a[aria-current="page"] { color: var(--oo-text-on-dark); }
+.oo-tabbar a[aria-current="page"], .oo-tabbar button[aria-current="page"] { color: var(--oo-text-on-dark); }
 .oo-tabbar .oo-add { width: 48px; height: 48px; border-radius: var(--oo-r-full); background: var(--oo-accent); color: var(--oo-ink); display: flex; align-items: center; justify-content: center; }
 
 /* Ask / add box */
@@ -466,6 +466,14 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-search { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--oo-field); border-radius: var(--oo-r-btn); color: var(--oo-ink-faint); }
 .oo-search input { border: 0; background: transparent; font: inherit; font-size: 14px; width: 100%; color: var(--oo-ink); outline-offset: 4px; }
 .oo-stat { border: 1px solid var(--oo-line); border-radius: var(--oo-r-card); padding: 22px 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.oo-stat-label { font-size: 14px; text-align: center; }
+.oo-stat-value { font-size: 40px; font-weight: 500; letter-spacing: -0.02em; line-height: 1; }
+@media (max-width: 639px) {
+  .oo-stat { padding: 10px 4px; gap: 4px; border-radius: var(--oo-r-card-sm); }
+  .oo-stat-label { order: 2; font-size: 12px; color: var(--oo-ink-muted); }
+  .oo-stat-value { order: 1; font-size: 24px; }
+  .oo-stat-skel { order: 1; height: 24px !important; width: 28px !important; }
+}
 .oo-table { width: 100%; min-width: 860px; border-collapse: collapse; font-size: 14px; }
 .oo-table th { text-align: left; font-weight: 400; font-size: 13px; color: var(--oo-ink-muted); padding: 12px 10px; border-bottom: 1px solid var(--oo-line); }
 .oo-table td { padding: 14px 10px; border-bottom: 1px solid var(--oo-line-soft); }
@@ -517,6 +525,21 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 /* Sheet */
 .oo-sheet-scrim { position: fixed; inset: 0; background: var(--oo-scrim); z-index: 50; display: flex; align-items: flex-end; animation: oo-fade .2s ease; }
 .oo-sheet { width: 100%; box-sizing: border-box; padding: 16px 12px calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--oo-glass-sheet); border-top-left-radius: var(--oo-r-ask); border-top-right-radius: var(--oo-r-ask); border-top: 1px solid var(--oo-glass-border); color: var(--oo-text-on-dark); }
+/* The Settings list on phones (pages/settings.tsx) */
+.oo-settings-list { display: flex; flex-direction: column; }
+.oo-settings-list a { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; font-size: 16px; text-decoration: none; color: var(--oo-ink); border-bottom: 1px solid var(--oo-line-soft); }
+.oo-settings-list a:last-child { border-bottom: 0; }
+.oo-settings-list svg { color: var(--oo-ink-faint); }
+
+/* The More sheet's rows (components/main-nav.tsx) */
+.oo-sheet-list { display: flex; flex-direction: column; gap: 2px; padding: 0 0 4px; }
+.oo-sheet-list a, .oo-sheet-list button { display: flex; align-items: center; gap: 14px; min-height: 52px; padding: 0 12px; border-radius: var(--oo-r-btn-phone); border: 0; background: none; font: inherit; font-size: 16px; text-align: left; text-decoration: none; color: var(--oo-text-on-dark); cursor: pointer; }
+.oo-sheet-list a > span, .oo-sheet-list button > span { flex: 1; }
+.oo-sheet-list a[aria-current="page"] { background: var(--oo-white-08); }
+.oo-sheet-list a:active, .oo-sheet-list button:active { background: var(--oo-white-12); }
+.oo-sheet-list svg { flex: none; color: var(--oo-text-on-dark-3); }
+.oo-sheet-list a[aria-current="page"] svg:first-child { color: var(--oo-text-on-dark); }
+.oo-sheet-sep { height: 1px; margin: 6px 12px; background: var(--oo-white-12); }
 @keyframes oo-fade { from { opacity: 0 } to { opacity: 1 } }
 .oo-fade-in { animation: oo-fade .35s ease both; }
 
@@ -982,6 +1005,9 @@ button.oo-chip:hover { background: var(--oo-white-16); }
   .oo-card-open :is(a, button, input, select, textarea, summary, [role="button"], [role="switch"], [tabindex]):not(.oo-row-title) { position: relative; z-index: 1; }
   .oo-card-pills { row-gap: 14px; }
   .oo-card-open .oo-card-body { gap: 12px; }
+
+  /* Tasks stats: one strip of four (here, outside the layers, to beat the grid-cols-2 utility). */
+  .oo-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 
   /* Full-screen panels and modals clear the home indicator. */
   .oo-detail { padding-top: calc(20px + env(safe-area-inset-top)); padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
