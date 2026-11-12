@@ -5,7 +5,7 @@ import { Avatar } from '@/components/bits';
 import { IconLeft } from '@/components/icons';
 import { LazyMeetingAgenda as MeetingAgenda } from '@/components/meeting-agenda-lazy';
 import { FromGranola } from '@/components/from-granola';
-import { AddToContacts, nameFromInvite } from '@/components/add-to-contacts';
+import { AddToContactsButton, nameFromInvite } from '@/components/add-to-contacts';
 import { ScopePill } from '@/components/research';
 import { PageProblem, PageSkeleton } from '@/components/knowledge/parts';
 import { isNotFound } from '@/lib/knowledge';
@@ -66,7 +66,16 @@ function Meeting({ m }: { m: MeetingView }) {
         )}
 
         <section aria-labelledby="m-who" style={{ display: 'flex', flexDirection: 'column', gap: 10 }} data-testid="section-who">
-          <h2 id="m-who" className="oo-h2">Who's coming</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <h2 id="m-who" className="oo-h2">Who's coming</h2>
+            {unknown > 1 && (
+              <AddToContactsButton
+                people={m.attendees.filter((a) => !a.person).map((a) => ({ name: a.name, email: a.email, suggestion: a.suggestedOrganisation ?? null }))}
+                testId="all"
+                primary={!hasPrep}
+              />
+            )}
+          </div>
           {m.attendees.length === 0 ? (
             <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>No one else on the invite.</p>
           ) : (
@@ -85,26 +94,32 @@ function Meeting({ m }: { m: MeetingView }) {
 }
 
 function Attendee({ a, index }: { a: MeetingView['attendees'][number]; index: number }) {
+  const p = a.person;
+  const nameIsEmail = !!a.email && a.name.trim().toLowerCase() === a.email.toLowerCase();
+  const title = p ? p.name : nameIsEmail ? nameFromInvite(a.name) : a.name;
+  const s = a.suggestedOrganisation;
   return (
-    <li style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--oo-line-soft)' }} data-testid={'row-attendee-' + index}>
-      <Avatar name={a.person?.name ?? nameFromInvite(a.name)} id={a.person?.slug ?? a.email ?? a.name} size={28} />
-      <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: '1 1 200px' }}>
-        {a.person ? (
-          <Link href={'/knowledge/people/' + a.person.slug} className="oo-link" style={{ fontSize: 14, fontWeight: 600 }} data-testid={'link-attendee-' + index}>{a.person.name}</Link>
+    <li style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--oo-line-soft)', flexWrap: 'wrap' }} data-testid={'row-attendee-' + index}>
+      <Avatar name={title} id={p?.slug ?? a.email ?? a.name} size={32} />
+      <span style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, flex: '1 1 220px' }}>
+        {p ? (
+          <Link href={'/knowledge/people/' + p.slug} className="oo-attendee-name" style={{ fontSize: 14, fontWeight: 600 }} data-testid={'link-attendee-' + index}>{title}</Link>
         ) : (
-          <span style={{ fontSize: 14, fontWeight: 600, overflowWrap: 'anywhere' }}>{a.name}</span>
+          <span style={{ fontSize: 14, fontWeight: 600, overflowWrap: 'anywhere' }}>{title}</span>
         )}
-        {a.person?.organisation && (
-          <Link href={'/knowledge/organisations/' + a.person.organisation.slug} style={{ fontSize: 12, color: 'var(--oo-ink-muted)', textUnderlineOffset: 2 }} data-testid={'link-attendee-org-' + index}>{a.person.organisation.name}</Link>
-        )}
-        {a.email && a.email !== a.name && <span className="oo-muted" style={{ fontSize: 12, overflowWrap: 'anywhere' }}>{a.email}</span>}
+        <span style={{ fontSize: 12, color: 'var(--oo-ink-muted)', overflowWrap: 'anywhere' }}>
+          {p?.organisation ? (
+            <Link href={'/knowledge/organisations/' + p.organisation.slug} className="oo-attendee-org" data-testid={'link-attendee-org-' + index}>{p.organisation.name}</Link>
+          ) : null}
+          {p?.organisation && a.email ? ' · ' : ''}
+          {a.email}
+          {!p && s && (s.existing || s.newName) ? ` · ${s.existing ? s.existing.name : `${s.newName} (new)`}` : ''}
+        </span>
       </span>
-      {a.person ? (
+      {p ? (
         <span className="oo-pill" data-tone="done">In Contacts</span>
       ) : (
-        <div style={{ flex: '0 1 320px', minWidth: 0, display: 'flex', justifyContent: 'flex-end' }}>
-          <AddToContacts name={a.name} email={a.email} suggestion={a.suggestedOrganisation ?? null} testId={String(index)} />
-        </div>
+        <AddToContactsButton people={[{ name: a.name, email: a.email, suggestion: s ?? null }]} testId={String(index)} />
       )}
     </li>
   );
