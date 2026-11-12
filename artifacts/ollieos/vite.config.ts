@@ -26,7 +26,7 @@ if (Number.isNaN(port) || port <= 0) {
  * Part B brought it from 262.6 to 141.5 KB (budget 145). Main's drag-to-reorder on Tasks (@dnd-kit) and
  * new endpoints merged in at 163.8 KB (budget raised to 170). Drag and drop now loads on its own chunk
  * once a reorderable list is on screen (src/components/drag-list-sortable.tsx), which brought it to
- * 149.3 KB on 12th November 2026, so the budget is 152.
+ * 149.3 KB on 12th November 2026 (149.8 KB after main's Contacts and Meetings work), so the budget is 152.
  */
 const INITIAL_JS_BUDGET_KB = 152;
 
