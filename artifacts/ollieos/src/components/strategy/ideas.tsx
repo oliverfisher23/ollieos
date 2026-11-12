@@ -22,6 +22,7 @@ import { InlineText } from '@/components/inline-text';
 import { HiddenFromAi } from '@/components/knowledge/parts';
 import { useKnowledgeWrite } from '@/lib/knowledge';
 import { notifyUndo } from '@/lib/notify';
+import { ScrollRow } from '@/components/scroll-row';
 
 const TABS: { value: IdeaStatus; label: string }[] = [
   { value: 'new', label: 'New' },
@@ -83,7 +84,7 @@ export function IdeasPanel() {
 
       <AddIdea onAdded={() => tab !== 'new' && setTab('new')} />
 
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      <ScrollRow className="-mx-4 px-4 sm:mx-0 sm:px-0">
         <div role="tablist" aria-label="Ideas by status" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--oo-line)', minWidth: 'max-content' }}>
           {TABS.map((t) => (
             <button key={t.value} type="button" role="tab" className="oo-tab" aria-selected={t.value === tab} onClick={() => setTab(t.value)} data-testid={'tab-ideas-' + t.value}>
@@ -94,7 +95,7 @@ export function IdeasPanel() {
             </button>
           ))}
         </div>
-      </div>
+      </ScrollRow>
 
       <div role="tabpanel" aria-label={TABS.find((t) => t.value === tab)!.label} aria-live="polite">
         {list.isLoading ? (

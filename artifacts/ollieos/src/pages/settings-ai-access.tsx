@@ -218,7 +218,7 @@ function mcpAddress(): string {
 function OtherAssistants() {
   return (
     <details style={{ fontSize: 13 }} data-testid="details-other-assistants">
-      <summary className="oo-soft" style={{ cursor: 'pointer' }}>Connecting ChatGPT or Gemini</summary>
+      <summary className="oo-soft oo-tap" style={{ cursor: 'pointer' }}>Connecting ChatGPT or Gemini</summary>
       <div className="oo-soft" style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10, maxWidth: '70ch', lineHeight: 1.6 }}>
         <div>
           <strong>ChatGPT.</strong> OpenAI offers custom connectors on Business, Enterprise and Edu plans, and in developer mode on some others. If your plan has it:
@@ -257,7 +257,8 @@ export function Tools() {
       ) : list.length === 0 ? (
         <p className="oo-muted" style={{ margin: 0, fontSize: 14 }} data-testid="state-tools-empty">No tools have connected yet.</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto', position: 'relative' }}>
+          {/* position: relative keeps the sr-only header inside this scroll box; without it the page widens on phones. */}
           <table className="oo-table" style={{ minWidth: 640 }}>
             <thead>
               <tr><th scope="col">Tool</th><th scope="col">Can</th><th scope="col">Connected</th><th scope="col">Last used</th><th scope="col"><span className="sr-only">Action</span></th></tr>

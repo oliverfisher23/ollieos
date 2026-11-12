@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { EntitySummary } from './entitySummary';
+import type { PersonCadence } from './personCadence';
 
 export interface PersonListItem {
   id: number;
@@ -16,8 +17,18 @@ export interface PersonListItem {
   /** @nullable */
   role: string | null;
   organisation: EntitySummary | null;
+  /**
+     * The organisation's type
+     * @nullable
+     */
+  organisationType: string | null;
+  /** They work at Ollie's own company */
+  internal: boolean;
+  /** Ollie's own record */
+  isSelf: boolean;
   /** @nullable */
   lastContactAt: Date | null;
   iOweCount: number;
   theyOweCount: number;
+  cadence: PersonCadence;
 }

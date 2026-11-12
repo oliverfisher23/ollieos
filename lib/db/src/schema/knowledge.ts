@@ -89,6 +89,8 @@ export const peopleTable = pgTable(
     otherEmails: text("other_emails").array().notNull().default(sql`'{}'::text[]`),
     /** Part N: their Slack user id, so Slack messages match them */
     slackUserId: text("slack_user_id"),
+    /** Their LinkedIn profile, from Ollie or the LinkedIn connections import */
+    linkedinUrl: text("linkedin_url"),
     relationshipSummary: text("relationship_summary"),
     confidential: boolean("confidential").notNull().default(false),
     aiAccess: boolean("ai_access").notNull().default(true),

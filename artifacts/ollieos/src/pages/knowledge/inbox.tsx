@@ -27,6 +27,7 @@ import { KnowledgeLayout } from '@/components/knowledge/layout';
 import { entityPath, useKnowledgeWrite } from '@/lib/knowledge';
 import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
+import { ScrollRow } from '@/components/scroll-row';
 
 type Tab = 'suggested' | 'conflicts' | 'stale';
 
@@ -207,7 +208,7 @@ export default function KnowledgeInboxPage() {
         </span>
       </div>
 
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0" style={{ marginTop: -6 }}>
+      <ScrollRow className="-mx-4 px-4 sm:mx-0 sm:px-0" style={{ marginTop: -6 }}>
         <div role="tablist" aria-label="Review type" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--oo-line)', minWidth: 'max-content' }}>
           {TABS.map((t) => (
             <button
@@ -223,7 +224,7 @@ export default function KnowledgeInboxPage() {
             </button>
           ))}
         </div>
-      </div>
+      </ScrollRow>
 
       {tab === 'suggested' && (lookBackOnly || documentsOnly || (counts?.lookBack ?? 0) > 0 || (counts?.documents ?? 0) > 0) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: -4 }}>

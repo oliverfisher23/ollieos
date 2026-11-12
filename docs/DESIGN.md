@@ -40,7 +40,7 @@ Rebuild each screen as React components using the tokens below. Do not hard-code
 
 | Role | Font | Size and weight |
 |---|---|---|
-| Interface | `'Google Sans', 'DM Sans', system-ui, sans-serif` (load DM Sans 400, 500, 600 from Google Fonts) | Body 14 to 15px / 400 |
+| Interface | `'Google Sans', 'DM Sans', system-ui, sans-serif` (DM Sans self-hosted from `src/assets/fonts`, see `src/theme/fonts.css`) | Body 14 to 15px / 400 |
 | Page title (light) | Interface font | 30 to 32px / 600, letter-spacing −0.015em |
 | Greeting (dark) | Interface font | 34px desktop, 28px phone / 500 |
 | Section label | Interface font | 13px / 600, uppercase, letter-spacing 0.06em |
@@ -122,12 +122,26 @@ Gaps: 16px between cards, 22 to 26px between sections in a panel. Page gutter 24
 
 - **Icon rail (desktop Home):** floating glass pill, 40px icon buttons, active item white with ink icon. Stroke icons, 1.8px, round caps.
 - **Top nav (light pages):** OllieOS mark (30px yellow square, "OS"), then pill links; active pill is ink with white text.
-- **Bottom tab bar (phone):** 84px including safe area, five slots, centre slot is a 48px yellow round add button.
+- **Bottom tab bar (phone):** 84px including safe area, five slots: Home, Tasks, the centre 48px yellow round add button, People, More. More opens a bottom sheet (glass, 52px rows with icon, label and chevron) with Knowledge, Meetings, Messages, Goals, Strategy, Settings and Log out; the More tab is lit on any of those pages. The light pages' phone header is just the logo.
 - **Primary button:** ink on light, white on dark. Secondary: outlined. Destructive: text in `#8a2a10`.
 - **Segmented control:** `field` background track, selected segment ink with white text.
 - **Switch:** 40 × 24px track (ink when on, `#d6d2c8` off; Confidential on uses `#8a2a10`), 18px white knob.
 - **Tables:** no zebra stripes, 1px `line-soft` row dividers, hover `#faf8f3`, wide tables scroll inside their own box.
 - **Toast and undo:** small glass bar with the action and an Undo link in `accent`.
+
+### Phone rules
+
+Checked by `pnpm --filter @workspace/scripts run mobile-audit` (see `docs/mobile-plan.md`).
+
+- One phone breakpoint: below 640px. `sm:` in Tailwind, `@media (max-width: 639px)` in CSS. Phone layouts are the same route with a different layout, never a separate page.
+- Nothing scrolls sideways at 360px or 375px. Wide content (tables, tab rows, filter rows) scrolls inside its own box.
+- A box that scrolls sideways is `position: relative` whenever anything inside it is absolutely positioned (including `sr-only` text). Otherwise that element escapes the box and widens the whole page.
+- Tap targets at least 44 × 44px on phones. A link inside a sentence is exempt. Where the control's box is its look (buttons, fields), it gets taller. Where it is small on purpose (pills, text buttons, the tick circle, switches), an invisible absolutely positioned `::before` grows the tap area without changing the look: add `oo-tap` to a one-off link or button, the shared classes already have it (`index.css`, end of file). The audit measures these layers.
+- Keep about 10px between a small control and its neighbours, so its tap layer does not cover them. The audit fails a page where a control would lose taps to something over it.
+- Task cards on phones: a tap anywhere on the card opens the task; the tick, pills and buttons sit above that.
+- Text fields 16px on phones, so iPhone does not zoom in on focus. Pinch zoom stays on (no `maximum-scale`).
+- The viewport uses `viewport-fit=cover`, so fixed bars, sheets and full-screen panels use `env(safe-area-inset-*)` for their outer padding, and both shells pad their sides with the left and right insets (a phone held sideways gets the desktop rail).
+- A row that scrolls sideways uses `ScrollRow` (`components/scroll-row.tsx`): it fades the edge with more beyond it and keeps the selected tab in view.
 
 ## 7. Behaviour
 

@@ -4418,9 +4418,22 @@ export const ListPeopleResponseItem = zod.object({
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
+  "organisationType": zod.string().nullable().describe('The organisation\'s type'),
+  "internal": zod.boolean().describe('They work at Ollie\'s own company'),
+  "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "lastContactAt": zod.coerce.date().nullable(),
   "iOweCount": zod.int(),
-  "theyOweCount": zod.int()
+  "theyOweCount": zod.int(),
+  "cadence": zod.object({
+  "status": zod.enum(['overdue', 'due_soon', 'on_track', 'paused', 'none']),
+  "daysSince": zod.int().nullable().describe('Whole days since the last contact; null when there is none on file'),
+  "daysOverdue": zod.int().nullable(),
+  "daysLeft": zod.int().nullable(),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
+  "cadenceLabel": zod.string(),
+  "cadencePaused": zod.boolean(),
+  "pausedByProjects": zod.boolean().describe('True when every linked project is paused or complete')
+})
 })
 export const ListPeopleResponse = zod.array(ListPeopleResponseItem)
 
@@ -4463,6 +4476,7 @@ export const CreatePersonResponse = zod.object({
   "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
   "slackUserId": zod.string().nullable().describe('Their Slack account'),
+  "linkedinUrl": zod.string().nullable().describe('Their LinkedIn profile link'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4497,6 +4511,7 @@ export const GetPersonResponse = zod.object({
   "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
   "slackUserId": zod.string().nullable().describe('Their Slack account'),
+  "linkedinUrl": zod.string().nullable().describe('Their LinkedIn profile link'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }),
@@ -4745,6 +4760,8 @@ export const updatePersonBodyOtherEmailsItemMax = 320;
 
 export const updatePersonBodyOtherEmailsMax = 20;
 
+export const updatePersonBodyLinkedinUrlMax = 300;
+
 
 
 export const UpdatePersonBody = zod.object({
@@ -4758,7 +4775,8 @@ export const UpdatePersonBody = zod.object({
   "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']).optional(),
   "cadencePaused": zod.boolean().optional(),
   "otherEmails": zod.array(zod.string().max(updatePersonBodyOtherEmailsItemMax)).max(updatePersonBodyOtherEmailsMax).optional().describe('Replaces the list of other addresses'),
-  "slackUserId": zod.string().nullish().describe('Their Slack account id')
+  "slackUserId": zod.string().nullish().describe('Their Slack account id'),
+  "linkedinUrl": zod.string().max(updatePersonBodyLinkedinUrlMax).nullish().describe('Their LinkedIn profile link')
 })
 
 export const UpdatePersonResponse = zod.object({
@@ -4782,6 +4800,7 @@ export const UpdatePersonResponse = zod.object({
   "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
   "slackUserId": zod.string().nullable().describe('Their Slack account'),
+  "linkedinUrl": zod.string().nullable().describe('Their LinkedIn profile link'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4830,6 +4849,94 @@ export const ListCadenceResponse = zod.object({
 }),zod.null()]),
   "lastContactAt": zod.coerce.date().nullable()
 })))
+})
+
+
+/**
+ * @summary When the LinkedIn connections were last imported, and what came of it
+ */
+export const GetLinkedInImportResponse = zod.object({
+  "last": zod.union([zod.object({
+  "at": zod.coerce.date(),
+  "connections": zod.int().describe('Rows in the file'),
+  "matched": zod.int().describe('Connections matched to someone in OllieOS'),
+  "upToDate": zod.int().describe('Matched'),
+  "changes": zod.int().describe('Change cards made for missing or changed details'),
+  "facts": zod.int().describe('Organisation facts made for companies OllieOS does not know'),
+  "alreadyProposed": zod.int().describe('Already waiting in the Knowledge Inbox'),
+  "ambiguous": zod.int().describe('Names that fit more than one person'),
+  "hidden": zod.int().describe('Matched people hidden from AI')
+}),zod.null()])
+})
+
+
+/**
+ * @summary Match LinkedIn's Connections.csv to people in OllieOS and propose missing or changed details to the Knowledge Inbox
+ */
+export const ImportLinkedInBody = zod.object({
+  "csv": zod.string().describe('The text of Connections.csv from LinkedIn\'s data export')
+})
+
+export const ImportLinkedInResponse = zod.object({
+  "at": zod.coerce.date(),
+  "connections": zod.int().describe('Rows in the file'),
+  "matched": zod.int().describe('Connections matched to someone in OllieOS'),
+  "upToDate": zod.int().describe('Matched'),
+  "changes": zod.int().describe('Change cards made for missing or changed details'),
+  "facts": zod.int().describe('Organisation facts made for companies OllieOS does not know'),
+  "alreadyProposed": zod.int().describe('Already waiting in the Knowledge Inbox'),
+  "ambiguous": zod.int().describe('Names that fit more than one person'),
+  "hidden": zod.int().describe('Matched people hidden from AI')
+})
+
+
+/**
+ * @summary Suggested cadences for people with none, from how often Ollie has actually been in touch
+ */
+export const ListCadenceSuggestionsResponse = zod.object({
+  "suggestions": zod.array(zod.object({
+  "person": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "role": zod.string().nullable(),
+  "organisation": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "internal": zod.boolean()
+}),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
+  "cadenceLabel": zod.string(),
+  "reason": zod.string().describe('One line on why this cadence'),
+  "contactDays": zod.int().describe('Distinct days in touch in the last four months'),
+  "typicalGapDays": zod.int().nullable().describe('Typical gap in days between contacts'),
+  "lastContactAt": zod.coerce.date().nullable()
+})),
+  "dismissed": zod.int().describe('People hidden with Not now')
+})
+
+
+/**
+ * @summary Not now; stop suggesting a cadence for this person
+ */
+export const DismissCadenceSuggestionBody = zod.object({
+  "personId": zod.int()
+})
+
+export const DismissCadenceSuggestionResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Bring back everyone hidden from the suggestions with Not now
+ */
+export const RestoreCadenceSuggestionsResponse = zod.object({
+  "ok": zod.boolean()
 })
 
 
@@ -8034,7 +8141,8 @@ export const ListOrganisationsResponseItem = zod.object({
   "aiAccess": zod.boolean(),
   "type": zod.string().nullable(),
   "internal": zod.boolean().describe('Ollie\'s own company rather than a client'),
-  "peopleCount": zod.int()
+  "peopleCount": zod.int(),
+  "lastContactAt": zod.coerce.date().nullable().describe('The latest contact with anyone who works there')
 })
 export const ListOrganisationsResponse = zod.array(ListOrganisationsResponseItem)
 

@@ -2,7 +2,7 @@
 
 OllieOS is where your work lives: tasks, the people and organisations you work with, projects, decisions and what you know about them. It reads Gmail, Slack, Google Calendar, Granola, Drive and Dropbox for you, and Claude, ChatGPT and Gemini can read and write it through its connector. Nothing it learns becomes knowledge until you approve it, and it never sends an email for you: it drafts, you send. The one exception is a Slack direct message to a colleague, which it sends only when you press Send on a task and confirm.
 
-This guide follows the app from left to right. On a phone the bar at the bottom has Home, Tasks, the yellow add button, People and Knowledge; everything else is reached from those pages.
+This guide follows the app from left to right. On a phone the bar at the bottom has Home, Tasks, the yellow add button, Contacts and Knowledge; everything else is reached from those pages.
 
 ## Home
 
@@ -58,9 +58,9 @@ Ask a question in plain words. Answers come only from what OllieOS holds, with a
 - **Library.** Documents (add from Drive by search or link, from Dropbox, or upload), rules (how you want things written or done; each shows how often it was used) and playbooks (how your team does things, step by step; Run makes the steps into tasks for a person, organisation or project).
 - **Decisions, Notes, Sessions, Map.** Decisions and notes as lists; Cowork sessions saved by Claude; the map shows how everything connects.
 
-## Goals, strategy and People
+## Goals, strategy and Contacts
 
-Goals link projects to what you want this quarter, with time spent against each. Strategy holds your direction and the ideas list; ideas floated in meetings or on Slack are added as "Spotted by OllieOS", with a link to where they came up. People shows who is due a catch-up on the cadence you set for each.
+Goals link projects to what you want this quarter, with time spent against each. Strategy holds your direction and the ideas list; ideas floated in meetings or on Slack are added as "Spotted by OllieOS", with a link to where they came up. Contacts is your contact list: everyone you work with, and their organisations, in one place. Search it, filter it (keep in touch, overdue, due soon, clients and partners, colleagues, no organisation) or switch to Organisations to open each one and see who works there. Colleagues carry an Internal tag. Set how often you want to be in touch on any row; Needs attention at the top lists who is overdue or due soon, with Draft a check-in, and clients whose pulse needs attention. Suggested cadences proposes a cadence for people you have none for, from how often you have actually been in touch over the last four months; Set takes it and Not now hides that person. Import from LinkedIn takes the Connections.csv from LinkedIn's data export (Settings, Data privacy, Get a copy of your data): connections that match someone already in Contacts become suggestions in the Knowledge Inbox for a missing or changed job title, organisation or LinkedIn link, and a move to a company OllieOS does not know becomes an organisation fact. Connections that match nobody are not kept, and people hidden from AI are left alone. Import again every few months to catch job changes. A person's LinkedIn link sits in their details.
 
 ## Settings
 

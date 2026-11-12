@@ -96,7 +96,8 @@ function GoalCard({ goal: g }: { goal: GoalView }) {
       <div className="oo-goal-target">
         <span className="oo-muted" style={{ fontSize: 12 }}>Target</span>
         <InlineText value={g.targetText} label="Target" multiline maxLength={2000} placeholder="Add a target, for example a revenue figure" testId={`goal-${g.id}-target`} onSave={(v) => save({ targetText: v })} />
-        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12 }} className="oo-muted">
+        {/* marginTop clears the switch's 10px tap area from the Target field above, so taps on the field never flip the switch. */}
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12, marginTop: 10 }} className="oo-muted">
           <span data-testid={`text-goal-${g.id}-target-ai`}>{g.confidential ? 'Targets are hidden from AI' : 'AI can read this target'}</span>
           <button
             type="button"
