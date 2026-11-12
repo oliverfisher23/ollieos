@@ -138,7 +138,7 @@ function AnswerSkeleton({ reading }: { reading?: boolean }) {
   return (
     <section className="oo-answer" aria-busy="true" data-testid="state-answer-loading">
       <div className="oo-prov">
-        <Logo size={22} radius={7} />
+        <Logo size={22} />
         {reading ? 'Reading OllieOS…' : 'Loading…'}
       </div>
       <Skel h={16} w="85%" />
@@ -365,7 +365,7 @@ function TurnView({ turn, threadKeyId }: { turn: AskTurn; threadKeyId: number })
       <div className="oo-q" data-testid={'text-question-' + turn.id}>{turn.question}</div>
       <section className="oo-answer" aria-label="Answer" data-testid={'answer-' + turn.id}>
         <div className="oo-prov" data-testid={'text-provenance-' + turn.id}>
-          <Logo size={22} radius={7} />
+          <Logo size={22} />
           {provenance(turn)}
         </div>
         <p style={{ margin: 0, fontSize: 16, lineHeight: 1.6 }} data-testid={'text-summary-' + turn.id}>{turn.summary}</p>
