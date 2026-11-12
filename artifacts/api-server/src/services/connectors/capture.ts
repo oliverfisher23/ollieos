@@ -134,7 +134,17 @@ export async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promi
   const [a, b, c] = await Promise.all([
     emails.size || slackIds.size ? db.select(cols).from(peopleTable).where(or(hasAnyEmail([...emails]), hasAnySlackId([...slackIds]))) : none,
     names.size ? db.select(cols).from(peopleTable).where(inArray(sql`lower(${peopleTable.name})`, [...names])) : none,
-    firstNames.size ? db.select(cols).from(peopleTable).where(inArray(sql`lower(split_part(trim(${peopleTable.name}), ' ', 1))`, [...firstNames])) : none,
+    firstNames.size
+      ? db
+          .select(cols)
+          .from(peopleTable)
+          .where(
+            or(
+              inArray(sql`lower(split_part(trim(${peopleTable.name}), ' ', 1))`, [...firstNames]),
+              inArray(sql`lower(split_part(split_part(${peopleTable.email}, '@', 1), '.', 1))`, [...firstNames]),
+            ),
+          )
+      : none,
   ]);
   const byEmail = new Map<string, PersonRow>();
   const bySlack = new Map<string, PersonRow>();
@@ -143,10 +153,9 @@ export async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promi
     if (p.slackUserId) bySlack.set(p.slackUserId, p);
   }
   const byFirstName = new Map<string, PersonRow[]>();
-  for (const p of c) {
-    const f = firstNameOf(p.name);
-    byFirstName.set(f, [...(byFirstName.get(f) ?? []), p]);
-  }
+  for (const p of c)
+    for (const f of new Set([firstNameOf(p.name), emailFirstOf(p.email)]))
+      if (f && firstNames.has(f)) byFirstName.set(f, [...(byFirstName.get(f) ?? []), p]);
   return { byEmail, bySlack, byName: new Map(b.map((p) => [p.name.toLowerCase(), p])), byFirstName };
 }
 
@@ -156,6 +165,10 @@ export function cleanHint(hint: string): string {
 }
 
 const firstNameOf = (name: string): string => name.trim().toLowerCase().split(/\s+/)[0] ?? "";
+/** The first part of an address, which is often the full first name: "volodymyr.t@x.com" is "volodymyr" (Vova in People). */
+const emailFirstOf = (email: string | null): string => (email ?? "").trim().toLowerCase().split("@")[0].split(".")[0] ?? "";
+/** True when a one-word name is this person's first name, or the first part of their email. */
+const fitsName = (p: PersonRow, hint: string): boolean => firstNameOf(p.name) === hint || emailFirstOf(p.email) === hint;
 
 /** The known people in an exchange, Ollie left out, each once. */
 function exchangePeople(u: WorkUnit, people: LoadedPeople): PersonRow[] {
@@ -186,7 +199,7 @@ function onlyOtherPerson(u: WorkUnit, people: LoadedPeople): PersonRow | null {
 /**
  * Who a captured item is with: the asker, the person promised to, or the person Ollie waits on. Never Ollie.
  * The sorter's name comes first: an email or full name, then a one-word name ("Kevin", "Paul (RAF)") that
- * fits one person in the exchange, then one that fits only one person in People. A name that fits nobody
+ * fits one person in the exchange by first name or the start of their email (Volodymyr for Vova), then one that fits only one person in People. A name that fits nobody
  * links nobody, rather than someone else. With no name, a task is with whoever sent the message, and a
  * waiting item waits on the sender when someone else wrote it, or on the other person in a one-to-one
  * exchange when Ollie did.
@@ -200,7 +213,7 @@ export function itemPerson(people: LoadedPeople, u: WorkUnit, it: { type: string
     const hint = cleanHint(raw);
     const exact = notSelf(people.byName.get(raw) ?? people.byName.get(hint));
     if (exact || !hint || hint.includes(" ")) return exact;
-    const here = exchangePeople(u, people).filter((p) => firstNameOf(p.name) === hint);
+    const here = exchangePeople(u, people).filter((p) => fitsName(p, hint));
     if (here.length === 1) return here[0];
     if (here.length > 1) return null;
     const anywhere = (people.byFirstName.get(hint) ?? []).filter((p) => !p.isSelf);

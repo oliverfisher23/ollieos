@@ -260,7 +260,8 @@ describe("capturing from Gmail and Slack", () => {
     const add = async (name: string, slackUserId: string | null = null, isSelf = false) =>
       (await db.insert(peopleTable).values({ name, slug: name.toLowerCase().replace(/\W+/g, "-"), slackUserId, isSelf }).returning())[0];
     await add("Ollie Fisher", "U_ME", true);
-    const vol = await add("Volodymyr Petrenko", "U_VOL");
+    const vol = await add("Vova Petrenko", "U_VOL");
+    await db.update(peopleTable).set({ email: "volodymyr.petrenko@example.com" }).where(eq(peopleTable.id, vol.id));
     const andy = await add("Andy Hall", "U_ANDY");
     const kevin = await add("Kevin Brown");
     await add("Paul Jones");
@@ -274,7 +275,7 @@ describe("capturing from Gmail and Slack", () => {
       messages: [{ ref: `slack:${id}:${ts}`, at, fromMe, fromName: fromMe ? null : who.name, fromAddress: null, fromSlackId: fromMe ? "U_ME" : who.slackId, text, url: `https://x.slack.com/archives/${id}/p${ts}` }],
       conversation: { id, kind: "im" },
     });
-    const V = { name: "Volodymyr Petrenko", slackId: "U_VOL" };
+    const V = { name: "Vova Petrenko", slackId: "U_VOL" };
     const A = { name: "Andy Hall", slackId: "U_ANDY" };
     const units = [
       dm("D1", V, "1.1", true, "Shall we set it up in Route53?"),
@@ -300,7 +301,7 @@ describe("capturing from Gmail and Slack", () => {
     expect(tasks.map((t) => [t.title, t.waitingOnPersonId, t.personId])).toEqual([
       // Ollie's message in a DM with no name given: the other person in the DM.
       ["Volodymyr to set up springpod.io in Route53", vol.id, null],
-      // A first name that fits the person in the exchange.
+      // A first name that fits the person in the exchange by the start of their email (Vova in People).
       ["Volodymyr to send the invoice", vol.id, null],
       // Two Pauls in People and neither in the DM: nobody, and never Andy.
       ["Paul (RAF) to reply about ADS event", null, null],
