@@ -9,8 +9,8 @@ import { DarkShell } from '@/components/dark-shell';
 import { LightShell } from '@/components/light-shell';
 import NotFound from '@/pages/not-found';
 import HomePage from '@/pages/home';
-import TasksPage from '@/pages/tasks';
 import {
+  TasksPage,
   AskPage,
   BriefPage,
   ClearOutDialog,

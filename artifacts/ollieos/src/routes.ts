@@ -1,11 +1,13 @@
 /**
  * Pages loaded on first visit, so a phone opening Home does not download Map, Settings or Ask
- * (docs/mobile-plan.md, Part B). Home and Tasks stay in the main bundle: they are opened most.
+ * (docs/mobile-plan.md, Part B). Home stays in the main bundle. Tasks moved out on 12th November 2026,
+ * when the first load passed its budget; Home starts downloading it in the background once Home is up.
  * A new page goes here, in App.tsx, and in preloadRoute below.
  */
 import { lazyPage } from '@/lib/lazy-page';
 
 const load = {
+  tasks: () => import('@/pages/tasks'),
   triage: () => import('@/components/triage'),
   clearOut: () => import('@/components/clear-out'),
   review: () => import('@/pages/review'),
@@ -36,6 +38,7 @@ const load = {
   consent: () => import('@/pages/oauth-consent'),
 };
 
+export const TasksPage = lazyPage(load.tasks, 'default');
 export const TriageDialog = lazyPage(load.triage, 'TriageDialog');
 export const ClearOutDialog = lazyPage(load.clearOut, 'ClearOutDialog');
 export const ReviewPage = lazyPage(load.review, 'default');
@@ -71,10 +74,11 @@ export const ContactsPage = lazyPage(load.contacts, 'default');
 export const SettingsPage = lazyPage(load.settings, 'default');
 export const OAuthConsentPage = lazyPage(load.consent, 'default');
 
-/** The code a path needs, matched the same way as the routes in App.tsx. Home and Tasks need nothing. */
+/** The code a path needs, matched the same way as the routes in App.tsx. Home needs nothing. */
 function loaderFor(path: string): (() => Promise<unknown>) | null {
   const p = path.split(/[?#]/)[0].replace(/\/+$/, '') || '/';
   const under = (prefix: string) => p === prefix || p.startsWith(prefix + '/');
+  if (under('/tasks')) return load.tasks;
   if (p === '/triage') return load.triage;
   if (p === '/clear-out') return load.clearOut;
   if (under('/review')) return load.review;

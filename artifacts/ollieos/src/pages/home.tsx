@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { TasksPage } from '@/routes';
 import { BusyDayCard, WeekCheckCard } from '@/components/time-and-meetings';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
@@ -103,6 +104,11 @@ function daysLabel(d: number) {
 
 export default function HomePage() {
   const { user } = useSession();
+  // Tasks is its own file; fetch it once Home is up, so opening Tasks stays instant.
+  useEffect(() => {
+    const t = window.setTimeout(() => void TasksPage.preload().catch(() => {}), 1500);
+    return () => window.clearTimeout(t);
+  }, []);
   const phone = useMedia(PHONE_QUERY);
   // Shorter than the app's 30 seconds: the status line carries Claude's access requests, so coming back
   // to the app re-checks them. 5 seconds still lets the start-up prefetch count.
