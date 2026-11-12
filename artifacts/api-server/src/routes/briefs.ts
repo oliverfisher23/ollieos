@@ -7,6 +7,8 @@ import { addPoint, POINT_CHARS } from "../services/talkingPoints";
 import { getDigest, listDigests } from "../services/digest";
 import { listMeetings, meetingView, updateMeetingNotes } from "../services/meetings";
 import { MAX_THOUGHTS, clearAgendaChat, shapeAgenda } from "../services/meetingAgenda";
+import { linkGranolaNote } from "../services/connectors";
+import { setThreadVerdict } from "../services/threadMatch";
 import { NotFoundError } from "../services/tasks";
 
 const router: IRouter = Router();
@@ -52,6 +54,27 @@ router.delete(
   "/meetings/:eventId/agenda/chat",
   handle(async (req, res) => {
     await clearAgendaChat(EventParams.parse(req.params).eventId);
+    res.status(204).end();
+  }),
+);
+
+// Link a Granola note OllieOS did not match, from its link.
+router.post(
+  "/meetings/:eventId/granola",
+  handle(async (req, res) => {
+    const { eventId } = EventParams.parse(req.params);
+    const b = z.object({ link: z.string().min(1).max(2000) }).strict().parse(req.body ?? {});
+    await linkGranolaNote(eventId, b.link);
+    res.json(await meetingView(eventId));
+  }),
+);
+// "Not about this meeting" / "It is about this meeting" on Recent email and Slack; the thread matcher learns from it.
+router.put(
+  "/meetings/:eventId/threads/:activityId",
+  handle(async (req, res) => {
+    const { eventId, activityId } = z.object({ eventId: z.coerce.number().int().positive(), activityId: z.coerce.number().int().positive() }).parse(req.params);
+    const b = z.object({ related: z.boolean() }).strict().parse(req.body ?? {});
+    await setThreadVerdict(eventId, activityId, b.related);
     res.status(204).end();
   }),
 );

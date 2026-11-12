@@ -19,6 +19,7 @@ import type { BriefViewProjectsItem } from './briefViewProjectsItem';
 import type { BriefViewPulseItem } from './briefViewPulseItem';
 import type { BriefViewRulesItem } from './briefViewRulesItem';
 import type { BriefViewTasksItem } from './briefViewTasksItem';
+import type { BriefViewThreadsHiddenItem } from './briefViewThreadsHiddenItem';
 import type { BriefViewThreadsItem } from './briefViewThreadsItem';
 import type { BriefViewWaitingOnItem } from './briefViewWaitingOnItem';
 import type { CompanyResearch } from './companyResearch';
@@ -71,8 +72,10 @@ export interface BriefView {
   waitingOn: BriefViewWaitingOnItem[];
   /** Granola notes from earlier meetings with any of the same people, newest first */
   earlier: BriefViewEarlierItem[];
-  /** Recent email and Slack exchanges with people on the meeting */
+  /** Recent email and Slack exchanges with people on the meeting that are about it */
   threads: BriefViewThreadsItem[];
+  /** Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher */
+  threadsHidden: BriefViewThreadsHiddenItem[];
   projects: BriefViewProjectsItem[];
   goals: BriefViewGoalsItem[];
   documents: BriefViewDocumentsItem[];

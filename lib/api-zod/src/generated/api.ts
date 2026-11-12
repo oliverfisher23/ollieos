@@ -5321,6 +5321,75 @@ export const ClearAgendaChatResponse = zod.void()
 
 
 /**
+ * @summary Link a Granola note to the meeting from its link, when OllieOS did not match it
+ */
+export const LinkGranolaNoteParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const linkGranolaNoteBodyLinkMax = 2000;
+
+
+
+export const LinkGranolaNoteBody = zod.object({
+  "link": zod.string().min(1).max(linkGranolaNoteBodyLinkMax).describe('A Granola share or note link')
+})
+
+export const LinkGranolaNoteResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "platform": zod.string().nullable(),
+  "location": zod.string().nullable(),
+  "scope": zod.enum(['internal', 'external']).describe('External when anyone on the meeting is from outside Ollie\'s own company'),
+  "companies": zod.array(zod.string()),
+  "prep": zod.enum(['ready', 'not_much', 'failed', 'not_written', 'none']).describe('Anything but none means the meeting has a prep page at /briefs/{id}'),
+  "attendees": zod.array(zod.object({
+  "name": zod.string(),
+  "email": zod.string().nullable(),
+  "person": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}).nullable().describe('Set when they are in People')
+})),
+  "notes": zod.string().nullable().describe('Ollie\'s agenda and notes'),
+  "agendaChat": zod.array(zod.object({
+  "role": zod.enum(['ollie', 'ai']),
+  "text": zod.string(),
+  "at": zod.coerce.date()
+})),
+  "granola": zod.object({
+  "url": zod.string().nullable(),
+  "notes": zod.string(),
+  "attachedAt": zod.coerce.date().nullable(),
+  "actions": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string()
+})).describe('Inbox tasks made from the note\'s actions')
+}).nullable().describe('The Granola note, once one is linked to the meeting'),
+  "granolaCheck": zod.boolean().describe('True when OllieOS reads Granola itself')
+})
+
+
+/**
+ * @summary Ollie's verdict on whether an email or Slack thread is about the meeting; the thread matcher learns from it
+ */
+export const SetThreadVerdictParams = zod.object({
+  "eventId": zod.coerce.number().int(),
+  "activityId": zod.coerce.number().int()
+})
+
+export const SetThreadVerdictBody = zod.object({
+  "related": zod.boolean()
+})
+
+export const SetThreadVerdictResponse = zod.void()
+
+
+/**
  * @summary The brief for the next work meeting, today or tomorrow
  */
 export const GetNextBriefResponse = zod.object({
@@ -5517,7 +5586,16 @@ export const GetNextBriefResponse = zod.object({
   "summary": zod.string(),
   "occurredAt": zod.coerce.date(),
   "url": zod.string().nullable()
-})).describe('Recent email and Slack exchanges with people on the meeting'),
+})).describe('Recent email and Slack exchanges with people on the meeting that are about it'),
+  "threadsHidden": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string(),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable(),
+  "by": zod.enum(['ollie', 'ai']),
+  "reason": zod.string().nullable()
+})).describe('Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),
@@ -5767,7 +5845,16 @@ export const GetBriefResponse = zod.object({
   "summary": zod.string(),
   "occurredAt": zod.coerce.date(),
   "url": zod.string().nullable()
-})).describe('Recent email and Slack exchanges with people on the meeting'),
+})).describe('Recent email and Slack exchanges with people on the meeting that are about it'),
+  "threadsHidden": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string(),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable(),
+  "by": zod.enum(['ollie', 'ai']),
+  "reason": zod.string().nullable()
+})).describe('Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),
@@ -6041,7 +6128,16 @@ export const RefreshBriefResponse = zod.object({
   "summary": zod.string(),
   "occurredAt": zod.coerce.date(),
   "url": zod.string().nullable()
-})).describe('Recent email and Slack exchanges with people on the meeting'),
+})).describe('Recent email and Slack exchanges with people on the meeting that are about it'),
+  "threadsHidden": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string(),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable(),
+  "by": zod.enum(['ollie', 'ai']),
+  "reason": zod.string().nullable()
+})).describe('Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),
@@ -6291,7 +6387,16 @@ export const AllowForBriefResponse = zod.object({
   "summary": zod.string(),
   "occurredAt": zod.coerce.date(),
   "url": zod.string().nullable()
-})).describe('Recent email and Slack exchanges with people on the meeting'),
+})).describe('Recent email and Slack exchanges with people on the meeting that are about it'),
+  "threadsHidden": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string(),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable(),
+  "by": zod.enum(['ollie', 'ai']),
+  "reason": zod.string().nullable()
+})).describe('Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),

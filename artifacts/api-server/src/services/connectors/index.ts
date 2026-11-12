@@ -10,19 +10,20 @@
  * the same check.
  */
 import { and, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
-import { appSettingsTable, calendarEventsTable, connectorRunsTable, db, peopleTable, type ConnectorRun } from "@workspace/db";
+import { appSettingsTable, calendarEventsTable, connectorRunsTable, db, peopleTable, tasksTable, type ConnectorRun } from "@workspace/db";
 import { addDays, londonParts, londonWallTimeToInstant, todayLondon } from "@workspace/shared";
 import { emailsOf } from "../personMatch";
 import { logger } from "../../lib/logger";
 import { replaceCalendar } from "../aiWrites";
 import { scheduledWork } from "../scheduledWork";
-import { ValidationError } from "../tasks";
+import { NotFoundError, UpstreamError, ValidationError } from "../tasks";
 import { sortAndCapture, type SortedRead } from "./capture";
 import { readGmail } from "./gmail";
 import { ConnectorError, readGoogleCalendar } from "./googleCalendar";
 import { readDrive, type DriveState } from "./drive";
-import { readGranola, type GranolaState } from "./granola";
+import { findGranolaNote, granolaRefFrom, readGranola, toMeetingNote, type GranolaState } from "./granola";
 import { captureMeetings } from "./meetingCapture";
+import { attachMeetingNotes } from "../briefs";
 import { refreshNoReply } from "./noReply";
 import { readSlack, type SlackState } from "./slack";
 import { countReadable, DEFAULT_DROPBOX_STATE, forgetDropboxFiles, normaliseFolder, readDropbox, type DropboxState } from "./dropbox";
@@ -306,6 +307,48 @@ async function readGranolaRun(now: Date) {
   const c = await captureMeetings(r.notes, { me: `His email address is ${[...me][0]}.`, now, myEmails: me });
   await putState("granola", r.state);
   return { found: r.found, account: null, counts: { ...c, meetings: r.notes.length, left_out: r.leftOut, more: r.more ? 1 : 0 } };
+}
+
+/**
+ * Ollie links a Granola note to a meeting by hand, when it was not matched (Granola had no calendar
+ * link, or the note was read before the meeting could hold it). A note OllieOS already read is only
+ * attached, with the actions it made then; a new one is read in full against this meeting and
+ * remembered, so the next check does not read it again. Moves the note off any other meeting.
+ */
+export async function linkGranolaNote(eventId: number, link: string, now = new Date()): Promise<void> {
+  const [event] = await db.select().from(calendarEventsTable).where(eq(calendarEventsTable.id, eventId));
+  if (!event || event.personal) throw new NotFoundError("That meeting is not on your calendar");
+  const ref = granolaRefFrom(link);
+  if (!ref) throw new ValidationError("That does not look like a Granola link. Paste the link from Granola's Share button or the note's address.");
+  let raw;
+  try {
+    raw = await findGranolaNote(ref, event.startsAt);
+  } catch (err) {
+    throw new UpstreamError("Could not reach Granola just now. Try again in a moment.");
+  }
+  if (!raw) throw new NotFoundError("Granola has no note for that link that OllieOS can read. Check it is your note, or shared with you.");
+
+  const me = await myAddresses();
+  const note = toMeetingNote(raw, me);
+  // Off any other meeting it was linked to.
+  await db
+    .update(calendarEventsTable)
+    .set({ granolaRef: null, granolaUrl: null, granolaNotes: null, granolaTaskIds: [], granolaAttachedAt: null })
+    .where(and(eq(calendarEventsTable.granolaRef, note.noteId), sql`${calendarEventsTable.id} <> ${event.id}`));
+
+  const state = (await getState<GranolaState>("granola")) ?? { after: new Date(now.getTime() - 3 * 86_400_000).toISOString(), done: {} };
+  if (state.done[note.noteId]) {
+    const tasks = await db
+      .select({ id: tasksTable.id })
+      .from(tasksTable)
+      .where(and(eq(tasksTable.source, "meeting"), sql`(${tasksTable.sourceRef} = ${"granola:" + note.noteId} or ${tasksTable.sourceRef} like ${"granola:" + note.noteId + "#%"})`));
+    await attachMeetingNotes(event, { granolaRef: note.noteId, notes: note.notes, url: note.url, actionTaskIds: tasks.map((t) => t.id), actor: "ollie", clientId: null }, now);
+    return;
+  }
+  await captureMeetings([note], { me: `His email address is ${[...me][0] ?? "unknown"}.`, now, myEmails: me, event });
+  // Read again so a check that ran meanwhile is not undone.
+  const latest = (await getState<GranolaState>("granola")) ?? state;
+  await putState("granola", { ...latest, done: { ...latest.done, [note.noteId]: now.getTime() } });
 }
 
 async function readDropboxRun(now: Date) {

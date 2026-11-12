@@ -1,7 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
-import { checkConnector, getGetMeetingQueryKey, getListMeetingsQueryKey, useGetMeeting } from '@workspace/api-client-react';
+import { checkConnector, getGetMeetingQueryKey, getListMeetingsQueryKey, linkGranolaNote, useGetMeeting, type MeetingView } from '@workspace/api-client-react';
 import { errorMessage, notify } from '@/lib/notify';
 
 const CARD = { background: 'var(--oo-panel)', borderRadius: 'var(--oo-r-panel)', boxShadow: 'var(--oo-shadow-panel)' } as const;
@@ -17,6 +17,8 @@ export function FromGranola({ eventId, endsAt }: { eventId: number; endsAt: stri
   const qc = useQueryClient();
   const q = useGetMeeting(eventId, { query: { queryKey: getGetMeetingQueryKey(eventId) } });
   const [busy, setBusy] = useState(false);
+  const [linking, setLinking] = useState(false);
+  const [link, setLink] = useState('');
   const ended = Date.now() >= new Date(endsAt).getTime();
   const g = q.data?.granola ?? null;
   if (!q.data || (!ended && !g)) return null;
@@ -39,6 +41,43 @@ export function FromGranola({ eventId, endsAt }: { eventId: number; endsAt: stri
     }
   };
 
+  const submitLink = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!link.trim() || busy) return;
+    setBusy(true);
+    try {
+      const view = await linkGranolaNote(eventId, { link: link.trim() });
+      qc.setQueryData(getGetMeetingQueryKey(eventId), view as MeetingView);
+      void qc.invalidateQueries({ queryKey: getListMeetingsQueryKey() });
+      void qc.invalidateQueries({ predicate: (query) => String(query.queryKey[0] ?? '').includes('/briefs/') });
+      setLinking(false);
+      setLink('');
+      notify('Granola note linked', view.granola?.actions.length ? `${view.granola.actions.length} actions from it are in your Inbox.` : undefined);
+    } catch (err) {
+      notify('Could not link that note', errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const linkForm = (
+    <form onSubmit={submitLink} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }} data-testid="form-granola-link">
+      <label htmlFor="granola-link" className="sr-only">Granola link</label>
+      <input
+        id="granola-link"
+        className="oo-input"
+        style={{ flex: '1 1 260px' }}
+        value={link}
+        onChange={(e) => setLink(e.target.value)}
+        placeholder="Paste the Granola link (Share, then Copy link)"
+        autoFocus
+        data-testid="input-granola-link"
+      />
+      <button type="submit" className="oo-btn oo-btn-ink" disabled={busy || !link.trim()} data-testid="button-granola-link-save">{busy ? 'Linking…' : 'Link note'}</button>
+      <button type="button" className="oo-btn oo-btn-outline" onClick={() => setLinking(false)} disabled={busy}>Cancel</button>
+    </form>
+  );
+
   return (
     <section aria-labelledby="g-h" style={{ ...CARD, padding: '26px 30px', display: 'flex', flexDirection: 'column', gap: 12 }} data-testid="section-b-granola">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
@@ -55,11 +94,19 @@ export function FromGranola({ eventId, endsAt }: { eventId: number; endsAt: stri
               ? 'No Granola note was found for this meeting. It may not have been recorded.'
               : 'Waiting for the Granola note. It usually arrives within half an hour of the meeting ending, with its actions going to your Inbox.'}
           </p>
-          {q.data.granolaCheck && (
-            <button type="button" className="oo-btn oo-btn-outline" onClick={check} disabled={busy} data-testid="button-check-granola">
-              {busy ? 'Checking…' : 'Check Granola now'}
-            </button>
+          {!linking && (
+            <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {q.data.granolaCheck && (
+                <button type="button" className="oo-btn oo-btn-outline" onClick={check} disabled={busy} data-testid="button-check-granola">
+                  {busy ? 'Checking…' : 'Check Granola now'}
+                </button>
+              )}
+              <button type="button" className="oo-btn oo-btn-outline" onClick={() => setLinking(true)} disabled={busy} data-testid="button-granola-link">
+                Link a note
+              </button>
+            </span>
           )}
+          {linking && <div style={{ flex: '1 1 100%' }}>{linkForm}</div>}
         </div>
       ) : (
         <>
@@ -79,6 +126,13 @@ export function FromGranola({ eventId, endsAt }: { eventId: number; endsAt: stri
           <div style={{ fontSize: 14, lineHeight: 1.6, maxWidth: '72ch', color: 'var(--oo-ink-soft)', overflowWrap: 'anywhere', display: 'flex', flexDirection: 'column', gap: 4 }} data-testid="text-granola-notes">
             <NoteText text={g.notes} />
           </div>
+          {linking ? (
+            linkForm
+          ) : (
+            <button type="button" onClick={() => setLinking(true)} style={{ alignSelf: 'flex-start', background: 'none', border: 0, padding: 0, fontSize: 13, color: 'var(--oo-ink-muted)', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2 }} data-testid="button-granola-relink">
+              Wrong note? Link a different one
+            </button>
+          )}
         </>
       )}
     </section>
