@@ -11,6 +11,7 @@ import {
   type TaskSource,
   type TaskStatus,
 } from "@workspace/shared";
+import { logger } from "../lib/logger";
 import { toTaskViews, type TaskView } from "./taskView";
 import { listAccessRequests } from "./access";
 import { briefableIds, notPreppedIds } from "./briefs";
@@ -73,14 +74,28 @@ function rankDoNext(tasks: TaskView[], today: string) {
     .map((task) => ({ task, reason: reasonFor(task, today) }));
 }
 
+/**
+ * One part of Home that is not essential: if it fails, Home still loads without it (and the
+ * failure is logged) rather than the whole page answering "Could not load Home".
+ */
+async function soft<T>(part: string, p: Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await p;
+  } catch (err) {
+    logger.warn({ err, part }, "A part of Home could not load; showing Home without it");
+    return fallback;
+  }
+}
+
 export async function getHome() {
   const now = new Date();
+  const started = Date.now();
   const today = todayLondon(now);
   const week = londonRange(weekStartOf(today), 7);
   const day = londonRange(today, 1);
 
   // Only enrichment reads seeded goals and the self profile. Other branches can start now.
-  const readyForTaskViews = Promise.all([ensureSeeds(), ensureSelfPerson().catch(() => undefined)]);
+  const readyForTaskViews = Promise.all([soft("seeds", ensureSeeds(), undefined), ensureSelfPerson().catch(() => undefined)]);
   const enrich = async (rows: Parameters<typeof toTaskViews>[0]) => {
     await readyForTaskViews;
     return toTaskViews(rows);
@@ -117,28 +132,32 @@ export async function getHome() {
         .where(and(eq(tasksTable.status, "done"), gte(tasksTable.completedAt, week.start), lt(tasksTable.completedAt, week.end)))
         .orderBy(desc(tasksTable.completedAt))
         .limit(5).then(enrich),
-      db
-        .select({ finishedAt: sweepRunsTable.finishedAt })
-        .from(sweepRunsTable)
-        .where(isNotNull(sweepRunsTable.finishedAt))
-        .orderBy(desc(sweepRunsTable.finishedAt))
-        .limit(1),
+      soft(
+        "last sweep",
+        db
+          .select({ finishedAt: sweepRunsTable.finishedAt })
+          .from(sweepRunsTable)
+          .where(isNotNull(sweepRunsTable.finishedAt))
+          .orderBy(desc(sweepRunsTable.finishedAt))
+          .limit(1),
+        [],
+      ),
       db
         .select()
         .from(calendarEventsTable)
         .where(and(gte(calendarEventsTable.startsAt, day.start), lt(calendarEventsTable.startsAt, day.end)))
         .orderBy(asc(calendarEventsTable.startsAt))
         .then(async (events) => {
-          const [briefable, unprepped] = await Promise.all([briefableIds(events), notPreppedIds(events, now)]);
+          const [briefable, unprepped] = await Promise.all([soft("briefs", briefableIds(events), new Set<number>()), soft("prep", notPreppedIds(events, now), new Set<number>())]);
           return { events, briefable, unprepped };
         }),
-      todaysDigestDate(now),
-      listAccessRequests(),
-      inboxCounts(),
-      dueIdeas(today),
-      slackRepliesOverdue(now),
-      emailRepliesOverdue(now),
-      connectorWarnings(now),
+      soft("digest", todaysDigestDate(now), null),
+      soft("access requests", listAccessRequests(), { pending: [], open: [], recent: [] }),
+      soft("knowledge inbox", inboxCounts({ tidyEveryMs: 60_000 }), { suggested: 0, conflicts: 0, stale: 0, outOfDate: 0, total: 0 }),
+      soft("ideas", dueIdeas(today), []),
+      soft("slack", slackRepliesOverdue(now), 0),
+      soft("email", emailRepliesOverdue(now), 0),
+      soft("connector warnings", connectorWarnings(now), []),
       readyForTaskViews,
     ]);
   const { events: todayEvents, briefable, unprepped } = calendar;

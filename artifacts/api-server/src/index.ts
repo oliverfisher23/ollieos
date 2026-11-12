@@ -20,6 +20,11 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+// A promise rejected with nothing to catch it must not take the whole server down: log it instead.
+process.on("unhandledRejection", (reason) => {
+  logger.error({ err: reason }, "Unhandled promise rejection");
+});
+
 // Data changes run before the first request, so nothing reads data in its old shape.
 await runMigrations().catch((e) => logger.error({ err: e }, "A start-up data change failed"));
 
