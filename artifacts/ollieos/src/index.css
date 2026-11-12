@@ -947,3 +947,6 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-voice-card { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: var(--oo-r-ask); background: var(--oo-panel); color: var(--oo-ink); }
 .oo-voice-card .oo-voice-item-text { border-color: var(--oo-line); }
 @media (max-width: 639px) { .oo-voice { background: var(--oo-voice-base); } }
+
+/* Knowledge Inbox bulk review: filters, select all, and approve or reject the selection */
+.oo-inbox-bulk { position: sticky; top: 0; z-index: 5; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; margin-top: -6px; border: 1px solid var(--oo-line); border-radius: var(--oo-r-input); background: var(--oo-panel); box-shadow: var(--oo-shadow-panel); }

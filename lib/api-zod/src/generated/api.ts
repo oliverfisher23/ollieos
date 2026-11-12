@@ -8489,6 +8489,28 @@ export const ApproveSuggestionResponse = zod.object({
 
 
 /**
+ * @summary Approve or reject many Knowledge Inbox cards at once; cards that cannot be decided as they stand are skipped
+ */
+export const bulkDecideSuggestionsBodyIdsMax = 500;
+
+
+
+export const BulkDecideSuggestionsBody = zod.object({
+  "action": zod.enum(['approve', 'reject']),
+  "ids": zod.array(zod.int()).min(1).max(bulkDecideSuggestionsBodyIdsMax)
+})
+
+export const BulkDecideSuggestionsResponse = zod.object({
+  "approved": zod.int(),
+  "rejected": zod.int(),
+  "skipped": zod.array(zod.object({
+  "id": zod.int(),
+  "reason": zod.string()
+}))
+})
+
+
+/**
  * @summary Reject everything still waiting that came from one document or Dropbox file
  */
 export const rejectSuggestionsFromSourceBodySourceRefMax = 1200;

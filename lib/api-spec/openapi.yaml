@@ -3338,6 +3338,25 @@ paths:
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
+  /suggestions/bulk:
+    post:
+      operationId: bulkDecideSuggestions
+      tags: [knowledge]
+      summary: Approve or reject many Knowledge Inbox cards at once; cards that cannot be decided as they stand are skipped
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulkDecideInput" }
+      responses:
+        "200":
+          description: What was decided
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulkDecideResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /suggestions/reject-source:
     post:
       operationId: rejectSuggestionsFromSource
@@ -6207,6 +6226,27 @@ components:
             properties:
               status: { type: string }
               suggestionId: { type: integer }
+    BulkDecideInput:
+      type: object
+      additionalProperties: false
+      required: [action, ids]
+      properties:
+        action: { type: string, enum: [approve, reject] }
+        ids: { type: array, minItems: 1, maxItems: 500, items: { type: integer } }
+    BulkDecideResult:
+      type: object
+      required: [approved, rejected, skipped]
+      properties:
+        approved: { type: integer }
+        rejected: { type: integer }
+        skipped:
+          type: array
+          items:
+            type: object
+            required: [id, reason]
+            properties:
+              id: { type: integer }
+              reason: { type: string }
     TestCaseAvailability:
       type: object
       required: [available, expected, caseId]

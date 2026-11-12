@@ -1980,6 +1980,34 @@ export interface VoiceSaveResult {
   facts: VoiceSaveResultFactsItem[];
 }
 
+export type BulkDecideInputAction = typeof BulkDecideInputAction[keyof typeof BulkDecideInputAction];
+
+
+export const BulkDecideInputAction = {
+  approve: 'approve',
+  reject: 'reject',
+} as const;
+
+export interface BulkDecideInput {
+  action: BulkDecideInputAction;
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  ids: number[];
+}
+
+export type BulkDecideResultSkippedItem = {
+  id: number;
+  reason: string;
+};
+
+export interface BulkDecideResult {
+  approved: number;
+  rejected: number;
+  skipped: BulkDecideResultSkippedItem[];
+}
+
 export type TestCaseAvailabilityExpected = typeof TestCaseAvailabilityExpected[keyof typeof TestCaseAvailabilityExpected];
 
 
