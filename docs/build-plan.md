@@ -1670,3 +1670,32 @@ Ollie asked for a review of tasks. Three days of real use (109 tasks, 10th to 12
 - App: `components/drop-reason.tsx`, `components/task-nudges.tsx` (project chips, chase card, stuck card), `LoadLine`, `BulkBar` and grouping in `pages/tasks.tsx`, `BusyDayCard` on Home, open questions on the session page.
 - **Checked by** `test/section-27.test.ts` (13 tests).
 - **Not included:** saving a Slack id on a person matched by name; a hold on Slack items to see whether Ollie replies first; undo for a bulk change; a scorecard for the stuck-task coach.
+
+## 28. Tasks: people gaps, due dates, loose ends and a review (asked for 12th November 2026)
+
+After section 27 went live, three of Ollie's six Waiting on tasks still had nobody on them: "Paul (RAF) to reply" (two Pauls), "Kevin to confirm" (not in Contacts) and "Jenni to ask"; and "Volodymyr to set up" could only be linked by hand, because his contact is "Vova". Ollie asked for these gaps closed, due dates made easier, the loose ends from section 27, and a review after a week of real use.
+
+### People
+
+- **Other names.** A contact has **Also known as** (`people.other_names`, up to 10), edited on their page. Name matching uses them, alone or with the surname: "Volodymyr" and "Volodymyr Tatsakovych" both find Vova Tatsakovych (`nameKeysOf`, `nameCandidates` in `services/personNames.ts`).
+- **Which Paul?** `GET /tasks/:id/person-suggestions` (no AI) says who a task's name could mean. Under For and Waiting on, the task panel shows the contacts as one-tap chips when the name fits several (or one added since the task was looked at).
+- **Add to Contacts.** When the name fits nobody, **Add Kevin to Contacts** opens a one-line form with the name filled in, makes the contact and links the task. Offered for who a Waiting on title names, and for a sender with a full name from email or Slack; never for a capitalised word in a title.
+- **Remember a name.** When a Waiting on task is linked to someone its title names differently, and that name means nobody else, one tap saves it as another name for them.
+- **Slack accounts.** When a Slack message comes from an account nobody has saved, and its name is exactly one contact's full name (two words or more, their name or an other name), the account is saved on that contact (`learnSlackIds`), so later messages match without the name and Message on Slack and the delegation suggester work for them. A first name alone is never enough, and someone who already has an account keeps it.
+
+### Due dates
+
+- **One tap.** A task with no due date offers **Today, Tomorrow, Friday, Next week** in Triage and under Due on the panel (`DueChips`; Friday only while it is still ahead).
+- **The reader's guess.** Every reader item has `due_guess`: a date the message implies but does not state ("this week" is Friday, "urgent" is today, "before" a dated meeting is the working day before). It is kept as `tasks.suggested_due` and shown as the first chip, "Fri 20th Nov (suggested)". It is never applied by itself, and goes once the task has a date.
+
+### Loose ends
+
+- **Undo for bulk changes.** The toast after a bulk change has Undo: a status change uses each task's own Undo; priority, project and due date go back to what they were.
+- **Scorecards.** The stuck-task coach now records whether its suggestion was used (the step added, or the task dropped) or Ollie said Not stuck (`stuck_hint.outcome`). Settings, Agents shows "Suggestions you used" for it and "Duplicates you merged" for the duplicate check.
+
+### The review
+
+- `taskReview(days)` (`services/taskReview.ts`) counts, without AI or titles: tasks made by source and what became of them (done, dropped, open, done within 30 minutes, with a checklist); why items were dropped; quick Slack replies left on Messages and items added to existing tasks (from the connector runs); Cowork sessions and open questions still listed; open tasks with a person, project and due date; Waiting on tasks with a person and ready to chase; and how the duplicate check and stuck-task coach did.
+- At `GET /tasks/review?days=7`, and to Claude as the `get_task_review` tool. `list_tasks` now gives each task's `drop_reason`.
+- **Checked by** `test/section-28.test.ts` (7 tests).
+- **Not included:** a page for the review numbers in the app; guessing a due date for tasks added by hand; nicknames worked out automatically.

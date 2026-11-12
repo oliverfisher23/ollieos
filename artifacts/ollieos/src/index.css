@@ -621,6 +621,7 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-tapchip:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
 .oo-tapchip[aria-pressed="true"] { background: var(--oo-ink); color: var(--oo-panel); border-color: var(--oo-ink); }
 .oo-toast .oo-tapchip[aria-pressed="true"], .oo-tri-last .oo-tapchip[aria-pressed="true"] { background: var(--oo-accent); color: var(--oo-ink); border-color: var(--oo-accent); }
+.oo-tapchip[data-suggested="true"] { border-style: dashed; font-weight: 500; }
 .oo-tapchip:disabled { opacity: .6; cursor: default; }
 @media (max-width: 639px) { .oo-tapchip { min-height: 34px; padding: 5px 12px; } }
 .oo-mini { font: inherit; font-size: 12px; padding: 4px 9px; min-height: 28px; border-radius: var(--oo-r-input); border: 1px solid var(--oo-control-border); background: var(--oo-panel); color: var(--oo-ink); cursor: pointer; white-space: nowrap; }

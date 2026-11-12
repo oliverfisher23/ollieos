@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useSearch } from 'wouter';
 import {
   bulkUpdateTasks,
+  undoTask,
   getListTasksQueryKey,
   reorderTasks,
   useGetClearOut,
@@ -884,13 +885,38 @@ function BulkBar({ chosen, shown, projects, onAll, onNone, onDone, onCancel }: {
   onAll: () => void; onNone: () => void; onDone: () => void; onCancel: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const invalidate = useInvalidateTasks();
   const n = chosen.length;
+  const count = (k: number) => (k === 1 ? '1 task' : `${k} tasks`);
+  /** Section 28: puts every changed task back as it was. A status change uses each task's own Undo; other fields go back to what they were. */
+  const undo = async (before: Task[], patch: Omit<TaskBulkInput, 'ids'>) => {
+    let back = 0;
+    for (const t of before) {
+      try {
+        if (patch.status !== undefined) {
+          if (t.status !== patch.status) await undoTask(t.id);
+        } else {
+          await updateTask(t.id, {
+            ...(patch.priority !== undefined ? { priority: t.priority } : {}),
+            ...(patch.dueDate !== undefined ? { dueDate: t.dueDate } : {}),
+            ...(patch.projectId !== undefined ? { projectId: t.project?.id ?? null } : {}),
+          });
+        }
+        back++;
+      } catch {
+        // Carry on with the rest; the count says how many went back.
+      }
+    }
+    invalidate();
+    notify('Undone', `${count(back)} put back.`);
+  };
   const apply = async (patch: Omit<TaskBulkInput, 'ids'>, done: string) => {
     if (!n) return;
     setBusy(true);
+    const before = chosen;
     try {
-      const r = await bulkUpdateTasks({ ids: chosen.map((t) => t.id), ...patch });
-      notify(`${done}: ${r.updated === 1 ? '1 task' : `${r.updated} tasks`}`, r.failed ? `${r.failed} could not be changed.` : undefined);
+      const r = await bulkUpdateTasks({ ids: before.map((t) => t.id), ...patch });
+      notifyUndo(`${done}: ${count(r.updated)}`, r.failed ? `${r.failed} could not be changed.` : undefined, () => void undo(before, patch));
       onDone();
     } catch (err) {
       notify('That did not save', errorMessage(err));

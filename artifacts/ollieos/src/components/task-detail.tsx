@@ -26,7 +26,7 @@ import { TaskEvidencePanel } from '@/components/task-evidence';
 import { KeepTestCase } from '@/components/evals';
 import { SlackDm } from '@/components/slack-dm';
 import { DropReasonChips, madeByReader } from '@/components/drop-reason';
-import { ChaseCard, ProjectSuggestChips, StuckCard } from '@/components/task-nudges';
+import { ChaseCard, DueChips, PersonSuggestChips, ProjectSuggestChips, StuckCard } from '@/components/task-nudges';
 import { goalOptions, personOptions, projectOptions } from '@/components/dropdown-options';
 
 const STATUSES: { value: TaskStatus; label: string }[] = [
@@ -233,6 +233,7 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                 </div>
               </div>
             </div>
+            <DueChips task={task} />
 
             <RepeatField task={task} onSave={save} />
 
@@ -251,6 +252,7 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                 <Dropdown id="td-person" value={String(task.person?.id ?? '')}
                   onChange={(v) => save({ personId: v ? Number(v) : null })} testId="select-person" searchPlaceholder="Search people"
                   options={[{ value: '', label: 'Nobody in particular' }, ...personOptions(people.data)]} />
+                {task.status !== 'waiting' && <PersonSuggestChips task={task} slot="person" />}
               </div>
             </div>
 
@@ -276,6 +278,7 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                 <Dropdown id="td-waiting" value={String(task.waitingOn?.id ?? '')}
                   onChange={(v) => save({ waitingOnPersonId: v ? Number(v) : null })} testId="select-waiting-on" searchPlaceholder="Search people"
                   options={[{ value: '', label: 'Choose a person' }, ...personOptions(people.data)]} />
+                <PersonSuggestChips task={task} slot="waitingOn" />
                 <div>
                   <button type="button" className="oo-btn oo-btn-outline" disabled={acting} onClick={() => run(() => actions.copyChase(task))} data-testid="button-detail-chase">Copy chase line</button>
                 </div>

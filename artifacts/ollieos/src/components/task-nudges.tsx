@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import {
   chaseTaskLater,
+  createPerson,
   dismissTaskStuckHint,
+  getGetTaskPersonSuggestionsQueryKey,
+  updatePerson,
   updateTask,
+  useGetTaskPersonSuggestions,
   useGetTaskProjectSuggestions,
   getGetTaskProjectSuggestionsQueryKey,
   type Task,
 } from '@workspace/api-client-react';
-import { CHASE_AFTER_DAYS, formatDayMonth } from '@workspace/shared';
+import { CHASE_AFTER_DAYS, addDays, formatDayMonth, formatShort, todayLondon, weekStartOf } from '@workspace/shared';
 import { useInvalidateTasks } from '@/lib/task-cache';
 import { useTaskActions } from '@/lib/task-actions';
 import { reportApiError } from '@/lib/forbidden';
@@ -40,6 +44,131 @@ export function ProjectSuggestChips({ task }: { task: Pick<Task, 'id' | 'project
       {projects.map((p) => (
         <button key={p.id} type="button" className="oo-tapchip" disabled={busy} onClick={() => void pick(p.id, p.name)} data-testid={`button-suggest-project-${p.id}`}>
           {p.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Section 28: closing the gaps name matching leaves on a task. "Which Paul?" when the name fits
+ * several contacts, "Add Kevin to Contacts" when it fits none, and "Remember Volodymyr as another
+ * name for Vova" when the title names the Waiting on person differently.
+ */
+export function PersonSuggestChips({ task, slot }: { task: Pick<Task, 'id' | 'status' | 'person' | 'waitingOn'>; slot: 'person' | 'waitingOn' }) {
+  const invalidate = useInvalidateTasks();
+  const open = ['inbox', 'now', 'backlog', 'waiting'].includes(task.status);
+  const key = getGetTaskPersonSuggestionsQueryKey(task.id);
+  const q = useGetTaskPersonSuggestions(task.id, { query: { queryKey: [...key, task.person?.id ?? 0, task.waitingOn?.id ?? 0], enabled: open, staleTime: 60_000 } });
+  const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  const [remembered, setRemembered] = useState(false);
+  const s = open ? q.data : undefined;
+  if (!s) return null;
+  const run = async (fn: () => Promise<unknown>, done: string, detail?: string) => {
+    setBusy(true);
+    try {
+      await fn();
+      invalidate(task.id);
+      notify(done, detail);
+    } catch (err) {
+      reportApiError(err);
+      notify('That did not save', errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const link = (personId: number) => updateTask(task.id, slot === 'waitingOn' ? { waitingOnPersonId: personId } : { personId });
+
+  // The title names who Ollie waits on in a way their contact does not know yet.
+  if (slot === 'waitingOn' && s.remember && !remembered) {
+    const r = s.remember;
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} data-testid={'chips-remember-' + task.id}>
+        <button type="button" className="oo-tapchip" disabled={busy}
+          onClick={() => void run(() => updatePerson(r.person.slug, { otherNames: [...r.otherNames, r.name] }), 'Remembered', `"${r.name}" now finds ${r.person.name}.`).then(() => setRemembered(true))}
+          data-testid="button-remember-name">
+          Remember "{r.name}" as another name for {r.person.name.split(/\s+/)[0]}
+        </button>
+      </div>
+    );
+  }
+  if (s.slot !== slot || !s.name) return null;
+  const first = s.name.split(/\s+/)[0];
+  return (
+    <div role="group" aria-label={`Who is ${s.name}?`} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} data-testid={'chips-person-' + task.id}>
+      {s.people.length > 0 && (
+        <>
+          <span style={{ fontSize: 12, opacity: 0.75 }}>{s.people.length > 1 ? `Which ${first}?` : `${first}?`}</span>
+          {s.people.map((p) => (
+            <button key={p.id} type="button" className="oo-tapchip" disabled={busy} onClick={() => void run(() => link(p.id), slot === 'waitingOn' ? 'Waiting on set' : 'Person set', p.name)} data-testid={`button-suggest-person-${p.id}`}>
+              {p.name}
+            </button>
+          ))}
+        </>
+      )}
+      {s.canAdd && !adding && (
+        <button type="button" className="oo-tapchip" disabled={busy} onClick={() => { setName(s.name ?? ''); setAdding(true); }} data-testid="button-add-contact">
+          Add {s.name} to Contacts
+        </button>
+      )}
+      {adding && (
+        <form style={{ display: 'flex', gap: 6, flexWrap: 'wrap', width: '100%' }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            const full = name.trim();
+            if (!full) return;
+            void run(async () => { const p = await createPerson({ name: full }); await link(p.id); }, 'Added to Contacts', full).then(() => setAdding(false));
+          }}>
+          <label htmlFor={'add-contact-' + task.id} className="oo-sr">Their full name</label>
+          <input id={'add-contact-' + task.id} className="oo-input" autoFocus value={name} maxLength={200} placeholder="Full name" onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Escape' && setAdding(false)} style={{ flex: '1 1 160px', minWidth: 0 }} data-testid="input-add-contact" />
+          <button type="submit" className="oo-btn oo-btn-ink oo-btn-sm" disabled={busy || !name.trim()} data-testid="button-save-contact">Add</button>
+          <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" onClick={() => setAdding(false)}>Cancel</button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+/** The one-tap dates offered for a task with none: the reader's guess first, then the usual ones. */
+export function dueChoices(suggested: string | null | undefined, today = todayLondon()): { date: string; label: string; suggested?: boolean }[] {
+  const monday = weekStartOf(today);
+  const friday = addDays(monday, 4);
+  const out: { date: string; label: string; suggested?: boolean }[] = [];
+  if (suggested && suggested >= today) out.push({ date: suggested, label: `${formatShort(suggested)} (suggested)`, suggested: true });
+  out.push({ date: today, label: 'Today' }, { date: addDays(today, 1), label: 'Tomorrow' });
+  // Friday only when it is still ahead and not already Tomorrow.
+  if (friday > addDays(today, 1)) out.push({ date: friday, label: 'Friday' });
+  out.push({ date: addDays(monday, 7), label: 'Next week' });
+  const seen = new Set<string>();
+  return out.filter((c) => !seen.has(c.date) && !!seen.add(c.date));
+}
+
+/** Section 28: one-tap due dates for an open task with none. */
+export function DueChips({ task }: { task: Pick<Task, 'id' | 'dueDate' | 'suggestedDue' | 'status'> }) {
+  const invalidate = useInvalidateTasks();
+  const [busy, setBusy] = useState(false);
+  if (task.dueDate || !['inbox', 'now', 'backlog', 'waiting'].includes(task.status)) return null;
+  const pick = async (date: string) => {
+    setBusy(true);
+    try {
+      await updateTask(task.id, { dueDate: date });
+      invalidate(task.id);
+    } catch (err) {
+      reportApiError(err);
+      notify('That did not save', errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div role="group" aria-label="Set a due date" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }} data-testid={'chips-due-' + task.id}>
+      <span style={{ fontSize: 12, opacity: 0.75 }}>Due?</span>
+      {dueChoices(task.suggestedDue).map((c) => (
+        <button key={c.date} type="button" className="oo-tapchip" data-suggested={c.suggested ? 'true' : undefined} disabled={busy} onClick={() => void pick(c.date)} data-testid={`button-due-${c.suggested ? 'suggested' : c.label.toLowerCase().replace(' ', '-')}-${task.id}`}>
+          {c.label}
         </button>
       ))}
     </div>
@@ -106,7 +235,7 @@ export function StuckCard({ task, busy, onDrop }: { task: Task; busy: boolean; o
     run(async () => {
       const step = { id: 's' + Date.now().toString(36), title: h.step!, done: false };
       await updateTask(task.id, { steps: [step, ...(task.steps ?? [])] });
-      await dismissTaskStuckHint(task.id);
+      await dismissTaskStuckHint(task.id, { used: true });
     }, 'Added to its checklist');
   return (
     <div className="oo-source" style={{ gap: 10 }} data-testid="card-stuck">
@@ -119,8 +248,11 @@ export function StuckCard({ task, busy, onDrop }: { task: Task; busy: boolean; o
       {h.step && <span style={{ fontSize: 13 }}>First step: {h.step}</span>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {h.step && <button type="button" className="oo-btn oo-btn-ink" disabled={busy || acting} onClick={() => void addStep()} data-testid="button-stuck-add-step">Add as first step</button>}
-        {h.kind === 'drop' && <button type="button" className="oo-btn oo-btn-ink" disabled={busy || acting} onClick={onDrop} data-testid="button-stuck-drop">Drop it</button>}
-        <button type="button" className="oo-btn oo-btn-outline" disabled={busy || acting} onClick={() => void run(() => dismissTaskStuckHint(task.id))} data-testid="button-stuck-dismiss">Not stuck</button>
+        {h.kind === 'drop' && (
+          <button type="button" className="oo-btn oo-btn-ink" disabled={busy || acting}
+            onClick={() => void run(() => dismissTaskStuckHint(task.id, { used: true })).then(onDrop)} data-testid="button-stuck-drop">Drop it</button>
+        )}
+        <button type="button" className="oo-btn oo-btn-outline" disabled={busy || acting} onClick={() => void run(() => dismissTaskStuckHint(task.id, {}))} data-testid="button-stuck-dismiss">Not stuck</button>
       </div>
     </div>
   );
