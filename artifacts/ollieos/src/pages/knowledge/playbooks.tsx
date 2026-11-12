@@ -205,7 +205,7 @@ export function PlaybookPage() {
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: '1 1 320px' }}>
           <p className="oo-eyebrow" style={{ margin: 0 }}>
-            <Link href="/knowledge/library?tab=playbooks" style={{ color: 'inherit' }} data-testid="link-all-playbooks">Playbook</Link>
+            <Link href="/knowledge/library?tab=playbooks" className="oo-tap" style={{ color: 'inherit' }} data-testid="link-all-playbooks">Playbook</Link>
           </p>
           <h1 className="oo-h1">
             <InlineText value={p.title} label="Playbook title" required maxLength={200} testId="playbook-title" onSave={(v) => save({ title: v ?? p.title })} />

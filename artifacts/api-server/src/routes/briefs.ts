@@ -2,10 +2,13 @@ import { Router, type IRouter } from "express";
 import { keepSeries, timeReport, weekCheck, worthALook } from "../services/timeAndMeetings";
 import { z } from "zod";
 import { handle } from "../lib/handle";
-import { allowForBrief, briefView, markBriefOpened, nextBriefEventId, updateBriefNotes } from "../services/briefs";
+import { allowForBrief, briefView, markBriefOpened, nextBriefEventId } from "../services/briefs";
 import { addPoint, POINT_CHARS } from "../services/talkingPoints";
 import { getDigest, listDigests } from "../services/digest";
-import { listMeetings } from "../services/meetings";
+import { listMeetings, meetingView, updateMeetingNotes } from "../services/meetings";
+import { MAX_THOUGHTS, clearAgendaChat, shapeAgenda } from "../services/meetingAgenda";
+import { linkGranolaNote } from "../services/connectors";
+import { setThreadVerdict } from "../services/threadMatch";
 import { NotFoundError } from "../services/tasks";
 
 const router: IRouter = Router();
@@ -25,6 +28,53 @@ router.post(
   handle(async (req, res) => {
     const { seriesId } = z.object({ seriesId: z.string().min(1).max(300) }).parse(req.params);
     await keepSeries(seriesId);
+    res.status(204).end();
+  }),
+);
+
+// Any work meeting, with or without a prep page: who is coming and Ollie's agenda and notes.
+router.get("/meetings/:eventId", handle(async (req, res) => void res.json(await meetingView(EventParams.parse(req.params).eventId))));
+router.patch(
+  "/meetings/:eventId",
+  handle(async (req, res) => {
+    res.json({ notes: await updateMeetingNotes(EventParams.parse(req.params).eventId, NotesBody.parse(req.body).notes) });
+  }),
+);
+
+// Ollie's thoughts into an agenda he can edit; the agenda he sends is the starting point.
+router.post(
+  "/meetings/:eventId/agenda",
+  handle(async (req, res) => {
+    const { eventId } = EventParams.parse(req.params);
+    const b = z.object({ message: z.string().min(1).max(MAX_THOUGHTS), agenda: z.string().max(20000) }).strict().parse(req.body ?? {});
+    res.json(await shapeAgenda(eventId, b));
+  }),
+);
+router.delete(
+  "/meetings/:eventId/agenda/chat",
+  handle(async (req, res) => {
+    await clearAgendaChat(EventParams.parse(req.params).eventId);
+    res.status(204).end();
+  }),
+);
+
+// Link a Granola note OllieOS did not match, from its link.
+router.post(
+  "/meetings/:eventId/granola",
+  handle(async (req, res) => {
+    const { eventId } = EventParams.parse(req.params);
+    const b = z.object({ link: z.string().min(1).max(2000) }).strict().parse(req.body ?? {});
+    await linkGranolaNote(eventId, b.link);
+    res.json(await meetingView(eventId));
+  }),
+);
+// "Not about this meeting" / "It is about this meeting" on Recent email and Slack; the thread matcher learns from it.
+router.put(
+  "/meetings/:eventId/threads/:activityId",
+  handle(async (req, res) => {
+    const { eventId, activityId } = z.object({ eventId: z.coerce.number().int().positive(), activityId: z.coerce.number().int().positive() }).parse(req.params);
+    const b = z.object({ related: z.boolean() }).strict().parse(req.body ?? {});
+    await setThreadVerdict(eventId, activityId, b.related);
     res.status(204).end();
   }),
 );
@@ -62,7 +112,7 @@ router.post("/briefs/:eventId/allow", handle(async (req, res) => void res.json(a
 router.patch(
   "/briefs/:eventId",
   handle(async (req, res) => {
-    res.json({ notes: await updateBriefNotes(EventParams.parse(req.params).eventId, NotesBody.parse(req.body).notes) });
+    res.json({ notes: await updateMeetingNotes(EventParams.parse(req.params).eventId, NotesBody.parse(req.body).notes) });
   }),
 );
 

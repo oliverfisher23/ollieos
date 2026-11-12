@@ -301,6 +301,13 @@ export interface TaskGoal {
   inherited: boolean;
 }
 
+export interface DelegateHint {
+  personId: number;
+  personName: string;
+  why: string;
+  message: string;
+}
+
 export interface Task {
   /**
      * Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.
@@ -383,6 +390,8 @@ export interface Task {
      * @nullable
      */
   looksDone?: string | null;
+  /** Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog. */
+  delegateHint?: DelegateHint | null;
 }
 
 export interface RepeatInput {
@@ -670,6 +679,9 @@ export interface SessionLink {
   slug: string;
 }
 
+/**
+ * ollieos is the idea spotter (section 23)
+ */
 export type IdeaSource = typeof IdeaSource[keyof typeof IdeaSource];
 
 
@@ -677,6 +689,7 @@ export const IdeaSource = {
   ollie: 'ollie',
   claude: 'claude',
   session: 'session',
+  ollieos: 'ollieos',
 } as const;
 
 export type IdeaTakenTask = {
@@ -704,7 +717,15 @@ export interface Idea {
   confidential: boolean;
   aiAccess: boolean;
   hiddenFromAi: boolean;
+  /** ollieos is the idea spotter (section 23) */
   source: IdeaSource;
+  /**
+     * Idea spotter: the meeting or Slack conversation it came up in
+     * @nullable
+     */
+  sourceLabel: string | null;
+  /** @nullable */
+  sourceUrl: string | null;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -1034,6 +1055,26 @@ export type BriefViewThreadsItem = {
   url: string | null;
 };
 
+export type BriefViewThreadsHiddenItemBy = typeof BriefViewThreadsHiddenItemBy[keyof typeof BriefViewThreadsHiddenItemBy];
+
+
+export const BriefViewThreadsHiddenItemBy = {
+  ollie: 'ollie',
+  ai: 'ai',
+} as const;
+
+export type BriefViewThreadsHiddenItem = {
+  id: number;
+  kind: string;
+  summary: string;
+  occurredAt: string;
+  /** @nullable */
+  url: string | null;
+  by: BriefViewThreadsHiddenItemBy;
+  /** @nullable */
+  reason: string | null;
+};
+
 export type BriefViewProjectsItem = {
   id: number;
   slug: string;
@@ -1173,8 +1214,10 @@ export interface BriefView {
   waitingOn: BriefViewWaitingOnItem[];
   /** Granola notes from earlier meetings with any of the same people, newest first */
   earlier: BriefViewEarlierItem[];
-  /** Recent email and Slack exchanges with people on the meeting */
+  /** Recent email and Slack exchanges with people on the meeting that are about it */
   threads: BriefViewThreadsItem[];
+  /** Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher */
+  threadsHidden: BriefViewThreadsHiddenItem[];
   projects: BriefViewProjectsItem[];
   goals: BriefViewGoalsItem[];
   documents: BriefViewDocumentsItem[];
@@ -1249,6 +1292,138 @@ export interface MeetingsList {
   today: string;
   upcoming: MeetingRow[];
   past: MeetingRow[];
+}
+
+/**
+ * Anything but none means the meeting has a prep page at /briefs/{id}
+ */
+export type MeetingViewPrep = typeof MeetingViewPrep[keyof typeof MeetingViewPrep];
+
+
+export const MeetingViewPrep = {
+  ready: 'ready',
+  not_much: 'not_much',
+  failed: 'failed',
+  not_written: 'not_written',
+  none: 'none',
+} as const;
+
+/**
+ * Set when they are in People
+ * @nullable
+ */
+export type MeetingViewAttendeesItemPerson = {
+  id: number;
+  name: string;
+  slug: string;
+} | null;
+
+export type MeetingViewAttendeesItem = {
+  name: string;
+  /** @nullable */
+  email: string | null;
+  /**
+     * Set when they are in People
+     * @nullable
+     */
+  person: MeetingViewAttendeesItemPerson;
+};
+
+export type MeetingViewGranolaActionsItem = {
+  id: number;
+  title: string;
+  status: string;
+};
+
+/**
+ * The Granola note, once one is linked to the meeting
+ * @nullable
+ */
+export type MeetingViewGranola = {
+  /** @nullable */
+  url: string | null;
+  notes: string;
+  /** @nullable */
+  attachedAt: string | null;
+  /** Inbox tasks made from the note's actions */
+  actions: MeetingViewGranolaActionsItem[];
+} | null;
+
+export type AgendaTurnRole = typeof AgendaTurnRole[keyof typeof AgendaTurnRole];
+
+
+export const AgendaTurnRole = {
+  ollie: 'ollie',
+  ai: 'ai',
+} as const;
+
+export interface AgendaTurn {
+  role: AgendaTurnRole;
+  text: string;
+  at: string;
+}
+
+export interface MeetingView {
+  id: number;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  /** @nullable */
+  platform: string | null;
+  /** @nullable */
+  location: string | null;
+  scope: MeetingScope;
+  companies: string[];
+  /** Anything but none means the meeting has a prep page at /briefs/{id} */
+  prep: MeetingViewPrep;
+  attendees: MeetingViewAttendeesItem[];
+  /**
+     * Ollie's agenda and notes
+     * @nullable
+     */
+  notes: string | null;
+  agendaChat: AgendaTurn[];
+  /**
+     * The Granola note, once one is linked to the meeting
+     * @nullable
+     */
+  granola: MeetingViewGranola;
+  /** True when OllieOS reads Granola itself */
+  granolaCheck: boolean;
+}
+
+export interface GranolaLinkInput {
+  /**
+     * A Granola share or note link
+     * @minLength 1
+     * @maxLength 2000
+     */
+  link: string;
+}
+
+export interface ThreadVerdictInput {
+  related: boolean;
+}
+
+export interface AgendaInput {
+  /**
+     * Ollie's thoughts
+     * @minLength 1
+     * @maxLength 4000
+     */
+  message: string;
+  /**
+     * The agenda as it stands in the box
+     * @maxLength 20000
+     */
+  agenda: string;
+}
+
+export interface AgendaResult {
+  agenda: string;
+  /** The agenda before this change */
+  previous: string;
+  chat: AgendaTurn[];
 }
 
 export interface BriefNotesInput {
@@ -1604,6 +1779,8 @@ export interface TimeWeek {
   meetingHours: number;
   byGoal: TimeSlice[];
   byFunction: TimeSlice[];
+  /** Client work, Internal, and meetings with no sorted project */
+  byWork: TimeSlice[];
   internalHours: number;
   externalHours: number;
   plannedTaskHours: number;
@@ -1983,6 +2160,67 @@ export type VoiceSaveResultFactsItem = {
 export interface VoiceSaveResult {
   tasks: number[];
   facts: VoiceSaveResultFactsItem[];
+}
+
+export interface SlackDmPerson {
+  id: number;
+  name: string;
+  /** @nullable */
+  role: string | null;
+}
+
+export interface SlackDmOptions {
+  people: SlackDmPerson[];
+  /** @nullable */
+  suggestedPersonId: number | null;
+}
+
+export interface SlackDmInput {
+  personId: number;
+  /** @maxLength 3000 */
+  text: string;
+}
+
+export interface SlackDmResult {
+  personId: number;
+  personName: string;
+  channel: string;
+  ts: string;
+  url: string;
+}
+
+/**
+ * same merges each card into the approved item its pre-sort hint names
+ */
+export type BulkDecideInputAction = typeof BulkDecideInputAction[keyof typeof BulkDecideInputAction];
+
+
+export const BulkDecideInputAction = {
+  approve: 'approve',
+  reject: 'reject',
+  same: 'same',
+} as const;
+
+export interface BulkDecideInput {
+  /** same merges each card into the approved item its pre-sort hint names */
+  action: BulkDecideInputAction;
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  ids: number[];
+}
+
+export type BulkDecideResultSkippedItem = {
+  id: number;
+  reason: string;
+};
+
+export interface BulkDecideResult {
+  approved: number;
+  rejected: number;
+  merged: number;
+  skipped: BulkDecideResultSkippedItem[];
 }
 
 export type TestCaseAvailabilityExpected = typeof TestCaseAvailabilityExpected[keyof typeof TestCaseAvailabilityExpected];
@@ -2374,6 +2612,8 @@ export interface SuggestProjectFunctionsResult {
   functions: number;
   /** New client cards sent to the Knowledge Inbox */
   clients: number;
+  /** New "client work" or "internal" cards sent to the Knowledge Inbox */
+  workTypes: number;
   /** Projects the documents did not settle */
   unclear: number;
 }
@@ -2398,6 +2638,14 @@ export interface FunctionProject {
   openTaskCount: number;
 }
 
+export type WorkType = typeof WorkType[keyof typeof WorkType];
+
+
+export const WorkType = {
+  client: 'client',
+  internal: 'internal',
+} as const;
+
 export interface ProjectListItem {
   id: number;
   name: string;
@@ -2413,6 +2661,8 @@ export interface ProjectListItem {
   isFunction: boolean;
   /** Names of linked organisations typed customer */
   clients: string[];
+  /** Client work or internal, as set, or client work when a client is linked; null when not sorted yet */
+  workType: WorkType | null;
   openTaskCount: number;
   updatedAt: string;
 }
@@ -2436,6 +2686,8 @@ export interface Project {
   /** @nullable */
   goalId: number | null;
   lifecycle: ProjectLifecycle;
+  /** Client work or internal as Ollie set or approved it; null leaves it to whether a client is linked */
+  workType: WorkType | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -2476,6 +2728,7 @@ export interface ProjectUpdate {
   /** @nullable */
   goalId?: number | null;
   lifecycle?: ProjectLifecycle;
+  workType?: WorkType | null;
 }
 
 export interface LinkedEntity {
@@ -2965,6 +3218,62 @@ export interface KnowledgeInboxPlaybook {
   reason: string | null;
 }
 
+export type PresortHintVerdict = typeof PresortHintVerdict[keyof typeof PresortHintVerdict];
+
+
+export const PresortHintVerdict = {
+  keep: 'keep',
+  reject: 'reject',
+  same: 'same',
+  duplicate: 'duplicate',
+} as const;
+
+export type PresortHintSameAsType = typeof PresortHintSameAsType[keyof typeof PresortHintSameAsType];
+
+
+export const PresortHintSameAsType = {
+  fact: 'fact',
+  decision: 'decision',
+  rule: 'rule',
+} as const;
+
+export type PresortHintSameAs = {
+  type: PresortHintSameAsType;
+  id: number;
+  text: string;
+} | null;
+
+export interface PresortHint {
+  verdict: PresortHintVerdict;
+  why: string;
+  sameAs?: PresortHintSameAs;
+  /** @nullable */
+  duplicateOf?: number | null;
+}
+
+export type StaleEvidenceVerdict = typeof StaleEvidenceVerdict[keyof typeof StaleEvidenceVerdict];
+
+
+export const StaleEvidenceVerdict = {
+  confirmed: 'confirmed',
+  changed: 'changed',
+  none: 'none',
+} as const;
+
+export type StaleEvidenceSourcesItem = {
+  ref: string;
+  label: string;
+  at: string;
+};
+
+export interface StaleEvidence {
+  verdict: StaleEvidenceVerdict;
+  why: string;
+  /** @nullable */
+  newText: string | null;
+  sources: StaleEvidenceSourcesItem[];
+}
+
 export interface KnowledgeInboxItem {
   key: string;
   /** Suggestion id on the Suggested tab */
@@ -3016,6 +3325,185 @@ export interface KnowledgeInboxItem {
   saidAt: string | null;
   /** Contradiction and out-of-date cards: the approved items the new card disagrees with */
   contradicts?: KnowledgeInboxContradicted[];
+  /** Suggested cards: the pre-sorter's hint (section 23); null when it gave none or has not looked */
+  presort?: PresortHint | null;
+  /** Stale facts: what the stale fact checker found (section 23); null until it has looked */
+  evidence?: StaleEvidence | null;
+}
+
+export interface FridayUpdateTextInput {
+  weekEnding: string;
+  /**
+     * @maxLength 8000
+     * @nullable
+     */
+  editedText: string | null;
+}
+
+export type FridayUpdateRedraftInputSection = typeof FridayUpdateRedraftInputSection[keyof typeof FridayUpdateRedraftInputSection];
+
+
+export const FridayUpdateRedraftInputSection = {
+  wins: 'wins',
+  blockers: 'blockers',
+  ai: 'ai',
+  quarterly: 'quarterly',
+} as const;
+
+export interface FridayUpdateRedraftInput {
+  section: FridayUpdateRedraftInputSection;
+}
+
+export type FridayUpdateSections = {
+  wins: string[];
+  blockers: string[];
+  ai: string[];
+  quarterly: string[];
+};
+
+export type FridayUpdateBasis = {
+  done: number;
+  decisions: number;
+  meetings: number;
+  waiting: number;
+  overdue: number;
+  goals: number;
+  /** Items left out because they are hidden from AI */
+  hidden: number;
+};
+
+export interface FridayUpdate {
+  id: number;
+  weekEnding: string;
+  sections: FridayUpdateSections;
+  /** The post as drafted */
+  text: string;
+  /**
+     * Ollie's edited post, when he has changed it
+     * @nullable
+     */
+  editedText: string | null;
+  basis: FridayUpdateBasis;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FridayUpdateWeek {
+  weekEnding: string;
+  update: FridayUpdate | null;
+}
+
+export type ReaderLessonReader = typeof ReaderLessonReader[keyof typeof ReaderLessonReader];
+
+
+export const ReaderLessonReader = {
+  gmail_sorter: 'gmail_sorter',
+  slack_sorter: 'slack_sorter',
+  granola_reader: 'granola_reader',
+} as const;
+
+export type ReaderLessonAbout = typeof ReaderLessonAbout[keyof typeof ReaderLessonAbout];
+
+
+export const ReaderLessonAbout = {
+  tasks: 'tasks',
+  knowledge: 'knowledge',
+} as const;
+
+export type ReaderLessonStatus = typeof ReaderLessonStatus[keyof typeof ReaderLessonStatus];
+
+
+export const ReaderLessonStatus = {
+  proposed: 'proposed',
+  on: 'on',
+  off: 'off',
+  rejected: 'rejected',
+} as const;
+
+export type ReaderLessonLastTry = {
+  at: string;
+  passed: number;
+  total: number;
+  /**
+     * Cases passed without the lesson; null when it was already on
+     * @nullable
+     */
+  without: number | null;
+} | null;
+
+export interface ReaderLesson {
+  id: number;
+  reader: ReaderLessonReader;
+  readerName: string;
+  about: ReaderLessonAbout;
+  text: string;
+  why: string;
+  examples: string[];
+  /** How many corrections back it */
+  evidence: number;
+  learnedBy: string;
+  learnedByName: string;
+  status: ReaderLessonStatus;
+  createdAt: string;
+  /** @nullable */
+  decidedAt: string | null;
+  lastTry: ReaderLessonLastTry;
+}
+
+export type ReaderLessonListLastRun = {
+  /** @nullable */
+  tasks: string | null;
+  /** @nullable */
+  knowledge: string | null;
+};
+
+export interface ReaderLessonList {
+  lessons: ReaderLesson[];
+  maxOn: number;
+  lastRun: ReaderLessonListLastRun;
+}
+
+export type ReaderLessonStatusInputStatus = typeof ReaderLessonStatusInputStatus[keyof typeof ReaderLessonStatusInputStatus];
+
+
+export const ReaderLessonStatusInputStatus = {
+  on: 'on',
+  off: 'off',
+  rejected: 'rejected',
+} as const;
+
+export interface ReaderLessonStatusInput {
+  status: ReaderLessonStatusInputStatus;
+}
+
+export type LearnLessonsResultResultsItem = {
+  reader: string;
+  corrections: number;
+  proposed: number;
+  skipped?: string;
+};
+
+export interface LearnLessonsResult {
+  failed: boolean;
+  results: LearnLessonsResultResultsItem[];
+}
+
+export interface PresortResult {
+  looked: number;
+  repeats: number;
+  hinted: number;
+  /** Cards about something hidden from AI */
+  private: number;
+  failed: boolean;
+}
+
+export interface StaleCheckResult {
+  looked: number;
+  confirmed: number;
+  changed: number;
+  none: number;
+  private: number;
+  failed: boolean;
 }
 
 export type MergeOptionItemType = typeof MergeOptionItemType[keyof typeof MergeOptionItemType];
@@ -3112,9 +3600,16 @@ export interface MergePersonResult {
   moved: MergePersonResultMoved;
 }
 
+/**
+ * Suggested tab: cards waiting by pre-sort hint (keep, reject, same, duplicate, none, unsorted)
+ */
+export type KnowledgeInboxPresort = {[key: string]: number};
+
 export interface KnowledgeInbox {
   counts: KnowledgeInboxCounts;
   items: KnowledgeInboxItem[];
+  /** Suggested tab: cards waiting by pre-sort hint (keep, reject, same, duplicate, none, unsorted) */
+  presort?: KnowledgeInboxPresort;
 }
 
 /**
@@ -3676,20 +4171,16 @@ export interface ProjectDetail {
   activity: TimelineItem[];
 }
 
-export interface PersonListItem {
-  id: number;
-  name: string;
-  slug: string;
-  confidential: boolean;
-  aiAccess: boolean;
-  /** @nullable */
-  role: string | null;
-  organisation: EntitySummary | null;
-  /** @nullable */
-  lastContactAt: string | null;
-  iOweCount: number;
-  theyOweCount: number;
-}
+export type CadenceStatus = typeof CadenceStatus[keyof typeof CadenceStatus];
+
+
+export const CadenceStatus = {
+  overdue: 'overdue',
+  due_soon: 'due_soon',
+  on_track: 'on_track',
+  paused: 'paused',
+  none: 'none',
+} as const;
 
 export type Cadence = typeof Cadence[keyof typeof Cadence];
 
@@ -3702,6 +4193,49 @@ export const Cadence = {
   two_monthly: 'two_monthly',
   quarterly: 'quarterly',
 } as const;
+
+export interface PersonCadence {
+  status: CadenceStatus;
+  /**
+     * Whole days since the last contact; null when there is none on file
+     * @nullable
+     */
+  daysSince: number | null;
+  /** @nullable */
+  daysOverdue: number | null;
+  /** @nullable */
+  daysLeft: number | null;
+  cadence: Cadence;
+  cadenceLabel: string;
+  cadencePaused: boolean;
+  /** True when every linked project is paused or complete */
+  pausedByProjects: boolean;
+}
+
+export interface PersonListItem {
+  id: number;
+  name: string;
+  slug: string;
+  confidential: boolean;
+  aiAccess: boolean;
+  /** @nullable */
+  role: string | null;
+  organisation: EntitySummary | null;
+  /**
+     * The organisation's type
+     * @nullable
+     */
+  organisationType: string | null;
+  /** They work at Ollie's own company */
+  internal: boolean;
+  /** Ollie's own record */
+  isSelf: boolean;
+  /** @nullable */
+  lastContactAt: string | null;
+  iOweCount: number;
+  theyOweCount: number;
+  cadence: PersonCadence;
+}
 
 export interface Person {
   id: number;
@@ -3729,6 +4263,11 @@ export interface Person {
      * @nullable
      */
   slackUserId: string | null;
+  /**
+     * Their LinkedIn profile link
+     * @nullable
+     */
+  linkedinUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -3780,35 +4319,12 @@ export interface PersonUpdate {
      * @nullable
      */
   slackUserId?: string | null;
-}
-
-export type CadenceStatus = typeof CadenceStatus[keyof typeof CadenceStatus];
-
-
-export const CadenceStatus = {
-  overdue: 'overdue',
-  due_soon: 'due_soon',
-  on_track: 'on_track',
-  paused: 'paused',
-  none: 'none',
-} as const;
-
-export interface PersonCadence {
-  status: CadenceStatus;
   /**
-     * Whole days since the last contact; null when there is none on file
+     * Their LinkedIn profile link
+     * @maxLength 300
      * @nullable
      */
-  daysSince: number | null;
-  /** @nullable */
-  daysOverdue: number | null;
-  /** @nullable */
-  daysLeft: number | null;
-  cadence: Cadence;
-  cadenceLabel: string;
-  cadencePaused: boolean;
-  /** True when every linked project is paused or complete */
-  pausedByProjects: boolean;
+  linkedinUrl?: string | null;
 }
 
 export interface PersonDetail {
@@ -3833,6 +4349,11 @@ export interface OrganisationListItem {
   /** Ollie's own company rather than a client */
   internal: boolean;
   peopleCount: number;
+  /**
+     * The latest contact with anyone who works there
+     * @nullable
+     */
+  lastContactAt: string | null;
 }
 
 export interface Organisation {
@@ -4610,6 +5131,73 @@ export const CadenceTab = {
   due_soon: 'due_soon',
   on_track: 'on_track',
 } as const;
+
+export interface LinkedInImportInput {
+  /** The text of Connections.csv from LinkedIn's data export */
+  csv: string;
+}
+
+export interface LinkedInImportResult {
+  at: string;
+  /** Rows in the file */
+  connections: number;
+  /** Connections matched to someone in OllieOS */
+  matched: number;
+  /** Matched */
+  upToDate: number;
+  /** Change cards made for missing or changed details */
+  changes: number;
+  /** Organisation facts made for companies OllieOS does not know */
+  facts: number;
+  /** Already waiting in the Knowledge Inbox */
+  alreadyProposed: number;
+  /** Names that fit more than one person */
+  ambiguous: number;
+  /** Matched people hidden from AI */
+  hidden: number;
+}
+
+export interface LinkedInImportStatus {
+  last: LinkedInImportResult | null;
+}
+
+export interface CadenceSuggestionPerson {
+  id: number;
+  name: string;
+  slug: string;
+  confidential: boolean;
+  /** @nullable */
+  role: string | null;
+  organisation: EntitySummary | null;
+  internal: boolean;
+}
+
+export interface CadenceSuggestion {
+  person: CadenceSuggestionPerson;
+  cadence: Cadence;
+  cadenceLabel: string;
+  /** One line on why this cadence */
+  reason: string;
+  /** Distinct days in touch in the last four months */
+  contactDays: number;
+  /**
+     * Typical gap in days between contacts
+     * @nullable
+     */
+  typicalGapDays: number | null;
+  /** @nullable */
+  lastContactAt: string | null;
+}
+
+export interface CadenceSuggestions {
+  suggestions: CadenceSuggestion[];
+  /** People hidden with Not now */
+  dismissed: number;
+}
+
+export interface DismissCadenceSuggestionInput {
+  personId: number;
+}
 
 export interface CadenceProject {
   id: number;
@@ -5452,6 +6040,10 @@ export type ListFeedbackParams = {
 subjects: string;
 };
 
+export type DismissTaskDelegateHint200 = {
+  id: number;
+};
+
 export type SearchDriveParams = {
 /**
  * @maxLength 200
@@ -5520,6 +6112,10 @@ tab?: ListKnowledgeInboxTab;
  * look_back shows only suggestions from a Granola look back; documents only those from reading documents
  */
 origin?: ListKnowledgeInboxOrigin;
+/**
+ * Suggested only: cards with this pre-sort hint. none is looked at with no hint; unsorted is not looked at yet.
+ */
+hint?: ListKnowledgeInboxHint;
 };
 
 export type ListKnowledgeInboxTab = typeof ListKnowledgeInboxTab[keyof typeof ListKnowledgeInboxTab];
@@ -5539,6 +6135,30 @@ export const ListKnowledgeInboxOrigin = {
   look_back: 'look_back',
   documents: 'documents',
 } as const;
+
+export type ListKnowledgeInboxHint = typeof ListKnowledgeInboxHint[keyof typeof ListKnowledgeInboxHint];
+
+
+export const ListKnowledgeInboxHint = {
+  all: 'all',
+  keep: 'keep',
+  reject: 'reject',
+  same: 'same',
+  duplicate: 'duplicate',
+  none: 'none',
+  unsorted: 'unsorted',
+} as const;
+
+export type GetFridayUpdateParams = {
+/**
+ * The Friday the week ends on, YYYY-MM-DD
+ */
+week?: string;
+};
+
+export type ConfirmFoundStillTrue200 = {
+  confirmed: number;
+};
 
 export type RejectSuggestionsFromSource200 = {
   rejected: number;

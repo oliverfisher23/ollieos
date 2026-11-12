@@ -22,6 +22,7 @@ import { InlineText } from '@/components/inline-text';
 import { HiddenFromAi } from '@/components/knowledge/parts';
 import { useKnowledgeWrite } from '@/lib/knowledge';
 import { notifyUndo } from '@/lib/notify';
+import { ScrollRow } from '@/components/scroll-row';
 
 const TABS: { value: IdeaStatus; label: string }[] = [
   { value: 'new', label: 'New' },
@@ -38,7 +39,7 @@ const EMPTY: Record<IdeaStatus, string> = {
   dropped: 'Nothing dropped.',
 };
 
-const SOURCE_WORDS: Record<Idea['source'], string | null> = { ollie: null, claude: 'From Claude', session: 'From a Cowork session' };
+const SOURCE_WORDS: Record<Idea['source'], string | null> = { ollie: null, claude: 'From Claude', session: 'From a Cowork session', ollieos: 'Spotted by OllieOS' };
 
 /** The ideas list: quick add, one tab per status, newest first, searchable. ?tab= and ?idea= pick one. */
 export function IdeasPanel() {
@@ -83,7 +84,7 @@ export function IdeasPanel() {
 
       <AddIdea onAdded={() => tab !== 'new' && setTab('new')} />
 
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      <ScrollRow className="-mx-4 px-4 sm:mx-0 sm:px-0">
         <div role="tablist" aria-label="Ideas by status" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--oo-line)', minWidth: 'max-content' }}>
           {TABS.map((t) => (
             <button key={t.value} type="button" role="tab" className="oo-tab" aria-selected={t.value === tab} onClick={() => setTab(t.value)} data-testid={'tab-ideas-' + t.value}>
@@ -94,7 +95,7 @@ export function IdeasPanel() {
             </button>
           ))}
         </div>
-      </div>
+      </ScrollRow>
 
       <div role="tabpanel" aria-label={TABS.find((t) => t.value === tab)!.label} aria-live="polite">
         {list.isLoading ? (
@@ -205,7 +206,19 @@ function IdeaRow({ idea: i, focused }: { idea: Idea; focused: boolean }) {
             </span>
           )}
           {i.hiddenFromAi && <HiddenFromAi confidential={i.confidential} />}
-          <span data-testid={`text-idea-${i.id}-meta`}>{meta}</span>
+          <span data-testid={`text-idea-${i.id}-meta`}>
+            {meta}
+            {i.source === 'ollieos' && i.sourceLabel && (
+              <>
+                {' · from '}
+                {i.sourceUrl ? (
+                  <a href={i.sourceUrl} target="_blank" rel="noreferrer" className="oo-link" data-testid={`link-idea-${i.id}-from`}>{i.sourceLabel}</a>
+                ) : (
+                  i.sourceLabel
+                )}
+              </>
+            )}
+          </span>
         </span>
       </div>
 

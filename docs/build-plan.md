@@ -1461,3 +1461,104 @@ Ollie asked how to build evals into OllieOS and to understand its different agen
 - **Weekly grade.** Once a week, after the scheduled checks, the new agent "Writing grader" (Sonnet) grades up to 3 pieces from each of Ask, briefs, the digest summary, email replies and meeting follow-ups from the last 7 days, out of 5 with a one-line reason. Anything that used an item hidden from AI (Ask answers that used one, briefs that did, confidential tasks) is never sampled; only the task and the writing are sent.
 - **Thumbs.** Thumbs up or down on every Ask answer, meeting brief and digest (`POST /feedback`); pressing the same one again clears it.
 - **Where it shows.** Each writer's card on Settings, Agents lists checks passed (with the last problems found), the average grade with the lowest and why, and your thumbs, for the last 7 days.
+
+
+## 22. Requests after the build run (12th November 2026)
+
+- **Knowledge Inbox: decide many at once.** Ollie had close to 2,000 cards to review. Suggested now has filters for kind and for who proposed it, a tick box on each card, Select all shown, and Approve or Reject the selection after a confirm step (`POST /suggestions/bulk`, up to 500 per call). Each card is decided exactly as if its own button were pressed; cards waiting on the Conflicts tab, or already decided, are skipped and listed with the reason. The tab lists the oldest 1,000 waiting (was 400), and says how many more there are.
+- **Message a colleague on Slack from a task.** Agreed with Ollie: OllieOS sends this one itself, a change to the rule that it never sends anything (email is still never sent). On any open task, "Message on Slack" picks a colleague (someone with a Slack account who is not at an outside organisation), takes Ollie's text, and after he confirms sends it as a direct message from him through the Slack connector. The task then moves to Waiting on that person, with a note of what was sent, and their reply is matched back to it as any Slack reply is (Part U). Only from that button; never from AI, Claude or a timer. If the Slack connection lacks permission to write messages, nothing changes and the task says to reconnect Slack with that permission.
+
+## 23. Five new agents (asked for 12th November 2026)
+
+Ollie asked which agents OllieOS could add. Of the eight suggested, he asked for five to be built: the Knowledge Inbox pre-sorter, the stale fact checker, the delegation suggester, the Friday update and the idea spotter. Not built: the renewal watcher, the goal check-in and playbook drift. Each new agent is on the agent list (`lib/agents.ts`), so its runs, cost and errors show on Settings, Agents. The three judges have a scorecard measured from Ollie's own decisions, and the Friday update gets the code checks the other writers have. None of them decides, sends or posts anything.
+
+| Part | Agent | Model | Size |
+|---|---|---|---|
+| Z1 | Knowledge Inbox pre-sort | Haiku, plus a check in code for repeats | Medium |
+| Z2 | Stale fact checker | Haiku | Medium |
+| Z3 | Delegation suggester | Haiku | Medium |
+| Z4 | Friday update | Sonnet | Medium |
+| Z5 | Idea spotter | None of its own: rides on the Granola reader and the Slack sorter | Small |
+
+### Part Z1: Knowledge Inbox pre-sort
+
+- **What it does.** Gives every waiting card a hint: *Looks worth keeping*, *Looks like a reject*, *Same as existing* (naming the approved fact, decision or rule) or *Repeats another card*, with a line on why. Repeats are found in code with the same close-match check as the look back, so they cost nothing. The rest go to Haiku 12 at a time with the close matches already approved, and Ollie's latest 24 decisions on cards as examples, so the hints follow how he decides. Each answer gives its reasoning first and then a fixed verdict (`.agents/memory/model-judges.md`). A "same" that names an item it was not shown is dropped.
+- **Where it shows.** Each Suggested card has the hint under it. The bulk bar has an "Any hint" filter, with a count for each hint across every card waiting, not just the 1,000 shown. Filtering is done on the server, so all 1,000 shown can be cards with one hint. "Pre-sort N now" runs it at once. With cards ticked, "Merge N into existing" marks each "same" card as the same as the item its hint names (`POST /suggestions/bulk` with `action: "same"`).
+- **When.** After each check, up to 120 cards a pass, oldest first. A card waiting on the Conflicts tab is left alone.
+- **Hidden from AI.** A card about anything hidden is never sent to the model and gets no hint (it shows under "No hint").
+- **Scorecard.** "Hints you agreed with": a keep that was approved or merged, a same that was merged, a reject or repeat that was rejected.
+- **Built.** `suggestions.presort` and `presorted_at`; `services/presort.ts`; `GET /suggestions?hint=`, `POST /suggestions/presort`.
+
+### Part Z2: Stale fact checker
+
+- **What it does.** For each fact on Needs a check, reads what OllieOS has seen about the same item since the fact was last confirmed: notes, activity, decisions, tasks (for projects and people), cards proposed since (whatever became of them), newer facts and Cowork sessions. Only items AI may see are read, checked twice: once in SQL and once with `visibleRefs`. Haiku says whether something there shows the fact still holds, has changed (with the new wording) or neither, and names what it relied on. A verdict that names nothing it was given counts as "nothing seen". With nothing seen since, no model is called.
+- **Where it shows.** Each stale card shows *Looks still true*, *Looks changed* (with "Now seems to be:" and **Use this**, which saves the new wording and confirms it) or *Nothing new seen*, and where it was seen. A bar above offers "Check N now" and "Confirm N that look still true", which confirms each one as if Still true were pressed on it.
+- **When.** After each check, up to 20 at a time. The weekly check adds 10 stale facts a week, so it keeps up.
+- **Scorecard.** "Findings you agreed with": still true when Ollie confirmed it; changed when he edited it or marked it no longer true.
+- **Built.** `fact_reviews.evidence` and `evidence_checked_at`; `services/staleCheck.ts`; `POST /fact-reviews/check-evidence`, `POST /fact-reviews/confirm-found`.
+
+### Part Z3: Delegation suggester
+
+- **What it does.** For Now and Backlog tasks and promises, Haiku looks at the colleagues OllieOS can message on Slack (role, the projects they work on through links and tasks, and the last five things Ollie waited on them for) and suggests one only when they are plainly the right person, with why and a two-to-four sentence Slack message. It is told to leave anything that needs Ollie himself: his decisions and relationships, people outside the business, pay, HR, the board, investors or the sale. It never suggests the person the task is with or came from.
+- **Where it shows.** In the task panel, above Message on Slack: "Could go to Sam Lee. Runs delivery." **Message Sam** opens the Slack box with Sam chosen and the draft filled in. Ollie still presses Send and confirms, exactly as in section 22. **Not this one** removes the suggestion and the task is never suggested again.
+- **When.** After each check, up to 30 tasks a pass. A task looked at with no one suggested is looked at again after 21 days. Nothing runs when there is no colleague with Slack.
+- **Hidden from AI.** Tasks and colleagues hidden from AI are never sent. Projects are named only when visible.
+- **Scorecard.** "Suggestions you sent": the task went to the suggested colleague; undone on Not this one.
+- **Built.** `tasks.delegate_hint`, `delegate_checked_at` and `delegate_dismissed_at`; `services/delegation.ts`; `POST /tasks/:id/delegate-hint/dismiss`; the task's `delegateHint`.
+
+### Part Z4: Friday update
+
+- **What it does.** Drafts Ollie's weekly leadership update for Slack in the template of his weekly-update skill: 📆 Weekly Update, W/E date; 🏆 Wins; 🚧 Blockers; 🤖 AI & Automation; 🎯 Quarterly Actions. No em dashes, outcomes not activity, "None this week" for an empty section. It reads the week from Saturday to Friday: tasks done, decisions made, meetings (titles only, and only meetings with no one hidden), work waiting on someone five days or more and overdue Now tasks, OllieOS's own agent runs and cost, cards approved, new rules and playbooks, Cowork sessions, and the top-level goals with their visible projects and the work done on them. A goal's target is left out when the goal is confidential. Hidden items are counted, never described.
+- **Where it shows.** A new page, `/digest/friday`, linked from Home and the round-up. It shows each section with **Draft again**, which redrafts that section only and leaves the others as they were. Below is the whole post in a text box: edit it, **Save my edits**, **Copy for Slack**, or **Go back to the draft**. OllieOS never posts it.
+- **When.** On Fridays, at the first check after 09:00 London, if there is no draft for the week yet; or any time from the page.
+- **Checks.** The writers' code checks (em dashes, a 320-word limit, phrases Ollie's rules ban) are recorded against `weekly_update:<id>`.
+- **Built.** `weekly_updates` table; `services/weeklyUpdate.ts`; `GET` and `PATCH /weekly-update`, `POST /weekly-update/draft` and `/weekly-update/redraft`. The API schemas are called `FridayUpdate`, because `WeeklyUpdate` is already the Done tab's weekly copy.
+
+### Part Z5: Idea spotter
+
+- **What it does.** The Granola reader and the Slack sorter now also return up to two ideas worth coming back to per meeting or Slack exchange: a new product, feature, partnership, way of working or experiment someone floated. Tasks, decisions, plans already under way and small talk are left out. Each idea goes on the Ideas list as New, marked "Spotted by OllieOS · from Granola: Planning", with a link back. It is not knowledge, so like Claude's `add_idea` it skips the Knowledge Inbox.
+- **Rules.** Never from email. Never from a meeting or Slack exchange with anyone hidden from AI. An idea is added once per place it came from, and skipped when an idea not deleted already says much the same. Ideas the model marks confidential are added as confidential.
+- **Built.** `ideas.source` gains `ollieos`, plus `source_ref`, `source_label` and `source_url`; `addSpottedIdea` in `services/strategy.ts`; the `ideas` field in the Granola and Slack schemas. The prompt change gives both readers a new prompt version.
+
+### How it was checked
+
+- `test/section-23.test.ts` (11 tests) stands the model in at `recordedCreate`, so the real prompts are built and the real answers parsed. It covers hints and repeats; hidden cards never sent; the hint filter and counts; bulk merge; stale evidence (changed, nothing seen with no call, hidden, and a verdict that names nothing it was given); confirming all; delegation, with hidden colleagues and tasks left out, never back to the sender, and Not this one; the Friday update's week, template, hidden items, one-section redraft and edits; and ideas from Granola and Slack, once only, none from email or meetings with hidden people. The full suite passes: 396 tests.
+- In a browser against a seeded copy of the database: the Knowledge Inbox (hints, filter, bulk merge, stale findings), the task panel suggestion filling in the Slack box, the Friday update page, and a spotted idea on Strategy. Checked at desktop width and at phone width, with no sideways scroll.
+
+## 24. Readers that learn from corrections (asked for 12th November 2026)
+
+Ollie asked which agents could learn from the knowledge base or improve how tasks are managed, then asked for the two recommended first. Not built yet: the gap finder, the knowledge tidy-up, priority and due-date calibration, the stuck-task coach, time estimates in Plan my day, and one task across channels. OllieOS cannot retrain Claude itself, because fine-tuning the model is not available here. What it does instead is turn Ollie's own corrections into short **lessons** that go into a reader's instructions. The scorecards and test-case replays then show whether each lesson helped.
+
+| Part | Agent | Learns from | Model | Size |
+|---|---|---|---|---|
+| Z6 | Reader coach | Inbox items a reader made that Ollie sent to Noise, dropped, renamed or reprioritised | Sonnet, weekly | Medium |
+| Z7 | Card coach | Knowledge Inbox cards from a reader that Ollie rejected | Sonnet, weekly, sooner while the backlog is cleared | Medium |
+
+### How lessons work
+
+- **Readers.** The Gmail reader, the Slack reader and the Granola reader. The Granola look back uses the Granola reader's lessons. Each lesson is about either Inbox items or knowledge cards. A reader gets its knowledge lessons only when it reads for knowledge.
+- **Proposed, then on.** A coach only proposes a lesson. It reaches a reader only once Ollie turns it on in **Lessons for the readers**, on Settings, Agents. He can turn it off again later, and **Not this one** means it is never proposed again. A reader has at most 12 lessons on at once, so its instructions stay short.
+- **Try it first.** **Try against test cases** runs the reader's saved test cases twice, once as things stand and once with the lesson added. It says how many pass each way. A try changes no case's last result and adds no replay row. Once a lesson is on, ordinary replays include it, and the prompt version changes, so the Agents page shows when the readers' instructions changed.
+- **The rules, enforced in code.** A lesson needs at least three corrections behind it, named by the model and checked against what it was given. Items kept as made are shown as a counterweight but never count as evidence. A lesson that says much the same as one the reader already has, or one Ollie said no to, is not proposed. At most five new lessons per reader per run. No em dashes.
+- **Hidden from AI.** The coaches read only tasks and cards AI may see. Nothing hidden can end up in a lesson, which every exchange the reader reads would carry.
+
+### Part Z6: Reader coach
+
+- **Reads,** per reader, from the last 8 weeks: items it made that Ollie sent to Noise or dropped (up to 60). Items whose title, priority, due date, kind or project he changed by hand, from the audit log (up to 40). A sample of 15 he kept as made. And the reader's existing lessons. Items caught by a noise rule are left out. With fewer than three corrections, no model is called.
+- **When.** Once a week after the scheduled checks, or with **Learn from my corrections now**.
+- **Scorecard.** "Lessons you turned on": kept while on; undone when he said no or turned it off.
+
+### Part Z7: Card coach
+
+- **Reads,** per reader, cards decided in the last 8 weeks (in practice 30, since rejected cards are cleared after 30 days): those rejected (up to 80), a sample of 20 approved or merged, and the existing lessons. Cards from the Gmail check, the Slack check, and Granola meetings and look backs.
+- **When.** Once a week, or sooner once 50 cards have been decided since it last ran, so working through the Knowledge Inbox backlog teaches it quickly. Also with **Learn from my corrections now**.
+- **Scorecard.** As for the reader coach.
+
+### Built
+
+- `reader_lessons` table (`lib/db/src/schema/audit.ts`); `services/readerLessons.ts` (corrections, both coaches, `lessonsFor`, `learnLessonsIfDue`, `tryLesson`).
+- The Gmail and Slack sorter and the Granola reader take `lessons`. `replay` takes `extraLessonIds` and `keep: false`.
+- `GET /lessons`, `POST /lessons/learn`, `PATCH /lessons/:id`, `POST /lessons/:id/try`. The panel is `components/reader-lessons.tsx` on Settings, Agents.
+- **Checked by** `test/section-24.test.ts` (5 tests): lessons proposed only with three real corrections; hidden items never read; nothing applied until turned on; on and off reach the reader's instructions; the cap of 12; a try with and without the lesson leaves the cases untouched; a lesson Ollie said no to is not proposed again; the weekly and 50-decision triggers. The full suite passes: 413 tests. Also checked in a browser at desktop and phone width.
+
+- **Client work or internal (12th November 2026).** Every project now has a kind of work: client work or internal (`projects.work_type`). Ollie sets it on the project page ("Kind of work"); when it is not set, a project linked to a customer, client or partner organisation counts as client work, a function's own record counts as internal, and anything else is "not sorted yet". The function and client suggester (now "Sort projects: client or internal, function" in the Knowledge sidebar) also judges client work or internal for projects not sorted yet and sends a card for each it is sure of; a waiting client card already counts as client work. Where it shows: the Knowledge sidebar lists Clients (grouped by client), Internal (grouped by function) and Not sorted yet; Tasks has a Client work / Internal / No sorted project filter; Where your time went has a Client or internal split and the weekly round-up line says how many meeting hours went on client work; in the digest, items about client work come first in each section; in briefs, client projects are listed first.

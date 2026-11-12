@@ -19,7 +19,7 @@ export interface StrategyOut {
     status: "new" | "come_back";
     come_back_on: string | null;
     due: boolean;
-    added_by: "ollie" | "claude" | "session";
+    added_by: "ollie" | "claude" | "session" | "ollieos";
     created_at: string;
     goal: NamedRef | null;
     project: NamedRef | null;

@@ -182,7 +182,7 @@ async function aboutLine(s: Suggestion): Promise<string> {
 }
 
 /** Whether the card may be sent to the model at all. */
-async function sendable(s: Suggestion): Promise<boolean> {
+export async function sendable(s: Suggestion): Promise<boolean> {
   const p = s.payload as { confidential?: boolean | null };
   if (p.confidential === true) return false;
   const refs: string[] = [];

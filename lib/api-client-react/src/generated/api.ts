@@ -27,6 +27,8 @@ import type {
 import type {
   AccessRequest,
   AccessRequestList,
+  AgendaInput,
+  AgendaResult,
   AgentsView,
   AiAccessSummary,
   AiActivity,
@@ -42,9 +44,12 @@ import type {
   BriefNotesInput,
   BriefTalkingPointInput,
   BriefView,
+  BulkDecideInput,
+  BulkDecideResult,
   BundleInput,
   BundleResult,
   CadencePage,
+  CadenceSuggestions,
   CheckInDraft,
   CheckReplyDraft200,
   ClearOut,
@@ -53,6 +58,7 @@ import type {
   ClipboardText,
   CompanyResearch,
   CompanyResearchList,
+  ConfirmFoundStillTrue200,
   ConnectorCheckResult,
   ConnectorKey,
   ConnectorReadByInput,
@@ -66,6 +72,8 @@ import type {
   DecisionUpdate,
   Digest,
   DigestListItem,
+  DismissCadenceSuggestionInput,
+  DismissTaskDelegateHint200,
   DocumentInput,
   DocumentTextInput,
   DocumentUpdate,
@@ -96,6 +104,11 @@ import type {
   FactSupersede,
   FindGraphConnectionParams,
   FindSlackAccountsParams,
+  FridayUpdate,
+  FridayUpdateRedraftInput,
+  FridayUpdateTextInput,
+  FridayUpdateWeek,
+  GetFridayUpdateParams,
   GetOAuthConsentParams,
   GetRoundupsParams,
   GetTaskSummaryParams,
@@ -105,6 +118,7 @@ import type {
   GoalOption,
   GoalUpdate,
   GoalsPage,
+  GranolaLinkInput,
   GraphConnection,
   GraphResult,
   HandleBrowserLoginCallbackParams,
@@ -118,9 +132,13 @@ import type {
   KnowledgeInbox,
   KnowledgeSettings,
   KnowledgeSettingsUpdate,
+  LearnLessonsResult,
   LibraryDocument,
   LinkInput,
   LinkResult,
+  LinkedInImportInput,
+  LinkedInImportResult,
+  LinkedInImportStatus,
   ListAiActivityParams,
   ListCadenceParams,
   ListDocumentsParams,
@@ -138,6 +156,7 @@ import type {
   LogoutSuccess,
   LookBack,
   LookBackInput,
+  MeetingView,
   MeetingsList,
   MergeOption,
   MergePersonInput,
@@ -172,6 +191,7 @@ import type {
   PlaybookInput,
   PlaybookRunInput,
   PlaybookUpdate,
+  PresortResult,
   Product,
   ProductDetail,
   ProductInput,
@@ -185,6 +205,9 @@ import type {
   QuickAddInput,
   QuickAddResult,
   QuietDaysInput,
+  ReaderLesson,
+  ReaderLessonList,
+  ReaderLessonStatusInput,
   RejectSourceInput,
   RejectSuggestionsFromSource200,
   RelationshipInput,
@@ -219,8 +242,12 @@ import type {
   SessionListItem,
   SessionUpdate,
   SlackAccount,
+  SlackDmInput,
+  SlackDmOptions,
+  SlackDmResult,
   SlackReplyDraft,
   SlackToAnswer,
+  StaleCheckResult,
   StrategyOrder,
   StrategySection,
   StrategySectionInput,
@@ -244,6 +271,7 @@ import type {
   TestCaseAvailability,
   TestCaseInput,
   ThreadSummary,
+  ThreadVerdictInput,
   Thumb,
   ThumbInput,
   TimeReport,
@@ -4228,6 +4256,344 @@ export function useListEmailInbox<TData = Awaited<ReturnType<typeof listEmailInb
 
 
 
+export const getListReaderLessonsUrl = () => {
+
+
+
+
+  return `/api/lessons`
+}
+
+/**
+ * @summary Lessons for the readers, learned from Ollie's corrections (section 24)
+ */
+export const listReaderLessons = async ( options?: Parameters<typeof customFetch>[1]): Promise<ReaderLessonList> => {
+
+  return customFetch<ReaderLessonList>(getListReaderLessonsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReaderLessonsQueryKey = () => {
+    return [
+    `/api/lessons`
+    ] as const;
+    }
+
+
+export const getListReaderLessonsQueryOptions = <TData = Awaited<ReturnType<typeof listReaderLessons>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReaderLessons>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReaderLessonsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReaderLessons>>> = ({ signal }) => listReaderLessons({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReaderLessons>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListReaderLessonsQueryResult = NonNullable<Awaited<ReturnType<typeof listReaderLessons>>>
+export type ListReaderLessonsQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListReaderLessons<TData = Awaited<ReturnType<typeof listReaderLessons>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReaderLessons>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReaderLessons>>,
+          TError,
+          Awaited<ReturnType<typeof listReaderLessons>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReaderLessons<TData = Awaited<ReturnType<typeof listReaderLessons>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReaderLessons>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReaderLessons>>,
+          TError,
+          Awaited<ReturnType<typeof listReaderLessons>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReaderLessons<TData = Awaited<ReturnType<typeof listReaderLessons>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReaderLessons>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Lessons for the readers, learned from Ollie's corrections (section 24)
+ */
+
+export function useListReaderLessons<TData = Awaited<ReturnType<typeof listReaderLessons>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReaderLessons>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListReaderLessonsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getLearnReaderLessonsUrl = () => {
+
+
+
+
+  return `/api/lessons/learn`
+}
+
+/**
+ * @summary Run the reader coach and card coach now
+ */
+export const learnReaderLessons = async ( options?: Parameters<typeof customFetch>[1]): Promise<LearnLessonsResult> => {
+
+  return customFetch<LearnLessonsResult>(getLearnReaderLessonsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getLearnReaderLessonsMutationKey = () => ['learnReaderLessons'] as const;
+
+export const getLearnReaderLessonsMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof learnReaderLessons>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof learnReaderLessons>>, TError,void, TContext> => {
+
+const mutationKey = getLearnReaderLessonsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof learnReaderLessons>>, void> = () => {
+
+
+          return  learnReaderLessons(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LearnReaderLessonsMutationResult = NonNullable<Awaited<ReturnType<typeof learnReaderLessons>>>
+
+    export type LearnReaderLessonsMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Run the reader coach and card coach now
+ */
+export const useLearnReaderLessons = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof learnReaderLessons>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof learnReaderLessons>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getLearnReaderLessonsMutationOptions(options), queryClient);
+    }
+
+export const getSetReaderLessonStatusUrl = (id: number,) => {
+
+
+
+
+  return `/api/lessons/${id}`
+}
+
+/**
+ * @summary Turn a lesson on or off, or say no to a proposed one
+ */
+export const setReaderLessonStatus = async (id: number,
+    readerLessonStatusInput: ReaderLessonStatusInput, options?: Parameters<typeof customFetch>[1]): Promise<ReaderLesson> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReaderLesson>(getSetReaderLessonStatusUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(readerLessonStatusInput)
+  }
+);}
+
+
+
+
+
+export const getSetReaderLessonStatusMutationKey = () => ['setReaderLessonStatus'] as const;
+
+export const getSetReaderLessonStatusMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setReaderLessonStatus>>, TError,SetReaderLessonStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setReaderLessonStatus>>, TError,SetReaderLessonStatusMutationVariables, TContext> => {
+
+const mutationKey = getSetReaderLessonStatusMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setReaderLessonStatus>>, SetReaderLessonStatusMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setReaderLessonStatus(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetReaderLessonStatusMutationResult = NonNullable<Awaited<ReturnType<typeof setReaderLessonStatus>>>
+    export type SetReaderLessonStatusMutationBody = BodyType<ReaderLessonStatusInput>
+    export type SetReaderLessonStatusMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SetReaderLessonStatusMutationVariables = {id: number;data: BodyType<ReaderLessonStatusInput>}
+
+    /**
+ * @summary Turn a lesson on or off, or say no to a proposed one
+ */
+export const useSetReaderLessonStatus = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setReaderLessonStatus>>, TError,SetReaderLessonStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setReaderLessonStatus>>,
+        TError,
+        SetReaderLessonStatusMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetReaderLessonStatusMutationOptions(options), queryClient);
+    }
+
+export const getTryReaderLessonUrl = (id: number,) => {
+
+
+
+
+  return `/api/lessons/${id}/try`
+}
+
+/**
+ * @summary Try a lesson against its reader's test cases, with and without it; nothing is recorded on the cases
+ */
+export const tryReaderLesson = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ReaderLesson> => {
+
+  return customFetch<ReaderLesson>(getTryReaderLessonUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTryReaderLessonMutationKey = () => ['tryReaderLesson'] as const;
+
+export const getTryReaderLessonMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tryReaderLesson>>, TError,TryReaderLessonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof tryReaderLesson>>, TError,TryReaderLessonMutationVariables, TContext> => {
+
+const mutationKey = getTryReaderLessonMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof tryReaderLesson>>, TryReaderLessonMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  tryReaderLesson(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TryReaderLessonMutationResult = NonNullable<Awaited<ReturnType<typeof tryReaderLesson>>>
+
+    export type TryReaderLessonMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type TryReaderLessonMutationVariables = {id: number}
+
+    /**
+ * @summary Try a lesson against its reader's test cases, with and without it; nothing is recorded on the cases
+ */
+export const useTryReaderLesson = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tryReaderLesson>>, TError,TryReaderLessonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof tryReaderLesson>>,
+        TError,
+        TryReaderLessonMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTryReaderLessonMutationOptions(options), queryClient);
+    }
+
 export const getListAgentsUrl = () => {
 
 
@@ -5261,6 +5627,270 @@ export function useExportTasksCsv<TData = Awaited<ReturnType<typeof exportTasksC
 
 
 
+
+export const getDismissTaskDelegateHintUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/delegate-hint/dismiss`
+}
+
+/**
+ * @summary Not this one: drop the delegation suggester's colleague for this task (section 23)
+ */
+export const dismissTaskDelegateHint = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<DismissTaskDelegateHint200> => {
+
+  return customFetch<DismissTaskDelegateHint200>(getDismissTaskDelegateHintUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDismissTaskDelegateHintMutationKey = () => ['dismissTaskDelegateHint'] as const;
+
+export const getDismissTaskDelegateHintMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissTaskDelegateHint>>, TError,DismissTaskDelegateHintMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissTaskDelegateHint>>, TError,DismissTaskDelegateHintMutationVariables, TContext> => {
+
+const mutationKey = getDismissTaskDelegateHintMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissTaskDelegateHint>>, DismissTaskDelegateHintMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  dismissTaskDelegateHint(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissTaskDelegateHintMutationResult = NonNullable<Awaited<ReturnType<typeof dismissTaskDelegateHint>>>
+
+    export type DismissTaskDelegateHintMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type DismissTaskDelegateHintMutationVariables = {id: number}
+
+    /**
+ * @summary Not this one: drop the delegation suggester's colleague for this task (section 23)
+ */
+export const useDismissTaskDelegateHint = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissTaskDelegateHint>>, TError,DismissTaskDelegateHintMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof dismissTaskDelegateHint>>,
+        TError,
+        DismissTaskDelegateHintMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDismissTaskDelegateHintMutationOptions(options), queryClient);
+    }
+
+export const getGetTaskSlackDmOptionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/slack-dm`
+}
+
+/**
+ * @summary Colleagues this task can be sent to on Slack, and who it is suggested for
+ */
+export const getTaskSlackDmOptions = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<SlackDmOptions> => {
+
+  return customFetch<SlackDmOptions>(getGetTaskSlackDmOptionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTaskSlackDmOptionsQueryKey = (id: number,) => {
+    return [
+    `/api/tasks/${id}/slack-dm`
+    ] as const;
+    }
+
+
+export const getGetTaskSlackDmOptionsQueryOptions = <TData = Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTaskSlackDmOptionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTaskSlackDmOptions>>> = ({ signal }) => getTaskSlackDmOptions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTaskSlackDmOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof getTaskSlackDmOptions>>>
+export type GetTaskSlackDmOptionsQueryError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+
+
+export function useGetTaskSlackDmOptions<TData = Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskSlackDmOptions>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskSlackDmOptions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskSlackDmOptions<TData = Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskSlackDmOptions>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskSlackDmOptions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskSlackDmOptions<TData = Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Colleagues this task can be sent to on Slack, and who it is suggested for
+ */
+
+export function useGetTaskSlackDmOptions<TData = Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTaskSlackDmOptionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSendTaskSlackDmUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/slack-dm`
+}
+
+/**
+ * @summary Send a colleague a Slack direct message as Ollie, then move the task to Waiting on them
+ */
+export const sendTaskSlackDm = async (id: number,
+    slackDmInput: SlackDmInput, options?: Parameters<typeof customFetch>[1]): Promise<SlackDmResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SlackDmResult>(getSendTaskSlackDmUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(slackDmInput)
+  }
+);}
+
+
+
+
+
+export const getSendTaskSlackDmMutationKey = () => ['sendTaskSlackDm'] as const;
+
+export const getSendTaskSlackDmMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTaskSlackDm>>, TError,SendTaskSlackDmMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendTaskSlackDm>>, TError,SendTaskSlackDmMutationVariables, TContext> => {
+
+const mutationKey = getSendTaskSlackDmMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendTaskSlackDm>>, SendTaskSlackDmMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  sendTaskSlackDm(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendTaskSlackDmMutationResult = NonNullable<Awaited<ReturnType<typeof sendTaskSlackDm>>>
+    export type SendTaskSlackDmMutationBody = BodyType<SlackDmInput>
+    export type SendTaskSlackDmMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SendTaskSlackDmMutationVariables = {id: number;data: BodyType<SlackDmInput>}
+
+    /**
+ * @summary Send a colleague a Slack direct message as Ollie, then move the task to Waiting on them
+ */
+export const useSendTaskSlackDm = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTaskSlackDm>>, TError,SendTaskSlackDmMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof sendTaskSlackDm>>,
+        TError,
+        SendTaskSlackDmMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendTaskSlackDmMutationOptions(options), queryClient);
+    }
 
 export const getSearchDriveUrl = (params: SearchDriveParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -9503,6 +10133,458 @@ export function useListCadence<TData = Awaited<ReturnType<typeof listCadence>>, 
 
 
 
+export const getGetLinkedInImportUrl = () => {
+
+
+
+
+  return `/api/contacts/linkedin-import`
+}
+
+/**
+ * @summary When the LinkedIn connections were last imported, and what came of it
+ */
+export const getLinkedInImport = async ( options?: Parameters<typeof customFetch>[1]): Promise<LinkedInImportStatus> => {
+
+  return customFetch<LinkedInImportStatus>(getGetLinkedInImportUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLinkedInImportQueryKey = () => {
+    return [
+    `/api/contacts/linkedin-import`
+    ] as const;
+    }
+
+
+export const getGetLinkedInImportQueryOptions = <TData = Awaited<ReturnType<typeof getLinkedInImport>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLinkedInImportQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLinkedInImport>>> = ({ signal }) => getLinkedInImport({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetLinkedInImportQueryResult = NonNullable<Awaited<ReturnType<typeof getLinkedInImport>>>
+export type GetLinkedInImportQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetLinkedInImport<TData = Awaited<ReturnType<typeof getLinkedInImport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLinkedInImport>>,
+          TError,
+          Awaited<ReturnType<typeof getLinkedInImport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLinkedInImport<TData = Awaited<ReturnType<typeof getLinkedInImport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLinkedInImport>>,
+          TError,
+          Awaited<ReturnType<typeof getLinkedInImport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLinkedInImport<TData = Awaited<ReturnType<typeof getLinkedInImport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary When the LinkedIn connections were last imported, and what came of it
+ */
+
+export function useGetLinkedInImport<TData = Awaited<ReturnType<typeof getLinkedInImport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetLinkedInImportQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getImportLinkedInUrl = () => {
+
+
+
+
+  return `/api/contacts/linkedin-import`
+}
+
+/**
+ * @summary Match LinkedIn's Connections.csv to people in OllieOS and propose missing or changed details to the Knowledge Inbox
+ */
+export const importLinkedIn = async (linkedInImportInput: LinkedInImportInput, options?: Parameters<typeof customFetch>[1]): Promise<LinkedInImportResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<LinkedInImportResult>(getImportLinkedInUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(linkedInImportInput)
+  }
+);}
+
+
+
+
+
+export const getImportLinkedInMutationKey = () => ['importLinkedIn'] as const;
+
+export const getImportLinkedInMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importLinkedIn>>, TError,ImportLinkedInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importLinkedIn>>, TError,ImportLinkedInMutationVariables, TContext> => {
+
+const mutationKey = getImportLinkedInMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importLinkedIn>>, ImportLinkedInMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  importLinkedIn(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportLinkedInMutationResult = NonNullable<Awaited<ReturnType<typeof importLinkedIn>>>
+    export type ImportLinkedInMutationBody = BodyType<LinkedInImportInput>
+    export type ImportLinkedInMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type ImportLinkedInMutationVariables = {data: BodyType<LinkedInImportInput>}
+
+    /**
+ * @summary Match LinkedIn's Connections.csv to people in OllieOS and propose missing or changed details to the Knowledge Inbox
+ */
+export const useImportLinkedIn = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importLinkedIn>>, TError,ImportLinkedInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importLinkedIn>>,
+        TError,
+        ImportLinkedInMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportLinkedInMutationOptions(options), queryClient);
+    }
+
+export const getListCadenceSuggestionsUrl = () => {
+
+
+
+
+  return `/api/people/cadence-suggestions`
+}
+
+/**
+ * @summary Suggested cadences for people with none, from how often Ollie has actually been in touch
+ */
+export const listCadenceSuggestions = async ( options?: Parameters<typeof customFetch>[1]): Promise<CadenceSuggestions> => {
+
+  return customFetch<CadenceSuggestions>(getListCadenceSuggestionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCadenceSuggestionsQueryKey = () => {
+    return [
+    `/api/people/cadence-suggestions`
+    ] as const;
+    }
+
+
+export const getListCadenceSuggestionsQueryOptions = <TData = Awaited<ReturnType<typeof listCadenceSuggestions>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCadenceSuggestionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCadenceSuggestions>>> = ({ signal }) => listCadenceSuggestions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCadenceSuggestionsQueryResult = NonNullable<Awaited<ReturnType<typeof listCadenceSuggestions>>>
+export type ListCadenceSuggestionsQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListCadenceSuggestions<TData = Awaited<ReturnType<typeof listCadenceSuggestions>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCadenceSuggestions>>,
+          TError,
+          Awaited<ReturnType<typeof listCadenceSuggestions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCadenceSuggestions<TData = Awaited<ReturnType<typeof listCadenceSuggestions>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCadenceSuggestions>>,
+          TError,
+          Awaited<ReturnType<typeof listCadenceSuggestions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCadenceSuggestions<TData = Awaited<ReturnType<typeof listCadenceSuggestions>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Suggested cadences for people with none, from how often Ollie has actually been in touch
+ */
+
+export function useListCadenceSuggestions<TData = Awaited<ReturnType<typeof listCadenceSuggestions>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCadenceSuggestionsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDismissCadenceSuggestionUrl = () => {
+
+
+
+
+  return `/api/people/cadence-suggestions/dismiss`
+}
+
+/**
+ * @summary Not now; stop suggesting a cadence for this person
+ */
+export const dismissCadenceSuggestion = async (dismissCadenceSuggestionInput: DismissCadenceSuggestionInput, options?: Parameters<typeof customFetch>[1]): Promise<OkResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OkResult>(getDismissCadenceSuggestionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dismissCadenceSuggestionInput)
+  }
+);}
+
+
+
+
+
+export const getDismissCadenceSuggestionMutationKey = () => ['dismissCadenceSuggestion'] as const;
+
+export const getDismissCadenceSuggestionMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissCadenceSuggestion>>, TError,DismissCadenceSuggestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissCadenceSuggestion>>, TError,DismissCadenceSuggestionMutationVariables, TContext> => {
+
+const mutationKey = getDismissCadenceSuggestionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissCadenceSuggestion>>, DismissCadenceSuggestionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  dismissCadenceSuggestion(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissCadenceSuggestionMutationResult = NonNullable<Awaited<ReturnType<typeof dismissCadenceSuggestion>>>
+    export type DismissCadenceSuggestionMutationBody = BodyType<DismissCadenceSuggestionInput>
+    export type DismissCadenceSuggestionMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type DismissCadenceSuggestionMutationVariables = {data: BodyType<DismissCadenceSuggestionInput>}
+
+    /**
+ * @summary Not now; stop suggesting a cadence for this person
+ */
+export const useDismissCadenceSuggestion = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissCadenceSuggestion>>, TError,DismissCadenceSuggestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof dismissCadenceSuggestion>>,
+        TError,
+        DismissCadenceSuggestionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDismissCadenceSuggestionMutationOptions(options), queryClient);
+    }
+
+export const getRestoreCadenceSuggestionsUrl = () => {
+
+
+
+
+  return `/api/people/cadence-suggestions/restore`
+}
+
+/**
+ * @summary Bring back everyone hidden from the suggestions with Not now
+ */
+export const restoreCadenceSuggestions = async ( options?: Parameters<typeof customFetch>[1]): Promise<OkResult> => {
+
+  return customFetch<OkResult>(getRestoreCadenceSuggestionsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRestoreCadenceSuggestionsMutationKey = () => ['restoreCadenceSuggestions'] as const;
+
+export const getRestoreCadenceSuggestionsMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreCadenceSuggestions>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreCadenceSuggestions>>, TError,void, TContext> => {
+
+const mutationKey = getRestoreCadenceSuggestionsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreCadenceSuggestions>>, void> = () => {
+
+
+          return  restoreCadenceSuggestions(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreCadenceSuggestionsMutationResult = NonNullable<Awaited<ReturnType<typeof restoreCadenceSuggestions>>>
+
+    export type RestoreCadenceSuggestionsMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Bring back everyone hidden from the suggestions with Not now
+ */
+export const useRestoreCadenceSuggestions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreCadenceSuggestions>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof restoreCadenceSuggestions>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRestoreCadenceSuggestionsMutationOptions(options), queryClient);
+    }
+
 export const getListPossibleDuplicatesUrl = () => {
 
 
@@ -10064,6 +11146,539 @@ export function useListMeetings<TData = Awaited<ReturnType<typeof listMeetings>>
 
 
 
+export const getGetMeetingUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/meetings/${eventId}`
+}
+
+/**
+ * @summary One work meeting, with or without a prep page, with Ollie's agenda and notes
+ */
+export const getMeeting = async (eventId: number, options?: Parameters<typeof customFetch>[1]): Promise<MeetingView> => {
+
+  return customFetch<MeetingView>(getGetMeetingUrl(eventId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMeetingQueryKey = (eventId: number,) => {
+    return [
+    `/api/meetings/${eventId}`
+    ] as const;
+    }
+
+
+export const getGetMeetingQueryOptions = <TData = Awaited<ReturnType<typeof getMeeting>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(eventId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMeetingQueryKey(eventId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMeeting>>> = ({ signal }) => getMeeting(eventId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: eventId !== null && eventId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMeetingQueryResult = NonNullable<Awaited<ReturnType<typeof getMeeting>>>
+export type GetMeetingQueryError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+
+
+export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ eventId: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMeeting>>,
+          TError,
+          Awaited<ReturnType<typeof getMeeting>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ eventId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMeeting>>,
+          TError,
+          Awaited<ReturnType<typeof getMeeting>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ eventId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary One work meeting, with or without a prep page, with Ollie's agenda and notes
+ */
+
+export function useGetMeeting<TData = Awaited<ReturnType<typeof getMeeting>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ eventId: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeeting>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMeetingQueryOptions(eventId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateMeetingNotesUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/meetings/${eventId}`
+}
+
+/**
+ * @summary Ollie's agenda and notes for a work meeting (the same notes the prep page shows)
+ */
+export const updateMeetingNotes = async (eventId: number,
+    briefNotesInput: BriefNotesInput, options?: Parameters<typeof customFetch>[1]): Promise<BriefNotesInput> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<BriefNotesInput>(getUpdateMeetingNotesUrl(eventId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(briefNotesInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateMeetingNotesMutationKey = () => ['updateMeetingNotes'] as const;
+
+export const getUpdateMeetingNotesMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMeetingNotes>>, TError,UpdateMeetingNotesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMeetingNotes>>, TError,UpdateMeetingNotesMutationVariables, TContext> => {
+
+const mutationKey = getUpdateMeetingNotesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMeetingNotes>>, UpdateMeetingNotesMutationVariables> = (props) => {
+          const {eventId,data} = props ?? {};
+
+          return  updateMeetingNotes(eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMeetingNotesMutationResult = NonNullable<Awaited<ReturnType<typeof updateMeetingNotes>>>
+    export type UpdateMeetingNotesMutationBody = BodyType<BriefNotesInput>
+    export type UpdateMeetingNotesMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type UpdateMeetingNotesMutationVariables = {eventId: number;data: BodyType<BriefNotesInput>}
+
+    /**
+ * @summary Ollie's agenda and notes for a work meeting (the same notes the prep page shows)
+ */
+export const useUpdateMeetingNotes = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMeetingNotes>>, TError,UpdateMeetingNotesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateMeetingNotes>>,
+        TError,
+        UpdateMeetingNotesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateMeetingNotesMutationOptions(options), queryClient);
+    }
+
+export const getShapeAgendaUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/meetings/${eventId}/agenda`
+}
+
+/**
+ * @summary Shape the meeting's agenda from Ollie's thoughts, starting from the agenda he sends
+ */
+export const shapeAgenda = async (eventId: number,
+    agendaInput: AgendaInput, options?: Parameters<typeof customFetch>[1]): Promise<AgendaResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AgendaResult>(getShapeAgendaUrl(eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(agendaInput)
+  }
+);}
+
+
+
+
+
+export const getShapeAgendaMutationKey = () => ['shapeAgenda'] as const;
+
+export const getShapeAgendaMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof shapeAgenda>>, TError,ShapeAgendaMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof shapeAgenda>>, TError,ShapeAgendaMutationVariables, TContext> => {
+
+const mutationKey = getShapeAgendaMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof shapeAgenda>>, ShapeAgendaMutationVariables> = (props) => {
+          const {eventId,data} = props ?? {};
+
+          return  shapeAgenda(eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ShapeAgendaMutationResult = NonNullable<Awaited<ReturnType<typeof shapeAgenda>>>
+    export type ShapeAgendaMutationBody = BodyType<AgendaInput>
+    export type ShapeAgendaMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type ShapeAgendaMutationVariables = {eventId: number;data: BodyType<AgendaInput>}
+
+    /**
+ * @summary Shape the meeting's agenda from Ollie's thoughts, starting from the agenda he sends
+ */
+export const useShapeAgenda = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof shapeAgenda>>, TError,ShapeAgendaMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof shapeAgenda>>,
+        TError,
+        ShapeAgendaMutationVariables,
+        TContext
+      > => {
+      return useMutation(getShapeAgendaMutationOptions(options), queryClient);
+    }
+
+export const getClearAgendaChatUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/meetings/${eventId}/agenda/chat`
+}
+
+/**
+ * @summary Start the agenda conversation again (the agenda itself stays)
+ */
+export const clearAgendaChat = async (eventId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getClearAgendaChatUrl(eventId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getClearAgendaChatMutationKey = () => ['clearAgendaChat'] as const;
+
+export const getClearAgendaChatMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearAgendaChat>>, TError,ClearAgendaChatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof clearAgendaChat>>, TError,ClearAgendaChatMutationVariables, TContext> => {
+
+const mutationKey = getClearAgendaChatMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearAgendaChat>>, ClearAgendaChatMutationVariables> = (props) => {
+          const {eventId} = props ?? {};
+
+          return  clearAgendaChat(eventId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClearAgendaChatMutationResult = NonNullable<Awaited<ReturnType<typeof clearAgendaChat>>>
+
+    export type ClearAgendaChatMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type ClearAgendaChatMutationVariables = {eventId: number}
+
+    /**
+ * @summary Start the agenda conversation again (the agenda itself stays)
+ */
+export const useClearAgendaChat = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearAgendaChat>>, TError,ClearAgendaChatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof clearAgendaChat>>,
+        TError,
+        ClearAgendaChatMutationVariables,
+        TContext
+      > => {
+      return useMutation(getClearAgendaChatMutationOptions(options), queryClient);
+    }
+
+export const getLinkGranolaNoteUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/meetings/${eventId}/granola`
+}
+
+/**
+ * @summary Link a Granola note to the meeting from its link, when OllieOS did not match it
+ */
+export const linkGranolaNote = async (eventId: number,
+    granolaLinkInput: GranolaLinkInput, options?: Parameters<typeof customFetch>[1]): Promise<MeetingView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MeetingView>(getLinkGranolaNoteUrl(eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(granolaLinkInput)
+  }
+);}
+
+
+
+
+
+export const getLinkGranolaNoteMutationKey = () => ['linkGranolaNote'] as const;
+
+export const getLinkGranolaNoteMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof linkGranolaNote>>, TError,LinkGranolaNoteMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof linkGranolaNote>>, TError,LinkGranolaNoteMutationVariables, TContext> => {
+
+const mutationKey = getLinkGranolaNoteMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof linkGranolaNote>>, LinkGranolaNoteMutationVariables> = (props) => {
+          const {eventId,data} = props ?? {};
+
+          return  linkGranolaNote(eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LinkGranolaNoteMutationResult = NonNullable<Awaited<ReturnType<typeof linkGranolaNote>>>
+    export type LinkGranolaNoteMutationBody = BodyType<GranolaLinkInput>
+    export type LinkGranolaNoteMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type LinkGranolaNoteMutationVariables = {eventId: number;data: BodyType<GranolaLinkInput>}
+
+    /**
+ * @summary Link a Granola note to the meeting from its link, when OllieOS did not match it
+ */
+export const useLinkGranolaNote = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof linkGranolaNote>>, TError,LinkGranolaNoteMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof linkGranolaNote>>,
+        TError,
+        LinkGranolaNoteMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLinkGranolaNoteMutationOptions(options), queryClient);
+    }
+
+export const getSetThreadVerdictUrl = (eventId: number,
+    activityId: number,) => {
+
+
+
+
+  return `/api/meetings/${eventId}/threads/${activityId}`
+}
+
+/**
+ * @summary Ollie's verdict on whether an email or Slack thread is about the meeting; the thread matcher learns from it
+ */
+export const setThreadVerdict = async (eventId: number,
+    activityId: number,
+    threadVerdictInput: ThreadVerdictInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getSetThreadVerdictUrl(eventId,activityId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(threadVerdictInput)
+  }
+);}
+
+
+
+
+
+export const getSetThreadVerdictMutationKey = () => ['setThreadVerdict'] as const;
+
+export const getSetThreadVerdictMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setThreadVerdict>>, TError,SetThreadVerdictMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setThreadVerdict>>, TError,SetThreadVerdictMutationVariables, TContext> => {
+
+const mutationKey = getSetThreadVerdictMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setThreadVerdict>>, SetThreadVerdictMutationVariables> = (props) => {
+          const {eventId,activityId,data} = props ?? {};
+
+          return  setThreadVerdict(eventId,activityId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetThreadVerdictMutationResult = NonNullable<Awaited<ReturnType<typeof setThreadVerdict>>>
+    export type SetThreadVerdictMutationBody = BodyType<ThreadVerdictInput>
+    export type SetThreadVerdictMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type SetThreadVerdictMutationVariables = {eventId: number;activityId: number;data: BodyType<ThreadVerdictInput>}
+
+    /**
+ * @summary Ollie's verdict on whether an email or Slack thread is about the meeting; the thread matcher learns from it
+ */
+export const useSetThreadVerdict = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setThreadVerdict>>, TError,SetThreadVerdictMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setThreadVerdict>>,
+        TError,
+        SetThreadVerdictMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetThreadVerdictMutationOptions(options), queryClient);
+    }
+
 export const getGetNextBriefUrl = () => {
 
 
@@ -10275,7 +11890,7 @@ export const getUpdateBriefNotesUrl = (eventId: number,) => {
 }
 
 /**
- * @summary Ollie's notes for after the meeting
+ * @summary Ollie's notes for the meeting (kept on the meeting, the same as PATCH /meetings/{eventId})
  */
 export const updateBriefNotes = async (eventId: number,
     briefNotesInput: BriefNotesInput, options?: Parameters<typeof customFetch>[1]): Promise<BriefNotesInput> => {
@@ -10342,7 +11957,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateBriefNotesMutationVariables = {eventId: number;data: BodyType<BriefNotesInput>}
 
     /**
- * @summary Ollie's notes for after the meeting
+ * @summary Ollie's notes for the meeting (kept on the meeting, the same as PATCH /meetings/{eventId})
  */
 export const useUpdateBriefNotes = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBriefNotes>>, TError,UpdateBriefNotesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -15983,6 +17598,674 @@ export const useApproveSuggestion = <TError = ErrorType<ErrorResponse | NotAutho
         TContext
       > => {
       return useMutation(getApproveSuggestionMutationOptions(options), queryClient);
+    }
+
+export const getBulkDecideSuggestionsUrl = () => {
+
+
+
+
+  return `/api/suggestions/bulk`
+}
+
+/**
+ * @summary Approve or reject many Knowledge Inbox cards at once; cards that cannot be decided as they stand are skipped
+ */
+export const bulkDecideSuggestions = async (bulkDecideInput: BulkDecideInput, options?: Parameters<typeof customFetch>[1]): Promise<BulkDecideResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<BulkDecideResult>(getBulkDecideSuggestionsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bulkDecideInput)
+  }
+);}
+
+
+
+
+
+export const getBulkDecideSuggestionsMutationKey = () => ['bulkDecideSuggestions'] as const;
+
+export const getBulkDecideSuggestionsMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkDecideSuggestions>>, TError,BulkDecideSuggestionsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkDecideSuggestions>>, TError,BulkDecideSuggestionsMutationVariables, TContext> => {
+
+const mutationKey = getBulkDecideSuggestionsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkDecideSuggestions>>, BulkDecideSuggestionsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkDecideSuggestions(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkDecideSuggestionsMutationResult = NonNullable<Awaited<ReturnType<typeof bulkDecideSuggestions>>>
+    export type BulkDecideSuggestionsMutationBody = BodyType<BulkDecideInput>
+    export type BulkDecideSuggestionsMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type BulkDecideSuggestionsMutationVariables = {data: BodyType<BulkDecideInput>}
+
+    /**
+ * @summary Approve or reject many Knowledge Inbox cards at once; cards that cannot be decided as they stand are skipped
+ */
+export const useBulkDecideSuggestions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkDecideSuggestions>>, TError,BulkDecideSuggestionsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bulkDecideSuggestions>>,
+        TError,
+        BulkDecideSuggestionsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBulkDecideSuggestionsMutationOptions(options), queryClient);
+    }
+
+export const getGetFridayUpdateUrl = (params?: GetFridayUpdateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/weekly-update?${stringifiedParams}` : `/api/weekly-update`
+}
+
+/**
+ * @summary The Friday update for a week (section 23): this week's unless a week is given
+ */
+export const getFridayUpdate = async (params?: GetFridayUpdateParams, options?: Parameters<typeof customFetch>[1]): Promise<FridayUpdateWeek> => {
+
+  return customFetch<FridayUpdateWeek>(getGetFridayUpdateUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFridayUpdateQueryKey = (params?: GetFridayUpdateParams,) => {
+    return [
+    `/api/weekly-update`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetFridayUpdateQueryOptions = <TData = Awaited<ReturnType<typeof getFridayUpdate>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(params?: GetFridayUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFridayUpdate>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFridayUpdateQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFridayUpdate>>> = ({ signal }) => getFridayUpdate(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFridayUpdate>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFridayUpdateQueryResult = NonNullable<Awaited<ReturnType<typeof getFridayUpdate>>>
+export type GetFridayUpdateQueryError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+export function useGetFridayUpdate<TData = Awaited<ReturnType<typeof getFridayUpdate>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: undefined |  GetFridayUpdateParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFridayUpdate>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFridayUpdate>>,
+          TError,
+          Awaited<ReturnType<typeof getFridayUpdate>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFridayUpdate<TData = Awaited<ReturnType<typeof getFridayUpdate>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params?: GetFridayUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFridayUpdate>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFridayUpdate>>,
+          TError,
+          Awaited<ReturnType<typeof getFridayUpdate>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFridayUpdate<TData = Awaited<ReturnType<typeof getFridayUpdate>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params?: GetFridayUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFridayUpdate>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The Friday update for a week (section 23): this week's unless a week is given
+ */
+
+export function useGetFridayUpdate<TData = Awaited<ReturnType<typeof getFridayUpdate>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params?: GetFridayUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFridayUpdate>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFridayUpdateQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveFridayUpdateTextUrl = () => {
+
+
+
+
+  return `/api/weekly-update`
+}
+
+/**
+ * @summary Save Ollie's edits to the post; null goes back to the draft
+ */
+export const saveFridayUpdateText = async (fridayUpdateTextInput: FridayUpdateTextInput, options?: Parameters<typeof customFetch>[1]): Promise<FridayUpdate> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FridayUpdate>(getSaveFridayUpdateTextUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fridayUpdateTextInput)
+  }
+);}
+
+
+
+
+
+export const getSaveFridayUpdateTextMutationKey = () => ['saveFridayUpdateText'] as const;
+
+export const getSaveFridayUpdateTextMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveFridayUpdateText>>, TError,SaveFridayUpdateTextMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveFridayUpdateText>>, TError,SaveFridayUpdateTextMutationVariables, TContext> => {
+
+const mutationKey = getSaveFridayUpdateTextMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveFridayUpdateText>>, SaveFridayUpdateTextMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveFridayUpdateText(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveFridayUpdateTextMutationResult = NonNullable<Awaited<ReturnType<typeof saveFridayUpdateText>>>
+    export type SaveFridayUpdateTextMutationBody = BodyType<FridayUpdateTextInput>
+    export type SaveFridayUpdateTextMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SaveFridayUpdateTextMutationVariables = {data: BodyType<FridayUpdateTextInput>}
+
+    /**
+ * @summary Save Ollie's edits to the post; null goes back to the draft
+ */
+export const useSaveFridayUpdateText = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveFridayUpdateText>>, TError,SaveFridayUpdateTextMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveFridayUpdateText>>,
+        TError,
+        SaveFridayUpdateTextMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveFridayUpdateTextMutationOptions(options), queryClient);
+    }
+
+export const getDraftFridayUpdateUrl = () => {
+
+
+
+
+  return `/api/weekly-update/draft`
+}
+
+/**
+ * @summary Draft this week's Friday update (again), from what OllieOS saw this week
+ */
+export const draftFridayUpdate = async ( options?: Parameters<typeof customFetch>[1]): Promise<FridayUpdate> => {
+
+  return customFetch<FridayUpdate>(getDraftFridayUpdateUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDraftFridayUpdateMutationKey = () => ['draftFridayUpdate'] as const;
+
+export const getDraftFridayUpdateMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftFridayUpdate>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof draftFridayUpdate>>, TError,void, TContext> => {
+
+const mutationKey = getDraftFridayUpdateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof draftFridayUpdate>>, void> = () => {
+
+
+          return  draftFridayUpdate(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DraftFridayUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof draftFridayUpdate>>>
+
+    export type DraftFridayUpdateMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+
+
+    /**
+ * @summary Draft this week's Friday update (again), from what OllieOS saw this week
+ */
+export const useDraftFridayUpdate = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftFridayUpdate>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof draftFridayUpdate>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDraftFridayUpdateMutationOptions(options), queryClient);
+    }
+
+export const getRedraftFridayUpdateSectionUrl = () => {
+
+
+
+
+  return `/api/weekly-update/redraft`
+}
+
+/**
+ * @summary Draft one section of this week's update again, keeping the others
+ */
+export const redraftFridayUpdateSection = async (fridayUpdateRedraftInput: FridayUpdateRedraftInput, options?: Parameters<typeof customFetch>[1]): Promise<FridayUpdate> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FridayUpdate>(getRedraftFridayUpdateSectionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fridayUpdateRedraftInput)
+  }
+);}
+
+
+
+
+
+export const getRedraftFridayUpdateSectionMutationKey = () => ['redraftFridayUpdateSection'] as const;
+
+export const getRedraftFridayUpdateSectionMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redraftFridayUpdateSection>>, TError,RedraftFridayUpdateSectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof redraftFridayUpdateSection>>, TError,RedraftFridayUpdateSectionMutationVariables, TContext> => {
+
+const mutationKey = getRedraftFridayUpdateSectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof redraftFridayUpdateSection>>, RedraftFridayUpdateSectionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  redraftFridayUpdateSection(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RedraftFridayUpdateSectionMutationResult = NonNullable<Awaited<ReturnType<typeof redraftFridayUpdateSection>>>
+    export type RedraftFridayUpdateSectionMutationBody = BodyType<FridayUpdateRedraftInput>
+    export type RedraftFridayUpdateSectionMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type RedraftFridayUpdateSectionMutationVariables = {data: BodyType<FridayUpdateRedraftInput>}
+
+    /**
+ * @summary Draft one section of this week's update again, keeping the others
+ */
+export const useRedraftFridayUpdateSection = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redraftFridayUpdateSection>>, TError,RedraftFridayUpdateSectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof redraftFridayUpdateSection>>,
+        TError,
+        RedraftFridayUpdateSectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRedraftFridayUpdateSectionMutationOptions(options), queryClient);
+    }
+
+export const getPresortSuggestionsUrl = () => {
+
+
+
+
+  return `/api/suggestions/presort`
+}
+
+/**
+ * @summary Pre-sort the next Knowledge Inbox cards now (section 23)
+ */
+export const presortSuggestions = async ( options?: Parameters<typeof customFetch>[1]): Promise<PresortResult> => {
+
+  return customFetch<PresortResult>(getPresortSuggestionsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPresortSuggestionsMutationKey = () => ['presortSuggestions'] as const;
+
+export const getPresortSuggestionsMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof presortSuggestions>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof presortSuggestions>>, TError,void, TContext> => {
+
+const mutationKey = getPresortSuggestionsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof presortSuggestions>>, void> = () => {
+
+
+          return  presortSuggestions(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PresortSuggestionsMutationResult = NonNullable<Awaited<ReturnType<typeof presortSuggestions>>>
+
+    export type PresortSuggestionsMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Pre-sort the next Knowledge Inbox cards now (section 23)
+ */
+export const usePresortSuggestions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof presortSuggestions>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof presortSuggestions>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPresortSuggestionsMutationOptions(options), queryClient);
+    }
+
+export const getCheckStaleEvidenceUrl = () => {
+
+
+
+
+  return `/api/fact-reviews/check-evidence`
+}
+
+/**
+ * @summary Run the stale fact checker now on facts waiting on Needs a check (section 23)
+ */
+export const checkStaleEvidence = async ( options?: Parameters<typeof customFetch>[1]): Promise<StaleCheckResult> => {
+
+  return customFetch<StaleCheckResult>(getCheckStaleEvidenceUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckStaleEvidenceMutationKey = () => ['checkStaleEvidence'] as const;
+
+export const getCheckStaleEvidenceMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkStaleEvidence>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkStaleEvidence>>, TError,void, TContext> => {
+
+const mutationKey = getCheckStaleEvidenceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkStaleEvidence>>, void> = () => {
+
+
+          return  checkStaleEvidence(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckStaleEvidenceMutationResult = NonNullable<Awaited<ReturnType<typeof checkStaleEvidence>>>
+
+    export type CheckStaleEvidenceMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Run the stale fact checker now on facts waiting on Needs a check (section 23)
+ */
+export const useCheckStaleEvidence = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkStaleEvidence>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof checkStaleEvidence>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCheckStaleEvidenceMutationOptions(options), queryClient);
+    }
+
+export const getConfirmFoundStillTrueUrl = () => {
+
+
+
+
+  return `/api/fact-reviews/confirm-found`
+}
+
+/**
+ * @summary Mark every stale fact the checker found still true as confirmed today (section 23)
+ */
+export const confirmFoundStillTrue = async ( options?: Parameters<typeof customFetch>[1]): Promise<ConfirmFoundStillTrue200> => {
+
+  return customFetch<ConfirmFoundStillTrue200>(getConfirmFoundStillTrueUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getConfirmFoundStillTrueMutationKey = () => ['confirmFoundStillTrue'] as const;
+
+export const getConfirmFoundStillTrueMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmFoundStillTrue>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmFoundStillTrue>>, TError,void, TContext> => {
+
+const mutationKey = getConfirmFoundStillTrueMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmFoundStillTrue>>, void> = () => {
+
+
+          return  confirmFoundStillTrue(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmFoundStillTrueMutationResult = NonNullable<Awaited<ReturnType<typeof confirmFoundStillTrue>>>
+
+    export type ConfirmFoundStillTrueMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Mark every stale fact the checker found still true as confirmed today (section 23)
+ */
+export const useConfirmFoundStillTrue = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmFoundStillTrue>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof confirmFoundStillTrue>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getConfirmFoundStillTrueMutationOptions(options), queryClient);
     }
 
 export const getRejectSuggestionsFromSourceUrl = () => {

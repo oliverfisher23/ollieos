@@ -2,6 +2,7 @@ import { useListAgents, type AgentMeasure, type AgentView, type ConnectedAiView 
 import { formatShort, formatTime, londonDate, todayLondon } from '@workspace/shared';
 import { Skel } from '@/components/bits';
 import { AgentTests, WriterScores } from '@/components/evals';
+import { ReaderLessons } from '@/components/reader-lessons';
 
 const KIND_LABEL: Record<string, string> = { sorter: 'Sorts', judge: 'Judges', writer: 'Writes', researcher: 'Researches', unknown: 'Retired' };
 const MODEL_LABEL: Record<string, string> = { 'claude-haiku-5-5': 'Claude Haiku 5.5', 'claude-sonnet-5-5': 'Claude Sonnet 5.5' };
@@ -57,6 +58,8 @@ export default function AgentsSettings() {
           <p style={{ margin: 0, fontSize: 15 }} data-testid="text-agents-total">
             <strong className="oo-num">{dollars(d.totalCostUsd)}</strong> <span className="oo-soft">across {plural(d.totalRuns, 'run')} in the last 7 days.</span>
           </p>
+
+          <ReaderLessons />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {active.length === 0 && <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>No agent has run in the last 7 days.</p>}

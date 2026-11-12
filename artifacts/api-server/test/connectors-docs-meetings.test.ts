@@ -251,4 +251,94 @@ describe("Granola notes", () => {
     const notesRefused = await ingest("meeting-notes", { body: { calendar_source_ref: "gcal_evt_1", granola_ref: "x", notes: "Notes" } });
     expect(notesRefused.body).toMatchObject({ ignored: true });
   });
+
+  it("links a note to a meeting with no brief, by time and people when Granola has no calendar link", async () => {
+    const at = (iso: string, mins: number) => ({ startsAt: new Date(iso), endsAt: new Date(new Date(iso).getTime() + mins * 60_000) });
+    const [huddle] = await db
+      .insert(calendarEventsTable)
+      .values({ sourceRef: "gcal_huddle", title: "Huddle", ...at("2026-11-11T14:00:00Z", 30), attendees: ["Pat"], attendeeDetails: [{ name: "Pat", email: "pat@gmail.com" }] })
+      .returning();
+    // Same time, nobody in common and a different title: never picked.
+    const [other] = await db
+      .insert(calendarEventsTable)
+      .values({ sourceRef: "gcal_other", title: "Something else", ...at("2026-11-11T14:00:00Z", 30), attendees: ["Lee"], attendeeDetails: [{ name: "Lee", email: "lee@gmail.com" }] })
+      .returning();
+
+    notesList = [{ id: "nolink", updated_at: "2026-11-11T14:40:00Z" }];
+    notes = {
+      nolink: note({
+        id: "nolink",
+        title: "Quick chat",
+        owner: { email: OLLIE },
+        attendees: [{ name: "Pat", email: "pat@gmail.com" }, { email: OLLIE }],
+        calendar_event: { scheduled_start_time: "2026-11-11T14:05:00Z" },
+        summary_markdown: "## Next steps\n- Pat to share the deck",
+      }),
+    };
+    meetingAnswer = {
+      summary: "Quick chat with Pat",
+      project: "",
+      items: [{ ref: "granola:nolink", type: "task", title: "Read Pat's deck", action: "Read it.", priority: "medium", due: "", project: "", person: "", quote: "Pat to share the deck", confidential: false }],
+      decisions: [],
+    };
+    const r = await api("connectors/granola/check", { method: "POST" });
+    expect(r.body.counts).toMatchObject({ meetings: 1, attached: 1 });
+
+    const [row] = await db.select().from(calendarEventsTable).where(eq(calendarEventsTable.id, huddle.id));
+    expect(row).toMatchObject({ granolaRef: "nolink", granolaUrl: "https://notes.granola.ai/d/nolink" });
+    expect(row.granolaAttachedAt).not.toBeNull();
+    expect(await db.select().from(meetingBriefsTable)).toHaveLength(0);
+    const [untouched] = await db.select().from(calendarEventsTable).where(eq(calendarEventsTable.id, other.id));
+    expect(untouched.granolaRef).toBeNull();
+
+    const v = (await api(`meetings/${huddle.id}`)).body;
+    expect(v.prep).toBe("none");
+    expect(v.granola).toMatchObject({ url: "https://notes.granola.ai/d/nolink" });
+    expect(v.granola.notes).toContain("Pat to share the deck");
+    expect(v.granola.actions.map((t: { title: string }) => t.title)).toEqual(["Read Pat's deck"]);
+    expect(v.granolaCheck).toBe(true);
+    expect((await api("meetings/" + other.id)).body.granola).toBeNull();
+  });
+
+  it("links a note by hand from its share link, reading it in full when new and only attaching it when already read", async () => {
+    const uuid = "543b3d5d-2f20-4b57-bf53-f6a012506085";
+    const [ev] = await db
+      .insert(calendarEventsTable)
+      .values({ sourceRef: "gcal_scoping", title: "Studio Signals Data - Scoping", startsAt: new Date("2026-11-12T11:00:00Z"), endsAt: new Date("2026-11-12T11:45:00Z"), attendees: ["Kurt"] })
+      .returning();
+    // Granola's API knows the note by its own id; the share link only carries the meeting's UUID.
+    notesList = [{ id: "not_scope1", updated_at: "2026-11-12T12:06:59Z" }];
+    notes = {
+      not_scope1: note({ id: "not_scope1", title: "Studio Signals Data - Scoping", owner: { email: OLLIE }, web_url: `https://notes.granola.ai/d/${uuid}`, summary_markdown: "Oliver to add screen views to Studio." }),
+    };
+    meetingAnswer = {
+      summary: "Data scoping",
+      project: "",
+      items: [{ ref: "granola:not_scope1", type: "task", title: "Add screen views to Studio", action: "Add them.", priority: "medium", due: "", project: "", person: "", quote: "Oliver to add screen views", confidential: false }],
+      decisions: [],
+    };
+
+    expect((await api(`meetings/${ev.id}/granola`, { body: { link: "https://example.com/nothing" } })).status).toBe(400);
+    const r = await api(`meetings/${ev.id}/granola`, { body: { link: `https://notes.granola.ai/t/${uuid}-008umkv4` } });
+    expect(r.status).toBe(200);
+    expect(r.body.granola).toMatchObject({ url: `https://notes.granola.ai/d/${uuid}` });
+    expect(r.body.granola.actions.map((t: { title: string }) => t.title)).toEqual(["Add screen views to Studio"]);
+
+    // Remembered as read: the next check does not read it again or make the task twice.
+    const check = await api("connectors/granola/check", { method: "POST" });
+    expect(check.body.found).toBe(0);
+    expect(await db.select().from(tasksTable)).toHaveLength(1);
+
+    // Linking the same, already read note to another meeting moves it, with the task it made, and reads nothing.
+    const [other] = await db
+      .insert(calendarEventsTable)
+      .values({ sourceRef: "gcal_other2", title: "Follow-up", startsAt: new Date("2026-11-12T13:00:00Z"), endsAt: new Date("2026-11-12T13:30:00Z") })
+      .returning();
+    const moved = await api(`meetings/${other.id}/granola`, { body: { link: "not_scope1" } });
+    expect(moved.body.granola.actions).toHaveLength(1);
+    expect((await api(`meetings/${ev.id}`)).body.granola).toBeNull();
+    expect(await db.select().from(tasksTable)).toHaveLength(1);
+
+    expect((await api(`meetings/${ev.id}/granola`, { body: { link: "not_missing" } })).status).toBe(404);
+  });
 });

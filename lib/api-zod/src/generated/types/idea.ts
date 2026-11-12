@@ -31,7 +31,15 @@ export interface Idea {
   confidential: boolean;
   aiAccess: boolean;
   hiddenFromAi: boolean;
+  /** ollieos is the idea spotter (section 23) */
   source: IdeaSource;
+  /**
+     * Idea spotter: the meeting or Slack conversation it came up in
+     * @nullable
+     */
+  sourceLabel: string | null;
+  /** @nullable */
+  sourceUrl: string | null;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;

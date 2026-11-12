@@ -13,6 +13,8 @@ import type { KnowledgeInboxOption } from './knowledgeInboxOption';
 import type { KnowledgeInboxPlaybook } from './knowledgeInboxPlaybook';
 import type { KnowledgeInboxSaidBy } from './knowledgeInboxSaidBy';
 import type { KnowledgeInboxTarget } from './knowledgeInboxTarget';
+import type { PresortHint } from './presortHint';
+import type { StaleEvidence } from './staleEvidence';
 
 export interface KnowledgeInboxItem {
   key: string;
@@ -65,4 +67,8 @@ export interface KnowledgeInboxItem {
   saidAt: Date | null;
   /** Contradiction and out-of-date cards: the approved items the new card disagrees with */
   contradicts?: KnowledgeInboxContradicted[];
+  /** Suggested cards: the pre-sorter's hint (section 23); null when it gave none or has not looked */
+  presort?: PresortHint | null;
+  /** Stale facts: what the stale fact checker found (section 23); null until it has looked */
+  evidence?: StaleEvidence | null;
 }

@@ -1,4 +1,5 @@
 @import './theme/tokens.css';
+@import './theme/fonts.css';
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
@@ -384,7 +385,7 @@ body { font-family: var(--oo-font-sans); margin: 0; overflow-x: hidden; }
 .oo-mark[data-src="manual"] { background: var(--oo-src-manual-bg); color: var(--oo-src-manual-fg); }
 
 /* Logo mark */
-.oo-logo { display: inline-flex; align-items: center; justify-content: center; background: var(--oo-accent); color: var(--oo-ink); font-weight: 600; flex: none; }
+.oo-logo { display: block; flex: none; }
 
 /* Icon rail */
 .oo-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px; background: var(--oo-glass-rail); border: 1px solid var(--oo-glass-border); border-radius: 18px; backdrop-filter: blur(18px); position: sticky; top: 32px; margin-top: 32px; z-index: 10; }
@@ -402,7 +403,7 @@ body { font-family: var(--oo-font-sans); margin: 0; overflow-x: hidden; }
 /* Bottom bar */
 .oo-tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; min-height: 84px; box-sizing: border-box; padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 18px)); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); background: var(--oo-glass-bar); border-top: 1px solid var(--oo-glass-quiet-border); backdrop-filter: blur(20px); }
 .oo-tabbar a, .oo-tabbar button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font: inherit; font-size: 11px; text-decoration: none; color: var(--oo-text-on-dark-3); background: none; border: 0; min-height: 48px; cursor: pointer; }
-.oo-tabbar a[aria-current="page"] { color: var(--oo-text-on-dark); }
+.oo-tabbar a[aria-current="page"], .oo-tabbar button[aria-current="page"] { color: var(--oo-text-on-dark); }
 .oo-tabbar .oo-add { width: 48px; height: 48px; border-radius: var(--oo-r-full); background: var(--oo-accent); color: var(--oo-ink); display: flex; align-items: center; justify-content: center; }
 
 /* Ask / add box */
@@ -466,6 +467,14 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-search { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--oo-field); border-radius: var(--oo-r-btn); color: var(--oo-ink-faint); }
 .oo-search input { border: 0; background: transparent; font: inherit; font-size: 14px; width: 100%; color: var(--oo-ink); outline-offset: 4px; }
 .oo-stat { border: 1px solid var(--oo-line); border-radius: var(--oo-r-card); padding: 22px 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.oo-stat-label { font-size: 14px; text-align: center; }
+.oo-stat-value { font-size: 40px; font-weight: 500; letter-spacing: -0.02em; line-height: 1; }
+@media (max-width: 639px) {
+  .oo-stat { padding: 10px 4px; gap: 4px; border-radius: var(--oo-r-card-sm); }
+  .oo-stat-label { order: 2; font-size: 12px; color: var(--oo-ink-muted); }
+  .oo-stat-value { order: 1; font-size: 24px; }
+  .oo-stat-skel { order: 1; height: 24px !important; width: 28px !important; }
+}
 .oo-table { width: 100%; min-width: 860px; border-collapse: collapse; font-size: 14px; }
 .oo-table th { text-align: left; font-weight: 400; font-size: 13px; color: var(--oo-ink-muted); padding: 12px 10px; border-bottom: 1px solid var(--oo-line); }
 .oo-th-sort { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
@@ -531,6 +540,21 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 /* Sheet */
 .oo-sheet-scrim { position: fixed; inset: 0; background: var(--oo-scrim); z-index: 50; display: flex; align-items: flex-end; animation: oo-fade .2s ease; }
 .oo-sheet { width: 100%; box-sizing: border-box; padding: 16px 12px calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--oo-glass-sheet); border-top-left-radius: var(--oo-r-ask); border-top-right-radius: var(--oo-r-ask); border-top: 1px solid var(--oo-glass-border); color: var(--oo-text-on-dark); }
+/* The Settings list on phones (pages/settings.tsx) */
+.oo-settings-list { display: flex; flex-direction: column; }
+.oo-settings-list a { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; font-size: 16px; text-decoration: none; color: var(--oo-ink); border-bottom: 1px solid var(--oo-line-soft); }
+.oo-settings-list a:last-child { border-bottom: 0; }
+.oo-settings-list svg { color: var(--oo-ink-faint); }
+
+/* The More sheet's rows (components/main-nav.tsx) */
+.oo-sheet-list { display: flex; flex-direction: column; gap: 2px; padding: 0 0 4px; }
+.oo-sheet-list a, .oo-sheet-list button { display: flex; align-items: center; gap: 14px; min-height: 52px; padding: 0 12px; border-radius: var(--oo-r-btn-phone); border: 0; background: none; font: inherit; font-size: 16px; text-align: left; text-decoration: none; color: var(--oo-text-on-dark); cursor: pointer; }
+.oo-sheet-list a > span, .oo-sheet-list button > span { flex: 1; }
+.oo-sheet-list a[aria-current="page"] { background: var(--oo-white-08); }
+.oo-sheet-list a:active, .oo-sheet-list button:active { background: var(--oo-white-12); }
+.oo-sheet-list svg { flex: none; color: var(--oo-text-on-dark-3); }
+.oo-sheet-list a[aria-current="page"] svg:first-child { color: var(--oo-text-on-dark); }
+.oo-sheet-sep { height: 1px; margin: 6px 12px; background: var(--oo-white-12); }
 @keyframes oo-fade { from { opacity: 0 } to { opacity: 1 } }
 .oo-fade-in { animation: oo-fade .35s ease both; }
 
@@ -590,6 +614,42 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-mini:disabled { opacity: .6; cursor: default; }
 .oo-mini kbd { font: inherit; font-size: 11px; color: var(--oo-ink-muted); margin-left: 4px; }
 @media (max-width: 639px) { .oo-mini { min-height: 40px; padding: 6px 12px; font-size: 13px; } }
+/* Rich text agenda (components/rich-agenda.tsx). Tailwind's reset strips list styles, so they are set here. */
+.oo-rich-box { display: flex; flex-direction: column; flex: 1; border: 1px solid var(--oo-control-border); border-radius: var(--oo-r-input-lg); background: var(--oo-panel); min-width: 0; }
+.oo-rich-box:focus-within { border-color: var(--oo-ink); }
+.oo-rich-box[data-busy] .oo-rich { opacity: .6; }
+.oo-rich-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 6px 8px; border-bottom: 1px solid var(--oo-line-soft); }
+.oo-rich-tool { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 0; border-radius: var(--oo-r-input); background: transparent; color: var(--oo-ink-soft); cursor: pointer; }
+.oo-rich-tool:hover:not(:disabled) { background: var(--oo-row-hover); color: var(--oo-ink); }
+.oo-rich-tool[data-active] { background: var(--oo-row-hover); color: var(--oo-ink); }
+.oo-rich-tool:disabled { opacity: .4; cursor: default; }
+.oo-rich-sep { width: 1px; height: 18px; background: var(--oo-line); margin: 0 6px; }
+.oo-rich { outline: none; min-height: 300px; padding: 12px 16px 16px; font-size: 15px; line-height: 1.6; color: var(--oo-ink); overflow-wrap: anywhere; }
+.oo-rich > * + * { margin-top: 8px; }
+.oo-rich p { margin: 0; }
+.oo-rich h2 { font-size: 18px; font-weight: 600; margin: 16px 0 4px; }
+.oo-rich h3 { font-size: 16px; font-weight: 600; margin: 14px 0 4px; }
+.oo-rich > h2:first-child, .oo-rich > h3:first-child { margin-top: 0; }
+.oo-rich ol { list-style: decimal; padding-left: 24px; }
+.oo-rich ul { list-style: disc; padding-left: 22px; }
+.oo-rich ul ul { list-style: circle; }
+.oo-rich li { margin: 2px 0; }
+.oo-rich li > p { margin: 0; }
+.oo-rich ol > li + li { margin-top: 12px; }
+.oo-rich li > ul, .oo-rich li > ol { margin-top: 2px; color: var(--oo-ink-soft); }
+.oo-rich li::marker { color: var(--oo-ink-muted); }
+.oo-rich ul[data-type="taskList"] { list-style: none; padding-left: 2px; }
+.oo-rich ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 8px; }
+.oo-rich ul[data-type="taskList"] li > label { flex: none; margin-top: 4px; }
+.oo-rich ul[data-type="taskList"] li > label input { width: 15px; height: 15px; accent-color: var(--oo-ink); cursor: pointer; }
+.oo-rich ul[data-type="taskList"] li > div { flex: 1; min-width: 0; }
+.oo-rich ul[data-type="taskList"] li[data-checked="true"] > div { text-decoration: line-through; color: var(--oo-ink-muted); }
+.oo-rich blockquote { border-left: 3px solid var(--oo-line); padding-left: 12px; color: var(--oo-ink-soft); }
+.oo-rich a { text-decoration: underline; text-underline-offset: 2px; }
+.oo-rich strong { font-weight: 600; }
+.oo-rich hr { border: 0; border-top: 1px solid var(--oo-line); margin: 14px 0; }
+.oo-rich p.is-editor-empty:first-child::before { content: attr(data-placeholder); float: left; height: 0; pointer-events: none; color: var(--oo-ink-faint); }
+@media (max-width: 639px) { .oo-rich { min-height: 220px; padding: 10px 12px 14px; } .oo-rich-bar { gap: 0; padding: 4px; } .oo-rich-tool { width: 34px; height: 38px; } .oo-rich-sep { margin: 0 2px; } }
 .oo-row[data-cursor="true"] td { box-shadow: inset 0 1px 0 var(--oo-ink), inset 0 -1px 0 var(--oo-ink); }
 .oo-row[data-cursor="true"] td:first-child { box-shadow: inset 3px 0 0 var(--oo-ink), inset 0 1px 0 var(--oo-ink), inset 0 -1px 0 var(--oo-ink); }
 .oo-pill[data-tone="stale"] { background: var(--oo-banner-bg); color: var(--oo-banner-fg); border: 1px solid var(--oo-banner-border); }
@@ -961,3 +1021,76 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-voice-card { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: var(--oo-r-ask); background: var(--oo-panel); color: var(--oo-ink); }
 .oo-voice-card .oo-voice-item-text { border-color: var(--oo-line); }
 @media (max-width: 639px) { .oo-voice { background: var(--oo-voice-base); } }
+
+/* Knowledge Inbox bulk review: filters, select all, and approve or reject the selection */
+.oo-inbox-bulk { position: sticky; top: 0; z-index: 5; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; margin-top: -6px; border: 1px solid var(--oo-line); border-radius: var(--oo-r-input); background: var(--oo-panel); box-shadow: var(--oo-shadow-panel); }
+
+/* ---------- Phones: tap areas, text fields and safe areas (docs/mobile-plan.md, Part C) ---------- */
+/* Outside the layers on purpose, like the component rules above it, so these win on phones. */
+
+/* With viewport-fit=cover the page runs under a notch or rounded corners. env() is 0 elsewhere.
+   At every width: a phone held sideways is wider than 640px and gets the rail. */
+.oo-light, .oo-dark { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+.oo-tabbar { padding-left: calc(12px + env(safe-area-inset-left)); padding-right: calc(12px + env(safe-area-inset-right)); }
+
+/* Smaller controls for desktop; phones override them below. */
+.oo-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.oo-card-lead { padding-top: 2px; display: flex; align-items: center; gap: 12px; }
+.oo-card-pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.oo-input-sm { min-height: 32px; padding: 3px 8px; }
+.oo-seg[data-compact] button { min-height: 28px; }
+
+/* Rows that scroll sideways (components/scroll-row.tsx) fade the edge with more beyond it. */
+.oo-scroll-row { position: relative; overflow-x: auto; scrollbar-width: none; }
+.oo-scroll-row::-webkit-scrollbar { display: none; }
+.oo-scroll-row[data-more-right] { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.oo-scroll-row[data-more-left] { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); }
+.oo-scroll-row[data-more-left][data-more-right] { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+
+@media (max-width: 639px) {
+  /* Text fields at 16px, so iPhone does not zoom in when one is focused. !important because some
+     fields set a smaller size inline, and a zoom on focus is worse than a slightly larger field. */
+  :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]), textarea, select) { font-size: 16px !important; }
+
+  /* Tap areas of at least 44 x 44 without changing the look: an invisible layer centred on the control,
+     grown only where the control is smaller (50% - 22px is negative then, 0 otherwise). Same idea as
+     .oo-check and .oo-switch. Give a one-off small link or button the class oo-tap. Keep 10px between a
+     small control and its neighbours, or the layer covers them (the mobile audit checks this). */
+  :is(.oo-tap, .oo-textbtn, .oo-dd, .oo-back, .oo-link, .oo-edit, .oo-row-title, .oo-krow-link, button.oo-chip, .oo-chip-toggle, .oo-control) { position: relative; }
+  :is(.oo-tap, .oo-textbtn, .oo-dd, .oo-back, .oo-link, .oo-edit, .oo-row-title, .oo-krow-link, button.oo-chip, .oo-chip-toggle, .oo-control)::before {
+    content: '';
+    position: absolute;
+    top: min(0px, calc(50% - 22px));
+    bottom: min(0px, calc(50% - 22px));
+    left: min(0px, calc(50% - 22px));
+    right: min(0px, calc(50% - 22px));
+  }
+  /* The circle is 22px including its border; the layer starts inside the border, so it needs 13px a side. */
+  .oo-check::before { inset: -13px; }
+
+  /* Where the control's own box is its look, it simply gets taller. */
+  :is(.oo-btn-sm, .oo-mini, .oo-btn-chase, .oo-claude-btn, .oo-input, .oo-seg[data-compact] button) { min-height: 44px; }
+  .oo-search { padding-top: 0; padding-bottom: 0; }
+  .oo-search input { min-height: 44px; }
+
+  /* Task cards: a tap anywhere on the card opens the task (the title's layer covers the card),
+     while the tick, pills and buttons sit above it. Wrapped pill rows are 14px apart so their
+     own tap layers do not overlap, and the title sits 12px above them for the same reason. */
+  .oo-card-open { position: relative; }
+  .oo-card-open .oo-row-title { position: static; }
+  .oo-card-open .oo-row-title::before { inset: 0; }
+  .oo-card-open :is(a, button, input, select, textarea, summary, [role="button"], [role="switch"], [tabindex]):not(.oo-row-title) { position: relative; z-index: 1; }
+  .oo-card-pills { row-gap: 14px; }
+  .oo-card-open .oo-card-body { gap: 12px; }
+  /* A drag grip beside the tick: each gets a 44px tap area (grip 14px a side, tick 13px), so they sit
+     27px apart instead of 8px, and neither covers the other. */
+  .oo-card-open .oo-grip::before { inset: -10px -14px; }
+  .oo-card-lead:has(.oo-grip) { gap: 31px; }
+
+  /* Tasks stats: one strip of four (here, outside the layers, to beat the grid-cols-2 utility). */
+  .oo-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+
+  /* Full-screen panels and modals clear the home indicator. */
+  .oo-detail { padding-top: calc(20px + env(safe-area-inset-top)); padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+  .oo-modal-scrim, .oo-tri-scrim { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+}

@@ -235,3 +235,9 @@ export const RELATIONSHIP_OPTIONS: Record<Relationship, string> = {
   related_to: "Is related to",
   decides_on: "Decides on",
 };
+
+/** Whether a project is work for a client or internal work (asked for 12th November 2026). */
+export const WORK_TYPES = ["client", "internal"] as const;
+export type WorkType = (typeof WORK_TYPES)[number];
+export const WORK_TYPE_LABELS: Record<WorkType, string> = { client: "Client work", internal: "Internal" };
+export const isWorkType = (v: unknown): v is WorkType => v === "client" || v === "internal";

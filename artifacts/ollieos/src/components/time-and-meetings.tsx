@@ -51,6 +51,10 @@ export function WhereTimeWent() {
               <span className="oo-field-label">By function</span>
               <ul style={{ margin: '6px 0 0', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>{cur.byFunction.map((s) => bar(s, cur.meetingHours))}</ul>
             </div>
+            <div data-testid="section-time-by-work">
+              <span className="oo-field-label">Client or internal</span>
+              <ul style={{ margin: '6px 0 0', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>{cur.byWork.map((s) => bar(s, cur.meetingHours))}</ul>
+            </div>
           </div>
           {r.thinGoals.length > 0 && (
             <p className="oo-soft" style={{ margin: 0, fontSize: 13 }} data-testid="text-thin-goals">

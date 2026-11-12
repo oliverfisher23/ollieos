@@ -145,7 +145,9 @@ export const GetHomeResponse = zod.object({
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
   "hiddenFromAi": zod.boolean(),
-  "source": zod.enum(['ollie', 'claude', 'session']),
+  "source": zod.enum(['ollie', 'claude', 'session', 'ollieos']).describe('ollieos is the idea spotter (section 23)'),
+  "sourceLabel": zod.string().nullable().describe('Idea spotter: the meeting or Slack conversation it came up in'),
+  "sourceUrl": zod.string().nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -234,7 +236,13 @@ export const GetHomeResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),
   "reason": zod.string().describe('One-line reason, e.g. "Overdue by 2 days" or "High priority, due Friday 13th November"')
 })).describe('Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped.'),
@@ -319,7 +327,13 @@ export const GetHomeResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),
   "daysWaiting": zod.int().describe('Whole days since waitingSince (or updatedAt if unknown). Amber at 5 or more.')
 })),
@@ -396,7 +410,13 @@ export const GetHomeResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 })).describe('Open tasks with kind promise'),
   "doneThisWeek": zod.object({
   "count": zod.int(),
@@ -473,7 +493,13 @@ export const GetHomeResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 })).describe('Up to 5, most recently completed first')
 }),
   "lastSweepAt": zod.coerce.date().nullable().describe('When the last successful sweep finished. Null until the sweep runs (milestone 5).'),
@@ -620,7 +646,13 @@ export const ListTasksResponseItem = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 })
 export const ListTasksResponse = zod.array(ListTasksResponseItem)
 
@@ -737,7 +769,13 @@ export const QuickAddTaskResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),
   "warnings": zod.array(zod.string()).describe('e.g. "No project called @foo, added without a project"')
 })
@@ -839,7 +877,13 @@ export const GetTaskResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),
   "history": zod.array(zod.object({
   "id": zod.int(),
@@ -958,7 +1002,13 @@ export const UpdateTaskResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 })
 
 
@@ -1042,7 +1092,13 @@ export const SnoozeTaskResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 })
 
 
@@ -1165,7 +1221,13 @@ export const TriageTaskResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),
   "noiseRule": zod.union([zod.object({
   "id": zod.int(),
@@ -1262,7 +1324,13 @@ export const UndoTaskResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 })
 
 
@@ -1346,7 +1414,13 @@ export const RestoreTaskResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 })
 
 
@@ -1430,7 +1504,13 @@ export const ContinueRepeatResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 })
 
 
@@ -1518,7 +1598,13 @@ export const GetDayPlanResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),
   "minutes": zod.int(),
   "start": zod.string().nullable().describe('HH:MM. Null when it did not fit today.'),
@@ -1606,7 +1692,13 @@ export const GetDayPlanResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),
   "reason": zod.string(),
   "carriedOver": zod.boolean().describe('In an earlier plan and not finished')
@@ -1705,7 +1797,13 @@ export const SaveDayPlanResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),
   "minutes": zod.int(),
   "start": zod.string().nullable().describe('HH:MM. Null when it did not fit today.'),
@@ -1793,7 +1891,13 @@ export const SaveDayPlanResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),
   "reason": zod.string(),
   "carriedOver": zod.boolean().describe('In an earlier plan and not finished')
@@ -1885,7 +1989,13 @@ export const RefitDayPlanResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),
   "minutes": zod.int(),
   "start": zod.string().nullable().describe('HH:MM. Null when it did not fit today.'),
@@ -1973,7 +2083,13 @@ export const RefitDayPlanResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),
   "reason": zod.string(),
   "carriedOver": zod.boolean().describe('In an earlier plan and not finished')
@@ -2083,7 +2199,13 @@ export const GetClearOutResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 })).describe('Oldest first, up to 200')
 })
 
@@ -2177,7 +2299,13 @@ export const KeepInBacklogResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 })
 
 
@@ -2261,7 +2389,13 @@ export const KeepTaskResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 })
 
 
@@ -2624,6 +2758,117 @@ export const ListEmailInboxResponse = zod.object({
 
 
 /**
+ * @summary Lessons for the readers, learned from Ollie's corrections (section 24)
+ */
+export const ListReaderLessonsResponse = zod.object({
+  "lessons": zod.array(zod.object({
+  "id": zod.int(),
+  "reader": zod.enum(['gmail_sorter', 'slack_sorter', 'granola_reader']),
+  "readerName": zod.string(),
+  "about": zod.enum(['tasks', 'knowledge']),
+  "text": zod.string(),
+  "why": zod.string(),
+  "examples": zod.array(zod.string()),
+  "evidence": zod.int().describe('How many corrections back it'),
+  "learnedBy": zod.string(),
+  "learnedByName": zod.string(),
+  "status": zod.enum(['proposed', 'on', 'off', 'rejected']),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "lastTry": zod.union([zod.object({
+  "at": zod.string(),
+  "passed": zod.int(),
+  "total": zod.int(),
+  "without": zod.int().nullable().describe('Cases passed without the lesson; null when it was already on')
+}),zod.null()])
+})),
+  "maxOn": zod.int(),
+  "lastRun": zod.object({
+  "tasks": zod.coerce.date().nullable(),
+  "knowledge": zod.coerce.date().nullable()
+})
+})
+
+
+/**
+ * @summary Run the reader coach and card coach now
+ */
+export const LearnReaderLessonsResponse = zod.object({
+  "failed": zod.boolean(),
+  "results": zod.array(zod.object({
+  "reader": zod.string(),
+  "corrections": zod.int(),
+  "proposed": zod.int(),
+  "skipped": zod.string().optional()
+}))
+})
+
+
+/**
+ * @summary Turn a lesson on or off, or say no to a proposed one
+ */
+export const SetReaderLessonStatusParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const SetReaderLessonStatusBody = zod.object({
+  "status": zod.enum(['on', 'off', 'rejected'])
+})
+
+export const SetReaderLessonStatusResponse = zod.object({
+  "id": zod.int(),
+  "reader": zod.enum(['gmail_sorter', 'slack_sorter', 'granola_reader']),
+  "readerName": zod.string(),
+  "about": zod.enum(['tasks', 'knowledge']),
+  "text": zod.string(),
+  "why": zod.string(),
+  "examples": zod.array(zod.string()),
+  "evidence": zod.int().describe('How many corrections back it'),
+  "learnedBy": zod.string(),
+  "learnedByName": zod.string(),
+  "status": zod.enum(['proposed', 'on', 'off', 'rejected']),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "lastTry": zod.union([zod.object({
+  "at": zod.string(),
+  "passed": zod.int(),
+  "total": zod.int(),
+  "without": zod.int().nullable().describe('Cases passed without the lesson; null when it was already on')
+}),zod.null()])
+})
+
+
+/**
+ * @summary Try a lesson against its reader's test cases, with and without it; nothing is recorded on the cases
+ */
+export const TryReaderLessonParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const TryReaderLessonResponse = zod.object({
+  "id": zod.int(),
+  "reader": zod.enum(['gmail_sorter', 'slack_sorter', 'granola_reader']),
+  "readerName": zod.string(),
+  "about": zod.enum(['tasks', 'knowledge']),
+  "text": zod.string(),
+  "why": zod.string(),
+  "examples": zod.array(zod.string()),
+  "evidence": zod.int().describe('How many corrections back it'),
+  "learnedBy": zod.string(),
+  "learnedByName": zod.string(),
+  "status": zod.enum(['proposed', 'on', 'off', 'rejected']),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "lastTry": zod.union([zod.object({
+  "at": zod.string(),
+  "passed": zod.int(),
+  "total": zod.int(),
+  "without": zod.int().nullable().describe('Cases passed without the lesson; null when it was already on')
+}),zod.null()])
+})
+
+
+/**
  * @summary Every AI agent in OllieOS with its runs, estimated cost, speed and errors over the last 7 days, and every connected AI (Part V)
  */
 export const ListAgentsResponse = zod.object({
@@ -2936,6 +3181,60 @@ export const ExportTasksCsvResponse = zod.unknown()
 
 
 /**
+ * @summary Not this one: drop the delegation suggester's colleague for this task (section 23)
+ */
+export const DismissTaskDelegateHintParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DismissTaskDelegateHintResponse = zod.object({
+  "id": zod.int()
+})
+
+
+/**
+ * @summary Colleagues this task can be sent to on Slack, and who it is suggested for
+ */
+export const GetTaskSlackDmOptionsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetTaskSlackDmOptionsResponse = zod.object({
+  "people": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "role": zod.string().nullable()
+})),
+  "suggestedPersonId": zod.int().nullable()
+})
+
+
+/**
+ * @summary Send a colleague a Slack direct message as Ollie, then move the task to Waiting on them
+ */
+export const SendTaskSlackDmParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const sendTaskSlackDmBodyTextMax = 3000;
+
+
+
+export const SendTaskSlackDmBody = zod.object({
+  "personId": zod.int(),
+  "text": zod.string().max(sendTaskSlackDmBodyTextMax)
+})
+
+export const SendTaskSlackDmResponse = zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "channel": zod.string(),
+  "ts": zod.string(),
+  "url": zod.string()
+})
+
+
+/**
  * @summary Part L: search every Drive file Ollie can open, by name and text
  */
 export const searchDriveQueryQMax = 200;
@@ -3068,6 +3367,11 @@ export const GetTimeReportResponse = zod.object({
   "label": zod.string(),
   "hours": zod.number()
 })),
+  "byWork": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "hours": zod.number()
+})).describe('Client work, Internal, and meetings with no sorted project'),
   "internalHours": zod.number(),
   "externalHours": zod.number(),
   "plannedTaskHours": zod.number()
@@ -3157,7 +3461,13 @@ export const GetWeekCheckResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 })),
   "dueCount": zod.int()
 })
@@ -3794,6 +4104,7 @@ export const ListProjectsResponseItem = zod.object({
   "function": zod.union([zod.enum(['delivery', 'product', 'sales', 'marketing']).describe('A part of the business'),zod.null()]),
   "isFunction": zod.boolean().describe('The record that holds a function\'s own documents and knowledge'),
   "clients": zod.array(zod.string()).describe('Names of linked organisations typed customer'),
+  "workType": zod.union([zod.enum(['client', 'internal']),zod.null()]).describe('Client work or internal, as set, or client work when a client is linked; null when not sorted yet'),
   "openTaskCount": zod.int(),
   "updatedAt": zod.coerce.date()
 })
@@ -3831,6 +4142,7 @@ export const CreateProjectResponse = zod.object({
   "archived": zod.boolean(),
   "goalId": zod.int().nullable(),
   "lifecycle": zod.enum(['active', 'paused', 'complete']),
+  "workType": zod.union([zod.enum(['client', 'internal']),zod.null()]).describe('Client work or internal as Ollie set or approved it; null leaves it to whether a client is linked'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -3843,6 +4155,7 @@ export const SuggestProjectFunctionsResponse = zod.object({
   "checked": zod.int().describe('Projects missing a function or a client that AI may read'),
   "functions": zod.int().describe('New function cards sent to the Knowledge Inbox'),
   "clients": zod.int().describe('New client cards sent to the Knowledge Inbox'),
+  "workTypes": zod.int().describe('New "client work" or "internal" cards sent to the Knowledge Inbox'),
   "unclear": zod.int().describe('Projects the documents did not settle')
 })
 
@@ -3869,6 +4182,7 @@ export const GetProjectResponse = zod.object({
   "archived": zod.boolean(),
   "goalId": zod.int().nullable(),
   "lifecycle": zod.enum(['active', 'paused', 'complete']),
+  "workType": zod.union([zod.enum(['client', 'internal']),zod.null()]).describe('Client work or internal as Ollie set or approved it; null leaves it to whether a client is linked'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }),
@@ -4113,7 +4427,13 @@ export const GetProjectResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 })),
   "people": zod.array(zod.object({
   "id": zod.int(),
@@ -4180,7 +4500,8 @@ export const UpdateProjectBody = zod.object({
   "aiAccess": zod.boolean().optional(),
   "archived": zod.boolean().optional(),
   "goalId": zod.int().nullish(),
-  "lifecycle": zod.enum(['active', 'paused', 'complete']).optional()
+  "lifecycle": zod.enum(['active', 'paused', 'complete']).optional(),
+  "workType": zod.union([zod.enum(['client', 'internal']),zod.null()]).optional()
 })
 
 export const UpdateProjectResponse = zod.object({
@@ -4197,6 +4518,7 @@ export const UpdateProjectResponse = zod.object({
   "archived": zod.boolean(),
   "goalId": zod.int().nullable(),
   "lifecycle": zod.enum(['active', 'paused', 'complete']),
+  "workType": zod.union([zod.enum(['client', 'internal']),zod.null()]).describe('Client work or internal as Ollie set or approved it; null leaves it to whether a client is linked'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4218,9 +4540,22 @@ export const ListPeopleResponseItem = zod.object({
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
+  "organisationType": zod.string().nullable().describe('The organisation\'s type'),
+  "internal": zod.boolean().describe('They work at Ollie\'s own company'),
+  "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "lastContactAt": zod.coerce.date().nullable(),
   "iOweCount": zod.int(),
-  "theyOweCount": zod.int()
+  "theyOweCount": zod.int(),
+  "cadence": zod.object({
+  "status": zod.enum(['overdue', 'due_soon', 'on_track', 'paused', 'none']),
+  "daysSince": zod.int().nullable().describe('Whole days since the last contact; null when there is none on file'),
+  "daysOverdue": zod.int().nullable(),
+  "daysLeft": zod.int().nullable(),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
+  "cadenceLabel": zod.string(),
+  "cadencePaused": zod.boolean(),
+  "pausedByProjects": zod.boolean().describe('True when every linked project is paused or complete')
+})
 })
 export const ListPeopleResponse = zod.array(ListPeopleResponseItem)
 
@@ -4263,6 +4598,7 @@ export const CreatePersonResponse = zod.object({
   "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
   "slackUserId": zod.string().nullable().describe('Their Slack account'),
+  "linkedinUrl": zod.string().nullable().describe('Their LinkedIn profile link'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4297,6 +4633,7 @@ export const GetPersonResponse = zod.object({
   "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
   "slackUserId": zod.string().nullable().describe('Their Slack account'),
+  "linkedinUrl": zod.string().nullable().describe('Their LinkedIn profile link'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }),
@@ -4383,7 +4720,13 @@ export const GetPersonResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 })),
   "theyOwe": zod.array(zod.object({
   "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
@@ -4458,7 +4801,13 @@ export const GetPersonResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 })),
   "projects": zod.array(zod.object({
   "id": zod.int(),
@@ -4533,6 +4882,8 @@ export const updatePersonBodyOtherEmailsItemMax = 320;
 
 export const updatePersonBodyOtherEmailsMax = 20;
 
+export const updatePersonBodyLinkedinUrlMax = 300;
+
 
 
 export const UpdatePersonBody = zod.object({
@@ -4546,7 +4897,8 @@ export const UpdatePersonBody = zod.object({
   "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']).optional(),
   "cadencePaused": zod.boolean().optional(),
   "otherEmails": zod.array(zod.string().max(updatePersonBodyOtherEmailsItemMax)).max(updatePersonBodyOtherEmailsMax).optional().describe('Replaces the list of other addresses'),
-  "slackUserId": zod.string().nullish().describe('Their Slack account id')
+  "slackUserId": zod.string().nullish().describe('Their Slack account id'),
+  "linkedinUrl": zod.string().max(updatePersonBodyLinkedinUrlMax).nullish().describe('Their LinkedIn profile link')
 })
 
 export const UpdatePersonResponse = zod.object({
@@ -4570,6 +4922,7 @@ export const UpdatePersonResponse = zod.object({
   "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
   "slackUserId": zod.string().nullable().describe('Their Slack account'),
+  "linkedinUrl": zod.string().nullable().describe('Their LinkedIn profile link'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4618,6 +4971,94 @@ export const ListCadenceResponse = zod.object({
 }),zod.null()]),
   "lastContactAt": zod.coerce.date().nullable()
 })))
+})
+
+
+/**
+ * @summary When the LinkedIn connections were last imported, and what came of it
+ */
+export const GetLinkedInImportResponse = zod.object({
+  "last": zod.union([zod.object({
+  "at": zod.coerce.date(),
+  "connections": zod.int().describe('Rows in the file'),
+  "matched": zod.int().describe('Connections matched to someone in OllieOS'),
+  "upToDate": zod.int().describe('Matched'),
+  "changes": zod.int().describe('Change cards made for missing or changed details'),
+  "facts": zod.int().describe('Organisation facts made for companies OllieOS does not know'),
+  "alreadyProposed": zod.int().describe('Already waiting in the Knowledge Inbox'),
+  "ambiguous": zod.int().describe('Names that fit more than one person'),
+  "hidden": zod.int().describe('Matched people hidden from AI')
+}),zod.null()])
+})
+
+
+/**
+ * @summary Match LinkedIn's Connections.csv to people in OllieOS and propose missing or changed details to the Knowledge Inbox
+ */
+export const ImportLinkedInBody = zod.object({
+  "csv": zod.string().describe('The text of Connections.csv from LinkedIn\'s data export')
+})
+
+export const ImportLinkedInResponse = zod.object({
+  "at": zod.coerce.date(),
+  "connections": zod.int().describe('Rows in the file'),
+  "matched": zod.int().describe('Connections matched to someone in OllieOS'),
+  "upToDate": zod.int().describe('Matched'),
+  "changes": zod.int().describe('Change cards made for missing or changed details'),
+  "facts": zod.int().describe('Organisation facts made for companies OllieOS does not know'),
+  "alreadyProposed": zod.int().describe('Already waiting in the Knowledge Inbox'),
+  "ambiguous": zod.int().describe('Names that fit more than one person'),
+  "hidden": zod.int().describe('Matched people hidden from AI')
+})
+
+
+/**
+ * @summary Suggested cadences for people with none, from how often Ollie has actually been in touch
+ */
+export const ListCadenceSuggestionsResponse = zod.object({
+  "suggestions": zod.array(zod.object({
+  "person": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "role": zod.string().nullable(),
+  "organisation": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "internal": zod.boolean()
+}),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
+  "cadenceLabel": zod.string(),
+  "reason": zod.string().describe('One line on why this cadence'),
+  "contactDays": zod.int().describe('Distinct days in touch in the last four months'),
+  "typicalGapDays": zod.int().nullable().describe('Typical gap in days between contacts'),
+  "lastContactAt": zod.coerce.date().nullable()
+})),
+  "dismissed": zod.int().describe('People hidden with Not now')
+})
+
+
+/**
+ * @summary Not now; stop suggesting a cadence for this person
+ */
+export const DismissCadenceSuggestionBody = zod.object({
+  "personId": zod.int()
+})
+
+export const DismissCadenceSuggestionResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Bring back everyone hidden from the suggestions with Not now
+ */
+export const RestoreCadenceSuggestionsResponse = zod.object({
+  "ok": zod.boolean()
 })
 
 
@@ -4768,6 +5209,184 @@ export const ListMeetingsResponse = zod.object({
   "granolaSnippet": zod.string().nullable()
 }))
 })
+
+
+/**
+ * @summary One work meeting, with or without a prep page, with Ollie's agenda and notes
+ */
+export const GetMeetingParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const GetMeetingResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "platform": zod.string().nullable(),
+  "location": zod.string().nullable(),
+  "scope": zod.enum(['internal', 'external']).describe('External when anyone on the meeting is from outside Ollie\'s own company'),
+  "companies": zod.array(zod.string()),
+  "prep": zod.enum(['ready', 'not_much', 'failed', 'not_written', 'none']).describe('Anything but none means the meeting has a prep page at /briefs/{id}'),
+  "attendees": zod.array(zod.object({
+  "name": zod.string(),
+  "email": zod.string().nullable(),
+  "person": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}).nullable().describe('Set when they are in People')
+})),
+  "notes": zod.string().nullable().describe('Ollie\'s agenda and notes'),
+  "agendaChat": zod.array(zod.object({
+  "role": zod.enum(['ollie', 'ai']),
+  "text": zod.string(),
+  "at": zod.coerce.date()
+})),
+  "granola": zod.object({
+  "url": zod.string().nullable(),
+  "notes": zod.string(),
+  "attachedAt": zod.coerce.date().nullable(),
+  "actions": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string()
+})).describe('Inbox tasks made from the note\'s actions')
+}).nullable().describe('The Granola note, once one is linked to the meeting'),
+  "granolaCheck": zod.boolean().describe('True when OllieOS reads Granola itself')
+})
+
+
+/**
+ * @summary Ollie's agenda and notes for a work meeting (the same notes the prep page shows)
+ */
+export const UpdateMeetingNotesParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const updateMeetingNotesBodyNotesMax = 20000;
+
+
+
+export const UpdateMeetingNotesBody = zod.object({
+  "notes": zod.string().max(updateMeetingNotesBodyNotesMax).nullable()
+})
+
+export const updateMeetingNotesResponseNotesMax = 20000;
+
+
+
+export const UpdateMeetingNotesResponse = zod.object({
+  "notes": zod.string().max(updateMeetingNotesResponseNotesMax).nullable()
+})
+
+
+/**
+ * @summary Shape the meeting's agenda from Ollie's thoughts, starting from the agenda he sends
+ */
+export const ShapeAgendaParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const shapeAgendaBodyMessageMax = 4000;
+
+export const shapeAgendaBodyAgendaMax = 20000;
+
+
+
+export const ShapeAgendaBody = zod.object({
+  "message": zod.string().min(1).max(shapeAgendaBodyMessageMax).describe('Ollie\'s thoughts'),
+  "agenda": zod.string().max(shapeAgendaBodyAgendaMax).describe('The agenda as it stands in the box')
+})
+
+export const ShapeAgendaResponse = zod.object({
+  "agenda": zod.string(),
+  "previous": zod.string().describe('The agenda before this change'),
+  "chat": zod.array(zod.object({
+  "role": zod.enum(['ollie', 'ai']),
+  "text": zod.string(),
+  "at": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Start the agenda conversation again (the agenda itself stays)
+ */
+export const ClearAgendaChatParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const ClearAgendaChatResponse = zod.void()
+
+
+/**
+ * @summary Link a Granola note to the meeting from its link, when OllieOS did not match it
+ */
+export const LinkGranolaNoteParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const linkGranolaNoteBodyLinkMax = 2000;
+
+
+
+export const LinkGranolaNoteBody = zod.object({
+  "link": zod.string().min(1).max(linkGranolaNoteBodyLinkMax).describe('A Granola share or note link')
+})
+
+export const LinkGranolaNoteResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "platform": zod.string().nullable(),
+  "location": zod.string().nullable(),
+  "scope": zod.enum(['internal', 'external']).describe('External when anyone on the meeting is from outside Ollie\'s own company'),
+  "companies": zod.array(zod.string()),
+  "prep": zod.enum(['ready', 'not_much', 'failed', 'not_written', 'none']).describe('Anything but none means the meeting has a prep page at /briefs/{id}'),
+  "attendees": zod.array(zod.object({
+  "name": zod.string(),
+  "email": zod.string().nullable(),
+  "person": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}).nullable().describe('Set when they are in People')
+})),
+  "notes": zod.string().nullable().describe('Ollie\'s agenda and notes'),
+  "agendaChat": zod.array(zod.object({
+  "role": zod.enum(['ollie', 'ai']),
+  "text": zod.string(),
+  "at": zod.coerce.date()
+})),
+  "granola": zod.object({
+  "url": zod.string().nullable(),
+  "notes": zod.string(),
+  "attachedAt": zod.coerce.date().nullable(),
+  "actions": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string()
+})).describe('Inbox tasks made from the note\'s actions')
+}).nullable().describe('The Granola note, once one is linked to the meeting'),
+  "granolaCheck": zod.boolean().describe('True when OllieOS reads Granola itself')
+})
+
+
+/**
+ * @summary Ollie's verdict on whether an email or Slack thread is about the meeting; the thread matcher learns from it
+ */
+export const SetThreadVerdictParams = zod.object({
+  "eventId": zod.coerce.number().int(),
+  "activityId": zod.coerce.number().int()
+})
+
+export const SetThreadVerdictBody = zod.object({
+  "related": zod.boolean()
+})
+
+export const SetThreadVerdictResponse = zod.void()
 
 
 /**
@@ -4967,7 +5586,16 @@ export const GetNextBriefResponse = zod.object({
   "summary": zod.string(),
   "occurredAt": zod.coerce.date(),
   "url": zod.string().nullable()
-})).describe('Recent email and Slack exchanges with people on the meeting'),
+})).describe('Recent email and Slack exchanges with people on the meeting that are about it'),
+  "threadsHidden": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string(),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable(),
+  "by": zod.enum(['ollie', 'ai']),
+  "reason": zod.string().nullable()
+})).describe('Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),
@@ -5217,7 +5845,16 @@ export const GetBriefResponse = zod.object({
   "summary": zod.string(),
   "occurredAt": zod.coerce.date(),
   "url": zod.string().nullable()
-})).describe('Recent email and Slack exchanges with people on the meeting'),
+})).describe('Recent email and Slack exchanges with people on the meeting that are about it'),
+  "threadsHidden": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string(),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable(),
+  "by": zod.enum(['ollie', 'ai']),
+  "reason": zod.string().nullable()
+})).describe('Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),
@@ -5267,7 +5904,7 @@ export const GetBriefResponse = zod.object({
 
 
 /**
- * @summary Ollie's notes for after the meeting
+ * @summary Ollie's notes for the meeting (kept on the meeting, the same as PATCH /meetings/{eventId})
  */
 export const UpdateBriefNotesParams = zod.object({
   "eventId": zod.coerce.number().int()
@@ -5491,7 +6128,16 @@ export const RefreshBriefResponse = zod.object({
   "summary": zod.string(),
   "occurredAt": zod.coerce.date(),
   "url": zod.string().nullable()
-})).describe('Recent email and Slack exchanges with people on the meeting'),
+})).describe('Recent email and Slack exchanges with people on the meeting that are about it'),
+  "threadsHidden": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string(),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable(),
+  "by": zod.enum(['ollie', 'ai']),
+  "reason": zod.string().nullable()
+})).describe('Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),
@@ -5741,7 +6387,16 @@ export const AllowForBriefResponse = zod.object({
   "summary": zod.string(),
   "occurredAt": zod.coerce.date(),
   "url": zod.string().nullable()
-})).describe('Recent email and Slack exchanges with people on the meeting'),
+})).describe('Recent email and Slack exchanges with people on the meeting that are about it'),
+  "threadsHidden": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string(),
+  "summary": zod.string(),
+  "occurredAt": zod.coerce.date(),
+  "url": zod.string().nullable(),
+  "by": zod.enum(['ollie', 'ai']),
+  "reason": zod.string().nullable()
+})).describe('Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher'),
   "projects": zod.array(zod.object({
   "id": zod.int(),
   "slug": zod.string(),
@@ -6697,7 +7352,9 @@ export const ListIdeasResponse = zod.object({
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
   "hiddenFromAi": zod.boolean(),
-  "source": zod.enum(['ollie', 'claude', 'session']),
+  "source": zod.enum(['ollie', 'claude', 'session', 'ollieos']).describe('ollieos is the idea spotter (section 23)'),
+  "sourceLabel": zod.string().nullable().describe('Idea spotter: the meeting or Slack conversation it came up in'),
+  "sourceUrl": zod.string().nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -6760,7 +7417,9 @@ export const CreateIdeaResponse = zod.object({
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
   "hiddenFromAi": zod.boolean(),
-  "source": zod.enum(['ollie', 'claude', 'session']),
+  "source": zod.enum(['ollie', 'claude', 'session', 'ollieos']).describe('ollieos is the idea spotter (section 23)'),
+  "sourceLabel": zod.string().nullable().describe('Idea spotter: the meeting or Slack conversation it came up in'),
+  "sourceUrl": zod.string().nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -6802,7 +7461,9 @@ export const GetIdeaResponse = zod.object({
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
   "hiddenFromAi": zod.boolean(),
-  "source": zod.enum(['ollie', 'claude', 'session']),
+  "source": zod.enum(['ollie', 'claude', 'session', 'ollieos']).describe('ollieos is the idea spotter (section 23)'),
+  "sourceLabel": zod.string().nullable().describe('Idea spotter: the meeting or Slack conversation it came up in'),
+  "sourceUrl": zod.string().nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -6861,7 +7522,9 @@ export const UpdateIdeaResponse = zod.object({
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
   "hiddenFromAi": zod.boolean(),
-  "source": zod.enum(['ollie', 'claude', 'session']),
+  "source": zod.enum(['ollie', 'claude', 'session', 'ollieos']).describe('ollieos is the idea spotter (section 23)'),
+  "sourceLabel": zod.string().nullable().describe('Idea spotter: the meeting or Slack conversation it came up in'),
+  "sourceUrl": zod.string().nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -6917,7 +7580,9 @@ export const TakeIdeaForwardResponse = zod.object({
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
   "hiddenFromAi": zod.boolean(),
-  "source": zod.enum(['ollie', 'claude', 'session']),
+  "source": zod.enum(['ollie', 'claude', 'session', 'ollieos']).describe('ollieos is the idea spotter (section 23)'),
+  "sourceLabel": zod.string().nullable().describe('Idea spotter: the meeting or Slack conversation it came up in'),
+  "sourceUrl": zod.string().nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -6959,7 +7624,9 @@ export const RestoreIdeaResponse = zod.object({
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
   "hiddenFromAi": zod.boolean(),
-  "source": zod.enum(['ollie', 'claude', 'session']),
+  "source": zod.enum(['ollie', 'claude', 'session', 'ollieos']).describe('ollieos is the idea spotter (section 23)'),
+  "sourceLabel": zod.string().nullable().describe('Idea spotter: the meeting or Slack conversation it came up in'),
+  "sourceUrl": zod.string().nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
@@ -7810,7 +8477,8 @@ export const ListOrganisationsResponseItem = zod.object({
   "aiAccess": zod.boolean(),
   "type": zod.string().nullable(),
   "internal": zod.boolean().describe('Ollie\'s own company rather than a client'),
-  "peopleCount": zod.int()
+  "peopleCount": zod.int(),
+  "lastContactAt": zod.coerce.date().nullable().describe('The latest contact with anyone who works there')
 })
 export const ListOrganisationsResponse = zod.array(ListOrganisationsResponseItem)
 
@@ -8402,10 +9070,12 @@ export const SupersedeFactResponse = zod.object({
  */
 export const listKnowledgeInboxQueryTabDefault = `suggested`;
 export const listKnowledgeInboxQueryOriginDefault = `all`;
+export const listKnowledgeInboxQueryHintDefault = `all`;
 
 export const ListKnowledgeInboxQueryParams = zod.object({
   "tab": zod.enum(['suggested', 'conflicts', 'stale']).default(listKnowledgeInboxQueryTabDefault),
-  "origin": zod.enum(['all', 'look_back', 'documents']).default(listKnowledgeInboxQueryOriginDefault).describe('look_back shows only suggestions from a Granola look back; documents only those from reading documents')
+  "origin": zod.enum(['all', 'look_back', 'documents']).default(listKnowledgeInboxQueryOriginDefault).describe('look_back shows only suggestions from a Granola look back; documents only those from reading documents'),
+  "hint": zod.enum(['all', 'keep', 'reject', 'same', 'duplicate', 'none', 'unsorted']).default(listKnowledgeInboxQueryHintDefault).describe('Suggested only: cards with this pre-sort hint. none is looked at with no hint; unsorted is not looked at yet.')
 })
 
 export const ListKnowledgeInboxResponse = zod.object({
@@ -8495,8 +9165,29 @@ export const ListKnowledgeInboxResponse = zod.object({
   "source": zod.string().nullable(),
   "stronger": zod.enum(['new', 'old', 'even']),
   "weighing": zod.string().describe('One line on which side looks stronger')
-})).optional().describe('Contradiction and out-of-date cards: the approved items the new card disagrees with')
+})).optional().describe('Contradiction and out-of-date cards: the approved items the new card disagrees with'),
+  "presort": zod.union([zod.object({
+  "verdict": zod.enum(['keep', 'reject', 'same', 'duplicate']),
+  "why": zod.string(),
+  "sameAs": zod.union([zod.object({
+  "type": zod.enum(['fact', 'decision', 'rule']),
+  "id": zod.int(),
+  "text": zod.string()
+}),zod.null()]).optional(),
+  "duplicateOf": zod.int().nullish()
+}),zod.null()]).optional().describe('Suggested cards: the pre-sorter\'s hint (section 23); null when it gave none or has not looked'),
+  "evidence": zod.union([zod.object({
+  "verdict": zod.enum(['confirmed', 'changed', 'none']),
+  "why": zod.string(),
+  "newText": zod.string().nullable(),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "label": zod.string(),
+  "at": zod.string()
 }))
+}),zod.null()]).optional().describe('Stale facts: what the stale fact checker found (section 23); null until it has looked')
+})),
+  "presort": zod.record(zod.string(), zod.int()).optional().describe('Suggested tab: cards waiting by pre-sort hint (keep, reject, same, duplicate, none, unsorted)')
 })
 
 
@@ -8526,6 +9217,194 @@ export const ApproveSuggestionResponse = zod.object({
   "type": zod.string(),
   "id": zod.int()
 }),zod.null()])
+})
+
+
+/**
+ * @summary Approve or reject many Knowledge Inbox cards at once; cards that cannot be decided as they stand are skipped
+ */
+export const bulkDecideSuggestionsBodyIdsMax = 500;
+
+
+
+export const BulkDecideSuggestionsBody = zod.object({
+  "action": zod.enum(['approve', 'reject', 'same']).describe('same merges each card into the approved item its pre-sort hint names'),
+  "ids": zod.array(zod.int()).min(1).max(bulkDecideSuggestionsBodyIdsMax)
+})
+
+export const BulkDecideSuggestionsResponse = zod.object({
+  "approved": zod.int(),
+  "rejected": zod.int(),
+  "merged": zod.int(),
+  "skipped": zod.array(zod.object({
+  "id": zod.int(),
+  "reason": zod.string()
+}))
+})
+
+
+/**
+ * @summary The Friday update for a week (section 23): this week's unless a week is given
+ */
+export const GetFridayUpdateQueryParams = zod.object({
+  "week": zod.coerce.string().optional().describe('The Friday the week ends on, YYYY-MM-DD')
+})
+
+export const GetFridayUpdateResponse = zod.object({
+  "weekEnding": zod.string(),
+  "update": zod.union([zod.object({
+  "id": zod.int(),
+  "weekEnding": zod.string(),
+  "sections": zod.object({
+  "wins": zod.array(zod.string()),
+  "blockers": zod.array(zod.string()),
+  "ai": zod.array(zod.string()),
+  "quarterly": zod.array(zod.string())
+}),
+  "text": zod.string().describe('The post as drafted'),
+  "editedText": zod.string().nullable().describe('Ollie\'s edited post, when he has changed it'),
+  "basis": zod.object({
+  "done": zod.int(),
+  "decisions": zod.int(),
+  "meetings": zod.int(),
+  "waiting": zod.int(),
+  "overdue": zod.int(),
+  "goals": zod.int(),
+  "hidden": zod.int().describe('Items left out because they are hidden from AI')
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Save Ollie's edits to the post; null goes back to the draft
+ */
+export const saveFridayUpdateTextBodyEditedTextMax = 8000;
+
+
+
+export const SaveFridayUpdateTextBody = zod.object({
+  "weekEnding": zod.string(),
+  "editedText": zod.string().max(saveFridayUpdateTextBodyEditedTextMax).nullable()
+})
+
+export const SaveFridayUpdateTextResponse = zod.object({
+  "id": zod.int(),
+  "weekEnding": zod.string(),
+  "sections": zod.object({
+  "wins": zod.array(zod.string()),
+  "blockers": zod.array(zod.string()),
+  "ai": zod.array(zod.string()),
+  "quarterly": zod.array(zod.string())
+}),
+  "text": zod.string().describe('The post as drafted'),
+  "editedText": zod.string().nullable().describe('Ollie\'s edited post, when he has changed it'),
+  "basis": zod.object({
+  "done": zod.int(),
+  "decisions": zod.int(),
+  "meetings": zod.int(),
+  "waiting": zod.int(),
+  "overdue": zod.int(),
+  "goals": zod.int(),
+  "hidden": zod.int().describe('Items left out because they are hidden from AI')
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Draft this week's Friday update (again), from what OllieOS saw this week
+ */
+export const DraftFridayUpdateResponse = zod.object({
+  "id": zod.int(),
+  "weekEnding": zod.string(),
+  "sections": zod.object({
+  "wins": zod.array(zod.string()),
+  "blockers": zod.array(zod.string()),
+  "ai": zod.array(zod.string()),
+  "quarterly": zod.array(zod.string())
+}),
+  "text": zod.string().describe('The post as drafted'),
+  "editedText": zod.string().nullable().describe('Ollie\'s edited post, when he has changed it'),
+  "basis": zod.object({
+  "done": zod.int(),
+  "decisions": zod.int(),
+  "meetings": zod.int(),
+  "waiting": zod.int(),
+  "overdue": zod.int(),
+  "goals": zod.int(),
+  "hidden": zod.int().describe('Items left out because they are hidden from AI')
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Draft one section of this week's update again, keeping the others
+ */
+export const RedraftFridayUpdateSectionBody = zod.object({
+  "section": zod.enum(['wins', 'blockers', 'ai', 'quarterly'])
+})
+
+export const RedraftFridayUpdateSectionResponse = zod.object({
+  "id": zod.int(),
+  "weekEnding": zod.string(),
+  "sections": zod.object({
+  "wins": zod.array(zod.string()),
+  "blockers": zod.array(zod.string()),
+  "ai": zod.array(zod.string()),
+  "quarterly": zod.array(zod.string())
+}),
+  "text": zod.string().describe('The post as drafted'),
+  "editedText": zod.string().nullable().describe('Ollie\'s edited post, when he has changed it'),
+  "basis": zod.object({
+  "done": zod.int(),
+  "decisions": zod.int(),
+  "meetings": zod.int(),
+  "waiting": zod.int(),
+  "overdue": zod.int(),
+  "goals": zod.int(),
+  "hidden": zod.int().describe('Items left out because they are hidden from AI')
+}),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Pre-sort the next Knowledge Inbox cards now (section 23)
+ */
+export const PresortSuggestionsResponse = zod.object({
+  "looked": zod.int(),
+  "repeats": zod.int(),
+  "hinted": zod.int(),
+  "private": zod.int().describe('Cards about something hidden from AI'),
+  "failed": zod.boolean()
+})
+
+
+/**
+ * @summary Run the stale fact checker now on facts waiting on Needs a check (section 23)
+ */
+export const CheckStaleEvidenceResponse = zod.object({
+  "looked": zod.int(),
+  "confirmed": zod.int(),
+  "changed": zod.int(),
+  "none": zod.int(),
+  "private": zod.int(),
+  "failed": zod.boolean()
+})
+
+
+/**
+ * @summary Mark every stale fact the checker found still true as confirmed today (section 23)
+ */
+export const ConfirmFoundStillTrueResponse = zod.object({
+  "confirmed": zod.int()
 })
 
 
@@ -9161,7 +10040,13 @@ export const AskOllieOSResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -9300,7 +10185,13 @@ export const GetAskThreadResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -9439,7 +10330,13 @@ export const DraftAskReplyResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -9578,7 +10475,13 @@ export const AllowAskTurnResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -9726,7 +10629,13 @@ export const BundleAskTasksResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -9865,7 +10774,13 @@ export const UndoAskBundleResponse = zod.object({
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
-  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),

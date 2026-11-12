@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { BriefTalkingPoints } from '@/components/talking-points';
+import { LazyMeetingAgenda as MeetingAgenda } from '@/components/meeting-agenda-lazy';
+import { FromGranola } from '@/components/from-granola';
+import { MeetingThreads } from '@/components/meeting-threads';
 import { Thumbs } from '@/components/evals';
 import { CommercialLines } from '@/components/client-pulse';
 import { Link } from 'wouter';
@@ -9,7 +12,6 @@ import {
   getGetBriefQueryKey,
   getGetNextBriefQueryKey,
   refreshBrief,
-  updateBriefNotes,
   useGetBrief,
   useGetNextBrief,
   type BriefAttendee,
@@ -23,7 +25,7 @@ import { IconLeft } from '@/components/icons';
 import { LockMark, PageProblem, PageSkeleton } from '@/components/knowledge/parts';
 import { isNotFound } from '@/lib/knowledge';
 import { errorMessage, notify } from '@/lib/notify';
-import { cadenceStatusLabel } from '@/pages/people-cadence';
+import { cadenceStatusLabel } from '@/components/cadence';
 import { ResearchList, ScopePill } from '@/components/research';
 
 const CARD = { background: 'var(--oo-panel)', borderRadius: 'var(--oo-r-panel)', boxShadow: 'var(--oo-shadow-panel)' } as const;
@@ -239,6 +241,8 @@ function Brief({ brief }: { brief: BriefView }) {
             </Panel>
           )}
 
+          <MeetingAgenda eventId={e.id} />
+
           {brief.followUpTaskId != null && (
             <p className="oo-soft" style={{ margin: 0, fontSize: 14 }} data-testid="text-brief-follow-up">
               A follow-up email was drafted from the meeting notes and saved to Gmail. <Link href={'/messages?tab=drafts&id=' + brief.followUpTaskId} className="oo-link">Open it in Drafts</Link>
@@ -256,7 +260,7 @@ function Brief({ brief }: { brief: BriefView }) {
             </Panel>
           )}
 
-          {(brief.granolaNotes || brief.actions.length > 0) && <AfterMeeting brief={brief} />}
+          <FromGranola eventId={e.id} endsAt={e.endsAt} />
 
           {brief.earlier.length > 0 && (
             <Panel id="b-earlier" title="Last time, from Granola">
@@ -264,28 +268,8 @@ function Brief({ brief }: { brief: BriefView }) {
             </Panel>
           )}
 
-          {brief.threads.length > 0 && (
-            <Panel id="b-threads" title="Recent email and Slack">
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12 }} data-testid="list-threads">
-                {brief.threads.map((t) => (
-                  <li key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 14, lineHeight: 1.5 }} data-testid={'row-thread-' + t.id}>
-                    <span className="oo-muted" style={{ fontSize: 12 }}>
-                      {t.kind === 'slack' ? 'Slack' : 'Email'} · {formatDayMonth(t.occurredAt)}
-                      {t.url && (
-                        <>
-                          {' · '}
-                          <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--oo-ink-muted)', textUnderlineOffset: 2 }} data-testid={'link-thread-' + t.id}>Open</a>
-                        </>
-                      )}
-                    </span>
-                    <span style={{ overflowWrap: 'anywhere' }}>{t.summary}</span>
-                  </li>
-                ))}
-              </ul>
-            </Panel>
-          )}
+          <MeetingThreads eventId={e.id} threads={brief.threads} hidden={brief.threadsHidden ?? []} />
 
-          <NotesForAfter brief={brief} />
         </main>
 
         <aside style={{ flex: '1 1 300px', maxWidth: 380, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -531,73 +515,3 @@ function EarlierMeeting({ m }: { m: BriefView['earlier'][number] }) {
   );
 }
 
-function AfterMeeting({ brief }: { brief: BriefView }) {
-  const n = brief.actions.length;
-  return (
-    <Panel id="b-granola" title="From Granola">
-      {n > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="list-granola-actions">
-          <p style={{ margin: 0, fontSize: 14 }}>{n === 1 ? '1 action went to your Inbox' : `${n} actions went to your Inbox`}</p>
-          <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
-            {brief.actions.map((t) => (
-              <li key={t.id}>
-                <Link href={'/tasks?task=' + t.id} style={{ color: 'var(--oo-ink)', textDecoration: 'underline', textUnderlineOffset: 2 }} data-testid={'link-action-' + t.id}>{t.title}</Link>
-                {t.status !== 'inbox' && <span className="oo-muted" style={{ fontSize: 12 }}> · {t.status === 'done' ? 'done' : 'triaged'}</span>}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {brief.granolaNotes && (
-        <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap', maxWidth: '72ch', color: 'var(--oo-ink-soft)' }} data-testid="text-granola-notes">{brief.granolaNotes}</div>
-      )}
-    </Panel>
-  );
-}
-
-/** Saves as Ollie types, a moment after he stops. */
-function NotesForAfter({ brief }: { brief: BriefView }) {
-  const qc = useQueryClient();
-  const id = brief.event.id;
-  const [text, setText] = useState(brief.notes ?? '');
-  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const saved = useRef(brief.notes ?? '');
-  useEffect(() => {
-    if (text === saved.current) return;
-    const t = setTimeout(async () => {
-      setState('saving');
-      try {
-        const r = await updateBriefNotes(id, { notes: text.trim() ? text : null });
-        saved.current = text;
-        qc.setQueryData(getGetBriefQueryKey(id), (old: BriefView | undefined) => (old ? { ...old, notes: r.notes } : old));
-        setState('saved');
-      } catch (err) {
-        setState('error');
-        notify('Could not save your notes', errorMessage(err));
-      }
-    }, 800);
-    return () => clearTimeout(t);
-  }, [text, id, qc]);
-
-  return (
-    <section style={{ ...CARD, padding: '26px 30px', display: 'flex', flexDirection: 'column', gap: 10 }} data-testid="section-notes">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-        <label htmlFor="b-notebox" className="oo-h2">Notes for after</label>
-        <span role="status" className="oo-muted" style={{ fontSize: 12 }} data-testid="text-notes-state">
-          {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved' : state === 'error' ? 'Not saved' : ''}
-        </span>
-      </div>
-      <textarea
-        id="b-notebox"
-        className="oo-input"
-        rows={4}
-        maxLength={20000}
-        value={text}
-        onChange={(ev) => setText(ev.target.value)}
-        placeholder="Anything to capture. Granola notes are added automatically after the call."
-        style={{ resize: 'vertical', padding: '12px 14px', borderRadius: 'var(--oo-r-input-lg)', lineHeight: 1.5 }}
-        data-testid="input-brief-notes"
-      />
-    </section>
-  );
-}

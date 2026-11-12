@@ -89,6 +89,12 @@ export const tasksTable = pgTable(
     position: integer("position"),
     /** Checklist steps inside the task, in order */
     steps: jsonb("steps").$type<TaskStep[]>().notNull().default([]),
+    /** Section 23: the delegation suggester's colleague for this task, with why and a draft Slack message */
+    delegateHint: jsonb("delegate_hint").$type<DelegateHint | null>(),
+    /** When the delegation suggester last looked at it; null means not yet */
+    delegateCheckedAt: timestamp("delegate_checked_at", { withTimezone: true }),
+    /** Ollie said "Not this one", so it is not suggested again */
+    delegateDismissedAt: timestamp("delegate_dismissed_at", { withTimezone: true }),
     search: tsvector("search").generatedAlwaysAs(
       sql`to_tsvector('english', coalesce(title,'') || ' ' || coalesce(snippet,'') || ' ' || coalesce(notes,'') || ' ' || coalesce(source_quote,'') || ' ' || coalesce(from_name,''))`,
     ),
@@ -119,6 +125,14 @@ export const captureLogTable = pgTable(
   },
   (t) => [uniqueIndex("capture_log_source_ref_unique").on(t.source, t.sourceRef)],
 );
+
+/** Section 23: who could take a task off Ollie's hands, and the message he could send them. */
+export interface DelegateHint {
+  personId: number;
+  personName: string;
+  why: string;
+  message: string;
+}
 
 /** How a task repeats; mirrors RepeatRule in @workspace/shared, which works out the dates. */
 export interface RepeatRule {

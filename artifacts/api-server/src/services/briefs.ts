@@ -37,6 +37,7 @@ import { askClient, defaultScope, recordReads, visibleRefs, type AiScope } from 
 import { writeAudit } from "../lib/audit";
 import { logger } from "../lib/logger";
 import { recordCheck } from "./writerChecks";
+import { workTypesOf } from "./knowledge/functions";
 import type { GrantType } from "../lib/ai-data/visibility";
 import { describeRefs, grantDirect } from "./access";
 import { askScope } from "./ask/ask";
@@ -44,6 +45,7 @@ import { writeBriefFromDocs } from "./ask/model";
 import { projectsForPeople, stateFor } from "./cadence";
 import { loadScopeContext, scopeOf, type MeetingScope, type ScopeContext } from "./meetingScope";
 import { researchViews, type ResearchView } from "./research";
+import { chooseThreads, unrelatedActivityIds, type HiddenThread, type MatchContext } from "./threadMatch";
 import { ConflictError, NotFoundError } from "./tasks";
 import { linkMap } from "./library";
 import { resolveEntities } from "./knowledge/common";
@@ -262,7 +264,7 @@ async function linkedPlaybooks(projectIds: number[], orgIds: number[]): Promise<
 
 /* ---------- Writing the brief ---------- */
 
-function contextRefs(c: ContextOut): string[] {
+export function contextRefs(c: ContextOut): string[] {
   return [
     c.entity.ref,
     ...c.facts.map((x) => x.ref),
@@ -313,7 +315,9 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
   refs.push(...inputs.promiseIds.map((id) => toRef("task", id)));
   refs.push(...inputs.productIds.map((id) => toRef("product", id)).filter((r) => visible.has(r)));
   refs.push(...inputs.playbookIds.map((id) => toRef("playbook", id)));
-  const items = await loadVisibleDocs(scope, [...new Set(refs)]);
+  // Email and Slack judged not about this meeting stay out of the brief too.
+  const unrelated = await unrelatedActivityIds(event);
+  const items = await loadVisibleDocs(scope, [...new Set(refs)].filter((r) => !(r.startsWith("activity:") && unrelated.has(Number(r.slice(9))))));
   const rules = await loadVisibleDocs(scope, await applicableRuleRefs(scope, entityRefs.filter((r) => visible.has(r))));
   await recordReads(scope, [...items, ...rules].map((d) => d.ref), { via: "meeting_brief", event: event.id });
 
@@ -412,6 +416,11 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
     await recordCheck("brief_writer", `brief:${saved.id}`, text, { given: inputRefs, cited: citedIds, maxWords: 450 });
   }
   return saved;
+}
+
+async function clientFirst<T extends { id: number }>(rows: T[]): Promise<T[]> {
+  const work = await workTypesOf(rows.map((r) => r.id));
+  return [...rows.filter((r) => work.get(r.id) === "client"), ...rows.filter((r) => work.get(r.id) !== "client")];
 }
 
 /** Whole-word patterns for the names of attendees, projects and organisations hidden from AI. */
@@ -592,6 +601,8 @@ export interface BriefView {
   earlier: { eventId: number; title: string; startsAt: Date; notes: string; people: string[] }[];
   /** Recent email and Slack exchanges with the people on the meeting */
   threads: { id: number; kind: string; summary: string; occurredAt: Date; url: string | null }[];
+  /** Threads with people on the meeting judged not about it, by Ollie or the thread matcher */
+  threadsHidden: HiddenThread[];
   projects: { id: number; slug: string; name: string; confidential: boolean }[];
   goals: { id: number; name: string }[];
   documents: { id: number; title: string; url: string | null; location: string }[];
@@ -707,6 +718,8 @@ const MAX_FACTS = 4;
 const MAX_EARLIER = 3;
 const MAX_THREADS = 8;
 const THREAD_DAYS = 60;
+/** Threads looked at for the matcher; up to MAX_THREADS of those about the meeting are shown */
+const MAX_THREAD_CANDIDATES = 20;
 
 async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefInputs): Promise<BriefView> {
   const people = inputs.match.personIds;
@@ -773,7 +786,7 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
     brief.actionTaskIds.length
       ? db.select({ id: tasksTable.id, title: tasksTable.title, status: tasksTable.status }).from(tasksTable).where(inArray(tasksTable.id, brief.actionTaskIds)).orderBy(asc(tasksTable.id))
       : [],
-    prepExtras(event, people),
+    prepExtras(event, people, { attendees: inputs.match.attendees.map((a) => ({ name: a.name, personId: a.personId })), projectIds: inputs.projectIds }),
   ]);
   const sources = await sourcesFor(brief.citedIds);
   const withSources = (lines: BriefLine[] | null) =>
@@ -843,7 +856,9 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
     waitingOn: extra.waitingOn,
     earlier: extra.earlier,
     threads: extra.threads,
-    projects: projectRows.sort(order(inputs.projectIds)),
+    threadsHidden: extra.threadsHidden,
+    // Client work first, then the order the meeting matched them in.
+    projects: await clientFirst(projectRows.sort(order(inputs.projectIds))),
     goals: goalRows,
     documents: docRows,
     rules: bookRows,
@@ -852,7 +867,8 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
       .map(({ aiAccess, ...p }) => ({ ...p, confidential: p.confidential || !aiAccess, ruleIds: (rulesByProduct.get(p.id) ?? []).sort((a, b) => a - b) })),
     playbooks: playbookRows.sort(order(inputs.playbookIds)).map((p) => ({ id: p.id, title: p.title, whenToUse: p.whenToUse, steps: p.steps.length })),
     heldBack: brief.heldBack.length,
-    notes: brief.notes,
+    // Ollie's notes live on the event now; older ones may still be on the brief.
+    notes: event.notes ?? brief.notes,
     granolaNotes: brief.granolaNotes,
     granolaRef: brief.granolaRef,
     actions: actionRows,
@@ -864,7 +880,7 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
  * current facts, open tasks both ways, Granola notes from earlier meetings with any of the same
  * people, and recent email and Slack exchanges with them.
  */
-async function prepExtras(event: CalendarEvent, people: number[]) {
+async function prepExtras(event: CalendarEvent, people: number[], match: { attendees: MatchContext["attendees"]; projectIds: number[] }) {
   if (!people.length) {
     return {
       facts: new Map<number, { id: number; text: string; needsCheck: boolean }[]>(),
@@ -873,6 +889,7 @@ async function prepExtras(event: CalendarEvent, people: number[]) {
       waitingOn: [] as BriefView["waitingOn"],
       earlier: [] as BriefView["earlier"],
       threads: [] as BriefView["threads"],
+      threadsHidden: [] as BriefView["threadsHidden"],
     };
   }
   const ids = sql.join(people.map((id) => sql`${id}`), sql`, `);
@@ -918,7 +935,7 @@ async function prepExtras(event: CalendarEvent, people: number[]) {
         and ((a.entity_type = 'person' and a.entity_id in (${ids}))
           or exists (select 1 from links l where l.from_type = 'activity' and l.from_id = a.id and l.to_type = 'person' and l.to_id in (${ids}))
           or exists (select 1 from links l where l.to_type = 'activity' and l.to_id = a.id and l.from_type = 'person' and l.from_id in (${ids})))
-      order by a.occurred_at desc limit ${MAX_THREADS}`),
+      order by a.occurred_at desc limit ${MAX_THREAD_CANDIDATES}`),
     db.select({ id: peopleTable.id, name: peopleTable.name }).from(peopleTable).where(inArray(peopleTable.id, people)),
   ]);
   const facts = new Map<number, { id: number; text: string; needsCheck: boolean }[]>();
@@ -927,6 +944,16 @@ async function prepExtras(event: CalendarEvent, people: number[]) {
     if (list.length < MAX_FACTS) list.push({ id: f.id, text: f.text, needsCheck: f.needsCheck });
     facts.set(f.personId, list);
   }
+  // Only the threads about this meeting: judged once each, learning from Ollie's "Not about this meeting".
+  const candidates = (threadRows.rows as { id: number; kind: string; summary: string; occurred_at: string | Date; source_url: string | null }[]).map((r) => ({
+    id: Number(r.id),
+    kind: r.kind,
+    summary: r.summary,
+    occurredAt: new Date(r.occurred_at),
+    url: r.source_url,
+  }));
+  const projectNames = match.projectIds.length ? await db.select({ id: projectsTable.id, name: projectsTable.name }).from(projectsTable).where(inArray(projectsTable.id, match.projectIds)) : [];
+  const chosen = await chooseThreads(event, candidates, { attendees: match.attendees, projects: projectNames, max: MAX_THREADS });
   const nameOf = new Map(names.map((n) => [n.id, n.name]));
   return {
     facts,
@@ -940,25 +967,9 @@ async function prepExtras(event: CalendarEvent, people: number[]) {
       notes: r.notes!,
       people: r.attendeeIds.filter((id) => people.includes(id)).map((id) => nameOf.get(id)).filter((n): n is string => !!n),
     })),
-    threads: (threadRows.rows as { id: number; kind: string; summary: string; occurred_at: string | Date; source_url: string | null }[]).map((r) => ({
-      id: Number(r.id),
-      kind: r.kind,
-      summary: r.summary,
-      occurredAt: new Date(r.occurred_at),
-      url: r.source_url,
-    })),
+    threads: chosen.shown,
+    threadsHidden: chosen.hidden,
   };
-}
-
-export async function updateBriefNotes(eventId: number, notes: string | null): Promise<string | null> {
-  const brief = await loadBrief(eventId);
-  if (!brief) throw new NotFoundError("That brief does not exist");
-  const text = notes?.trim() ? notes.slice(0, 20000) : null;
-  await db.transaction(async (tx) => {
-    await tx.update(meetingBriefsTable).set({ notes: text }).where(eq(meetingBriefsTable.id, brief.id));
-    await writeAudit(tx, { actor: "ollie", action: "update", entityType: "meeting_brief", entityId: brief.id, payload: { notes: text ? text.length : 0 } });
-  });
-  return text;
 }
 
 /** "Allow for this brief": opens what was held back to Ask OllieOS for one hour and writes the brief again. */
@@ -1017,32 +1028,77 @@ export async function findEventBySourceRef(sourceRef: string): Promise<CalendarE
 /** Attaches notes and action task ids to an event's brief, writing the brief first if there is none. */
 export async function attachMeetingNotes(
   event: CalendarEvent,
-  input: { granolaRef: string; notes: string; actionTaskIds: number[]; actor: string; clientId: number | null },
-): Promise<MeetingBrief> {
+  input: { granolaRef: string; notes: string; url?: string | null; actionTaskIds: number[]; actor: string; clientId: number | null },
+  now = new Date(),
+): Promise<MeetingBrief | null> {
   if (event.personal) throw new ConflictError("Personal events have no brief");
+  // A brief only exists when someone or something on the meeting is known; the meeting keeps the note either way.
   let brief = await loadBrief(event.id);
   if (!brief) {
     const inputs = await gatherInputs(event);
-    if (!inputs) throw new ConflictError("This meeting has no brief: no one on it is known to OllieOS");
-    brief = await generate(inputs, null);
+    if (inputs) brief = await generate(inputs, null);
   }
-  const ids = [...new Set([...brief.actionTaskIds, ...input.actionTaskIds])];
+  const notes = input.notes.slice(0, 50000);
+  const sameNote = event.granolaRef === input.granolaRef;
+  const eventIds = [...new Set([...(sameNote ? event.granolaTaskIds : []), ...input.actionTaskIds])];
   return db.transaction(async (tx) => {
-    const [row] = await tx
-      .update(meetingBriefsTable)
-      .set({ granolaRef: input.granolaRef, granolaNotes: input.notes.slice(0, 50000), actionTaskIds: ids })
-      .where(eq(meetingBriefsTable.id, brief!.id))
-      .returning();
+    await tx
+      .update(calendarEventsTable)
+      .set({ granolaRef: input.granolaRef, granolaUrl: input.url ?? (sameNote ? event.granolaUrl : null), granolaNotes: notes, granolaTaskIds: eventIds, granolaAttachedAt: now })
+      .where(eq(calendarEventsTable.id, event.id));
+    let row: MeetingBrief | null = null;
+    if (brief) {
+      [row] = await tx
+        .update(meetingBriefsTable)
+        .set({ granolaRef: input.granolaRef, granolaNotes: notes, actionTaskIds: [...new Set([...brief.actionTaskIds, ...input.actionTaskIds])] })
+        .where(eq(meetingBriefsTable.id, brief.id))
+        .returning();
+    }
     await writeAudit(tx, {
       actor: input.actor,
       clientId: input.clientId,
       action: "attach_notes",
-      entityType: "meeting_brief",
-      entityId: row.id,
-      payload: { granolaRef: input.granolaRef, actions: input.actionTaskIds },
+      entityType: row ? "meeting_brief" : "calendar_event",
+      entityId: row ? row.id : event.id,
+      payload: { granolaRef: input.granolaRef, actions: input.actionTaskIds, event: event.id },
     });
     return row;
   });
+}
+
+/**
+ * The work meeting a Granola note belongs to when Granola did not link a calendar event: one that
+ * started within half an hour of the note, with the same title or someone in common (Ollie aside).
+ * A meeting already linked to a different note is never taken.
+ */
+export async function findEventForNote(
+  note: { noteId: string; title: string; at: Date; people: { email: string | null }[] },
+  myEmails: Set<string> = new Set(),
+): Promise<CalendarEvent | null> {
+  const window = 30 * 60_000;
+  const rows = await db
+    .select()
+    .from(calendarEventsTable)
+    .where(
+      and(
+        eq(calendarEventsTable.personal, false),
+        gt(calendarEventsTable.startsAt, new Date(note.at.getTime() - window)),
+        lt(calendarEventsTable.startsAt, new Date(note.at.getTime() + window)),
+      ),
+    );
+  const me = new Set([...myEmails, ...(process.env.ALLOWED_EMAIL ? [process.env.ALLOWED_EMAIL] : [])].map((e) => e.trim().toLowerCase()));
+  const theirs = new Set(note.people.map((p) => p.email?.trim().toLowerCase()).filter((e): e is string => !!e && !me.has(e)));
+  const norm = (t: string) => t.normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
+  let best: { e: CalendarEvent; score: number; gap: number } | null = null;
+  for (const e of rows) {
+    if (e.granolaRef && e.granolaRef !== note.noteId) continue;
+    const shared = (e.attendeeDetails ?? []).filter((a) => a.email && theirs.has(a.email.trim().toLowerCase())).length;
+    const score = (norm(e.title) === norm(note.title) ? 2 : 0) + shared;
+    if (!score) continue;
+    const gap = Math.abs(e.startsAt.getTime() - note.at.getTime());
+    if (!best || score > best.score || (score === best.score && gap < best.gap)) best = { e, score, gap };
+  }
+  return best?.e ?? null;
 }
 
 /* ---------- For AI tools (get_meeting_brief, ollieos://brief/next) ---------- */

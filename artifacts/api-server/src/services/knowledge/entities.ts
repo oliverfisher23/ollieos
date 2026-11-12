@@ -12,7 +12,7 @@ import {
 } from "@workspace/db";
 import { hasEmail } from "../personMatch";
 import { domainsForOrganisation, researchViews, type ResearchView } from "../research";
-import { BUSINESS_FUNCTION_LABELS, OPEN_STATUSES, isBusinessFunction, isClientOrgType, type BusinessFunction, type Cadence, type CadenceState, type ProjectLifecycle, type TaskStatus } from "@workspace/shared";
+import { BUSINESS_FUNCTION_LABELS, CADENCE_LABELS, OPEN_STATUSES, linkedinProfileUrl, isBusinessFunction, isClientOrgType, type BusinessFunction, type Cadence, type CadenceState, type ProjectLifecycle, type TaskStatus, type WorkType } from "@workspace/shared";
 import { writeAudit } from "../../lib/audit";
 import { ConflictError, NotFoundError, ValidationError } from "../tasks";
 import { toTaskViews, type TaskView } from "../taskView";
@@ -21,10 +21,10 @@ import { factsFor, linkedIds, listDecisions, notesFor, type DecisionView, type F
 import { timelineFor, type TimelineItem } from "./timeline";
 import { assertGoal } from "../goals";
 import { listDocuments, rulesForProject, type DocumentView, type RuleView } from "../library";
-import { cadenceFor } from "../cadence";
+import { cadenceFor, pausedByProjects, projectsForPeople, stateFor } from "../cadence";
 import { playbooksFor, type PlaybookView } from "../playbooks";
 import { productsLinkedTo, type LinkedSummary } from "../products";
-import { clientNamesSql, ensureFunctions, projectsInFunction, type FunctionProject } from "./functions";
+import { clientNamesSql, workTypeSql, ensureFunctions, projectsInFunction, type FunctionProject } from "./functions";
 
 const OPEN = [...OPEN_STATUSES] as TaskStatus[];
 const priorityRank = sql`case ${tasksTable.priority} when 'high' then 0 when 'medium' then 1 else 2 end`;
@@ -54,6 +54,8 @@ export interface ProjectListItem extends EntitySummary {
   function: BusinessFunction | null;
   isFunction: boolean;
   clients: string[];
+  /** Client work or internal: as set, or client when a client is linked; null when not sorted yet */
+  workType: WorkType | null;
   openTaskCount: number;
   updatedAt: Date;
 }
@@ -78,6 +80,7 @@ export async function listProjects(includeArchived = false): Promise<ProjectList
       function: projectsTable.function,
       isFunction: projectsTable.isFunction,
       clients: clientNamesSql(projectsTable.id),
+      workType: workTypeSql,
       updatedAt: projectsTable.updatedAt,
       openTaskCount: sql<number>`coalesce(${counts.n}, 0)`,
     })
@@ -85,7 +88,7 @@ export async function listProjects(includeArchived = false): Promise<ProjectList
     .leftJoin(counts, eq(counts.projectId, projectsTable.id))
     .where(includeArchived ? undefined : eq(projectsTable.archived, false))
     .orderBy(asc(projectsTable.name));
-  return rows.map((r) => ({ ...r, clients: r.clients ?? [], openTaskCount: Number(r.openTaskCount) }));
+  return rows.map((r) => ({ ...r, clients: r.clients ?? [], workType: r.workType ?? null, openTaskCount: Number(r.openTaskCount) }));
 }
 
 export interface PersonChip extends EntitySummary {
@@ -239,7 +242,7 @@ export async function createProject(input: ProjectInput): Promise<ProjectView> {
   return stripSearch(row);
 }
 
-export type ProjectUpdate = Partial<ProjectInput> & { archived?: boolean; goalId?: number | null; lifecycle?: ProjectLifecycle };
+export type ProjectUpdate = Partial<ProjectInput> & { archived?: boolean; goalId?: number | null; lifecycle?: ProjectLifecycle; workType?: WorkType | null };
 
 export async function updateProject(slug: string, input: ProjectUpdate): Promise<ProjectView> {
   const current = await loadProject(slug);
@@ -269,6 +272,7 @@ export async function updateProject(slug: string, input: ProjectUpdate): Promise
     set.goalId = input.goalId;
   }
   if (input.lifecycle !== undefined && input.lifecycle !== current.lifecycle) set.lifecycle = input.lifecycle;
+  if (input.workType !== undefined && input.workType !== current.workType) set.workType = input.workType;
   if (!Object.keys(set).length) return stripSearch(current);
   const row = await db.transaction(async (tx) => {
     const [updated] = await tx.update(projectsTable).set(set).where(eq(projectsTable.id, current.id)).returning();
@@ -303,9 +307,17 @@ export interface PersonListItem extends EntitySummary {
   aiAccess: boolean;
   role: string | null;
   organisation: EntitySummary | null;
+  /** The organisation's type ("client", "partner"…), for the Contacts filters */
+  organisationType: string | null;
+  /** They work at Ollie's own company */
+  internal: boolean;
+  /** Ollie's own record */
+  isSelf: boolean;
   lastContactAt: Date | null;
   iOweCount: number;
   theyOweCount: number;
+  /** Their check-in cadence and where they stand against it, as on the person page */
+  cadence: PersonCadence;
 }
 
 export async function listPeople(): Promise<PersonListItem[]> {
@@ -323,6 +335,11 @@ export async function listPeople(): Promise<PersonListItem[]> {
         orgName: organisationsTable.name,
         orgSlug: organisationsTable.slug,
         orgConfidential: organisationsTable.confidential,
+        orgType: organisationsTable.type,
+        orgInternal: organisationsTable.internal,
+        isSelf: peopleTable.isSelf,
+        cadence: peopleTable.cadence,
+        cadencePaused: peopleTable.cadencePaused,
       })
       .from(peopleTable)
       .leftJoin(organisationsTable, eq(organisationsTable.id, peopleTable.organisationId))
@@ -338,7 +355,8 @@ export async function listPeople(): Promise<PersonListItem[]> {
     if (t.status === "waiting" && t.waitingOn) theyOwe.set(t.waitingOn, (theyOwe.get(t.waitingOn) ?? 0) + 1);
     else if (t.status !== "waiting" && t.personId) iOwe.set(t.personId, (iOwe.get(t.personId) ?? 0) + 1);
   }
-  const last = await lastContactFor(rows.map((r) => r.id));
+  const ids = rows.map((r) => r.id);
+  const [last, projects] = await Promise.all([lastContactFor(ids), projectsForPeople(rows.filter((r) => r.cadence !== "none").map((r) => r.id))]);
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
@@ -347,9 +365,20 @@ export async function listPeople(): Promise<PersonListItem[]> {
     aiAccess: r.aiAccess,
     role: r.role,
     organisation: r.orgId ? { id: r.orgId, name: r.orgName!, slug: r.orgSlug!, confidential: r.orgConfidential! } : null,
+    organisationType: r.orgType ?? null,
+    internal: !!r.orgInternal,
+    isSelf: r.isSelf,
     lastContactAt: r.lastContactAt ?? last.get(r.id) ?? null,
     iOweCount: iOwe.get(r.id) ?? 0,
     theyOweCount: theyOwe.get(r.id) ?? 0,
+    // Same state as the cadence page and person page: from the recorded last contact only.
+    cadence: {
+      ...stateFor(r, projects.get(r.id)),
+      cadence: r.cadence,
+      cadenceLabel: CADENCE_LABELS[r.cadence],
+      cadencePaused: r.cadencePaused,
+      pausedByProjects: !r.cadencePaused && pausedByProjects(projects.get(r.id)),
+    },
   }));
 }
 
@@ -437,6 +466,8 @@ export type PersonUpdate = Partial<PersonInput> & {
   otherEmails?: string[];
   /** Part N: their Slack user id, or null to unlink */
   slackUserId?: string | null;
+  /** Their LinkedIn profile link, or null to clear it */
+  linkedinUrl?: string | null;
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -529,6 +560,12 @@ export async function updatePerson(slug: string, input: PersonUpdate): Promise<P
     set.slackUserId = id;
   }
   if (input.relationshipSummary !== undefined) set.relationshipSummary = cleanText(input.relationshipSummary);
+  if (input.linkedinUrl !== undefined) {
+    const raw = cleanText(input.linkedinUrl);
+    const url = raw ? linkedinProfileUrl(raw) : null;
+    if (raw && !url) throw new ValidationError("That does not look like a LinkedIn profile link (linkedin.com/in/…)");
+    set.linkedinUrl = url;
+  }
   if (input.confidential !== undefined) set.confidential = input.confidential;
   if (input.aiAccess !== undefined) set.aiAccess = input.aiAccess;
   if (input.cadence !== undefined && input.cadence !== current.cadence) {
@@ -560,6 +597,8 @@ export interface OrganisationListItem extends EntitySummary {
   type: string | null;
   internal: boolean;
   peopleCount: number;
+  /** The latest contact with anyone who works there */
+  lastContactAt: Date | null;
 }
 
 export async function listOrganisations(): Promise<OrganisationListItem[]> {
@@ -573,11 +612,12 @@ export async function listOrganisations(): Promise<OrganisationListItem[]> {
       type: organisationsTable.type,
       internal: organisationsTable.internal,
       peopleCount: sql<number>`(select count(*)::int from people p where p.organisation_id = organisations.id)`,
+      lastContactAt: sql<string | null>`(select max(p.last_contact_at) from people p where p.organisation_id = organisations.id and not p.is_self)`,
     })
     .from(organisationsTable)
     // External organisations first, then Ollie's own company.
     .orderBy(asc(organisationsTable.internal), asc(organisationsTable.name));
-  return rows.map((r) => ({ ...r, peopleCount: Number(r.peopleCount) }));
+  return rows.map((r) => ({ ...r, peopleCount: Number(r.peopleCount), lastContactAt: r.lastContactAt ? new Date(r.lastContactAt) : null }));
 }
 
 export interface OrganisationDetail {

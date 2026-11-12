@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link, Redirect, useParams } from 'wouter';
+import { PHONE_QUERY, useMedia } from '@/lib/use-media';
+import { PhoneFold } from '@/components/phone-fold';
 import { updateProject, useGetProject, useListGoalOptions, useListProjects, type BusinessFunction, type FunctionProject, type ProjectLifecycle, type ProjectUpdate } from '@workspace/api-client-react';
-import { BUSINESS_FUNCTION_LABELS, LIFECYCLE_LABELS, PROJECT_LIFECYCLES, formatDayMonth, formatDayMonthShort, DOC_LOCATION_LABELS } from '@workspace/shared';
+import { BUSINESS_FUNCTION_LABELS, LIFECYCLE_LABELS, PROJECT_LIFECYCLES, WORK_TYPE_LABELS, formatDayMonth, formatDayMonthShort, DOC_LOCATION_LABELS, type WorkType } from '@workspace/shared';
 import { FUNCTION_OPTIONS } from '@/components/dropdown-options';
 import { ContextPackButton } from '@/components/knowledge/context-pack';
 import { KnowledgeLayout } from '@/components/knowledge/layout';
@@ -30,10 +32,13 @@ import { PlaybooksSection } from '@/pages/knowledge/playbooks';
 import { ProductsSection } from '@/pages/knowledge/products';
 import { HiddenFromAi } from '@/components/knowledge/parts';
 
-/** /knowledge: the most recently updated project, or an empty state. */
+/** /knowledge: the most recently updated project, or an empty state. On phones, the Knowledge menu. */
 export function KnowledgeIndexPage() {
   const projects = useListProjects();
   const [creating, setCreating] = useState(false);
+  const phone = useMedia(PHONE_QUERY);
+  // On phones /knowledge is the Knowledge menu (see KnowledgeLayout); the menu shows its own loading state.
+  if (phone && (projects.isLoading || projects.data?.length)) return <KnowledgeLayout testId="page-knowledge">{null}</KnowledgeLayout>;
   if (projects.data?.length) {
     const latest = [...projects.data].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
     return <Redirect to={'/knowledge/projects/' + latest.slug} replace />;
@@ -113,6 +118,21 @@ export function ProjectPage() {
           </div>
           {!isFn && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', fontSize: 13 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <label htmlFor="project-work" className="oo-muted">Kind of work</label>
+                <Dropdown
+                  id="project-work"
+                  variant="compact"
+                  value={project.workType ?? ''}
+                  onChange={(v) => void save({ workType: (v || null) as WorkType | null }, v ? `Marked ${WORK_TYPE_LABELS[v as WorkType].toLowerCase()}` : clients.length ? 'Counts as client work, since a client is linked' : 'Not sorted now')}
+                  options={[
+                    { value: '', label: clients.length ? 'Client work (a client is linked)' : 'Not sorted yet' },
+                    { value: 'client', label: WORK_TYPE_LABELS.client },
+                    { value: 'internal', label: WORK_TYPE_LABELS.internal },
+                  ]}
+                  testId="select-project-work"
+                />
+              </span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <label htmlFor="project-function" className="oo-muted">Function</label>
                 <Dropdown
@@ -280,7 +300,9 @@ export function ProjectPage() {
         {rules.length === 0 ? (
           <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>No rules apply.</p>
         ) : (
-          <div className="oo-kgrid">{rules.map((p) => <RuleCard key={p.id} p={p} compact />)}</div>
+          <PhoneFold label={rules.length === 1 ? 'Show the rule that applies' : `Show the ${rules.length} rules that apply`} testId="button-show-project-rules">
+            <div className="oo-kgrid">{rules.map((p) => <RuleCard key={p.id} p={p} compact />)}</div>
+          </PhoneFold>
         )}
       </section>
 

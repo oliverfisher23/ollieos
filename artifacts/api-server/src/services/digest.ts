@@ -22,12 +22,13 @@ import {
   type DigestSection,
   type DigestSections,
 } from "@workspace/db";
-import { addDays, formatLong, formatTime, isIsoDate, londonRange, londonWallTimeToInstant, todayLondon, toRef, weekday } from "@workspace/shared";
+import { addDays, formatLong, formatTime, isIsoDate, londonRange, londonWallTimeToInstant, todayLondon, toRef, weekday, parseRef } from "@workspace/shared";
 import { defaultScope, visibleRefs } from "../lib/ai-data/scope";
 import { writeAudit } from "../lib/audit";
 import { logger } from "../lib/logger";
 import { askScope } from "./ask/ask";
 import { digestSummaryFromLines } from "./ask/model";
+import { workTypesOf } from "./knowledge/functions";
 import { recordCheck } from "./writerChecks";
 import { briefableIds, notPreppedIds } from "./briefs";
 import { listCadence } from "./cadence";
@@ -57,6 +58,19 @@ export function digestWindowStart(date: string): Date {
 const hrs = (n: number) => (n === 1 ? "1 hour" : `${n} hours`);
 const clip = (s: string, n = 90) => (s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s);
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** The refs among these that are a client-work project, or a task on one. */
+async function clientWorkRefs(refs: string[]): Promise<Set<string>> {
+  const parsed = refs.map((r) => ({ r, p: parseRef(r) })).filter((x) => x.p && (x.p.type === "project" || x.p.type === "task"));
+  if (!parsed.length) return new Set();
+  const taskIds = parsed.filter((x) => x.p!.type === "task").map((x) => x.p!.id);
+  const taskProject = new Map(
+    taskIds.length ? (await db.select({ id: tasksTable.id, projectId: tasksTable.projectId }).from(tasksTable).where(inArray(tasksTable.id, taskIds))).map((t) => [t.id, t.projectId]) : [],
+  );
+  const projectOf = (x: { p: { type: string; id: number } | null }) => (x.p!.type === "project" ? x.p!.id : (taskProject.get(x.p!.id) ?? null));
+  const work = await workTypesOf(parsed.map(projectOf).filter((id): id is number => id != null));
+  return new Set(parsed.filter((x) => { const id = projectOf(x); return id != null && work.get(id) === "client"; }).map((x) => x.r));
+}
 
 function section(items: DigestItem[], moreHref: string | null, max = SECTION_MAX): DigestSection | null {
   if (!items.length) return null;
@@ -260,13 +274,20 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
   const plain = await visibleRefs(defaultScope(), all.flatMap((i) => i.refs));
   for (const i of all) i.confidential = i.refs.some((r) => !plain.has(r));
 
+  // Client work first in each section: items about a client project, or a task on one.
+  const clientRefs = await clientWorkRefs(all.flatMap((i) => i.refs));
+  for (const list of [needs, moved, quiet, changed]) {
+    const first = list.filter((i) => i.refs.some((r) => clientRefs.has(r)));
+    if (first.length && first.length < list.length) list.splice(0, list.length, ...first, ...list.filter((i) => !first.includes(i)));
+  }
+
   const briefable = await briefableIds(g.events);
   const today = g.events.map((e) => ({ eventId: e.id, title: e.title, startsAt: e.startsAt.toISOString(), hasBrief: briefable.has(e.id) }));
   const quietNight = !needs.length && !moved.length && !changed.length;
   return {
     needs: quietNight ? null : section(needs, null),
     moved: quietNight ? null : section(moved, "/tasks?tab=done"),
-    quiet: quietNight ? null : section(quiet, "/people", QUIET_MAX),
+    quiet: quietNight ? null : section(quiet, "/contacts?filter=overdue", QUIET_MAX),
     changed: quietNight ? null : section(changed, "/knowledge/library"),
     today,
     quietNight,

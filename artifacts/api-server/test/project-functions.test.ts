@@ -87,7 +87,7 @@ describe("AI suggestions for functions and clients", () => {
     };
 
     const r = (await api("projects/suggest-functions", { body: {} })).body;
-    expect(r).toEqual({ checked: 3, functions: 2, clients: 2, unclear: 1 });
+    expect(r).toEqual({ checked: 3, functions: 2, clients: 2, workTypes: 0, unclear: 1 });
     expect(shown.some((s) => s.includes("Secret Work"))).toBe(false);
     expect(shown.some((s) => /<project>\n(Delivery|Product|Sales|Marketing)\b/.test(s))).toBe(false);
     expect(shown.find((s) => s.includes("<project>\nAlpha Programme"))).toMatch(/Alpha Programme is running this term/);
@@ -102,7 +102,7 @@ describe("AI suggestions for functions and clients", () => {
 
     // Nothing changed yet; and a second run asks about nothing that has a card waiting.
     expect((await list()).find((p) => p.id === a.id)?.function).toBeNull();
-    expect((await api("projects/suggest-functions", { body: {} })).body).toEqual({ checked: 1, functions: 0, clients: 0, unclear: 1 });
+    expect((await api("projects/suggest-functions", { body: {} })).body).toEqual({ checked: 1, functions: 0, clients: 0, workTypes: 0, unclear: 1 });
 
     for (const card of [...alpha, newOrg]) expect((await api(`suggestions/${card.id}/approve`, { body: {} })).status).toBe(200);
     const after = await list();

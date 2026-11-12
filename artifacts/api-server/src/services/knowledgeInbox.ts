@@ -1,13 +1,14 @@
 /** Ollie's view of the Knowledge Inbox: suggestions, conflicts and facts that need a check. */
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
-import { db, decisionsTable, factReviewsTable, factsTable, peopleTable, rulesTable, suggestionsTable, usersTable, type Fact, type FactReview, type Suggestion } from "@workspace/db";
+import { and, asc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { presortCounts } from "./presort";
+import { db, decisionsTable, factReviewsTable, factsTable, peopleTable, rulesTable, suggestionsTable, usersTable, type Fact, type FactReview, type PresortHint, type StaleEvidence, type Suggestion } from "@workspace/db";
 import { decidersFor, weigh, whenSaid } from "./contradictions";
 import { hasEmail } from "./personMatch";
-import { BUSINESS_FUNCTION_LABELS, CADENCE_LABELS, PRODUCT_STATE_LABELS, PRODUCT_USER_LABELS, RELATIONSHIP_LABELS, formatDayMonth, isBusinessFunction, isProductUser } from "@workspace/shared";
+import { BUSINESS_FUNCTION_LABELS, CADENCE_LABELS, PRODUCT_STATE_LABELS, PRODUCT_USER_LABELS, RELATIONSHIP_LABELS, WORK_TYPE_LABELS, formatDayMonth, isBusinessFunction, isProductUser, isWorkType } from "@workspace/shared";
 
 /** A change card shows a list value (a product's primary user) by its label. */
 const shown = (key: string, v: string | null): string | null =>
-  key === "primary_user" && isProductUser(v) ? PRODUCT_USER_LABELS[v] : key === "function" && isBusinessFunction(v) ? BUSINESS_FUNCTION_LABELS[v] : v;
+  key === "primary_user" && isProductUser(v) ? PRODUCT_USER_LABELS[v] : key === "function" && isBusinessFunction(v) ? BUSINESS_FUNCTION_LABELS[v] : key === "work_type" && isWorkType(v) ? WORK_TYPE_LABELS[v] : v;
 import { writeAudit } from "../lib/audit";
 import { resolveEntities, uniqueSlug } from "./knowledge/common";
 import { reviewCounts, tidyReviews } from "./factReviews";
@@ -129,6 +130,10 @@ export interface InboxItem {
   saidAt: Date | null;
   /** Part O: the approved items a contradiction card disagrees with, each weighed against the card */
   contradicts?: InboxContradicted[];
+  /** Section 23: the pre-sorter's hint on a Suggested card; null when it gave none or has not looked */
+  presort?: PresortHint | null;
+  /** Section 23: the stale fact checker's finding on a Needs a check card; null until it has looked */
+  evidence?: StaleEvidence | null;
 }
 
 export interface InboxContradicted {
@@ -602,7 +607,18 @@ async function contradictionViews(reviews: FactReview[]): Promise<Map<number, { 
   return out;
 }
 
-export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
+/** Section 23: Suggested filtered by the pre-sorter's hint. "none" is looked at with no hint (unsure, or hidden from AI); "unsorted" is not looked at yet. */
+export const PRESORT_FILTERS = ["all", "keep", "reject", "same", "duplicate", "none", "unsorted"] as const;
+export type PresortFilter = (typeof PRESORT_FILTERS)[number];
+
+function presortWhere(hint: PresortFilter) {
+  if (hint === "all") return undefined;
+  if (hint === "unsorted") return isNull(suggestionsTable.presortedAt);
+  if (hint === "none") return and(isNotNull(suggestionsTable.presortedAt), sql`(${suggestionsTable.presort} is null or jsonb_typeof(${suggestionsTable.presort}) = 'null')`);
+  return sql`${suggestionsTable.presort}->>'verdict' = ${hint}`;
+}
+
+export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all", hint: PresortFilter = "all") {
   await ensureSelfPerson().catch(() => undefined);
   const counts = await inboxCounts();
   let items: InboxItem[] = [];
@@ -616,11 +632,12 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
           eq(suggestionsTable.status, "pending"),
           origin === "look_back" ? eq(suggestionsTable.proposedBy, LOOK_BACK_PROPOSER) : undefined,
           origin === "documents" ? eq(suggestionsTable.proposedBy, DOCUMENT_PROPOSER) : undefined,
+          presortWhere(hint),
           sql`not exists (select 1 from fact_reviews r where r.suggestion_id = ${suggestionsTable.id} and r.status = 'pending')`,
         ),
       )
       .orderBy(asc(suggestionsTable.createdAt), asc(suggestionsTable.id))
-      .limit(400);
+      .limit(1000);
     const supersedeIds = rows.map((s) => (s.kind === "fact" ? (s.payload as FactPayload).supersedes : null)).filter((x): x is number => x != null);
     const replaced = supersedeIds.length ? await db.select({ id: factsTable.id, text: factsTable.text }).from(factsTable).where(inArray(factsTable.id, supersedeIds)) : [];
     const t = await targetsFor(rows.filter((s) => s.entityType && s.entityId != null).map((s) => ({ type: s.entityType!, id: s.entityId! })));
@@ -653,6 +670,7 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
         playbook: playbookOf(s),
         saidBy: said.get(s.id) ?? null,
         saidAt: whenSaid(s),
+        presort: s.presort ?? null,
       };
     });
   } else {
@@ -704,6 +722,7 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
           playbook: null,
           saidBy: null,
           saidAt: null,
+          evidence: r.evidence ?? null,
         });
       } else {
         const sug = sugs.find((s) => s.id === r.suggestionId && s.status === "pending");
@@ -745,5 +764,5 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
     })
     .from(suggestionsTable)
     .where(eq(suggestionsTable.status, "pending"));
-  return { counts: { ...counts, lookBack: lb?.lookBack ?? 0, documents: lb?.documents ?? 0 }, items };
+  return { counts: { ...counts, lookBack: lb?.lookBack ?? 0, documents: lb?.documents ?? 0 }, items, presort: tab === "suggested" ? await presortCounts() : undefined };
 }

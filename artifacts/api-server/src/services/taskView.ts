@@ -12,7 +12,7 @@ export interface EntitySummary {
   confidential: boolean;
 }
 
-export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "waitingOnPersonId" | "noiseRuleId" | "sourceChannel" | "noiseHintKept" | "noiseCheckedAt" | "repeatNextId"> & {
+export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "waitingOnPersonId" | "noiseRuleId" | "sourceChannel" | "noiseHintKept" | "noiseCheckedAt" | "repeatNextId" | "delegateCheckedAt" | "delegateDismissedAt"> & {
   project: EntitySummary | null;
   person: EntitySummary | null;
   waitingOn: EntitySummary | null;
@@ -97,7 +97,7 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
   };
 
   return rows.map((r) => {
-    const { search: _search, personId, projectId, waitingOnPersonId, noiseRuleId, sourceChannel: _channel, noiseHintKept, noiseCheckedAt: _checked, repeatNextId: _next, ...rest } = r;
+    const { search: _search, personId, projectId, waitingOnPersonId, noiseRuleId, sourceChannel: _channel, noiseHintKept, noiseCheckedAt: _checked, repeatNextId: _next, delegateCheckedAt: _dc, delegateDismissedAt, ...rest } = r;
     return {
       ...rest,
       project: projectId ? (projectById.get(projectId) ?? null) : null,
@@ -111,6 +111,8 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
       noiseHint: r.status === "inbox" && !noiseHintKept ? r.noiseHint : null,
       // Part U: evidence from elsewhere that an open task is done.
       looksDone: OPEN_FOR_EVIDENCE.has(r.status) ? (looks.get(r.id) ?? null) : null,
+      // Section 23: who could take it, while it is still Ollie's to do and he has not said "Not this one".
+      delegateHint: (r.status === "now" || r.status === "backlog") && !delegateDismissedAt ? r.delegateHint : null,
     };
   });
 }
