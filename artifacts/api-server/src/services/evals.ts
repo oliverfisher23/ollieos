@@ -10,6 +10,7 @@ import { aiInputsTable, db, evalCasesTable, evalReplaysTable, tasksTable, type E
 import { AGENTS, type AgentKey } from "../lib/agents";
 import { projectChoices } from "./connectors/capture";
 import type { WorkUnit } from "./connectors/messages";
+import { meetingNoteFromUnit, meetingPromptVersion, sortMeeting } from "./connectors/granola";
 import { SORT_MODEL, sorterPromptVersion, sortUnits } from "./connectors/sorter";
 import { NotFoundError, ValidationError } from "./tasks";
 import { lessonsFor } from "./readerLessons";
@@ -160,7 +161,9 @@ export async function replay(agent: string, opts: { model?: string | null; extra
   const cases = await db.select().from(evalCasesTable).where(eq(evalCasesTable.agent, agent)).orderBy(asc(evalCasesTable.id)).limit(MAX_REPLAY_CASES);
   if (!cases.length) throw new ValidationError("There are no test cases for this agent yet. Keep one from an Inbox item first.");
   const lessons = await lessonsFor(agent, opts.extraLessonIds ?? []);
-  const version = sorterPromptVersion(lessons);
+  // The Granola reader has its own instructions; the Gmail and Slack readers share the sorter's.
+  const meetings = agent === "granola_reader";
+  const version = meetings ? meetingPromptVersion(lessons) : sorterPromptVersion(lessons);
   const projects = (await projectChoices()).map((p) => p.name);
   const [previous] = await db.select().from(evalReplaysTable).where(eq(evalReplaysTable.agent, agent)).orderBy(desc(evalReplaysTable.at)).limit(1);
 
@@ -171,7 +174,9 @@ export async function replay(agent: string, opts: { model?: string | null; extra
     const now = unit.messages[unit.messages.length - 1]?.at ?? new Date();
     let got: string[];
     try {
-      const [sorted] = await sortUnits([unit], { me: c.me, projects, now, known: null, agent: "test_replay", model, keepInputs: false, lessons });
+      const sorted = meetings
+        ? await sortMeeting(meetingNoteFromUnit(unit), { me: c.me, projects, now, agent: "test_replay", model, keepInputs: false, lessons })
+        : (await sortUnits([unit], { me: c.me, projects, now, known: null, agent: "test_replay", model, keepInputs: false, lessons }))[0];
       got = sorted.items.map((i) => i.title);
     } catch (err) {
       got = [`(the reader failed: ${err instanceof Error ? err.message : String(err)})`.slice(0, 200)];

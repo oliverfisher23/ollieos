@@ -18,6 +18,7 @@ import {
   DecisionPage,
   DecisionsListPage,
   DigestPage,
+  DuplicatesPage,
   GoalsPage,
   KnowledgeIndexPage,
   KnowledgeInboxPage,
@@ -86,6 +87,7 @@ function Router() {
           <Route path="/tasks" component={TasksPage} />
           <Route path="/voice" component={VoicePage} />
           <Route path="/review" component={ReviewPage} />
+          <Route path="/duplicates" component={DuplicatesPage} />
           <Route path="/messages" component={MessagesPage} />
           <Route path="/email" component={EmailRedirect} />
           <Route path="/ask" component={AskPage} />

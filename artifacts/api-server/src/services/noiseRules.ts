@@ -116,6 +116,28 @@ export async function upsertNoiseRule(
   return { rule, created: true };
 }
 
+/** The rules Ollie can make straight from Messages: stop showing a sender's email, or a Slack channel's mentions. */
+export const MUTE_MATCH_TYPES = ["from_address_equals", "slack_channel_equals"] as const;
+export type MuteMatchType = (typeof MUTE_MATCH_TYPES)[number];
+
+/**
+ * Mute from Messages: makes a rule with no task behind it, or re-enables the existing one with the
+ * same match. `created` is false when the rule was already on.
+ */
+export async function muteRule(matchType: MuteMatchType, value: string, actor: string) {
+  const matchValue = normaliseMatchValue(matchType, value);
+  if (!matchValue || (matchType === "from_address_equals" && !matchValue.includes("@"))) return null;
+  return db.transaction(async (tx) => {
+    const [existing] = await tx.select().from(noiseRulesTable).where(and(eq(noiseRulesTable.matchType, matchType), eq(noiseRulesTable.matchValue, matchValue)));
+    if (existing?.enabled) return { rule: toNoiseRuleView(existing), created: false };
+    const [rule] = existing
+      ? await tx.update(noiseRulesTable).set({ enabled: true }).where(eq(noiseRulesTable.id, existing.id)).returning()
+      : await tx.insert(noiseRulesTable).values({ matchType, matchValue, source: matchType === "slack_channel_equals" ? "slack" : "email" }).returning();
+    await writeAudit(tx, { actor, action: existing ? "enable" : "create", entityType: "noise_rule", entityId: rule.id, payload: { matchType, matchValue, via: "messages" } });
+    return { rule: toNoiseRuleView(rule), created: true };
+  });
+}
+
 export async function listNoiseRules() {
   const rows = await db
     .select()

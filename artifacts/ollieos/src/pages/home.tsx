@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { WeekCheckCard } from '@/components/time-and-meetings';
+import { BusyDayCard, WeekCheckCard } from '@/components/time-and-meetings';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -211,6 +211,7 @@ export default function HomePage() {
         <DoNextCard items={d.doNext} phone />
         <DayPlanCard phone />
         <WeekCheckCard phone />
+        <BusyDayCard phone />
         <Link href={d.inbox.count ? '/triage' : '/tasks?tab=inbox'} className="oo-dark-card oo-glass" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-inbox-phone">
           <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span className="oo-label" style={{ fontSize: 12 }}>Inbox</span>
@@ -221,7 +222,7 @@ export default function HomePage() {
             <span className="oo-btn oo-btn-white" style={{ borderRadius: 999, minHeight: 40 }}>{d.inbox.count ? 'Triage' : 'Open'}</span>
           </span>
         </Link>
-        {d.slackToAnswer > 0 && <SlackWaitingLink count={d.slackToAnswer} phone />}
+        {d.slackToAnswer + d.emailToAnswer > 0 && <MessagesWaitingLink emails={d.emailToAnswer} slack={d.slackToAnswer} phone />}
         <ClearOutCard phone />
         <TodayPhone events={d.today} />
         <WaitingCard items={d.waitingOn} phone />
@@ -244,6 +245,7 @@ export default function HomePage() {
         <TodayStrip events={d.today} />
         <DayPlanCard />
         <WeekCheckCard />
+        <BusyDayCard />
         <ClearOutCard />
         <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, alignItems: 'stretch' }}>
           <DoNextCard items={d.doNext} />
@@ -251,7 +253,7 @@ export default function HomePage() {
             <h2 id="h-inbox" className="oo-label">Inbox</h2>
             <p className="oo-serif-roman" style={{ margin: 0, fontSize: 48, lineHeight: 1 }} data-testid="text-inbox-count">{d.inbox.count}</p>
             <p className="oo-t2" style={{ margin: 0, fontSize: 13 }} data-testid="text-inbox-breakdown">{breakdown(d)}</p>
-            {d.slackToAnswer > 0 && <SlackWaitingLink count={d.slackToAnswer} />}
+            {d.slackToAnswer + d.emailToAnswer > 0 && <MessagesWaitingLink emails={d.emailToAnswer} slack={d.slackToAnswer} />}
             <div style={{ marginTop: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {d.inbox.count ? (
                 <Link href="/triage" className="oo-btn oo-btn-white" data-testid="link-triage">Triage {d.inbox.count}</Link>
@@ -380,7 +382,15 @@ function sweepWhen(at: string): string {
 
 /** Work meetings with someone or something OllieOS knows about open their brief (build plan 28). */
 function BriefLink({ e, phone = false }: { e: CalendarEvent; phone?: boolean }) {
-  if (!e.hasBrief) return null;
+  if (e.personal) return null;
+  // No brief (nobody on it is in Contacts): its own page, for the agenda.
+  if (!e.hasBrief) {
+    return (
+      <Link href={'/meetings/' + e.id} style={{ color: 'inherit', opacity: 0.75, fontSize: phone ? 13 : 12, textUnderlineOffset: 2 }} aria-label={'Agenda for ' + e.title} data-testid={'link-meeting-' + e.id}>
+        Agenda
+      </Link>
+    );
+  }
   return (
     <>
     {e.notPrepped && <span className="oo-pill" data-tone="high" style={{ fontSize: 11 }} data-testid={'pill-not-prepped-' + e.id}>Not prepped</span>}
@@ -583,19 +593,21 @@ function DoneCard({ home }: { home: HomeSummary }) {
   );
 }
 
-/** Slack to answer (Part P): messages that need a reply and have waited over a working day. */
-function SlackWaitingLink({ count, phone = false }: { count: number; phone?: boolean }) {
-  const label = `${count === 1 ? '1 Slack message' : `${count} Slack messages`} to answer`;
+/** Messages to answer: emails and Slack messages that need a reply and have waited over a working day. */
+function MessagesWaitingLink({ emails, slack, phone = false }: { emails: number; slack: number; phone?: boolean }) {
+  const parts = [emails ? (emails === 1 ? '1 email' : `${emails} emails`) : '', slack ? (slack === 1 ? '1 Slack message' : `${slack} Slack messages`) : ''].filter(Boolean);
+  const label = `${parts.join(' and ')} to answer`;
+  const href = emails && slack ? '/messages' : emails ? '/messages?tab=to-answer&from=email' : '/messages?tab=to-answer&from=slack';
   if (phone) {
     return (
-      <Link href="/messages?tab=to-answer&from=slack" className="oo-dark-card oo-glass-quiet" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-slack-to-answer">
+      <Link href={href} className="oo-dark-card oo-glass-quiet" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-slack-to-answer">
         <span className="oo-t2" style={{ fontSize: 13 }}>{label}, waiting over a working day</span>
         <IconArrowOut size={18} />
       </Link>
     );
   }
   return (
-    <Link href="/messages?tab=to-answer&from=slack" className="oo-t2" style={{ fontSize: 13, color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-slack-to-answer">
+    <Link href={href} className="oo-t2" style={{ fontSize: 13, color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-slack-to-answer">
       {label}
     </Link>
   );

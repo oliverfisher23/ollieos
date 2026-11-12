@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { DropReason } from './dropReason';
 import type { Priority } from './priority';
 import type { RepeatInput } from './repeatInput';
 import type { TaskKind } from './taskKind';
@@ -12,6 +13,8 @@ import type { TaskStatus } from './taskStatus';
 import type { TaskStep } from './taskStep';
 
 export interface TaskUpdate {
+  /** Section 27: why it was dropped or sent to Noise; null clears it */
+  dropReason?: DropReason | null;
   /** @minLength 1 */
   title?: string;
   kind?: TaskKind;

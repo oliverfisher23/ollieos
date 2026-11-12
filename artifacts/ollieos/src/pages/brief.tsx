@@ -3,6 +3,8 @@ import { BriefTalkingPoints } from '@/components/talking-points';
 import { LazyMeetingAgenda as MeetingAgenda } from '@/components/meeting-agenda-lazy';
 import { FromGranola } from '@/components/from-granola';
 import { MeetingThreads } from '@/components/meeting-threads';
+import { AddIdea } from '@/components/agenda-ideas';
+import { AddToContactsButton, nameFromInvite } from '@/components/add-to-contacts';
 import { Thumbs } from '@/components/evals';
 import { CommercialLines } from '@/components/client-pulse';
 import { Link } from 'wouter';
@@ -121,6 +123,9 @@ function Brief({ brief }: { brief: BriefView }) {
   const e = brief.event;
   const ended = new Date(e.endsAt).getTime() <= now;
   const showContext = !brief.notMuch && !brief.failed;
+  const people = brief.attendees.flatMap((a) => (a.person ? [{ id: a.person.id, name: a.person.name }] : []));
+  const points = brief.talkingPoints ?? [];
+  const suggested = showContext ? (brief.agenda ?? []) : [];
 
   const replace = (next: BriefView) => {
     qc.setQueryData(getGetBriefQueryKey(e.id), next);
@@ -182,6 +187,8 @@ function Brief({ brief }: { brief: BriefView }) {
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
         <main style={{ flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Once the meeting has ended the page leads with how it went. */}
+          {ended && <FromGranola eventId={e.id} endsAt={e.endsAt} />}
           <Panel id="b-why" title="Why this meeting">
             {brief.failed ? (
               <p className="oo-muted" style={{ margin: 0, fontSize: 15 }} data-testid="text-brief-failed">
@@ -198,7 +205,15 @@ function Brief({ brief }: { brief: BriefView }) {
             )}
           </Panel>
 
-          <Panel id="b-who" title="Who's in the room">
+          <Panel
+            id="b-who"
+            title="Who's in the room"
+            action={
+              brief.attendees.filter((a) => !a.person).length > 1 ? (
+                <AddToContactsButton people={brief.attendees.filter((a) => !a.person).map((a) => ({ name: a.name, email: a.email, suggestion: a.suggestedOrganisation ?? null }))} testId="all" />
+              ) : null
+            }
+          >
             {brief.attendees.length === 0 ? (
               <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>No attendees on the invite.</p>
             ) : (
@@ -230,18 +245,39 @@ function Brief({ brief }: { brief: BriefView }) {
             </Panel>
           )}
 
-          {((brief.talkingPoints ?? []).length > 0 || brief.attendees.some((a) => a.person) || (showContext && brief.agenda && brief.agenda.length > 0)) && (
-            <Panel id="b-agenda" title="Suggested agenda">
-              <BriefTalkingPoints eventId={brief.event.id} points={brief.talkingPoints ?? []} people={brief.attendees.flatMap((a) => (a.person ? [{ id: a.person.id, name: a.person.name }] : []))} />
-              {showContext && brief.agenda && brief.agenda.length > 0 && <ol style={{ margin: 0, paddingLeft: 20, listStyle: 'decimal', display: 'flex', flexDirection: 'column', gap: 8, fontSize: 15, lineHeight: 1.5 }} data-testid="list-agenda">
-                {brief.agenda.map((l, i) => (
-                  <li key={i}>{l.text}<Cites sources={l.sources} /></li>
-                ))}
-              </ol>}
-            </Panel>
-          )}
-
-          <MeetingAgenda eventId={e.id} />
+          {/* One agenda: Ollie's own, with what he wanted to raise and what OllieOS suggests offered above it. */}
+          <MeetingAgenda
+            eventId={e.id}
+            ideas={
+              people.length > 0 || points.length > 0 || suggested.length > 0
+                ? (agenda) => (
+                    <>
+                      {(people.length > 0 || points.length > 0) && <BriefTalkingPoints eventId={e.id} points={points} people={people} agenda={agenda} />}
+                      {suggested.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="list-agenda">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                            <span className="oo-field-label">Suggested from what is on file</span>
+                            {suggested.some((l) => !agenda.has(l.text)) && (
+                              <button type="button" className="oo-textbtn" disabled={agenda.busy} onClick={() => suggested.filter((l) => !agenda.has(l.text)).forEach((l) => agenda.add(l.text))} data-testid="button-suggested-add-all">
+                                Add all
+                              </button>
+                            )}
+                          </div>
+                          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {suggested.map((l, i) => (
+                              <li key={i} className="oo-idea-row" data-testid={'item-suggested-' + i}>
+                                <span style={{ flex: '1 1 220px', lineHeight: 1.5, minWidth: 0 }}>{l.text}<Cites sources={l.sources} /></span>
+                                <AddIdea agenda={agenda} text={l.text} testId={'suggested-' + i} />
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </>
+                  )
+                : undefined
+            }
+          />
 
           {brief.followUpTaskId != null && (
             <p className="oo-soft" style={{ margin: 0, fontSize: 14 }} data-testid="text-brief-follow-up">
@@ -260,7 +296,7 @@ function Brief({ brief }: { brief: BriefView }) {
             </Panel>
           )}
 
-          <FromGranola eventId={e.id} endsAt={e.endsAt} />
+          {!ended && <FromGranola eventId={e.id} endsAt={e.endsAt} />}
 
           {brief.earlier.length > 0 && (
             <Panel id="b-earlier" title="Last time, from Granola">
@@ -381,10 +417,17 @@ function Brief({ brief }: { brief: BriefView }) {
   );
 }
 
-function Panel({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+function Panel({ id, title, action, children }: { id: string; title: string; action?: ReactNode; children: ReactNode }) {
   return (
     <section aria-labelledby={id} style={{ ...CARD, padding: '26px 30px', display: 'flex', flexDirection: 'column', gap: 12 }} data-testid={'section-' + id}>
-      <h2 id={id} className="oo-h2">{title}</h2>
+      {action ? (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <h2 id={id} className="oo-h2">{title}</h2>
+          {action}
+        </div>
+      ) : (
+        <h2 id={id} className="oo-h2">{title}</h2>
+      )}
       {children}
     </section>
   );
@@ -447,24 +490,50 @@ function breakable(text: string) {
 
 function AttendeeCard({ a, index }: { a: BriefAttendee; index: number }) {
   const p = a.person;
-  // With no name on the invite the name is the email address, so it is shown once.
+  // Not in Contacts: a name worked out from the address when the invite has none, with the address below.
   const nameIsEmail = !!a.email && a.name.trim().toLowerCase() === a.email.toLowerCase();
-  const role = p ? [p.role, p.organisation].filter(Boolean).join(', ') : nameIsEmail ? null : a.email;
+  const title = p ? p.name : nameIsEmail ? nameFromInvite(a.name) : a.name;
   const meta = [
-    p ? (p.lastContactAt ? 'Last contact ' + formatDayMonth(p.lastContactAt) : 'No contact logged yet') : 'No previous contact',
-    a.organiser ? 'organiser' : null,
+    p ? (p.lastContactAt ? 'Last contact ' + formatDayMonth(p.lastContactAt) : 'No contact logged yet') : null,
+    a.organiser ? 'Organiser' : null,
     a.response ? RESPONSE[a.response] ?? a.response : null,
   ].filter(Boolean).join(' · ');
   const cadence = p?.cadence ? `${p.cadence.label}, ${cadenceStatusLabel(p.cadence).toLowerCase()}` : null;
-  const body = (
-    <>
-      <Avatar name={a.name} id={p?.id ?? a.name} size={36} />
-      <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+  const s = a.suggestedOrganisation;
+  return (
+    <div className="oo-attendee" data-known={p ? 'true' : undefined} data-testid={'card-attendee-' + index}>
+      <Avatar name={title} id={p?.id ?? a.email ?? a.name} size={36} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
         <span style={{ fontSize: 14, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-          <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{breakable(a.name)}</span>{p?.confidential && <LockMark />}
+          {p ? (
+            <Link href={'/knowledge/people/' + p.slug} className="oo-attendee-name" data-testid={'link-attendee-' + index}>{title}</Link>
+          ) : (
+            <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{title}</span>
+          )}
+          {p?.confidential && <LockMark />}
         </span>
-        {role && <span style={{ fontSize: 13, color: 'var(--oo-ink-muted)', overflowWrap: 'anywhere' }}>{breakable(role)}</span>}
-        <span style={{ fontSize: 12, color: 'var(--oo-ink-muted)' }}>{meta}</span>
+        {p ? (
+          (p.role || p.organisation) && (
+            <span style={{ fontSize: 13, color: 'var(--oo-ink-soft)', overflowWrap: 'anywhere' }}>
+              {p.role}
+              {p.role && p.organisation ? ' · ' : ''}
+              {p.organisation &&
+                (p.organisationSlug ? (
+                  <Link href={'/knowledge/organisations/' + p.organisationSlug} className="oo-attendee-org" data-testid={'link-attendee-org-' + index}>{p.organisation}</Link>
+                ) : (
+                  p.organisation
+                ))}
+            </span>
+          )
+        ) : (
+          a.email && (
+            <span style={{ fontSize: 12, color: 'var(--oo-ink-muted)', overflowWrap: 'anywhere' }} data-testid={'text-attendee-email-' + index}>
+              {breakable(a.email)}
+              {s && (s.existing || s.newName) ? ` · ${s.existing ? s.existing.name : `${s.newName} (new)`}` : ''}
+            </span>
+          )
+        )}
+        {meta && <span style={{ fontSize: 12, color: 'var(--oo-ink-muted)' }}>{meta}</span>}
         {cadence && <span style={{ fontSize: 12, color: 'var(--oo-ink-muted)' }} data-testid={'text-attendee-cadence-' + index}>Cadence: {cadence}</span>}
         {p && p.decidesOn.length > 0 && (
           <span style={{ fontSize: 13, fontWeight: 500, overflowWrap: 'anywhere' }} data-testid={'text-attendee-decides-' + index}>
@@ -478,14 +547,13 @@ function AttendeeCard({ a, index }: { a: BriefAttendee; index: number }) {
             ))}
           </ul>
         )}
-      </span>
-    </>
-  );
-  const box = { display: 'flex', gap: 12, padding: '14px 16px', border: '1px solid var(--oo-line)', borderRadius: 'var(--oo-r-card-sm)', textDecoration: 'none', color: 'var(--oo-ink)' } as const;
-  return p ? (
-    <Link href={'/knowledge/people/' + p.slug} style={box} data-testid={'card-attendee-' + index}>{body}</Link>
-  ) : (
-    <div style={box} data-testid={'card-attendee-' + index}>{body}</div>
+        {!p && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 8 }}>
+            <AddToContactsButton people={[{ name: a.name, email: a.email, suggestion: s ?? null }]} testId={String(index)} />
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

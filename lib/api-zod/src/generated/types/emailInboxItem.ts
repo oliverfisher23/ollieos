@@ -34,4 +34,21 @@ export interface EmailInboxItem {
      * @nullable
      */
   ask: string | null;
+  /**
+     * Later: the day it comes back, while it is hidden
+     * @nullable
+     */
+  snoozedUntil: Date | null;
+  /**
+     * The sender in People, when they are there
+     * @nullable
+     */
+  personId: number | null;
+  /** @nullable */
+  personSlug: string | null;
+  /**
+     * Why it comes first: Client, or Overdue to contact
+     * @nullable
+     */
+  priority: string | null;
 }

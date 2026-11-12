@@ -210,6 +210,12 @@ paths:
           description: With weekStart on open tabs, also include tasks with no due date.
           schema:
             type: boolean
+        - name: due
+          in: query
+          required: false
+          description: "Section 27: \"overdue\", or one day (YYYY-MM-DD), to list only tasks due then."
+          schema:
+            type: string
         - name: q
           in: query
           required: false
@@ -276,6 +282,90 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "403":
           $ref: "#/components/responses/NotAuthorised"
+
+  /tasks/duplicates:
+    get:
+      operationId: listTaskDuplicates
+      tags: [tasks]
+      summary: Pairs of open tasks that look like the same work, waiting for Ollie
+      responses:
+        "200":
+          description: Pairs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDuplicateList"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /tasks/duplicates/check:
+    post:
+      operationId: checkTaskDuplicates
+      tags: [tasks]
+      summary: Look for duplicate open tasks now instead of waiting for the daily check
+      responses:
+        "200":
+          description: What the check found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDuplicateCheck"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /tasks/duplicates/{pairId}/merge:
+    post:
+      operationId: mergeTaskDuplicate
+      tags: [tasks]
+      summary: Merge a pair into the task Ollie keeps; the other is dropped and shows on it as Also came up
+      parameters:
+        - $ref: "#/components/parameters/DuplicatePairId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskDuplicateMergeInput"
+      responses:
+        "200":
+          description: The kept task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          description: Invalid input, or the pair was already decided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/duplicates/{pairId}/dismiss:
+    post:
+      operationId: dismissTaskDuplicate
+      tags: [tasks]
+      summary: Not the same; the pair is never suggested again
+      parameters:
+        - $ref: "#/components/parameters/DuplicatePairId"
+      responses:
+        "204":
+          description: Kept apart
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
 
   /tasks/reorder:
     post:
@@ -1766,6 +1856,124 @@ paths:
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
+  /email/counts:
+    get:
+      operationId: getMessageCounts
+      tags: [email]
+      summary: "Messages: how many emails and Slack messages need a reply, and how many of those have waited over a working day. For the menu."
+      responses:
+        "200":
+          description: The counts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageCounts" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /email/done-many:
+    post:
+      operationId: markMessagesDone
+      tags: [email]
+      summary: "Mark all done: takes several emails and Slack messages off To answer at once"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MessagesDoneInput" }
+      responses:
+        "200":
+          description: What was changed, for Undo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessagesDone" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /email/undo-done-many:
+    post:
+      operationId: undoMessagesDone
+      tags: [email]
+      summary: Puts them back on To answer and their tasks back where they were
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MessagesDone" }
+      responses:
+        "204":
+          description: Back on To answer
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /email/inbox/{threadId}/later:
+    post:
+      operationId: snoozeEmailInbox
+      tags: [email]
+      summary: "Later: hides an inbox email until a day, or until a new message arrives. A null day brings it back."
+      parameters:
+        - $ref: "#/components/parameters/ThreadId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LaterInput" }
+      responses:
+        "204":
+          description: Saved
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /email/slack/refresh:
+    post:
+      operationId: refreshSlackToAnswer
+      tags: [email]
+      summary: "Check now: looks at the listed Slack conversations again and closes those Ollie has answered"
+      responses:
+        "200":
+          description: How many were closed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [closed]
+                properties:
+                  closed: { type: integer }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /email/slack/{id}/messages:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      operationId: getSlackConversation
+      tags: [email]
+      summary: The last few messages of the conversation, oldest first, for reading on Messages. Read only.
+      responses:
+        "200":
+          description: The conversation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackConversation" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /email/slack/{id}/later:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: snoozeSlackToAnswer
+      tags: [email]
+      summary: "Later: hides a Slack message until a day, or until a newer message arrives. A null day brings it back."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LaterInput" }
+      responses:
+        "204":
+          description: Saved
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /email/slack:
     get:
       operationId: listSlackToAnswer
@@ -1836,7 +2044,12 @@ paths:
     post:
       operationId: draftSlackToAnswerReply
       tags: [email]
-      summary: Drafts a short Slack reply in Ollie's style for him to copy. Nothing is posted.
+      summary: "Drafts a short Slack reply in Ollie's style for him to copy, and keeps it so it shows on Drafts. A brief says what it should say; a change asks for the draft it has to be changed. Nothing is posted."
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SlackDraftInput" }
       responses:
         "200":
           description: Draft
@@ -1847,6 +2060,32 @@ paths:
         "404": { $ref: "#/components/responses/Error" }
         "409": { $ref: "#/components/responses/Error" }
         "502": { $ref: "#/components/responses/Error" }
+    put:
+      operationId: saveSlackToAnswerDraft
+      tags: [email]
+      summary: Saves Ollie's own edits to the draft, or a reply he wrote himself
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SlackDraftText" }
+      responses:
+        "200":
+          description: The draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackReplyDraft" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: removeSlackToAnswerDraft
+      tags: [email]
+      summary: Takes the draft off Drafts; the message goes back on To answer
+      responses:
+        "204":
+          description: Removed
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
 
   /email/threads/{threadId}:
     get:
@@ -2001,6 +2240,102 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /tasks/bulk:
+    post:
+      operationId: bulkUpdateTasks
+      tags: [tasks]
+      summary: Make the same change to several tasks at once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskBulkInput"
+      responses:
+        "200":
+          description: How many changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskBulkResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /tasks/{id}/project-suggestions:
+    get:
+      operationId: getTaskProjectSuggestions
+      tags: [tasks]
+      summary: Up to three projects a task with no project probably belongs to
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Suggestions, best first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectSuggestions"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/chase-later:
+    post:
+      operationId: chaseTaskLater
+      tags: [tasks]
+      summary: Not yet, or just chased; do not flag this Waiting on task for a chase for another few days
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/stuck/dismiss:
+    post:
+      operationId: dismissTaskStuckHint
+      tags: [tasks]
+      summary: Not stuck; the stuck-task coach's line goes and the task is not flagged again
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /tasks/{id}/chase-line:
     get:
       operationId: getTaskChaseLine
@@ -2065,6 +2400,29 @@ paths:
                   $ref: "#/components/schemas/NoiseRule"
         "403":
           $ref: "#/components/responses/NotAuthorised"
+
+    post:
+      operationId: muteFromMessages
+      tags: [noise]
+      summary: "Mute from Messages: stop showing a sender's email or a Slack channel's mentions. Makes the rule, or turns the existing one back on."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MuteInput" }
+      responses:
+        "200":
+          description: The rule was already on
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MuteResult" }
+        "201":
+          description: The rule, now on
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MuteResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
 
   /noise-rules/{id}:
     patch:
@@ -2508,6 +2866,51 @@ paths:
         "409": { $ref: "#/components/responses/Error" }
         "502": { $ref: "#/components/responses/Error" }
 
+  /meetings/{eventId}/agenda/check:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: checkAgenda
+      tags: [preparation]
+      summary: Compare the meeting's Granola note with its agenda, marking each item covered, partly or not covered
+      responses:
+        "200":
+          description: The meeting, with the check
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeetingView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /meetings/{eventId}/agenda/check/items/{index}:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: index
+        in: path
+        required: true
+        schema: { type: integer }
+    put:
+      operationId: setLeftoverDropped
+      tags: [preparation]
+      summary: Drop an item that was not covered so it is not offered on the next agenda, or bring it back
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgendaItemDropInput" }
+      responses:
+        "204": { description: Saved }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /meetings/{eventId}/agenda/chat:
     parameters:
       - name: eventId
@@ -2520,6 +2923,26 @@ paths:
       summary: Start the agenda conversation again (the agenda itself stays)
       responses:
         "204": { description: Cleared }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /meetings/{eventId}/personal:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    put:
+      operationId: setMeetingPersonal
+      tags: [preparation]
+      summary: Ollie says an event is personal or not; stands through calendar checks and carries to its series
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MeetingPersonalInput" }
+      responses:
+        "204": { description: Saved }
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
@@ -2937,6 +3360,28 @@ paths:
       responses:
         "204":
           description: Deleted
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /sessions/{id}/questions:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: decideSessionQuestion
+      tags: [knowledge]
+      summary: Put one of a session's open questions in the Inbox, or take it off the list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SessionQuestionInput" }
+      responses:
+        "200":
+          description: The session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionDetail" }
+        "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
@@ -5009,6 +5454,12 @@ components:
       required: true
       schema:
         type: integer
+    DuplicatePairId:
+      name: pairId
+      in: path
+      required: true
+      schema:
+        type: integer
     ThreadId:
       name: threadId
       in: path
@@ -5385,11 +5836,86 @@ components:
         looksDone:
           type: [string, "null"]
           description: "Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null"
+        alsoFrom:
+          type: array
+          items: { type: string }
+          description: "Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task's own"
         delegateHint:
           description: "Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog."
           oneOf:
             - $ref: "#/components/schemas/DelegateHint"
             - type: "null"
+        dropReason:
+          description: "Section 27: why Ollie dropped it or sent it to Noise"
+          oneOf:
+            - $ref: "#/components/schemas/DropReason"
+            - type: "null"
+        chaseDue:
+          type: boolean
+          description: "Section 27: a Waiting on task that has waited long enough for a chase"
+        stuckHint:
+          description: "Section 27: the stuck-task coach's line on a Now or Backlog task that keeps slipping. Null once dismissed."
+          oneOf:
+            - $ref: "#/components/schemas/StuckHint"
+            - type: "null"
+
+    DropReason:
+      type: string
+      enum: [not_mine, already_done, fyi, arranging, duplicate, not_needed]
+
+    StuckHint:
+      type: object
+      required: [why, kind, suggestion, step]
+      properties:
+        why: { type: string, description: "Why it looks stuck, for example Due date moved 3 times" }
+        kind: { type: string, description: "first_step, split, delegate or drop" }
+        suggestion: { type: string, description: One line on what to try }
+        step: { type: [string, "null"], description: "For first_step and split: the step to add to the checklist" }
+
+    TaskLoad:
+      type: object
+      required: [overdue, busiest, toChase]
+      properties:
+        overdue: { type: integer, description: Open tasks past their due date }
+        toChase: { type: integer, description: Waiting on tasks ready for a chase }
+        busiest:
+          description: The fullest day in the next seven with most of its tasks not yet in Now, or null
+          oneOf:
+            - type: object
+              required: [date, due, inNow]
+              properties:
+                date: { type: string, format: date }
+                due: { type: integer }
+                inNow: { type: integer }
+            - type: "null"
+
+    TaskBulkInput:
+      type: object
+      required: [ids]
+      additionalProperties: false
+      properties:
+        ids: { type: array, minItems: 1, maxItems: 200, items: { type: integer } }
+        status: { $ref: "#/components/schemas/TaskStatus" }
+        priority: { $ref: "#/components/schemas/Priority" }
+        dueDate: { type: [string, "null"], format: date }
+        projectId: { type: [integer, "null"] }
+        dropReason:
+          oneOf:
+            - $ref: "#/components/schemas/DropReason"
+            - type: "null"
+
+    TaskBulkResult:
+      type: object
+      required: [updated, failed]
+      properties:
+        updated: { type: integer }
+        failed: { type: integer }
+
+    ProjectSuggestions:
+      type: object
+      required: [projects]
+      properties:
+        projects: { type: array, items: { $ref: "#/components/schemas/EntitySummary" } }
 
     DelegateHint:
       type: object
@@ -5523,6 +6049,11 @@ components:
     TaskUpdate:
       type: object
       properties:
+        dropReason:
+          description: "Section 27: why it was dropped or sent to Noise; null clears it"
+          oneOf:
+            - $ref: "#/components/schemas/DropReason"
+            - type: "null"
         title:
           type: string
           minLength: 1
@@ -5591,8 +6122,9 @@ components:
 
     TaskSummary:
       type: object
-      required: [tabs, stats]
+      required: [tabs, stats, load]
       properties:
+        load: { $ref: "#/components/schemas/TaskLoad" }
         tabs:
           type: object
           required: [inbox, open, now, backlog, waiting, done, noise, dropped, archived]
@@ -5699,7 +6231,7 @@ components:
 
     HomeSummary:
       type: object
-      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access, knowledgeInbox, digestDate, ideasDue, slackToAnswer, connectorWarnings]
+      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access, knowledgeInbox, digestDate, ideasDue, slackToAnswer, emailToAnswer, connectorWarnings]
       properties:
         connectorWarnings:
           type: array
@@ -5711,6 +6243,7 @@ components:
               key: { type: string }
               text: { type: string }
         slackToAnswer: { type: integer, description: "Slack messages that need a reply and have waited over a working day (Part P)" }
+        emailToAnswer: { type: integer, description: "Emails that need a reply and have waited over a working day, as of the last look at Gmail" }
         ideasDue:
           type: array
           description: Ideas set to come back to on or before today
@@ -5790,13 +6323,14 @@ components:
 
     BriefAttendeePerson:
       type: object
-      required: [id, slug, name, role, organisation, confidential, lastContactAt, facts, cadence, decidesOn]
+      required: [id, slug, name, role, organisation, organisationSlug, confidential, lastContactAt, facts, cadence, decidesOn]
       properties:
         id: { type: integer }
         slug: { type: string }
         name: { type: string }
         role: { type: [string, "null"] }
         organisation: { type: [string, "null"] }
+        organisationSlug: { type: [string, "null"], description: For the link to the organisation's page }
         confidential: { type: boolean }
         lastContactAt: { type: [string, "null"], format: date-time }
         facts:
@@ -5840,7 +6374,7 @@ components:
 
     BriefAttendee:
       type: object
-      required: [name, email, response, organiser, person]
+      required: [name, email, response, organiser, person, suggestedOrganisation]
       properties:
         name: { type: string }
         email: { type: [string, "null"] }
@@ -5851,6 +6385,26 @@ components:
           oneOf:
             - $ref: "#/components/schemas/BriefAttendeePerson"
             - type: "null"
+        suggestedOrganisation:
+          description: Not in Contacts yet, the organisation they probably belong to from their email domain; null for personal addresses
+          oneOf:
+            - $ref: "#/components/schemas/OrgSuggestion"
+            - type: "null"
+
+    OrgSuggestion:
+      type: object
+      required: [existing, newName, internal]
+      properties:
+        existing:
+          type: [object, "null"]
+          description: An organisation already in Contacts
+          required: [id, name, slug]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            slug: { type: string }
+        newName: { type: [string, "null"], description: When none fits, a name for a new one from the domain }
+        internal: { type: boolean, description: The domain is Ollie's own company's }
 
     BriefPromise:
       type: object
@@ -6152,7 +6706,7 @@ components:
 
     MeetingRow:
       type: object
-      required: [id, title, startsAt, endsAt, day, platform, location, attendees, scope, companies, prep, promises, waiting, granolaSnippet]
+      required: [id, title, startsAt, endsAt, day, platform, location, attendees, scope, companies, prep, promises, waiting, granolaSnippet, hasAgenda]
       properties:
         id: { type: integer }
         title: { type: string }
@@ -6178,6 +6732,7 @@ components:
         promises: { type: integer, description: Open promises to people on the meeting }
         waiting: { type: integer, description: Tasks waiting on people on the meeting }
         granolaSnippet: { type: [string, "null"] }
+        hasAgenda: { type: boolean, description: Ollie has written an agenda or notes for it }
 
     MeetingsList:
       type: object
@@ -6189,7 +6744,7 @@ components:
 
     MeetingView:
       type: object
-      required: [id, title, startsAt, endsAt, platform, location, scope, companies, prep, attendees, notes, agendaChat, granola, granolaCheck]
+      required: [id, title, startsAt, endsAt, platform, location, scope, companies, prep, attendees, notes, agendaChat, granola, granolaCheck, agendaCheck, leftovers]
       properties:
         id: { type: integer }
         title: { type: string }
@@ -6207,18 +6762,28 @@ components:
           type: array
           items:
             type: object
-            required: [name, email, person]
+            required: [name, email, person, suggestedOrganisation]
             properties:
               name: { type: string }
               email: { type: [string, "null"] }
               person:
                 type: [object, "null"]
-                description: Set when they are in People
-                required: [id, name, slug]
+                description: Set when they are in Contacts
+                required: [id, name, slug, organisation]
                 properties:
                   id: { type: integer }
                   name: { type: string }
                   slug: { type: string }
+                  organisation:
+                    type: [object, "null"]
+                    required: [name, slug]
+                    properties:
+                      name: { type: string }
+                      slug: { type: string }
+              suggestedOrganisation:
+                oneOf:
+                  - $ref: "#/components/schemas/OrgSuggestion"
+                  - type: "null"
         notes: { type: [string, "null"], description: Ollie's agenda and notes }
         agendaChat: { type: array, items: { $ref: "#/components/schemas/AgendaTurn" } }
         granola:
@@ -6240,6 +6805,23 @@ components:
                   title: { type: string }
                   status: { type: string }
         granolaCheck: { type: boolean, description: True when OllieOS reads Granola itself, so a check can fetch the note now }
+        agendaCheck:
+          description: How the meeting went against the agenda, once its Granola note has been compared with it
+          oneOf:
+            - $ref: "#/components/schemas/AgendaCheck"
+            - type: "null"
+        leftovers:
+          description: What was not covered at the last meeting like this one, offered for this agenda
+          oneOf:
+            - $ref: "#/components/schemas/AgendaLeftovers"
+            - type: "null"
+
+    MeetingPersonalInput:
+      type: object
+      required: [personal]
+      additionalProperties: false
+      properties:
+        personal: { type: boolean }
 
     GranolaLinkInput:
       type: object
@@ -6254,6 +6836,53 @@ components:
       additionalProperties: false
       properties:
         related: { type: boolean }
+
+    AgendaItemStatus:
+      type: string
+      enum: [covered, partly, not_covered]
+
+    AgendaCheck:
+      type: object
+      required: [at, stale, items]
+      properties:
+        at: { type: string, format: date-time }
+        stale: { type: boolean, description: The agenda or the note changed since the check }
+        items:
+          type: array
+          items:
+            type: object
+            required: [index, title, status, note, dropped]
+            properties:
+              index: { type: integer }
+              title: { type: string }
+              status: { $ref: "#/components/schemas/AgendaItemStatus" }
+              note: { type: string }
+              dropped: { type: boolean, description: Ollie dropped it, so it is not offered on the next agenda }
+
+    AgendaLeftovers:
+      type: object
+      required: [eventId, title, startsAt, items]
+      properties:
+        eventId: { type: integer, description: The earlier meeting they are left over from }
+        title: { type: string }
+        startsAt: { type: string, format: date-time }
+        items:
+          type: array
+          items:
+            type: object
+            required: [index, title, status, note]
+            properties:
+              index: { type: integer }
+              title: { type: string }
+              status: { $ref: "#/components/schemas/AgendaItemStatus" }
+              note: { type: string }
+
+    AgendaItemDropInput:
+      type: object
+      required: [dropped]
+      additionalProperties: false
+      properties:
+        dropped: { type: boolean }
 
     AgendaTurn:
       type: object
@@ -6496,7 +7125,7 @@ components:
         attachments: { type: array, items: { $ref: "#/components/schemas/EmailAttachment" } }
     EmailInboxItem:
       type: object
-      required: [threadId, messageId, subject, fromName, fromEmail, at, snippet, unread, messages, taskId, gmailUrl, needs, ask]
+      required: [threadId, messageId, subject, fromName, fromEmail, at, snippet, unread, messages, taskId, gmailUrl, needs, ask, snoozedUntil, personId, personSlug, priority]
       properties:
         threadId: { type: string }
         messageId: { type: string, description: The newest message }
@@ -6514,6 +7143,10 @@ components:
           enum: [reply, info, checking, unknown]
           description: "Needs a reply, for information, not read yet, or not read by AI (hidden from it, or reading failed)"
         ask: { type: [string, "null"], description: One line on what the sender wants }
+        snoozedUntil: { type: [string, "null"], format: date, description: "Later: the day it comes back, while it is hidden" }
+        personId: { type: [integer, "null"], description: "The sender in People, when they are there" }
+        personSlug: { type: [string, "null"] }
+        priority: { type: [string, "null"], description: "Why it comes first: Client, or Overdue to contact" }
     EmailInbox:
       type: object
       required: [items, more, leftOut, checkedAt, updating, problem]
@@ -6745,13 +7378,13 @@ components:
       required: [id, source, url, saidBy, saidAt, place, quote, shows, strength, applied, dismissed]
       properties:
         id: { type: integer }
-        source: { type: string, description: "slack, email or meeting" }
+        source: { type: string, description: "slack, email, meeting, or for the same work coming up again, session, manual and the other task sources" }
         url: { type: [string, "null"] }
         saidBy: { type: [string, "null"], description: "\"You\" for Ollie, otherwise the name as written" }
         saidAt: { type: string, format: date-time }
         place: { type: [string, "null"], description: The Slack conversation, email subject or meeting }
         quote: { type: string }
-        shows: { type: string, enum: [done, progress] }
+        shows: { type: string, enum: [done, progress, same], description: "same: section 26, the same work came up again here" }
         strength: { type: string, enum: [same, other], description: "same: from the task's own conversation; other: anywhere else" }
         applied: { type: boolean, description: This evidence closed the task }
         dismissed: { type: boolean, description: Ollie said Not done }
@@ -7070,8 +7703,9 @@ components:
             pending: { type: integer }
     SlackToAnswer:
       type: object
-      required: [items, readBy, checkedAt]
+      required: [items, updating, readBy, checkedAt]
       properties:
+        updating: { type: boolean, description: The conversations listed are being looked at again }
         items:
           type: array
           items:
@@ -7080,7 +7714,7 @@ components:
         checkedAt: { type: [string, "null"], format: date-time, description: When the last good Slack check finished }
     SlackToAnswerItem:
       type: object
-      required: [id, kind, place, fromName, personId, personSlug, text, at, url, needs, ask, hidden, taskId]
+      required: [id, kind, place, fromName, personId, personSlug, text, at, url, needs, ask, hidden, taskId, draft, snoozedUntil, priority]
       properties:
         id: { type: integer }
         kind: { type: string, description: "im, mpim or channel" }
@@ -7088,18 +7722,113 @@ components:
         fromName: { type: [string, "null"] }
         personId: { type: [integer, "null"] }
         personSlug: { type: [string, "null"] }
-        text: { type: string, description: The message, first 300 characters }
+        text: { type: string, description: The message, first 800 characters }
         at: { type: string, format: date-time }
         url: { type: string, description: The message in Slack }
         needs: { type: string, enum: [reply, info, unknown], description: "Needs a reply, for information, or not read by AI" }
         ask: { type: [string, "null"], description: One line on what they want }
         hidden: { type: boolean, description: "Someone in it is hidden from AI, so it was not read and cannot be drafted" }
         taskId: { type: [integer, "null"], description: "The open task for it, when there is one" }
+        draft:
+          description: "The reply drafted for it, when there is one: it is on Drafts, not To answer"
+          oneOf:
+            - $ref: "#/components/schemas/SlackReplyDraft"
+            - type: "null"
+        snoozedUntil: { type: [string, "null"], format: date, description: "Later: the day it comes back, while it is hidden" }
+        priority: { type: [string, "null"], description: "Why it comes first: Client, or Overdue to contact" }
     SlackReplyDraft:
       type: object
-      required: [text]
+      required: [text, brief, updatedAt]
       properties:
         text: { type: string }
+        brief: { type: [string, "null"], description: What Ollie asked it to say }
+        updatedAt: { type: string, format: date-time }
+    SlackDraftInput:
+      type: object
+      additionalProperties: false
+      properties:
+        brief: { type: [string, "null"], maxLength: 500, description: What the reply should say }
+        change: { type: [string, "null"], maxLength: 500, description: "What to change about the draft it has: shorter, warmer" }
+    SlackConversation:
+      type: object
+      required: [fromSlack, messages]
+      properties:
+        fromSlack: { type: boolean, description: "False when Slack could not be read, so only the saved message is given" }
+        messages:
+          type: array
+          items:
+            type: object
+            required: [fromName, fromOllie, at, text]
+            properties:
+              fromName: { type: string }
+              fromOllie: { type: boolean }
+              at: { type: string, format: date-time }
+              text: { type: string }
+    LaterInput:
+      type: object
+      additionalProperties: false
+      required: [until]
+      properties:
+        until: { type: [string, "null"], format: date, description: "The day it comes back, after today; null brings it back now" }
+    MessageCounts:
+      type: object
+      required: [needsReply, overdue, emailsOverdue, slackOverdue]
+      properties:
+        needsReply: { type: integer, description: Emails and Slack messages under Needs a reply on To answer }
+        overdue: { type: integer, description: Those that have waited over one working day }
+        emailsOverdue: { type: integer }
+        slackOverdue: { type: integer }
+    MessagesDoneInput:
+      type: object
+      additionalProperties: false
+      required: [threadIds, slackIds]
+      properties:
+        threadIds: { type: array, items: { type: string } }
+        slackIds: { type: array, items: { type: integer } }
+    MessagesDone:
+      type: object
+      additionalProperties: false
+      required: [emails, slack]
+      properties:
+        emails:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [threadId, taskId, previousStatus]
+            properties:
+              threadId: { type: string }
+              taskId: { type: [integer, "null"] }
+              previousStatus: { type: [string, "null"], enum: [inbox, now, backlog, waiting, null] }
+        slack:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, taskId, previousStatus]
+            properties:
+              id: { type: integer }
+              taskId: { type: [integer, "null"] }
+              previousStatus: { type: [string, "null"], enum: [inbox, now, backlog, waiting, null] }
+    SlackDraftText:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text: { type: string, maxLength: 4000 }
+    MuteInput:
+      type: object
+      additionalProperties: false
+      required: [matchType, matchValue]
+      properties:
+        matchType: { type: string, enum: [from_address_equals, slack_channel_equals] }
+        matchValue: { type: string, maxLength: 200 }
+    MuteResult:
+      type: object
+      required: [rule, created]
+      properties:
+        rule: { $ref: "#/components/schemas/NoiseRule" }
+        created: { type: boolean, description: "False when the rule was already on" }
     EmailInboxTask:
       type: object
       required: [taskId]
@@ -7191,6 +7920,39 @@ components:
         cc: { type: string, maxLength: 2000 }
         subject: { type: string, maxLength: 500 }
         body: { type: string, minLength: 1, maxLength: 20000 }
+
+    TaskDuplicatePair:
+      type: object
+      required: [id, reason, a, b]
+      properties:
+        id: { type: integer }
+        reason:
+          type: [string, "null"]
+          description: The duplicate check's line on what work they share
+        a: { $ref: "#/components/schemas/Task" }
+        b: { $ref: "#/components/schemas/Task" }
+
+    TaskDuplicateList:
+      type: object
+      required: [pairs]
+      properties:
+        pairs:
+          type: array
+          items: { $ref: "#/components/schemas/TaskDuplicatePair" }
+
+    TaskDuplicateCheck:
+      type: object
+      required: [checked, found]
+      properties:
+        checked: { type: integer, description: Pairs with similar titles the duplicate check looked at }
+        found: { type: integer, description: New pairs it says are the same work }
+
+    TaskDuplicateMergeInput:
+      type: object
+      required: [keep]
+      additionalProperties: false
+      properties:
+        keep: { type: integer, description: The id of the task to keep }
 
     TaskReorderInput:
       type: object
@@ -7481,11 +8243,12 @@ components:
 
     ReviewItem:
       type: object
-      required: [id, kind, state, text, action, quote, meetingTitle, meetingAt, sourceUrl, email, reason, expectedBy, due, suggestedType, owner, person, project, dueDate, priority, confidential, taskId, createdAt, decidedAt]
+      required: [id, kind, state, via, text, action, quote, meetingTitle, meetingAt, sourceUrl, email, reason, expectedBy, due, suggestedType, owner, person, project, dueDate, priority, confidential, taskId, createdAt, decidedAt]
       properties:
         id: { type: integer }
         kind: { type: string, enum: [action, no_reply], description: "action: from a Granola look back; no_reply: an email Ollie sent that nobody answered" }
         state: { type: string, enum: [pending, accepted, done, dropped, answered], description: answered means someone wrote back before Ollie decided }
+        via: { type: string, enum: [meeting, email, slack], description: "Where it came from: a meeting's notes, an email Ollie sent, or a Slack message he sent" }
         text: { type: string, description: "The action, or for an unanswered email the ask: who owes what" }
         action: { type: [string, "null"], description: "The next step (or chase line), in one sentence" }
         quote: { type: [string, "null"], description: The line in the notes or email it came from }
@@ -9307,12 +10070,13 @@ components:
 
     SessionListItem:
       type: object
-      required: [id, title, summary, outcomes, happenedAt, archived, confidential, hiddenFromAi, projects, people, taskCount, decisionCount, documentCount, waitingCount]
+      required: [id, title, summary, outcomes, openQuestions, happenedAt, archived, confidential, hiddenFromAi, projects, people, taskCount, decisionCount, documentCount, waitingCount]
       properties:
         id: { type: integer }
         title: { type: string }
         summary: { type: string }
         outcomes: { type: array, items: { type: string }, description: What was done }
+        openQuestions: { type: array, items: { type: string }, description: "Section 27: questions the session left open, kept here instead of the Inbox" }
         happenedAt: { type: string, format: date-time }
         archived: { type: boolean, description: Older than 90 days with nothing from it still open; left out of briefs }
         confidential: { type: [boolean, "null"], description: null means it follows the projects and people it touched }
@@ -9373,6 +10137,14 @@ components:
       type: object
       properties:
         confidential: { type: [boolean, "null"] }
+
+    SessionQuestionInput:
+      type: object
+      required: [question, action]
+      additionalProperties: false
+      properties:
+        question: { type: string, description: The open question, exactly as listed on the session }
+        action: { type: string, enum: [task, dismiss], description: "task: put it in the Inbox; dismiss: take it off the list" }
 
     DocumentUpdate:
       type: object

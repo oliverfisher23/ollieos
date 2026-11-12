@@ -149,9 +149,8 @@ export const meetingThreadChecksTable = pgTable(
   "meeting_thread_checks",
   {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-    calendarEventId: integer("calendar_event_id")
-      .notNull()
-      .references(() => calendarEventsTable.id, { onDelete: "cascade" }),
+    /** Null once the meeting has left the calendar: Ollie's verdicts stay as examples, the matcher's own are cleared */
+    calendarEventId: integer("calendar_event_id").references(() => calendarEventsTable.id, { onDelete: "set null" }),
     /** Google Calendar's series id, so a verdict carries to the next meeting in the series */
     seriesId: text("series_id"),
     activityId: integer("activity_id")

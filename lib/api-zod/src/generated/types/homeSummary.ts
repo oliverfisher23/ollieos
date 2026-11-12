@@ -21,6 +21,8 @@ export interface HomeSummary {
   connectorWarnings: HomeSummaryConnectorWarningsItem[];
   /** Slack messages that need a reply and have waited over a working day (Part P) */
   slackToAnswer: number;
+  /** Emails that need a reply and have waited over a working day, as of the last look at Gmail */
+  emailToAnswer: number;
   /** Ideas set to come back to on or before today */
   ideasDue: Idea[];
   /**

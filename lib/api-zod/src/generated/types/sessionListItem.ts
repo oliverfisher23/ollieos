@@ -13,6 +13,8 @@ export interface SessionListItem {
   summary: string;
   /** What was done */
   outcomes: string[];
+  /** Section 27: questions the session left open, kept here instead of the Inbox */
+  openQuestions: string[];
   happenedAt: Date;
   /** Older than 90 days with nothing from it still open; left out of briefs */
   archived: boolean;

@@ -8,4 +8,10 @@
 
 export interface SlackReplyDraft {
   text: string;
+  /**
+     * What Ollie asked it to say
+     * @nullable
+     */
+  brief: string | null;
+  updatedAt: Date;
 }

@@ -27,9 +27,20 @@ import { kickKnowledgeReader } from "./documents/reader";
 import { ACTOR, cleanText } from "./knowledge/common";
 import { propose, type ProposeResult } from "./suggestions";
 import { NotFoundError, ValidationError } from "./tasks";
+import { alreadyCaptured, closeOpenTasks, recordMention } from "./duplicates";
+import { defaultScope, visibleRefs } from "../lib/ai-data/scope";
+import { toRef } from "@workspace/shared";
 
 export { SESSION_ARCHIVE_DAYS };
-export const SESSION_LIMITS = { outcomes: 30, actions: 20, artifacts: 10 } as const;
+export const SESSION_LIMITS = { outcomes: 30, actions: 20, artifacts: 10, questions: 20 } as const;
+
+/**
+ * Section 27: an action that is really a question the session left open ("Decide whether…",
+ * "Confirm if…"). These were most of what Ollie dropped from Cowork, so they are kept on the
+ * session as open questions instead of going to his Inbox.
+ */
+export const isOpenQuestion = (title: string): boolean =>
+  /^(decide|confirm|check|clarify|settle|work out|agree|determine|find out|consider|explore)\b.{0,40}\b(whether|if)\b/i.test(title.trim()) || /\?\s*$/.test(title.trim());
 
 const sessionArchivedSql = (alias: string, now: Date) => sql.raw(sessionArchived(alias, now));
 
@@ -64,6 +75,8 @@ export interface SaveSessionInput {
   /** Tasks Claude already logged during the session */
   taskIds: number[];
   confidential: boolean | null;
+  /** Section 27: questions still open at the end; kept on the session, not made into tasks */
+  openQuestions?: string[];
   actions: SessionAction[];
   artifacts: SessionArtifact[];
 }
@@ -73,7 +86,10 @@ export interface SaveSessionResult {
   updated: boolean;
   /** False when the session is hidden from AI, so it is not read for knowledge */
   visible: boolean;
-  tasks: { id: number | null; outcome: "created" | "duplicate" | "noise" }[];
+  /** linked: section 26, added to an open task with nearly the same title instead of a new one */
+  tasks: { id: number | null; outcome: "created" | "duplicate" | "noise" | "linked" }[];
+  /** Section 27: actions that were really open questions, kept on the session instead */
+  questions: string[];
   artifacts: ProposeResult[];
 }
 
@@ -87,6 +103,10 @@ export async function saveSession(writer: Writer, input: SaveSessionInput, now =
   const outcomes = input.outcomes.map((o) => cleanText(o)).filter((o): o is string => !!o).slice(0, SESSION_LIMITS.outcomes);
   const transcript = input.transcript?.trim() || null;
   const externalRef = cleanText(input.externalRef);
+  // Section 27: open questions stay on the session; only real actions go to the Inbox.
+  const moved = input.actions.filter((a) => a.kind === "task" && isOpenQuestion(a.title)).map((a) => a.title);
+  const actions = input.actions.filter((a) => !(a.kind === "task" && isOpenQuestion(a.title)));
+  const questions = [...new Set([...(input.openQuestions ?? []), ...moved].map((q) => cleanText(q)).filter((q): q is string => !!q))].slice(0, SESSION_LIMITS.questions);
 
   const { id, updated } = await db.transaction(async (tx) => {
     const [have] = externalRef ? await tx.select().from(coworkSessionsTable).where(eq(coworkSessionsTable.externalRef, externalRef)) : [];
@@ -97,6 +117,8 @@ export async function saveSession(writer: Writer, input: SaveSessionInput, now =
           title,
           summary,
           outcomes,
+          // Questions Ollie already dealt with are gone from the list and are not put back.
+          openQuestions: have.openQuestions.length || have.taskIds.length ? have.openQuestions : questions,
           transcript: transcript ?? have.transcript,
           ...(input.happenedAt ? { happenedAt: input.happenedAt } : {}),
           projectIds: uniq([...have.projectIds, ...input.projectIds]),
@@ -115,6 +137,7 @@ export async function saveSession(writer: Writer, input: SaveSessionInput, now =
         title,
         summary,
         outcomes,
+        openQuestions: questions,
         transcript,
         happenedAt: input.happenedAt ?? now,
         projectIds: uniq(input.projectIds),
@@ -134,7 +157,21 @@ export async function saveSession(writer: Writer, input: SaveSessionInput, now =
 
   // Tasks and promises go straight to the Inbox, once each however often the session is saved.
   const tasks: SaveSessionResult["tasks"] = [];
-  for (const [i, a] of input.actions.slice(0, SESSION_LIMITS.actions).entries()) {
+  for (const [i, a] of actions.slice(0, SESSION_LIMITS.actions).entries()) {
+    const sourceRef = `${sessionKey(id)}#${i + 1}`;
+    // Section 26: an open task with nearly the same title (and visible to AI) gets this as Also came up.
+    if (!(await alreadyCaptured("session", sourceRef))) {
+      const close = await closeOpenTasks(a.title);
+      const visible = await visibleRefs(defaultScope(), close.map((c) => toRef("task", c.id)));
+      const match = close.find((c) => visible.has(toRef("task", c.id)));
+      if (
+        match &&
+        (await recordMention(match.id, { source: "session", sourceRef, url: null, saidBy: writer.actor, saidAt: now, place: `Cowork session: ${title}`, quote: a.quote || a.title, strength: "other" }))
+      ) {
+        tasks.push({ id: match.id, outcome: "linked" });
+        continue;
+      }
+    }
     const r = await captureTask(
       writer,
       {
@@ -142,7 +179,7 @@ export async function saveSession(writer: Writer, input: SaveSessionInput, now =
         kind: a.kind,
         dueDate: a.dueDate,
         source: "session",
-        sourceRef: `${sessionKey(id)}#${i + 1}`,
+        sourceRef,
         sourceSubject: title,
         sourceQuote: a.quote,
         personId: a.personId,
@@ -196,7 +233,7 @@ export async function saveSession(writer: Writer, input: SaveSessionInput, now =
     await enqueueSession(db, session, now);
     kickKnowledgeReader();
   }
-  return { id, updated, visible, tasks, artifacts };
+  return { id, updated, visible, tasks, artifacts, questions: updated ? [] : questions };
 }
 
 async function isVisible(id: number): Promise<boolean> {
@@ -220,6 +257,8 @@ export interface SessionListItem {
   title: string;
   summary: string;
   outcomes: string[];
+  /** Section 27: questions it left open */
+  openQuestions: string[];
   happenedAt: string;
   archived: boolean;
   confidential: boolean | null;
@@ -247,6 +286,7 @@ interface Row {
   title: string;
   summary: string;
   outcomes: string[];
+  open_questions: string[];
   happened_at: string | Date;
   archived: boolean;
   confidential: boolean | null;
@@ -272,7 +312,7 @@ async function loadRows(where: SQL, now: Date, limit = 300): Promise<Row[]> {
       from suggestions g join page p on g.source_ref = 'session:' || p.id
       group by g.source_ref
     )
-    select s.id, s.title, s.summary, s.outcomes, s.happened_at, s.confidential, s.project_ids, s.person_ids,
+    select s.id, s.title, s.summary, s.outcomes, s.open_questions, s.happened_at, s.confidential, s.project_ids, s.person_ids,
       ${sessionArchivedSql("s", now)} as archived,
       ${sql.raw(sessionVisible("s"))} as visible,
       cardinality(s.task_ids)::int as task_count,
@@ -301,6 +341,7 @@ function toItem(r: Row, n: Awaited<ReturnType<typeof names>>): SessionListItem {
     title: r.title,
     summary: r.summary,
     outcomes: r.outcomes ?? [],
+    openQuestions: r.open_questions ?? [],
     happenedAt: new Date(r.happened_at).toISOString(),
     archived: !!r.archived,
     confidential: r.confidential,
@@ -389,6 +430,31 @@ export async function updateSession(id: number, input: { confidential?: boolean 
         .where(and(eq(knowledgeSourcesTable.key, sessionKey(id)), eq(knowledgeSourcesTable.status, "queued")));
     }
   }
+  return sessionDetail(id);
+}
+
+/**
+ * Section 27: deals with one open question on a session. "task" puts it in Ollie's Inbox, linked to
+ * the session; "dismiss" just takes it off the list.
+ */
+export async function decideSessionQuestion(id: number, question: string, action: "task" | "dismiss"): Promise<SessionDetail> {
+  const [have] = await db.select().from(coworkSessionsTable).where(eq(coworkSessionsTable.id, id));
+  if (!have) throw new NotFoundError("That session does not exist");
+  const q = question.trim();
+  if (!have.openQuestions.includes(q)) throw new NotFoundError("That question is not on this session");
+  let taskId: number | null = null;
+  if (action === "task") {
+    const r = await captureTask(
+      { actor: ACTOR, clientId: null },
+      { title: q, source: "session", sourceRef: `${sessionKey(id)}#q:${q.slice(0, 200)}`, sourceSubject: have.title, confidential: have.confidential === true ? true : null, capturedAt: new Date() },
+      { applyNoise: false, via: "app" },
+    );
+    taskId = r.taskId;
+  }
+  await db
+    .update(coworkSessionsTable)
+    .set({ openQuestions: have.openQuestions.filter((x) => x !== q), taskIds: taskId != null ? uniq([...have.taskIds, taskId]) : have.taskIds, updatedAt: new Date() })
+    .where(eq(coworkSessionsTable.id, id));
   return sessionDetail(id);
 }
 

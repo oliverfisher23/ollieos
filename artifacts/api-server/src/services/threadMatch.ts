@@ -58,7 +58,7 @@ export async function unrelatedActivityIds(event: Pick<CalendarEvent, "id" | "re
 }
 
 /** One verdict per thread: this meeting's own first (Ollie over AI), then Ollie's in the series. */
-function verdicts<T extends { activityId: number; related: boolean; eventId: number; source: string }>(rows: T[], eventId: number): [number, T][] {
+function verdicts<T extends { activityId: number; related: boolean; eventId: number | null; source: string }>(rows: T[], eventId: number): [number, T][] {
   const rank = (r: T) => (r.eventId === eventId ? (r.source === "ollie" ? 0 : 2) : 1);
   const best = new Map<number, T>();
   for (const r of rows) {
@@ -110,7 +110,7 @@ async function judgeAndStore(
   event: CalendarEvent,
   unjudged: ThreadRow[],
   ctx: MatchContext,
-  known: Map<number, { activityId: number; related: boolean; eventId: number; source: string; reason: string | null }>,
+  known: Map<number, { activityId: number; related: boolean; eventId: number | null; source: string; reason: string | null }>,
 ): Promise<void> {
   const scope = await askScope();
   const docs = await loadVisibleDocs(scope, unjudged.map((t) => toRef("activity", t.id)));

@@ -5,6 +5,8 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { AgendaCheck } from './agendaCheck';
+import type { AgendaLeftovers } from './agendaLeftovers';
 import type { AgendaTurn } from './agendaTurn';
 import type { MeetingScope } from './meetingScope';
 import type { MeetingViewAttendeesItem } from './meetingViewAttendeesItem';
@@ -38,4 +40,8 @@ export interface MeetingView {
   granola: MeetingViewGranola;
   /** True when OllieOS reads Granola itself */
   granolaCheck: boolean;
+  /** How the meeting went against the agenda, once its Granola note has been compared with it */
+  agendaCheck: AgendaCheck | null;
+  /** What was not covered at the last meeting like this one, offered for this agenda */
+  leftovers: AgendaLeftovers | null;
 }

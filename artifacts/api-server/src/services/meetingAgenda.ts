@@ -7,7 +7,7 @@
  * meeting. If Ollie's text, the agenda or the title names anything hidden from AI, nothing is sent.
  */
 import { eq } from "drizzle-orm";
-import { calendarEventsTable, db, type AgendaTurn } from "@workspace/db";
+import { calendarEventsTable, db, meetingBriefsTable, type AgendaTurn } from "@workspace/db";
 import { formatLong, formatTime, toRef } from "@workspace/shared";
 import { applicableRuleRefs, loadVisibleDocs } from "../lib/ai-data/retrieve";
 import { recordReads, visibleRefs } from "../lib/ai-data/scope";
@@ -19,6 +19,7 @@ import { contextRefs, loadMatchers, matchEvent } from "./briefs";
 import { getContext } from "../lib/ai-data/context";
 import { workEvent } from "./meetings";
 import { openPointsFor } from "./talkingPoints";
+import { leftoversFor } from "./agendaCheck";
 import { ConflictError, UpstreamError, ValidationError } from "./tasks";
 import { mentions, namedThings } from "./voice";
 import { recordCheck } from "./writerChecks";
@@ -46,7 +47,8 @@ export async function shapeAgenda(eventId: number, input: { message: string; age
   if (message.length > MAX_THOUGHTS) throw new ValidationError(`That is too long to send at once (${MAX_THOUGHTS} characters at most)`);
   const previous = input.agenda.slice(0, MAX_AGENDA);
 
-  const hidden = (await namedThings()).filter((n) => !n.visible && [message, previous, event.title].some((t) => mentions(t, n)));
+  const named = await namedThings();
+  const hidden = named.filter((n) => !n.visible && [message, previous, event.title].some((t) => mentions(t, n)));
   if (hidden.length) {
     const names = [...new Set(hidden.map((n) => n.name))].slice(0, 3).join(", ");
     throw new ConflictError(`This names ${names}, which is hidden from AI, so OllieOS will not send it. Edit the agenda by hand instead.`);
@@ -73,6 +75,16 @@ export async function shapeAgenda(eventId: number, input: { message: string; age
     applicableRuleRefs(scope, entityRefs.filter((r) => visible.has(r))).then((rs) => loadVisibleDocs(scope, rs)),
     openPointsFor(visiblePeople),
   ]);
+  // One agenda: what the brief suggested (only lines whose sources AI may still see) and what was
+  // not covered last time are handed over too, so the writer can fold them in.
+  const [[brief], leftovers] = await Promise.all([
+    db.select({ why: meetingBriefsTable.why, agenda: meetingBriefsTable.agenda }).from(meetingBriefsTable).where(eq(meetingBriefsTable.calendarEventId, event.id)),
+    leftoversFor(event),
+  ]);
+  const briefLines = brief?.why ? (brief.agenda ?? []) : [];
+  const okCited = await visibleRefs(scope, briefLines.flatMap((l) => l.cited));
+  const suggested = briefLines.filter((l) => l.cited.every((r) => okCited.has(r))).map((l) => l.text);
+  const leftOver = (leftovers?.items ?? []).filter((i) => !named.some((n) => !n.visible && mentions(i.title, n))).map((i) => i.title);
   const docs = [...rules, ...items];
   await recordReads(scope, docs.map((d) => d.ref), { via: "agenda_writer", event: event.id });
 
@@ -92,6 +104,8 @@ export async function shapeAgenda(eventId: number, input: { message: string; age
       history: event.agendaChat.slice(-HISTORY_TURNS).map((t) => ({ role: t.role, text: t.text })),
       message,
       points: points.map((p) => (p.personName ? `${p.personName}: ${p.text}` : p.text)),
+      suggested,
+      leftOver,
       docs,
     });
   } catch (err) {

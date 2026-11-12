@@ -5,9 +5,10 @@ import { handle } from "../lib/handle";
 import { allowForBrief, briefView, markBriefOpened, nextBriefEventId } from "../services/briefs";
 import { addPoint, POINT_CHARS } from "../services/talkingPoints";
 import { getDigest, listDigests } from "../services/digest";
-import { listMeetings, meetingView, updateMeetingNotes } from "../services/meetings";
+import { listMeetings, meetingView, setMeetingPersonal, updateMeetingNotes } from "../services/meetings";
 import { MAX_THOUGHTS, clearAgendaChat, shapeAgenda } from "../services/meetingAgenda";
 import { linkGranolaNote } from "../services/connectors";
+import { checkAgenda, setLeftoverDropped } from "../services/agendaCheck";
 import { setThreadVerdict } from "../services/threadMatch";
 import { NotFoundError } from "../services/tasks";
 
@@ -50,6 +51,24 @@ router.post(
     res.json(await shapeAgenda(eventId, b));
   }),
 );
+// Close the loop: compare the Granola note with the agenda (again), and drop or bring back a left-over item.
+router.post(
+  "/meetings/:eventId/agenda/check",
+  handle(async (req, res) => {
+    const { eventId } = EventParams.parse(req.params);
+    await checkAgenda(eventId);
+    res.json(await meetingView(eventId));
+  }),
+);
+router.put(
+  "/meetings/:eventId/agenda/check/items/:index",
+  handle(async (req, res) => {
+    const { eventId, index } = z.object({ eventId: z.coerce.number().int().positive(), index: z.coerce.number().int().min(0) }).parse(req.params);
+    const b = z.object({ dropped: z.boolean() }).strict().parse(req.body ?? {});
+    await setLeftoverDropped(eventId, index, b.dropped);
+    res.status(204).end();
+  }),
+);
 router.delete(
   "/meetings/:eventId/agenda/chat",
   handle(async (req, res) => {
@@ -58,6 +77,15 @@ router.delete(
   }),
 );
 
+// Ollie says an event is personal, or is not; it stands through later calendar checks.
+router.put(
+  "/meetings/:eventId/personal",
+  handle(async (req, res) => {
+    const b = z.object({ personal: z.boolean() }).strict().parse(req.body ?? {});
+    await setMeetingPersonal(EventParams.parse(req.params).eventId, b.personal);
+    res.status(204).end();
+  }),
+);
 // Link a Granola note OllieOS did not match, from its link.
 router.post(
   "/meetings/:eventId/granola",

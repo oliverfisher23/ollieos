@@ -17,12 +17,14 @@ import { logger } from "../../lib/logger";
 import { captureTask, enabledRules, logActivity, matchNoiseRule, type CaptureWriter } from "../aiWrites";
 import { emailsOf, hasAnyEmail, hasAnySlackId } from "../personMatch";
 import { propose, type Proposal } from "../suggestions";
-import { applyProgress, cleanProgress, openItemsFor, openItemsBlock, type ProgressCounts } from "../taskEvidence";
+import { applyProgress, cleanProgress, openItemsFor, openItemsBlock, placeOf, type OpenItem, type ProgressCounts } from "../taskEvidence";
+import { recordMention } from "../duplicates";
 import { proposeSignature, proposeWorksAt, recordTogether } from "../peopleSignals";
 import { addSpottedIdea } from "../strategy";
 import { lessonsFor } from "../readerLessons";
 import { recordSightings, sightingsFromUnits } from "../contactFinder";
 import type { WorkMessage, WorkUnit } from "./messages";
+import { firstNameKey, matchName } from "../personNames";
 import type { AgentKey } from "../../lib/agents";
 import { sortUnits, type KnownNames, type SortedClaim, type SortedUnit } from "./sorter";
 
@@ -46,6 +48,10 @@ export interface CaptureCounts {
   details?: number;
   /** Section 23: ideas the idea spotter added from Slack */
   ideas?: number;
+  /** Section 26: items added to a task Ollie already had, instead of a new task */
+  linked?: number;
+  /** Section 27: Slack asks that only need a quick reply, left on Messages instead of also becoming a task */
+  quick_replies?: number;
   /** Section 25: people seen who are not in Contacts */
   sightings?: number;
 }
@@ -81,6 +87,15 @@ export interface LoadedPeople {
   byEmail: Map<string, PersonRow>;
   byName: Map<string, PersonRow>;
   bySlack: Map<string, PersonRow>;
+  /** Section 27: everyone sharing a first name with a name in the exchange, for matching "Sam" or a Slack name */
+  named: PersonRow[];
+}
+
+/** Section 27: the person a name points to. A first name alone counts when only one person has it, or one of them is in the exchange. */
+export function personByName(people: LoadedPeople, hint: string | null | undefined, opts: { fullOnly?: boolean } = {}): PersonRow | null {
+  if (!hint) return null;
+  const inExchange = new Set([...people.byEmail.values(), ...people.bySlack.values()].map((p) => p.id));
+  return matchName(hint, people.named, { prefer: inExchange, fullOnly: opts.fullOnly });
 }
 
 /** The person for someone in an exchange: by Slack account first, then any of their emails. */
@@ -88,12 +103,15 @@ export function personIn(people: LoadedPeople, who: { email?: string | null; sla
   return (who.slackId ? people.bySlack.get(who.slackId) : undefined) ?? (who.email ? people.byEmail.get(who.email.toLowerCase()) : undefined) ?? null;
 }
 
-export const senderOf = (people: LoadedPeople, m: WorkMessage): PersonRow | null => personIn(people, { email: m.fromAddress, slackId: m.fromSlackId });
+/** Who sent a message: by Slack account or email, else by name (Slack names may be a first name; email needs the full name). */
+export const senderOf = (people: LoadedPeople, m: WorkMessage): PersonRow | null =>
+  personIn(people, { email: m.fromAddress, slackId: m.fromSlackId }) ?? (m.fromMe ? null : personByName(people, m.fromName, { fullOnly: !m.fromSlackId }));
 
 export async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promise<LoadedPeople> {
   const emails = new Set<string>();
   const names = new Set<string>();
   const slackIds = new Set<string>();
+  const firsts = new Set<string>();
   for (const u of units) {
     for (const p of u.people) {
       if (p.email) emails.add(p.email.toLowerCase());
@@ -103,8 +121,12 @@ export async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promi
     for (const m of u.messages) {
       if (m.fromAddress) emails.add(m.fromAddress.toLowerCase());
       if (m.fromSlackId) slackIds.add(m.fromSlackId);
+      if (!m.fromMe && m.fromName) firsts.add(firstNameKey(m.fromName));
     }
   }
+  for (const n of names) firsts.add(firstNameKey(n));
+  for (const s of sorted) for (const it of s.items) if (it.person && !it.person.includes("@")) firsts.add(firstNameKey(it.person));
+  firsts.delete("");
   for (const s of sorted) for (const it of s.items) if (it.person) (it.person.includes("@") ? emails : names).add(it.person.toLowerCase().trim());
   const cols = {
     id: peopleTable.id,
@@ -117,9 +139,10 @@ export async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promi
     isSelf: peopleTable.isSelf,
   };
   const none: PersonRow[] = [];
-  const [a, b] = await Promise.all([
+  const [a, b, named] = await Promise.all([
     emails.size || slackIds.size ? db.select(cols).from(peopleTable).where(or(hasAnyEmail([...emails]), hasAnySlackId([...slackIds]))) : none,
     names.size ? db.select(cols).from(peopleTable).where(inArray(sql`lower(${peopleTable.name})`, [...names])) : none,
+    firsts.size ? db.select(cols).from(peopleTable).where(inArray(sql`split_part(lower(${peopleTable.name}), ' ', 1)`, [...firsts])).limit(400) : none,
   ]);
   const byEmail = new Map<string, PersonRow>();
   const bySlack = new Map<string, PersonRow>();
@@ -127,7 +150,7 @@ export async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promi
     for (const e of emailsOf(p)) if (!byEmail.has(e)) byEmail.set(e, p);
     if (p.slackUserId) bySlack.set(p.slackUserId, p);
   }
-  return { byEmail, bySlack, byName: new Map(b.map((p) => [p.name.toLowerCase(), p])) };
+  return { byEmail, bySlack, byName: new Map(b.map((p) => [p.name.toLowerCase(), p])), named };
 }
 
 /** Active projects the AI may link items to. Confidential projects are never sent to it. */
@@ -313,7 +336,7 @@ export async function sortAndCapture(
     // Section 24: the lessons Ollie turned on for this reader.
     lessons: await lessonsFor(ctx.agent),
   });
-  await captureSorted(keep, sorted, { choices, rules, applyNoise: true, counts });
+  await captureSorted(keep, sorted, { choices, rules, applyNoise: true, counts, open });
   const progress: ProgressCounts = { closed: 0, looks_done: 0, progress: 0 };
   for (const [i, u] of keep.entries()) {
     const p = cleanProgress(sorted[i].progress, u, open[i]);
@@ -389,7 +412,15 @@ export async function sortAndCapture(
 export async function captureSorted(
   keep: WorkUnit[],
   sorted: SortedUnit[],
-  opts: { choices: { id: number; name: string }[]; rules: NoiseRule[]; applyNoise: boolean; counts: CaptureCounts; projectFor?: (i: number) => number | null },
+  opts: {
+    choices: { id: number; name: string }[];
+    rules: NoiseRule[];
+    applyNoise: boolean;
+    counts: CaptureCounts;
+    projectFor?: (i: number) => number | null;
+    /** Section 26: the open items each exchange was offered, so "same_as" can add to one */
+    open?: OpenItem[][];
+  },
 ): Promise<number[][]> {
   const { counts, rules } = opts;
   const projects = new Map(opts.choices.map((p) => [p.name.toLowerCase(), p.id]));
@@ -398,7 +429,7 @@ export async function captureSorted(
   const personFor = (hint: string): PersonRow | null => {
     const h = hint.toLowerCase().trim();
     if (!h) return null;
-    return (h.includes("@") ? people.byEmail.get(h) : people.byName.get(h)) ?? null;
+    return (h.includes("@") ? people.byEmail.get(h) : (people.byName.get(h) ?? personByName(people, hint))) ?? null;
   };
   const projectFor = (name: string): number | null => projects.get(name.toLowerCase().trim()) ?? null;
 
@@ -416,9 +447,32 @@ export async function captureSorted(
       const msg = u.messages.find((m) => m.ref === it.ref) ?? u.messages[u.messages.length - 1];
       // Emails Ollie sends that wait on someone are on Email, Waiting for a reply; no task as well.
       if (u.source === "email" && it.type === "waiting" && msg.fromMe) continue;
+      // Section 27: a Slack ask that only needs a line in reply is already on Messages, To answer; no task as well.
+      if (u.source === "slack" && it.type === "task" && it.quick && !msg.fromMe && s.reply?.needs === "reply" && !it.same_as) {
+        counts.quick_replies = (counts.quick_replies ?? 0) + 1;
+        continue;
+      }
       const n = (perMessage.get(msg.ref) ?? 0) + 1;
       perMessage.set(msg.ref, n);
       const sourceRef = n === 1 ? msg.ref : `${msg.ref}#${n}`;
+      // Section 26: the same work as an open task, so it is added to that task instead.
+      const same = it.same_as ? opts.open?.[i]?.find((o) => o.ref === it.same_as) : undefined;
+      if (same) {
+        const added = await recordMention(same.taskId, {
+          source: u.source,
+          sourceRef,
+          url: msg.url || null,
+          saidBy: msg.fromMe ? "You" : (msg.fromName ?? msg.fromAddress ?? null),
+          saidAt: msg.at,
+          place: placeOf(u),
+          quote: it.quote || it.title,
+          strength: same.same ? "same" : "other",
+        });
+        if (added) counts.linked = (counts.linked ?? 0) + 1;
+        else counts.duplicate++;
+        taskIds[i].push(same.taskId);
+        continue;
+      }
       const sender = msg.fromMe ? null : senderOf(people, msg);
       const person = personFor(it.person) ?? (it.type === "task" ? sender : null);
       const projectId = projectFor(it.project) ?? unitProject;
@@ -444,6 +498,8 @@ export async function captureSorted(
           personId: it.type === "waiting" ? null : (person?.id ?? null),
           waitingOnPersonId: it.type === "waiting" ? (person?.id ?? null) : null,
           confidential: it.confidential || person?.confidential ? true : null,
+          // Section 27: one message asking for several things is one task with a checklist.
+          steps: it.steps?.length ? it.steps : undefined,
           capturedAt: msg.at,
         },
         { applyNoise: opts.applyNoise, via: "connector", rules },

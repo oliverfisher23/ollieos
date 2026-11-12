@@ -308,6 +308,32 @@ export interface DelegateHint {
   message: string;
 }
 
+export type DropReason = typeof DropReason[keyof typeof DropReason];
+
+
+export const DropReason = {
+  not_mine: 'not_mine',
+  already_done: 'already_done',
+  fyi: 'fyi',
+  arranging: 'arranging',
+  duplicate: 'duplicate',
+  not_needed: 'not_needed',
+} as const;
+
+export interface StuckHint {
+  /** Why it looks stuck, for example Due date moved 3 times */
+  why: string;
+  /** first_step, split, delegate or drop */
+  kind: string;
+  /** One line on what to try */
+  suggestion: string;
+  /**
+     * For first_step and split: the step to add to the checklist
+     * @nullable
+     */
+  step: string | null;
+}
+
 export interface Task {
   /**
      * Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.
@@ -390,8 +416,58 @@ export interface Task {
      * @nullable
      */
   looksDone?: string | null;
+  /** Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task's own */
+  alsoFrom?: string[];
   /** Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog. */
   delegateHint?: DelegateHint | null;
+  /** Section 27: why Ollie dropped it or sent it to Noise */
+  dropReason?: DropReason | null;
+  /** Section 27: a Waiting on task that has waited long enough for a chase */
+  chaseDue?: boolean;
+  /** Section 27: the stuck-task coach's line on a Now or Backlog task that keeps slipping. Null once dismissed. */
+  stuckHint?: StuckHint | null;
+}
+
+/**
+ * The fullest day in the next seven with most of its tasks not yet in Now, or null
+ */
+export type TaskLoadBusiest = {
+  date: string;
+  due: number;
+  inNow: number;
+} | null;
+
+export interface TaskLoad {
+  /** Open tasks past their due date */
+  overdue: number;
+  /** Waiting on tasks ready for a chase */
+  toChase: number;
+  /** The fullest day in the next seven with most of its tasks not yet in Now, or null */
+  busiest: TaskLoadBusiest;
+}
+
+export interface TaskBulkInput {
+  /**
+     * @minItems 1
+     * @maxItems 200
+     */
+  ids: number[];
+  status?: TaskStatus;
+  priority?: Priority;
+  /** @nullable */
+  dueDate?: string | null;
+  /** @nullable */
+  projectId?: number | null;
+  dropReason?: DropReason | null;
+}
+
+export interface TaskBulkResult {
+  updated: number;
+  failed: number;
+}
+
+export interface ProjectSuggestions {
+  projects: EntitySummary[];
 }
 
 export interface RepeatInput {
@@ -473,6 +549,8 @@ export interface ClearOut {
 }
 
 export interface TaskUpdate {
+  /** Section 27: why it was dropped or sent to Noise; null clears it */
+  dropReason?: DropReason | null;
   /** @minLength 1 */
   title?: string;
   kind?: TaskKind;
@@ -536,6 +614,7 @@ export type TaskSummaryStats = {
 };
 
 export interface TaskSummary {
+  load: TaskLoad;
   tabs: TaskSummaryTabs;
   stats: TaskSummaryStats;
 }
@@ -749,6 +828,8 @@ export interface HomeSummary {
   connectorWarnings: HomeSummaryConnectorWarningsItem[];
   /** Slack messages that need a reply and have waited over a working day (Part P) */
   slackToAnswer: number;
+  /** Emails that need a reply and have waited over a working day, as of the last look at Gmail */
+  emailToAnswer: number;
   /** Ideas set to come back to on or before today */
   ideasDue: Idea[];
   /**
@@ -832,6 +913,11 @@ export interface BriefAttendeePerson {
   role: string | null;
   /** @nullable */
   organisation: string | null;
+  /**
+     * For the link to the organisation's page
+     * @nullable
+     */
+  organisationSlug: string | null;
   confidential: boolean;
   /** @nullable */
   lastContactAt: string | null;
@@ -841,6 +927,31 @@ export interface BriefAttendeePerson {
   cadence: BriefCadence | null;
   /** The projects, products and organisations this person decides on */
   decidesOn: DecidesOnItem[];
+}
+
+/**
+ * An organisation already in Contacts
+ * @nullable
+ */
+export type OrgSuggestionExisting = {
+  id: number;
+  name: string;
+  slug: string;
+} | null;
+
+export interface OrgSuggestion {
+  /**
+     * An organisation already in Contacts
+     * @nullable
+     */
+  existing: OrgSuggestionExisting;
+  /**
+     * When none fits
+     * @nullable
+     */
+  newName: string | null;
+  /** The domain is Ollie's own company's */
+  internal: boolean;
 }
 
 export interface BriefAttendee {
@@ -855,6 +966,8 @@ export interface BriefAttendee {
   organiser: boolean;
   /** The matching person, or null for no previous contact */
   person: BriefAttendeePerson | null;
+  /** Not in Contacts yet, the organisation they probably belong to from their email domain; null for personal addresses */
+  suggestedOrganisation: OrgSuggestion | null;
 }
 
 export interface BriefPromise {
@@ -1286,6 +1399,8 @@ export interface MeetingRow {
   waiting: number;
   /** @nullable */
   granolaSnippet: string | null;
+  /** Ollie has written an agenda or notes for it */
+  hasAgenda: boolean;
 }
 
 export interface MeetingsList {
@@ -1309,13 +1424,23 @@ export const MeetingViewPrep = {
 } as const;
 
 /**
- * Set when they are in People
+ * @nullable
+ */
+export type MeetingViewAttendeesItemPersonOrganisation = {
+  name: string;
+  slug: string;
+} | null;
+
+/**
+ * Set when they are in Contacts
  * @nullable
  */
 export type MeetingViewAttendeesItemPerson = {
   id: number;
   name: string;
   slug: string;
+  /** @nullable */
+  organisation: MeetingViewAttendeesItemPersonOrganisation;
 } | null;
 
 export type MeetingViewAttendeesItem = {
@@ -1323,10 +1448,11 @@ export type MeetingViewAttendeesItem = {
   /** @nullable */
   email: string | null;
   /**
-     * Set when they are in People
+     * Set when they are in Contacts
      * @nullable
      */
   person: MeetingViewAttendeesItemPerson;
+  suggestedOrganisation: OrgSuggestion | null;
 };
 
 export type MeetingViewGranolaActionsItem = {
@@ -1363,6 +1489,46 @@ export interface AgendaTurn {
   at: string;
 }
 
+export type AgendaItemStatus = typeof AgendaItemStatus[keyof typeof AgendaItemStatus];
+
+
+export const AgendaItemStatus = {
+  covered: 'covered',
+  partly: 'partly',
+  not_covered: 'not_covered',
+} as const;
+
+export type AgendaCheckItemsItem = {
+  index: number;
+  title: string;
+  status: AgendaItemStatus;
+  note: string;
+  /** Ollie dropped it */
+  dropped: boolean;
+};
+
+export interface AgendaCheck {
+  at: string;
+  /** The agenda or the note changed since the check */
+  stale: boolean;
+  items: AgendaCheckItemsItem[];
+}
+
+export type AgendaLeftoversItemsItem = {
+  index: number;
+  title: string;
+  status: AgendaItemStatus;
+  note: string;
+};
+
+export interface AgendaLeftovers {
+  /** The earlier meeting they are left over from */
+  eventId: number;
+  title: string;
+  startsAt: string;
+  items: AgendaLeftoversItemsItem[];
+}
+
 export interface MeetingView {
   id: number;
   title: string;
@@ -1390,6 +1556,14 @@ export interface MeetingView {
   granola: MeetingViewGranola;
   /** True when OllieOS reads Granola itself */
   granolaCheck: boolean;
+  /** How the meeting went against the agenda, once its Granola note has been compared with it */
+  agendaCheck: AgendaCheck | null;
+  /** What was not covered at the last meeting like this one, offered for this agenda */
+  leftovers: AgendaLeftovers | null;
+}
+
+export interface MeetingPersonalInput {
+  personal: boolean;
 }
 
 export interface GranolaLinkInput {
@@ -1403,6 +1577,10 @@ export interface GranolaLinkInput {
 
 export interface ThreadVerdictInput {
   related: boolean;
+}
+
+export interface AgendaItemDropInput {
+  dropped: boolean;
 }
 
 export interface AgendaInput {
@@ -1678,6 +1856,23 @@ export interface EmailInboxItem {
      * @nullable
      */
   ask: string | null;
+  /**
+     * Later: the day it comes back, while it is hidden
+     * @nullable
+     */
+  snoozedUntil: string | null;
+  /**
+     * The sender in People, when they are there
+     * @nullable
+     */
+  personId: number | null;
+  /** @nullable */
+  personSlug: string | null;
+  /**
+     * Why it comes first: Client, or Overdue to contact
+     * @nullable
+     */
+  priority: string | null;
 }
 
 export interface EmailInbox {
@@ -1909,12 +2104,16 @@ export interface TalkingPoints {
   raised: TalkingPoint[];
 }
 
+/**
+ * same: section 26, the same work came up again here
+ */
 export type TaskEvidenceShows = typeof TaskEvidenceShows[keyof typeof TaskEvidenceShows];
 
 
 export const TaskEvidenceShows = {
   done: 'done',
   progress: 'progress',
+  same: 'same',
 } as const;
 
 /**
@@ -1930,7 +2129,7 @@ export const TaskEvidenceStrength = {
 
 export interface TaskEvidence {
   id: number;
-  /** slack, email or meeting */
+  /** slack, email, meeting, or for the same work coming up again, session, manual and the other task sources */
   source: string;
   /** @nullable */
   url: string | null;
@@ -1946,6 +2145,7 @@ export interface TaskEvidence {
      */
   place: string | null;
   quote: string;
+  /** same: section 26, the same work came up again here */
   shows: TaskEvidenceShows;
   /** same: from the task's own conversation; other: anywhere else */
   strength: TaskEvidenceStrength;
@@ -2373,6 +2573,16 @@ export const SlackToAnswerItemNeeds = {
   unknown: 'unknown',
 } as const;
 
+export interface SlackReplyDraft {
+  text: string;
+  /**
+     * What Ollie asked it to say
+     * @nullable
+     */
+  brief: string | null;
+  updatedAt: string;
+}
+
 export interface SlackToAnswerItem {
   id: number;
   /** im, mpim or channel */
@@ -2404,9 +2614,23 @@ export interface SlackToAnswerItem {
      * @nullable
      */
   taskId: number | null;
+  /** The reply drafted for it, when there is one: it is on Drafts, not To answer */
+  draft: SlackReplyDraft | null;
+  /**
+     * Later: the day it comes back, while it is hidden
+     * @nullable
+     */
+  snoozedUntil: string | null;
+  /**
+     * Why it comes first: Client, or Overdue to contact
+     * @nullable
+     */
+  priority: string | null;
 }
 
 export interface SlackToAnswer {
+  /** The conversations listed are being looked at again */
+  updating: boolean;
   items: SlackToAnswerItem[];
   /** Who reads Slack: only OllieOS's own Slack check fills this list */
   readBy: SlackToAnswerReadBy;
@@ -2417,8 +2641,126 @@ export interface SlackToAnswer {
   checkedAt: string | null;
 }
 
-export interface SlackReplyDraft {
+export interface SlackDraftInput {
+  /**
+     * What the reply should say
+     * @maxLength 500
+     * @nullable
+     */
+  brief?: string | null;
+  /**
+     * What to change about the draft it has: shorter, warmer
+     * @maxLength 500
+     * @nullable
+     */
+  change?: string | null;
+}
+
+export type SlackConversationMessagesItem = {
+  fromName: string;
+  fromOllie: boolean;
+  at: string;
   text: string;
+};
+
+export interface SlackConversation {
+  /** False when Slack could not be read, so only the saved message is given */
+  fromSlack: boolean;
+  messages: SlackConversationMessagesItem[];
+}
+
+export interface LaterInput {
+  /**
+     * The day it comes back, after today; null brings it back now
+     * @nullable
+     */
+  until: string | null;
+}
+
+export interface MessageCounts {
+  /** Emails and Slack messages under Needs a reply on To answer */
+  needsReply: number;
+  /** Those that have waited over one working day */
+  overdue: number;
+  emailsOverdue: number;
+  slackOverdue: number;
+}
+
+export interface MessagesDoneInput {
+  threadIds: string[];
+  slackIds: number[];
+}
+
+/**
+ * @nullable
+ */
+export type MessagesDoneEmailsItemPreviousStatus = typeof MessagesDoneEmailsItemPreviousStatus[keyof typeof MessagesDoneEmailsItemPreviousStatus] | null;
+
+
+export const MessagesDoneEmailsItemPreviousStatus = {
+  inbox: 'inbox',
+  now: 'now',
+  backlog: 'backlog',
+  waiting: 'waiting',
+} as const;
+
+export type MessagesDoneEmailsItem = {
+  threadId: string;
+  /** @nullable */
+  taskId: number | null;
+  /** @nullable */
+  previousStatus: MessagesDoneEmailsItemPreviousStatus;
+};
+
+/**
+ * @nullable
+ */
+export type MessagesDoneSlackItemPreviousStatus = typeof MessagesDoneSlackItemPreviousStatus[keyof typeof MessagesDoneSlackItemPreviousStatus] | null;
+
+
+export const MessagesDoneSlackItemPreviousStatus = {
+  inbox: 'inbox',
+  now: 'now',
+  backlog: 'backlog',
+  waiting: 'waiting',
+} as const;
+
+export type MessagesDoneSlackItem = {
+  id: number;
+  /** @nullable */
+  taskId: number | null;
+  /** @nullable */
+  previousStatus: MessagesDoneSlackItemPreviousStatus;
+};
+
+export interface MessagesDone {
+  emails: MessagesDoneEmailsItem[];
+  slack: MessagesDoneSlackItem[];
+}
+
+export interface SlackDraftText {
+  /** @maxLength 4000 */
+  text: string;
+}
+
+export type MuteInputMatchType = typeof MuteInputMatchType[keyof typeof MuteInputMatchType];
+
+
+export const MuteInputMatchType = {
+  from_address_equals: 'from_address_equals',
+  slack_channel_equals: 'slack_channel_equals',
+} as const;
+
+export interface MuteInput {
+  matchType: MuteInputMatchType;
+  /** @maxLength 200 */
+  matchValue: string;
+}
+
+export interface MuteResult {
+  rule: NoiseRule;
+  /** False when the rule was already on */
+  created: boolean;
 }
 
 export interface EmailInboxTask {
@@ -2537,6 +2879,33 @@ export interface ReplyDraftInput {
      * @maxLength 20000
      */
   body: string;
+}
+
+export interface TaskDuplicatePair {
+  id: number;
+  /**
+     * The duplicate check's line on what work they share
+     * @nullable
+     */
+  reason: string | null;
+  a: Task;
+  b: Task;
+}
+
+export interface TaskDuplicateList {
+  pairs: TaskDuplicatePair[];
+}
+
+export interface TaskDuplicateCheck {
+  /** Pairs with similar titles the duplicate check looked at */
+  checked: number;
+  /** New pairs it says are the same work */
+  found: number;
+}
+
+export interface TaskDuplicateMergeInput {
+  /** The id of the task to keep */
+  keep: number;
 }
 
 export interface TaskReorderInput {
@@ -2966,6 +3335,18 @@ export const ReviewItemState = {
   answered: 'answered',
 } as const;
 
+/**
+ * Where it came from: a meeting's notes, an email Ollie sent, or a Slack message he sent
+ */
+export type ReviewItemVia = typeof ReviewItemVia[keyof typeof ReviewItemVia];
+
+
+export const ReviewItemVia = {
+  meeting: 'meeting',
+  email: 'email',
+  slack: 'slack',
+} as const;
+
 export type ReviewItemSuggestedType = typeof ReviewItemSuggestedType[keyof typeof ReviewItemSuggestedType];
 
 
@@ -2981,6 +3362,8 @@ export interface ReviewItem {
   kind: ReviewItemKind;
   /** answered means someone wrote back before Ollie decided */
   state: ReviewItemState;
+  /** Where it came from: a meeting's notes, an email Ollie sent, or a Slack message he sent */
+  via: ReviewItemVia;
   /** The action, or for an unanswered email the ask: who owes what */
   text: string;
   /**
@@ -5511,6 +5894,8 @@ export interface SessionListItem {
   summary: string;
   /** What was done */
   outcomes: string[];
+  /** Section 27: questions the session left open, kept here instead of the Inbox */
+  openQuestions: string[];
   happenedAt: string;
   /** Older than 90 days with nothing from it still open; left out of briefs */
   archived: boolean;
@@ -5585,6 +5970,24 @@ export type SessionDetail = SessionListItem & ({
 export interface SessionUpdate {
   /** @nullable */
   confidential?: boolean | null;
+}
+
+/**
+ * task: put it in the Inbox; dismiss: take it off the list
+ */
+export type SessionQuestionInputAction = typeof SessionQuestionInputAction[keyof typeof SessionQuestionInputAction];
+
+
+export const SessionQuestionInputAction = {
+  task: 'task',
+  dismiss: 'dismiss',
+} as const;
+
+export interface SessionQuestionInput {
+  /** The open question */
+  question: string;
+  /** task: put it in the Inbox; dismiss: take it off the list */
+  action: SessionQuestionInputAction;
 }
 
 export interface DocumentUpdate {
@@ -6058,6 +6461,10 @@ weekStart?: string;
  * With weekStart on open tabs, also include tasks with no due date.
  */
 includeUndated?: boolean;
+/**
+ * Section 27: "overdue", or one day (YYYY-MM-DD), to list only tasks due then.
+ */
+due?: string;
 q?: string;
 };
 
@@ -6105,6 +6512,10 @@ export type RunPlaybook201 = {
 
 export type CheckReplyDraft200 = {
   issues: DraftIssue[];
+};
+
+export type RefreshSlackToAnswer200 = {
+  closed: number;
 };
 
 export type ListProjectsParams = {

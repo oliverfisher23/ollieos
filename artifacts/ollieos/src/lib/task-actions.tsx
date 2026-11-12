@@ -17,7 +17,8 @@ import {
 } from '@workspace/api-client-react';
 import { STATUS_LABELS, formatShort, nextRepeatDate, todayLondon, type RepeatRule } from '@workspace/shared';
 import { useInvalidateTasks } from '@/lib/task-cache';
-import { errorMessage, notify, notifyAction, notifyUndo } from '@/lib/notify';
+import { errorMessage, notify, notifyAction, notifyDropped, notifyUndo } from '@/lib/notify';
+import { DropReasonChips, madeByReader } from '@/components/drop-reason';
 import { reportApiError } from '@/lib/forbidden';
 
 const TRIAGE_LABEL: Record<TriageInput['action'], string> = {
@@ -58,6 +59,15 @@ export function useTaskActions() {
   const offerUndo = useCallback(
     (title: string, task: Pick<Task, 'id' | 'title'>) => notifyUndo(title, task.title, () => void undo(task)),
     [undo],
+  );
+
+  /** Section 27: Undo for a dropped or Noise item a reader made, with one-tap reasons the Reader coach learns from. */
+  const offerDropped = useCallback(
+    (title: string, task: Task) => {
+      if (!madeByReader(task)) return offerUndo(title, task);
+      notifyDropped(title, task.title, <DropReasonChips task={{ id: task.id, dropReason: null }} />, () => void undo(task));
+    },
+    [undo, offerUndo],
   );
 
   return useMemo(
@@ -110,7 +120,8 @@ export function useTaskActions() {
               'button-toast-keep-repeating',
             );
           } else if (opts.toast !== false) {
-            offerUndo(status === 'archived' ? 'Archived' : status === 'dropped' ? 'Dropped' : `Moved to ${STATUS_LABELS[status]}`, task);
+            if (status === 'dropped' || status === 'noise') offerDropped(status === 'dropped' ? 'Dropped' : 'Moved to Noise', task);
+            else offerUndo(status === 'archived' ? 'Archived' : `Moved to ${STATUS_LABELS[status]}`, task);
           }
           return t;
         } catch (err) {
@@ -149,7 +160,10 @@ export function useTaskActions() {
           const res = await triageTask(task.id, input);
           invalidate(task.id);
           if (opts.toast !== false) {
-            offerUndo(input.noiseRule && res.noiseRule ? `Moved to Noise. Ignoring ${lowerFirst(res.noiseRule.label)}` : TRIAGE_LABEL[input.action], task);
+            const title = input.noiseRule && res.noiseRule ? `Moved to Noise. Ignoring ${lowerFirst(res.noiseRule.label)}` : TRIAGE_LABEL[input.action];
+            // A noise rule already says why.
+            if ((input.action === 'dropped' || input.action === 'noise') && !res.noiseRule) offerDropped(title, task);
+            else offerUndo(title, task);
           }
           return res;
         } catch (err) {
@@ -231,7 +245,7 @@ export function useTaskActions() {
         }
       },
     }),
-    [undo, offerUndo, invalidate, fail],
+    [undo, offerUndo, offerDropped, invalidate, fail],
   );
 }
 

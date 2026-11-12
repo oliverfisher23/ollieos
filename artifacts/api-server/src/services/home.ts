@@ -18,6 +18,7 @@ import { briefableIds, notPreppedIds } from "./briefs";
 import { todaysDigestDate } from "./digest";
 import { ensureSelfPerson, inboxCounts } from "./knowledgeInbox";
 import { ensureSeeds } from "./seeds";
+import { emailRepliesOverdue } from "./messages";
 import { slackRepliesOverdue } from "./slackToAnswer";
 import { connectorWarnings } from "./connectorHealth";
 import { dueIdeas } from "./strategy";
@@ -99,7 +100,7 @@ export async function getHome() {
     await readyForTaskViews;
     return toTaskViews(rows);
   };
-  const [candidates, inboxBySource, waiting, promises, doneCount, latestDone, lastSweep, calendar, digestDate, access, knowledgeInbox, ideasDue, slackToAnswer, warnings] =
+  const [candidates, inboxBySource, waiting, promises, doneCount, latestDone, lastSweep, calendar, digestDate, access, knowledgeInbox, ideasDue, slackToAnswer, emailToAnswer, warnings] =
     await Promise.all([
       db
         .select()
@@ -155,6 +156,7 @@ export async function getHome() {
       soft("knowledge inbox", inboxCounts({ tidyEveryMs: 60_000 }), { suggested: 0, conflicts: 0, stale: 0, outOfDate: 0, total: 0 }),
       soft("ideas", dueIdeas(today), []),
       soft("slack", slackRepliesOverdue(now), 0),
+      soft("email", emailRepliesOverdue(now), 0),
       soft("connector warnings", connectorWarnings(now), []),
       readyForTaskViews,
     ]);
@@ -193,6 +195,7 @@ export async function getHome() {
     digestDate,
     ideasDue,
     slackToAnswer,
+    emailToAnswer,
     connectorWarnings: warnings.map((w) => ({ key: w.key, text: w.text })),
   };
 }
