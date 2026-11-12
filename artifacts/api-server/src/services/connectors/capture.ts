@@ -81,6 +81,8 @@ export interface LoadedPeople {
   byEmail: Map<string, PersonRow>;
   byName: Map<string, PersonRow>;
   bySlack: Map<string, PersonRow>;
+  /** Everyone whose first name is a one-word name the sorter gave ("Kevin"), lower case first name to rows */
+  byFirstName: Map<string, PersonRow[]>;
 }
 
 /** The person for someone in an exchange: by Slack account first, then any of their emails. */
@@ -105,7 +107,19 @@ export async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promi
       if (m.fromSlackId) slackIds.add(m.fromSlackId);
     }
   }
-  for (const s of sorted) for (const it of s.items) if (it.person) (it.person.includes("@") ? emails : names).add(it.person.toLowerCase().trim());
+  const firstNames = new Set<string>();
+  for (const s of sorted)
+    for (const it of s.items) {
+      if (!it.person) continue;
+      if (it.person.includes("@")) {
+        emails.add(it.person.toLowerCase().trim());
+        continue;
+      }
+      const hint = cleanHint(it.person);
+      names.add(it.person.toLowerCase().trim());
+      if (hint) names.add(hint);
+      if (hint && !hint.includes(" ")) firstNames.add(hint);
+    }
   const cols = {
     id: peopleTable.id,
     name: peopleTable.name,
@@ -117,9 +131,10 @@ export async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promi
     isSelf: peopleTable.isSelf,
   };
   const none: PersonRow[] = [];
-  const [a, b] = await Promise.all([
+  const [a, b, c] = await Promise.all([
     emails.size || slackIds.size ? db.select(cols).from(peopleTable).where(or(hasAnyEmail([...emails]), hasAnySlackId([...slackIds]))) : none,
     names.size ? db.select(cols).from(peopleTable).where(inArray(sql`lower(${peopleTable.name})`, [...names])) : none,
+    firstNames.size ? db.select(cols).from(peopleTable).where(inArray(sql`lower(split_part(trim(${peopleTable.name}), ' ', 1))`, [...firstNames])) : none,
   ]);
   const byEmail = new Map<string, PersonRow>();
   const bySlack = new Map<string, PersonRow>();
@@ -127,7 +142,78 @@ export async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promi
     for (const e of emailsOf(p)) if (!byEmail.has(e)) byEmail.set(e, p);
     if (p.slackUserId) bySlack.set(p.slackUserId, p);
   }
-  return { byEmail, bySlack, byName: new Map(b.map((p) => [p.name.toLowerCase(), p])) };
+  const byFirstName = new Map<string, PersonRow[]>();
+  for (const p of c) {
+    const f = firstNameOf(p.name);
+    byFirstName.set(f, [...(byFirstName.get(f) ?? []), p]);
+  }
+  return { byEmail, bySlack, byName: new Map(b.map((p) => [p.name.toLowerCase(), p])), byFirstName };
+}
+
+/** The sorter's name without notes in brackets, lower case: "Paul (RAF)" is "paul". */
+export function cleanHint(hint: string): string {
+  return hint.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+const firstNameOf = (name: string): string => name.trim().toLowerCase().split(/\s+/)[0] ?? "";
+
+/** The known people in an exchange, Ollie left out, each once. */
+function exchangePeople(u: WorkUnit, people: LoadedPeople): PersonRow[] {
+  const out = new Map<number, PersonRow>();
+  for (const p of u.people) {
+    const row = personIn(people, p) ?? (p.name ? people.byName.get(p.name.toLowerCase()) : undefined);
+    if (row && !row.isSelf) out.set(row.id, row);
+  }
+  for (const m of u.messages) {
+    const row = m.fromMe ? null : senderOf(people, m);
+    if (row && !row.isSelf) out.set(row.id, row);
+  }
+  return [...out.values()];
+}
+
+/** The one other person in a one-to-one exchange (a Slack DM, or a meeting or thread with one other person), if they are in People. */
+function onlyOtherPerson(u: WorkUnit, people: LoadedPeople): PersonRow | null {
+  const others = u.people.filter((p) => {
+    const row = personIn(people, p) ?? (p.name ? people.byName.get(p.name.toLowerCase()) : undefined);
+    return !row?.isSelf;
+  });
+  if (others.length !== 1) return null;
+  const p = others[0];
+  const row = personIn(people, p) ?? (p.name ? people.byName.get(p.name.toLowerCase()) : undefined) ?? null;
+  return row && !row.isSelf ? row : null;
+}
+
+/**
+ * Who a captured item is with: the asker, the person promised to, or the person Ollie waits on. Never Ollie.
+ * The sorter's name comes first: an email or full name, then a one-word name ("Kevin", "Paul (RAF)") that
+ * fits one person in the exchange, then one that fits only one person in People. A name that fits nobody
+ * links nobody, rather than someone else. With no name, a task is with whoever sent the message, and a
+ * waiting item waits on the sender when someone else wrote it, or on the other person in a one-to-one
+ * exchange when Ollie did.
+ */
+export function itemPerson(people: LoadedPeople, u: WorkUnit, it: { type: string; person: string }, msg: WorkMessage): PersonRow | null {
+  const sender = msg.fromMe ? null : senderOf(people, msg);
+  const notSelf = (p: PersonRow | null | undefined): PersonRow | null => (p && !p.isSelf ? p : null);
+  const named = (): PersonRow | null => {
+    const raw = it.person.toLowerCase().trim();
+    if (raw.includes("@")) return notSelf(people.byEmail.get(raw));
+    const hint = cleanHint(raw);
+    const exact = notSelf(people.byName.get(raw) ?? people.byName.get(hint));
+    if (exact || !hint || hint.includes(" ")) return exact;
+    const here = exchangePeople(u, people).filter((p) => firstNameOf(p.name) === hint);
+    if (here.length === 1) return here[0];
+    if (here.length > 1) return null;
+    const anywhere = (people.byFirstName.get(hint) ?? []).filter((p) => !p.isSelf);
+    return anywhere.length === 1 ? anywhere[0] : null;
+  };
+  if (it.person.trim()) {
+    const p = named();
+    if (p) return p;
+    return it.type === "task" ? notSelf(sender) : null;
+  }
+  if (it.type === "task") return notSelf(sender);
+  if (it.type === "waiting") return notSelf(sender) ?? onlyOtherPerson(u, people);
+  return null;
 }
 
 /** Active projects the AI may link items to. Confidential projects are never sent to it. */
@@ -395,11 +481,6 @@ export async function captureSorted(
   const projects = new Map(opts.choices.map((p) => [p.name.toLowerCase(), p.id]));
   const people = await loadPeople(keep, sorted);
   const taskIds: number[][] = keep.map(() => []);
-  const personFor = (hint: string): PersonRow | null => {
-    const h = hint.toLowerCase().trim();
-    if (!h) return null;
-    return (h.includes("@") ? people.byEmail.get(h) : people.byName.get(h)) ?? null;
-  };
   const projectFor = (name: string): number | null => projects.get(name.toLowerCase().trim()) ?? null;
 
   for (const [i, u] of keep.entries()) {
@@ -419,8 +500,7 @@ export async function captureSorted(
       const n = (perMessage.get(msg.ref) ?? 0) + 1;
       perMessage.set(msg.ref, n);
       const sourceRef = n === 1 ? msg.ref : `${msg.ref}#${n}`;
-      const sender = msg.fromMe ? null : senderOf(people, msg);
-      const person = personFor(it.person) ?? (it.type === "task" ? sender : null);
+      const person = itemPerson(people, u, it, msg);
       const projectId = projectFor(it.project) ?? unitProject;
       if (projectId) linkedProjects.add(projectId);
       const r = await captureTask(

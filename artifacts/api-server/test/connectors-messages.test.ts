@@ -256,6 +256,63 @@ describe("capturing from Gmail and Slack", () => {
     expect(saved.value).toEqual({ after: at.toISOString() });
   });
 
+  it("finds who a waiting item is on from a first name, the DM, or the sender, and never guesses between two", async () => {
+    const add = async (name: string, slackUserId: string | null = null, isSelf = false) =>
+      (await db.insert(peopleTable).values({ name, slug: name.toLowerCase().replace(/\W+/g, "-"), slackUserId, isSelf }).returning())[0];
+    await add("Ollie Fisher", "U_ME", true);
+    const vol = await add("Volodymyr Petrenko", "U_VOL");
+    const andy = await add("Andy Hall", "U_ANDY");
+    const kevin = await add("Kevin Brown");
+    await add("Paul Jones");
+    await add("Paul Smith");
+    const dm = (id: string, who: { name: string; slackId: string }, ts: string, fromMe: boolean, text: string): WorkUnit => ({
+      source: "slack",
+      key: `slack:${id}:${ts}`,
+      subject: null,
+      channel: who.name,
+      people: [{ name: who.name, email: null, slackId: who.slackId }],
+      messages: [{ ref: `slack:${id}:${ts}`, at, fromMe, fromName: fromMe ? null : who.name, fromAddress: null, fromSlackId: fromMe ? "U_ME" : who.slackId, text, url: `https://x.slack.com/archives/${id}/p${ts}` }],
+      conversation: { id, kind: "im" },
+    });
+    const V = { name: "Volodymyr Petrenko", slackId: "U_VOL" };
+    const A = { name: "Andy Hall", slackId: "U_ANDY" };
+    const units = [
+      dm("D1", V, "1.1", true, "Shall we set it up in Route53?"),
+      dm("D1", V, "1.2", true, "Can you send the invoice too?"),
+      dm("D2", A, "2.1", true, "He is going to get back to me"),
+      dm("D2", A, "2.2", true, "Waiting to hear from Kevin"),
+      dm("D2", A, "2.3", false, "I'll send the list on Friday"),
+      dm("D2", A, "2.4", true, "I'll ask myself"),
+    ];
+    nextSlack = { account: "ollie at Example", found: units.length, leftOut: 0, checked: 1, state: { since: at.toISOString(), convs: {} }, units };
+    const wait = (ref: string, title: string, person: string) => ({ summary: "", project: "", items: [item({ ref, type: "waiting", title, person })] });
+    nextSorted = [
+      wait("slack:D1:1.1", "Volodymyr to set up springpod.io in Route53", ""),
+      wait("slack:D1:1.2", "Volodymyr to send the invoice", "Volodymyr"),
+      wait("slack:D2:2.1", "Paul (RAF) to reply about ADS event", "Paul (RAF)"),
+      wait("slack:D2:2.2", "Kevin to confirm Strada panel participation", "Kevin"),
+      wait("slack:D2:2.3", "Andy to send the list", ""),
+      wait("slack:D2:2.4", "Ask about the venue", "Ollie"),
+    ];
+    const check = await api("connectors/slack/check", { method: "POST" });
+    expect(check.body.counts).toMatchObject({ waiting: 6 });
+    const tasks = await db.select().from(tasksTable).orderBy(tasksTable.id);
+    expect(tasks.map((t) => [t.title, t.waitingOnPersonId, t.personId])).toEqual([
+      // Ollie's message in a DM with no name given: the other person in the DM.
+      ["Volodymyr to set up springpod.io in Route53", vol.id, null],
+      // A first name that fits the person in the exchange.
+      ["Volodymyr to send the invoice", vol.id, null],
+      // Two Pauls in People and neither in the DM: nobody, and never Andy.
+      ["Paul (RAF) to reply about ADS event", null, null],
+      // The only Kevin in People, though not in the DM.
+      ["Kevin to confirm Strada panel participation", kevin.id, null],
+      // Andy wrote it: waiting on the sender.
+      ["Andy to send the list", andy.id, null],
+      // Never Ollie himself.
+      ["Ask about the venue", null, null],
+    ]);
+  });
+
   it("saves Slack's place and refuses Claude's Slack items", async () => {
     const state = { since: at.toISOString(), convs: { D1: { ts: "1731229200.000100", checked: at.getTime() } } };
     nextSlack = {
