@@ -159,6 +159,7 @@ import type {
   LogoutSuccess,
   LookBack,
   LookBackInput,
+  MeetingPersonalInput,
   MeetingView,
   MeetingsList,
   MergeOption,
@@ -11501,6 +11502,95 @@ export const useClearAgendaChat = <TError = ErrorType<NotAuthorisedResponse | Er
         TContext
       > => {
       return useMutation(getClearAgendaChatMutationOptions(options), queryClient);
+    }
+
+export const getSetMeetingPersonalUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/meetings/${eventId}/personal`
+}
+
+/**
+ * @summary Ollie says an event is personal or not; stands through calendar checks and carries to its series
+ */
+export const setMeetingPersonal = async (eventId: number,
+    meetingPersonalInput: MeetingPersonalInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getSetMeetingPersonalUrl(eventId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(meetingPersonalInput)
+  }
+);}
+
+
+
+
+
+export const getSetMeetingPersonalMutationKey = () => ['setMeetingPersonal'] as const;
+
+export const getSetMeetingPersonalMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMeetingPersonal>>, TError,SetMeetingPersonalMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setMeetingPersonal>>, TError,SetMeetingPersonalMutationVariables, TContext> => {
+
+const mutationKey = getSetMeetingPersonalMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setMeetingPersonal>>, SetMeetingPersonalMutationVariables> = (props) => {
+          const {eventId,data} = props ?? {};
+
+          return  setMeetingPersonal(eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetMeetingPersonalMutationResult = NonNullable<Awaited<ReturnType<typeof setMeetingPersonal>>>
+    export type SetMeetingPersonalMutationBody = BodyType<MeetingPersonalInput>
+    export type SetMeetingPersonalMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type SetMeetingPersonalMutationVariables = {eventId: number;data: BodyType<MeetingPersonalInput>}
+
+    /**
+ * @summary Ollie says an event is personal or not; stands through calendar checks and carries to its series
+ */
+export const useSetMeetingPersonal = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMeetingPersonal>>, TError,SetMeetingPersonalMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setMeetingPersonal>>,
+        TError,
+        SetMeetingPersonalMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetMeetingPersonalMutationOptions(options), queryClient);
     }
 
 export const getLinkGranolaNoteUrl = (eventId: number,) => {

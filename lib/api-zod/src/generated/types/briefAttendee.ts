@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { BriefAttendeePerson } from './briefAttendeePerson';
+import type { OrgSuggestion } from './orgSuggestion';
 
 export interface BriefAttendee {
   name: string;
@@ -19,4 +20,6 @@ export interface BriefAttendee {
   organiser: boolean;
   /** The matching person, or null for no previous contact */
   person: BriefAttendeePerson | null;
+  /** Not in Contacts yet, the organisation they probably belong to from their email domain; null for personal addresses */
+  suggestedOrganisation: OrgSuggestion | null;
 }
