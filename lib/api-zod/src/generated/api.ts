@@ -3367,6 +3367,11 @@ export const GetTimeReportResponse = zod.object({
   "label": zod.string(),
   "hours": zod.number()
 })),
+  "byWork": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "hours": zod.number()
+})).describe('Client work, Internal, and meetings with no sorted project'),
   "internalHours": zod.number(),
   "externalHours": zod.number(),
   "plannedTaskHours": zod.number()
@@ -4099,6 +4104,7 @@ export const ListProjectsResponseItem = zod.object({
   "function": zod.union([zod.enum(['delivery', 'product', 'sales', 'marketing']).describe('A part of the business'),zod.null()]),
   "isFunction": zod.boolean().describe('The record that holds a function\'s own documents and knowledge'),
   "clients": zod.array(zod.string()).describe('Names of linked organisations typed customer'),
+  "workType": zod.union([zod.enum(['client', 'internal']),zod.null()]).describe('Client work or internal, as set, or client work when a client is linked; null when not sorted yet'),
   "openTaskCount": zod.int(),
   "updatedAt": zod.coerce.date()
 })
@@ -4136,6 +4142,7 @@ export const CreateProjectResponse = zod.object({
   "archived": zod.boolean(),
   "goalId": zod.int().nullable(),
   "lifecycle": zod.enum(['active', 'paused', 'complete']),
+  "workType": zod.union([zod.enum(['client', 'internal']),zod.null()]).describe('Client work or internal as Ollie set or approved it; null leaves it to whether a client is linked'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4148,6 +4155,7 @@ export const SuggestProjectFunctionsResponse = zod.object({
   "checked": zod.int().describe('Projects missing a function or a client that AI may read'),
   "functions": zod.int().describe('New function cards sent to the Knowledge Inbox'),
   "clients": zod.int().describe('New client cards sent to the Knowledge Inbox'),
+  "workTypes": zod.int().describe('New "client work" or "internal" cards sent to the Knowledge Inbox'),
   "unclear": zod.int().describe('Projects the documents did not settle')
 })
 
@@ -4174,6 +4182,7 @@ export const GetProjectResponse = zod.object({
   "archived": zod.boolean(),
   "goalId": zod.int().nullable(),
   "lifecycle": zod.enum(['active', 'paused', 'complete']),
+  "workType": zod.union([zod.enum(['client', 'internal']),zod.null()]).describe('Client work or internal as Ollie set or approved it; null leaves it to whether a client is linked'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }),
@@ -4491,7 +4500,8 @@ export const UpdateProjectBody = zod.object({
   "aiAccess": zod.boolean().optional(),
   "archived": zod.boolean().optional(),
   "goalId": zod.int().nullish(),
-  "lifecycle": zod.enum(['active', 'paused', 'complete']).optional()
+  "lifecycle": zod.enum(['active', 'paused', 'complete']).optional(),
+  "workType": zod.union([zod.enum(['client', 'internal']),zod.null()]).optional()
 })
 
 export const UpdateProjectResponse = zod.object({
@@ -4508,6 +4518,7 @@ export const UpdateProjectResponse = zod.object({
   "archived": zod.boolean(),
   "goalId": zod.int().nullable(),
   "lifecycle": zod.enum(['active', 'paused', 'complete']),
+  "workType": zod.union([zod.enum(['client', 'internal']),zod.null()]).describe('Client work or internal as Ollie set or approved it; null leaves it to whether a client is linked'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })

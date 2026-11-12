@@ -4,11 +4,11 @@ import { presortCounts } from "./presort";
 import { db, decisionsTable, factReviewsTable, factsTable, peopleTable, rulesTable, suggestionsTable, usersTable, type Fact, type FactReview, type PresortHint, type StaleEvidence, type Suggestion } from "@workspace/db";
 import { decidersFor, weigh, whenSaid } from "./contradictions";
 import { hasEmail } from "./personMatch";
-import { BUSINESS_FUNCTION_LABELS, CADENCE_LABELS, PRODUCT_STATE_LABELS, PRODUCT_USER_LABELS, RELATIONSHIP_LABELS, formatDayMonth, isBusinessFunction, isProductUser } from "@workspace/shared";
+import { BUSINESS_FUNCTION_LABELS, CADENCE_LABELS, PRODUCT_STATE_LABELS, PRODUCT_USER_LABELS, RELATIONSHIP_LABELS, WORK_TYPE_LABELS, formatDayMonth, isBusinessFunction, isProductUser, isWorkType } from "@workspace/shared";
 
 /** A change card shows a list value (a product's primary user) by its label. */
 const shown = (key: string, v: string | null): string | null =>
-  key === "primary_user" && isProductUser(v) ? PRODUCT_USER_LABELS[v] : key === "function" && isBusinessFunction(v) ? BUSINESS_FUNCTION_LABELS[v] : v;
+  key === "primary_user" && isProductUser(v) ? PRODUCT_USER_LABELS[v] : key === "function" && isBusinessFunction(v) ? BUSINESS_FUNCTION_LABELS[v] : key === "work_type" && isWorkType(v) ? WORK_TYPE_LABELS[v] : v;
 import { writeAudit } from "../lib/audit";
 import { resolveEntities, uniqueSlug } from "./knowledge/common";
 import { reviewCounts, tidyReviews } from "./factReviews";

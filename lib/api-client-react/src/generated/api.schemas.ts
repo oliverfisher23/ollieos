@@ -1744,6 +1744,8 @@ export interface TimeWeek {
   meetingHours: number;
   byGoal: TimeSlice[];
   byFunction: TimeSlice[];
+  /** Client work, Internal, and meetings with no sorted project */
+  byWork: TimeSlice[];
   internalHours: number;
   externalHours: number;
   plannedTaskHours: number;
@@ -2575,6 +2577,8 @@ export interface SuggestProjectFunctionsResult {
   functions: number;
   /** New client cards sent to the Knowledge Inbox */
   clients: number;
+  /** New "client work" or "internal" cards sent to the Knowledge Inbox */
+  workTypes: number;
   /** Projects the documents did not settle */
   unclear: number;
 }
@@ -2599,6 +2603,14 @@ export interface FunctionProject {
   openTaskCount: number;
 }
 
+export type WorkType = typeof WorkType[keyof typeof WorkType];
+
+
+export const WorkType = {
+  client: 'client',
+  internal: 'internal',
+} as const;
+
 export interface ProjectListItem {
   id: number;
   name: string;
@@ -2614,6 +2626,8 @@ export interface ProjectListItem {
   isFunction: boolean;
   /** Names of linked organisations typed customer */
   clients: string[];
+  /** Client work or internal, as set, or client work when a client is linked; null when not sorted yet */
+  workType: WorkType | null;
   openTaskCount: number;
   updatedAt: string;
 }
@@ -2637,6 +2651,8 @@ export interface Project {
   /** @nullable */
   goalId: number | null;
   lifecycle: ProjectLifecycle;
+  /** Client work or internal as Ollie set or approved it; null leaves it to whether a client is linked */
+  workType: WorkType | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -2677,6 +2693,7 @@ export interface ProjectUpdate {
   /** @nullable */
   goalId?: number | null;
   lifecycle?: ProjectLifecycle;
+  workType?: WorkType | null;
 }
 
 export interface LinkedEntity {

@@ -11,7 +11,7 @@ import {
   uniqueIndex,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { activityKindEnum, businessFunctionEnum, cadenceEnum, entityTypeEnum, factAttributeEnum, productStateEnum, productUserEnum, projectLifecycleEnum, relationshipEnum, tsvector } from "./enums";
+import { activityKindEnum, businessFunctionEnum, cadenceEnum, entityTypeEnum, factAttributeEnum, productStateEnum, productUserEnum, projectLifecycleEnum, projectWorkTypeEnum, relationshipEnum, tsvector } from "./enums";
 import { goalsTable } from "./goals";
 
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -64,6 +64,11 @@ export const projectsTable = pgTable(
     function: businessFunctionEnum("function"),
     /** True for the one record per function that holds that function's own documents and knowledge */
     isFunction: boolean("is_function").notNull().default(false),
+    /**
+     * Client work or internal, as Ollie set it or approved it. When null, a project linked to a client
+     * organisation counts as client work, and anything else is not sorted yet.
+     */
+    workType: projectWorkTypeEnum("work_type"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     search: tsvector("search").generatedAlwaysAs(

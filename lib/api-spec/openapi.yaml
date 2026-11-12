@@ -6445,12 +6445,13 @@ components:
         hours: { type: number }
     TimeWeek:
       type: object
-      required: [weekStart, meetingHours, byGoal, byFunction, internalHours, externalHours, plannedTaskHours]
+      required: [weekStart, meetingHours, byGoal, byFunction, byWork, internalHours, externalHours, plannedTaskHours]
       properties:
         weekStart: { type: string, format: date }
         meetingHours: { type: number }
         byGoal: { type: array, items: { $ref: "#/components/schemas/TimeSlice" } }
         byFunction: { type: array, items: { $ref: "#/components/schemas/TimeSlice" } }
+        byWork: { type: array, items: { $ref: "#/components/schemas/TimeSlice" }, description: "Client work, Internal, and meetings with no sorted project" }
         internalHours: { type: number }
         externalHours: { type: number }
         plannedTaskHours: { type: number }
@@ -7098,11 +7099,12 @@ components:
 
     SuggestProjectFunctionsResult:
       type: object
-      required: [checked, functions, clients, unclear]
+      required: [checked, functions, clients, workTypes, unclear]
       properties:
         checked: { type: integer, description: Projects missing a function or a client that AI may read }
         functions: { type: integer, description: New function cards sent to the Knowledge Inbox }
         clients: { type: integer, description: New client cards sent to the Knowledge Inbox }
+        workTypes: { type: integer, description: New "client work" or "internal" cards sent to the Knowledge Inbox }
         unclear: { type: integer, description: Projects the documents did not settle }
 
     FunctionProject:
@@ -7120,7 +7122,7 @@ components:
 
     ProjectListItem:
       type: object
-      required: [id, name, slug, confidential, aiAccess, area, status, function, isFunction, clients, openTaskCount, updatedAt]
+      required: [id, name, slug, confidential, aiAccess, area, status, function, isFunction, clients, workType, openTaskCount, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -7135,12 +7137,17 @@ components:
             - type: "null"
         isFunction: { type: boolean, description: The record that holds a function's own documents and knowledge }
         clients: { type: array, items: { type: string }, description: Names of linked organisations typed customer, client or partner }
+        workType:
+          oneOf:
+            - $ref: "#/components/schemas/WorkType"
+            - type: "null"
+          description: Client work or internal, as set, or client work when a client is linked; null when not sorted yet
         openTaskCount: { type: integer }
         updatedAt: { type: string, format: date-time }
 
     Project:
       type: object
-      required: [id, name, slug, area, status, summary, confidential, aiAccess, archived, goalId, lifecycle, function, isFunction, createdAt, updatedAt]
+      required: [id, name, slug, area, status, summary, confidential, aiAccess, archived, goalId, lifecycle, function, isFunction, workType, createdAt, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -7158,6 +7165,11 @@ components:
         archived: { type: boolean }
         goalId: { type: [integer, "null"] }
         lifecycle: { $ref: "#/components/schemas/ProjectLifecycle" }
+        workType:
+          oneOf:
+            - $ref: "#/components/schemas/WorkType"
+            - type: "null"
+          description: Client work or internal as Ollie set or approved it; null leaves it to whether a client is linked
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
@@ -7192,10 +7204,18 @@ components:
         archived: { type: boolean }
         goalId: { type: [integer, "null"] }
         lifecycle: { $ref: "#/components/schemas/ProjectLifecycle" }
+        workType:
+          oneOf:
+            - $ref: "#/components/schemas/WorkType"
+            - type: "null"
 
     ProjectLifecycle:
       type: string
       enum: [active, paused, complete]
+
+    WorkType:
+      type: string
+      enum: [client, internal]
 
     LinkedEntity:
       type: object

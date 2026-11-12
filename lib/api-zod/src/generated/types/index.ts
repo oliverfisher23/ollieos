@@ -556,6 +556,7 @@ export * from './waitingItem';
 export * from './weekCheck';
 export * from './weeklyUpdate';
 export * from './workingHours';
+export * from './workType';
 export * from './worthALook';
 export * from './worthALookLastFour';
 export * from './writingStyle';

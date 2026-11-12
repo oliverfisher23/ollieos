@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { BusinessFunction } from './businessFunction';
+import type { WorkType } from './workType';
 
 export interface ProjectListItem {
   id: number;
@@ -22,6 +23,8 @@ export interface ProjectListItem {
   isFunction: boolean;
   /** Names of linked organisations typed customer */
   clients: string[];
+  /** Client work or internal, as set, or client work when a client is linked; null when not sorted yet */
+  workType: WorkType | null;
   openTaskCount: number;
   updatedAt: Date;
 }

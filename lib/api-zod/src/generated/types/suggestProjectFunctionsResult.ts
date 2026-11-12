@@ -13,6 +13,8 @@ export interface SuggestProjectFunctionsResult {
   functions: number;
   /** New client cards sent to the Knowledge Inbox */
   clients: number;
+  /** New "client work" or "internal" cards sent to the Knowledge Inbox */
+  workTypes: number;
   /** Projects the documents did not settle */
   unclear: number;
 }
