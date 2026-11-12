@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { DelegateHint } from './delegateHint';
 import type { EntitySummary } from './entitySummary';
 import type { NoiseRuleSummary } from './noiseRuleSummary';
 import type { Priority } from './priority';
@@ -97,4 +98,6 @@ export interface Task {
      * @nullable
      */
   looksDone?: string | null;
+  /** Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog. */
+  delegateHint?: DelegateHint | null;
 }

@@ -38,6 +38,7 @@ import {
   ProjectPage,
   ReviewPage,
   RoundupPage,
+  FridayUpdatePage,
   SessionsPage,
   SettingsPage,
   StrategyPage,
@@ -112,6 +113,7 @@ function Router() {
           <Route path="/briefs/:eventId">{(p) => <BriefPage key={p.eventId} eventId={p.eventId} />}</Route>
           <Route path="/digest">{() => <DigestPage />}</Route>
           <Route path="/digest/week">{() => <RoundupPage />}</Route>
+          <Route path="/digest/friday">{() => <FridayUpdatePage />}</Route>
           <Route path="/digest/:date">{(p) => <DigestPage key={p.date} date={p.date} />}</Route>
           <Route path="/goals" component={GoalsPage} />
           <Route path="/strategy" component={StrategyPage} />

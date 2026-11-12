@@ -1098,6 +1098,71 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /lessons:
+    get:
+      operationId: listReaderLessons
+      tags: [agents]
+      summary: "Lessons for the readers, learned from Ollie's corrections (section 24)"
+      responses:
+        "200":
+          description: Lessons
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReaderLessonList" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /lessons/learn:
+    post:
+      operationId: learnReaderLessons
+      tags: [agents]
+      summary: Run the reader coach and card coach now
+      responses:
+        "200":
+          description: What each coach did
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LearnLessonsResult" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /lessons/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    patch:
+      operationId: setReaderLessonStatus
+      tags: [agents]
+      summary: Turn a lesson on or off, or say no to a proposed one
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReaderLessonStatusInput" }
+      responses:
+        "200":
+          description: The lesson
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReaderLesson" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /lessons/{id}/try:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: tryReaderLesson
+      tags: [agents]
+      summary: "Try a lesson against its reader's test cases, with and without it; nothing is recorded on the cases"
+      responses:
+        "200":
+          description: The lesson with its last try
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReaderLesson" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /agents:
     get:
       operationId: listAgents
@@ -1274,6 +1339,26 @@ paths:
             text/csv:
               schema: { type: string }
         "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /tasks/{id}/delegate-hint/dismiss:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: dismissTaskDelegateHint
+      tags: [tasks]
+      summary: "Not this one: drop the delegation suggester's colleague for this task (section 23)"
+      responses:
+        "200":
+          description: Dismissed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id: { type: integer }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
 
   /tasks/{id}/slack-dm:
     parameters:
@@ -3519,6 +3604,11 @@ paths:
           required: false
           description: look_back shows only suggestions from a Granola look back; documents only those from reading documents
           schema: { type: string, enum: [all, look_back, documents], default: all }
+        - name: hint
+          in: query
+          required: false
+          description: "Suggested only: cards with this pre-sort hint. none is looked at with no hint; unsorted is not looked at yet."
+          schema: { type: string, enum: [all, keep, reject, same, duplicate, none, unsorted], default: all }
       responses:
         "200":
           description: Items and counts
@@ -3567,6 +3657,121 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/BulkDecideResult" }
         "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /weekly-update:
+    get:
+      operationId: getFridayUpdate
+      tags: [knowledge]
+      summary: "The Friday update for a week (section 23): this week's unless a week is given"
+      parameters:
+        - name: week
+          in: query
+          required: false
+          description: The Friday the week ends on, YYYY-MM-DD
+          schema: { type: string }
+      responses:
+        "200":
+          description: The week and its update, if drafted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FridayUpdateWeek" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    patch:
+      operationId: saveFridayUpdateText
+      tags: [knowledge]
+      summary: Save Ollie's edits to the post; null goes back to the draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FridayUpdateTextInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FridayUpdate" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /weekly-update/draft:
+    post:
+      operationId: draftFridayUpdate
+      tags: [knowledge]
+      summary: Draft this week's Friday update (again), from what OllieOS saw this week
+      responses:
+        "200":
+          description: The draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FridayUpdate" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /weekly-update/redraft:
+    post:
+      operationId: redraftFridayUpdateSection
+      tags: [knowledge]
+      summary: Draft one section of this week's update again, keeping the others
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FridayUpdateRedraftInput" }
+      responses:
+        "200":
+          description: The draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FridayUpdate" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /suggestions/presort:
+    post:
+      operationId: presortSuggestions
+      tags: [knowledge]
+      summary: Pre-sort the next Knowledge Inbox cards now (section 23)
+      responses:
+        "200":
+          description: What the pre-sorter did
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PresortResult" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /fact-reviews/check-evidence:
+    post:
+      operationId: checkStaleEvidence
+      tags: [knowledge]
+      summary: Run the stale fact checker now on facts waiting on Needs a check (section 23)
+      responses:
+        "200":
+          description: What the checker found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StaleCheckResult" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /fact-reviews/confirm-found:
+    post:
+      operationId: confirmFoundStillTrue
+      tags: [knowledge]
+      summary: Mark every stale fact the checker found still true as confirmed today (section 23)
+      responses:
+        "200":
+          description: How many were confirmed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [confirmed]
+                properties:
+                  confirmed: { type: integer }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
   /suggestions/reject-source:
@@ -5049,6 +5254,20 @@ components:
         looksDone:
           type: [string, "null"]
           description: "Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null"
+        delegateHint:
+          description: "Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog."
+          oneOf:
+            - $ref: "#/components/schemas/DelegateHint"
+            - type: "null"
+
+    DelegateHint:
+      type: object
+      required: [personId, personName, why, message]
+      properties:
+        personId: { type: integer }
+        personName: { type: string }
+        why: { type: string }
+        message: { type: string }
 
     RepeatEvery:
       type: string
@@ -6554,14 +6773,15 @@ components:
       additionalProperties: false
       required: [action, ids]
       properties:
-        action: { type: string, enum: [approve, reject] }
+        action: { type: string, enum: [approve, reject, same], description: "same merges each card into the approved item its pre-sort hint names" }
         ids: { type: array, minItems: 1, maxItems: 500, items: { type: integer } }
     BulkDecideResult:
       type: object
-      required: [approved, rejected, skipped]
+      required: [approved, rejected, merged, skipped]
       properties:
         approved: { type: integer }
         rejected: { type: integer }
+        merged: { type: integer }
         skipped:
           type: array
           items:
@@ -7259,6 +7479,190 @@ components:
           type: array
           description: "Contradiction and out-of-date cards: the approved items the new card disagrees with"
           items: { $ref: "#/components/schemas/KnowledgeInboxContradicted" }
+        presort:
+          description: "Suggested cards: the pre-sorter's hint (section 23); null when it gave none or has not looked"
+          oneOf:
+            - $ref: "#/components/schemas/PresortHint"
+            - type: "null"
+        evidence:
+          description: "Stale facts: what the stale fact checker found (section 23); null until it has looked"
+          oneOf:
+            - $ref: "#/components/schemas/StaleEvidence"
+            - type: "null"
+
+    FridayUpdateTextInput:
+      type: object
+      additionalProperties: false
+      required: [weekEnding, editedText]
+      properties:
+        weekEnding: { type: string }
+        editedText: { type: [string, "null"], maxLength: 8000 }
+
+    FridayUpdateRedraftInput:
+      type: object
+      additionalProperties: false
+      required: [section]
+      properties:
+        section: { type: string, enum: [wins, blockers, ai, quarterly] }
+
+    FridayUpdateWeek:
+      type: object
+      required: [weekEnding, update]
+      properties:
+        weekEnding: { type: string }
+        update:
+          oneOf:
+            - $ref: "#/components/schemas/FridayUpdate"
+            - type: "null"
+
+    FridayUpdate:
+      type: object
+      required: [id, weekEnding, sections, text, editedText, basis, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        weekEnding: { type: string }
+        sections:
+          type: object
+          required: [wins, blockers, ai, quarterly]
+          properties:
+            wins: { type: array, items: { type: string } }
+            blockers: { type: array, items: { type: string } }
+            ai: { type: array, items: { type: string } }
+            quarterly: { type: array, items: { type: string } }
+        text: { type: string, description: The post as drafted, ready to paste into Slack }
+        editedText: { type: [string, "null"], description: "Ollie's edited post, when he has changed it" }
+        basis:
+          type: object
+          required: [done, decisions, meetings, waiting, overdue, goals, hidden]
+          properties:
+            done: { type: integer }
+            decisions: { type: integer }
+            meetings: { type: integer }
+            waiting: { type: integer }
+            overdue: { type: integer }
+            goals: { type: integer }
+            hidden: { type: integer, description: Items left out because they are hidden from AI }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ReaderLesson:
+      type: object
+      required: [id, reader, readerName, about, text, why, examples, evidence, learnedBy, learnedByName, status, createdAt, decidedAt, lastTry]
+      properties:
+        id: { type: integer }
+        reader: { type: string, enum: [gmail_sorter, slack_sorter, granola_reader] }
+        readerName: { type: string }
+        about: { type: string, enum: [tasks, knowledge] }
+        text: { type: string }
+        why: { type: string }
+        examples: { type: array, items: { type: string } }
+        evidence: { type: integer, description: How many corrections back it }
+        learnedBy: { type: string }
+        learnedByName: { type: string }
+        status: { type: string, enum: [proposed, on, off, rejected] }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, "null"], format: date-time }
+        lastTry:
+          oneOf:
+            - type: object
+              required: [at, passed, total, without]
+              properties:
+                at: { type: string }
+                passed: { type: integer }
+                total: { type: integer }
+                without: { type: [integer, "null"], description: Cases passed without the lesson; null when it was already on }
+            - type: "null"
+
+    ReaderLessonList:
+      type: object
+      required: [lessons, maxOn, lastRun]
+      properties:
+        lessons: { type: array, items: { $ref: "#/components/schemas/ReaderLesson" } }
+        maxOn: { type: integer }
+        lastRun:
+          type: object
+          required: [tasks, knowledge]
+          properties:
+            tasks: { type: [string, "null"], format: date-time }
+            knowledge: { type: [string, "null"], format: date-time }
+
+    ReaderLessonStatusInput:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [on, off, rejected] }
+
+    LearnLessonsResult:
+      type: object
+      required: [results, failed]
+      properties:
+        failed: { type: boolean }
+        results:
+          type: array
+          items:
+            type: object
+            required: [reader, corrections, proposed]
+            properties:
+              reader: { type: string }
+              corrections: { type: integer }
+              proposed: { type: integer }
+              skipped: { type: string }
+
+    PresortHint:
+      type: object
+      required: [verdict, why]
+      properties:
+        verdict: { type: string, enum: [keep, reject, same, duplicate] }
+        why: { type: string }
+        sameAs:
+          oneOf:
+            - type: object
+              required: [type, id, text]
+              properties:
+                type: { type: string, enum: [fact, decision, rule] }
+                id: { type: integer }
+                text: { type: string }
+            - type: "null"
+        duplicateOf: { type: [integer, "null"] }
+
+    PresortResult:
+      type: object
+      required: [looked, repeats, hinted, private, failed]
+      properties:
+        looked: { type: integer }
+        repeats: { type: integer }
+        hinted: { type: integer }
+        private: { type: integer, description: Cards about something hidden from AI, left without a hint }
+        failed: { type: boolean }
+
+    StaleEvidence:
+      type: object
+      required: [verdict, why, newText, sources]
+      properties:
+        verdict: { type: string, enum: [confirmed, changed, none] }
+        why: { type: string }
+        newText: { type: [string, "null"] }
+        sources:
+          type: array
+          items:
+            type: object
+            required: [ref, label, at]
+            properties:
+              ref: { type: string }
+              label: { type: string }
+              at: { type: string }
+
+    StaleCheckResult:
+      type: object
+      required: [looked, confirmed, changed, none, private, failed]
+      properties:
+        looked: { type: integer }
+        confirmed: { type: integer }
+        changed: { type: integer }
+        none: { type: integer }
+        private: { type: integer }
+        failed: { type: boolean }
 
     KnowledgeInboxSaidBy:
       type: object
@@ -7385,6 +7789,10 @@ components:
       properties:
         counts: { $ref: "#/components/schemas/KnowledgeInboxCounts" }
         items: { type: array, items: { $ref: "#/components/schemas/KnowledgeInboxItem" } }
+        presort:
+          type: object
+          description: "Suggested tab: cards waiting by pre-sort hint (keep, reject, same, duplicate, none, unsorted)"
+          additionalProperties: { type: integer }
 
     SuggestionApprove:
       type: object
@@ -9065,7 +9473,7 @@ components:
 
     Idea:
       type: object
-      required: [id, title, notes, status, comeBackOn, due, goal, project, takenTask, takenProject, confidential, aiAccess, hiddenFromAi, source, createdBy, createdAt, updatedAt]
+      required: [id, title, notes, status, comeBackOn, due, goal, project, takenTask, takenProject, confidential, aiAccess, hiddenFromAi, source, sourceLabel, sourceUrl, createdBy, createdAt, updatedAt]
       properties:
         id: { type: integer }
         title: { type: string }
@@ -9096,7 +9504,9 @@ components:
         confidential: { type: boolean }
         aiAccess: { type: boolean }
         hiddenFromAi: { type: boolean }
-        source: { type: string, enum: [ollie, claude, session] }
+        source: { type: string, enum: [ollie, claude, session, ollieos], description: "ollieos is the idea spotter (section 23)" }
+        sourceLabel: { type: [string, "null"], description: "Idea spotter: the meeting or Slack conversation it came up in" }
+        sourceUrl: { type: [string, "null"] }
         createdBy: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }

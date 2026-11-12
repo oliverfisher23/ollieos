@@ -12,6 +12,7 @@
  *   decision, suggestion, task or review item. Every note read is remembered, so a rerun over the
  *   same range reads nothing again.
  */
+import { lessonsFor } from "../readerLessons";
 import { and, eq, gte, inArray, like, ne, or, sql } from "drizzle-orm";
 import { appSettingsTable, db, decisionsTable, reviewItemsTable, suggestionsTable, tasksTable } from "@workspace/db";
 import { todayLondon } from "@workspace/shared";
@@ -346,7 +347,7 @@ async function readOne(id: string, s: Saved, ctx: Context, me: Set<string>): Pro
   const wantActions = s.actionsDays > 0 && note.at.getTime() >= new Date(s.actionsFrom).getTime();
   let sorted: SortedMeeting;
   try {
-    sorted = await sortMeeting(note, { me: `His email address is ${[...me][0]}.`, projects: ctx.choices.map((p) => p.name), now: note.at, agent: "granola_look_back" });
+    sorted = await sortMeeting(note, { me: `His email address is ${[...me][0]}.`, projects: ctx.choices.map((p) => p.name), now: note.at, agent: "granola_look_back", lessons: await lessonsFor("granola_reader") });
   } catch (err) {
     logger.warn({ err, note: id }, "Look back could not sort a meeting");
     s.counts.failed++;

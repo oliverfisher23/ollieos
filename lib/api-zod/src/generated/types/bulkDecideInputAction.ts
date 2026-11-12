@@ -6,10 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * same merges each card into the approved item its pre-sort hint names
+ */
 export type BulkDecideInputAction = typeof BulkDecideInputAction[keyof typeof BulkDecideInputAction];
 
 
 export const BulkDecideInputAction = {
   approve: 'approve',
   reject: 'reject',
+  same: 'same',
 } as const;
