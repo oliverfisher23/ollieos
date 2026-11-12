@@ -25,7 +25,7 @@ export function WaitingPicker({ bulk = false, busy, initial, hint, onConfirm, on
   const id = 'rv-waiting-' + testKey;
   const options = [
     ...(bulk ? [{ value: OWN, label: "Each one's own person" }] : []),
-    { value: NOBODY, label: hint ? `${hint} (not in People)` : 'Someone not in People' },
+    { value: NOBODY, label: hint ? `${hint} (not in Contacts)` : 'Someone not in Contacts' },
     ...personOptions(people.data),
   ];
   return (

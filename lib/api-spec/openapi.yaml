@@ -2181,6 +2181,81 @@ paths:
         "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /contacts/linkedin-import:
+    get:
+      operationId: getLinkedInImport
+      tags: [direction]
+      summary: When the LinkedIn connections were last imported, and what came of it
+      responses:
+        "200":
+          description: Last import
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LinkedInImportStatus" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: importLinkedIn
+      tags: [direction]
+      summary: Match LinkedIn's Connections.csv to people in OllieOS and propose missing or changed details to the Knowledge Inbox
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LinkedInImportInput" }
+      responses:
+        "200":
+          description: What the import found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LinkedInImportResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /people/cadence-suggestions:
+    get:
+      operationId: listCadenceSuggestions
+      tags: [direction]
+      summary: Suggested cadences for people with none, from how often Ollie has actually been in touch
+      responses:
+        "200":
+          description: Suggestions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CadenceSuggestions" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /people/cadence-suggestions/dismiss:
+    post:
+      operationId: dismissCadenceSuggestion
+      tags: [direction]
+      summary: Not now; stop suggesting a cadence for this person
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DismissCadenceSuggestionInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /people/cadence-suggestions/restore:
+    post:
+      operationId: restoreCadenceSuggestions
+      tags: [direction]
+      summary: Bring back everyone hidden from the suggestions with Not now
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkResult" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /people/duplicates:
     get:
       operationId: listPossibleDuplicates
@@ -2284,6 +2359,85 @@ paths:
               schema: { $ref: "#/components/schemas/MeetingsList" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /meetings/{eventId}:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: getMeeting
+      tags: [preparation]
+      summary: One work meeting, with or without a prep page, with Ollie's agenda and notes
+      responses:
+        "200":
+          description: Meeting
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeetingView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      operationId: updateMeetingNotes
+      tags: [preparation]
+      summary: Ollie's agenda and notes for a work meeting (the same notes the prep page shows)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BriefNotesInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BriefNotesInput" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /meetings/{eventId}/agenda:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: shapeAgenda
+      tags: [preparation]
+      summary: Shape the meeting's agenda from Ollie's thoughts, starting from the agenda he sends
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgendaInput" }
+      responses:
+        "200":
+          description: The agenda, saved as the meeting's notes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgendaResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /meetings/{eventId}/agenda/chat:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    delete:
+      operationId: clearAgendaChat
+      tags: [preparation]
+      summary: Start the agenda conversation again (the agenda itself stays)
+      responses:
+        "204": { description: Cleared }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /briefs/next:
     get:
       operationId: getNextBrief
@@ -2319,7 +2473,7 @@ paths:
     patch:
       operationId: updateBriefNotes
       tags: [preparation]
-      summary: Ollie's notes for after the meeting
+      summary: Ollie's notes for the meeting (kept on the meeting, the same as PATCH /meetings/{eventId})
       requestBody:
         required: true
         content:
@@ -5669,6 +5823,84 @@ components:
         upcoming: { type: array, items: { $ref: "#/components/schemas/MeetingRow" } }
         past: { type: array, items: { $ref: "#/components/schemas/MeetingRow" } }
 
+    MeetingView:
+      type: object
+      required: [id, title, startsAt, endsAt, platform, location, scope, companies, prep, attendees, notes, agendaChat, granola, granolaCheck]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        platform: { type: [string, "null"] }
+        location: { type: [string, "null"] }
+        scope: { $ref: "#/components/schemas/MeetingScope" }
+        companies: { type: array, items: { type: string } }
+        prep:
+          type: string
+          enum: [ready, not_much, failed, not_written, none]
+          description: Anything but none means the meeting has a prep page at /briefs/{id}
+        attendees:
+          type: array
+          items:
+            type: object
+            required: [name, email, person]
+            properties:
+              name: { type: string }
+              email: { type: [string, "null"] }
+              person:
+                type: [object, "null"]
+                description: Set when they are in People
+                required: [id, name, slug]
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  slug: { type: string }
+        notes: { type: [string, "null"], description: Ollie's agenda and notes }
+        agendaChat: { type: array, items: { $ref: "#/components/schemas/AgendaTurn" } }
+        granola:
+          type: [object, "null"]
+          description: The Granola note, once one is linked to the meeting
+          required: [url, notes, attachedAt, actions]
+          properties:
+            url: { type: [string, "null"] }
+            notes: { type: string }
+            attachedAt: { type: [string, "null"], format: date-time }
+            actions:
+              type: array
+              description: Inbox tasks made from the note's actions
+              items:
+                type: object
+                required: [id, title, status]
+                properties:
+                  id: { type: integer }
+                  title: { type: string }
+                  status: { type: string }
+        granolaCheck: { type: boolean, description: True when OllieOS reads Granola itself, so a check can fetch the note now }
+
+    AgendaTurn:
+      type: object
+      required: [role, text, at]
+      properties:
+        role: { type: string, enum: [ollie, ai] }
+        text: { type: string }
+        at: { type: string, format: date-time }
+
+    AgendaInput:
+      type: object
+      required: [message, agenda]
+      additionalProperties: false
+      properties:
+        message: { type: string, minLength: 1, maxLength: 4000, description: Ollie's thoughts }
+        agenda: { type: string, maxLength: 20000, description: The agenda as it stands in the box, edits included }
+
+    AgendaResult:
+      type: object
+      required: [agenda, previous, chat]
+      properties:
+        agenda: { type: string }
+        previous: { type: string, description: The agenda before this change, for Undo }
+        chat: { type: array, items: { $ref: "#/components/schemas/AgendaTurn" } }
+
     BriefNotesInput:
       type: object
       required: [notes]
@@ -7381,7 +7613,7 @@ components:
 
     PersonListItem:
       type: object
-      required: [id, name, slug, confidential, aiAccess, role, organisation, lastContactAt, iOweCount, theyOweCount]
+      required: [id, name, slug, confidential, aiAccess, role, organisation, organisationType, internal, isSelf, lastContactAt, iOweCount, theyOweCount, cadence]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -7393,13 +7625,17 @@ components:
           oneOf:
             - $ref: "#/components/schemas/EntitySummary"
             - type: "null"
+        organisationType: { type: [string, "null"], description: The organisation's type, such as client or partner }
+        internal: { type: boolean, description: They work at Ollie's own company }
+        isSelf: { type: boolean, description: Ollie's own record }
         lastContactAt: { type: [string, "null"], format: date-time }
         iOweCount: { type: integer }
         theyOweCount: { type: integer }
+        cadence: { $ref: "#/components/schemas/PersonCadence" }
 
     Person:
       type: object
-      required: [id, name, slug, role, email, relationshipSummary, confidential, aiAccess, lastContactAt, organisation, cadence, cadencePaused, isSelf, otherEmails, slackUserId, createdAt, updatedAt]
+      required: [id, name, slug, role, email, relationshipSummary, confidential, aiAccess, lastContactAt, organisation, cadence, cadencePaused, isSelf, otherEmails, slackUserId, linkedinUrl, createdAt, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -7419,6 +7655,7 @@ components:
         isSelf: { type: boolean, description: "Ollie's own record" }
         otherEmails: { type: array, items: { type: string }, description: "Other addresses they use, in lower case" }
         slackUserId: { type: [string, "null"], description: Their Slack account }
+        linkedinUrl: { type: [string, "null"], description: Their LinkedIn profile link }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
@@ -7448,6 +7685,7 @@ components:
         cadencePaused: { type: boolean }
         otherEmails: { type: array, maxItems: 20, items: { type: string, maxLength: 320 }, description: Replaces the list of other addresses }
         slackUserId: { type: [string, "null"], description: Their Slack account id, or null to unlink }
+        linkedinUrl: { type: [string, "null"], maxLength: 300, description: Their LinkedIn profile link, or null to clear it }
 
     PersonDetail:
       type: object
@@ -7464,7 +7702,7 @@ components:
 
     OrganisationListItem:
       type: object
-      required: [id, name, slug, confidential, aiAccess, type, internal, peopleCount]
+      required: [id, name, slug, confidential, aiAccess, type, internal, peopleCount, lastContactAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -7474,6 +7712,7 @@ components:
         type: { type: [string, "null"] }
         internal: { type: boolean, description: Ollie's own company rather than a client, partner or supplier }
         peopleCount: { type: integer }
+        lastContactAt: { type: [string, "null"], format: date-time, description: The latest contact with anyone who works there }
 
     Organisation:
       type: object
@@ -8100,6 +8339,77 @@ components:
         cadenceLabel: { type: string }
         cadencePaused: { type: boolean }
         pausedByProjects: { type: boolean, description: True when every linked project is paused or complete }
+
+    LinkedInImportInput:
+      type: object
+      required: [csv]
+      additionalProperties: false
+      properties:
+        csv: { type: string, description: The text of Connections.csv from LinkedIn's data export }
+
+    LinkedInImportResult:
+      type: object
+      required: [at, connections, matched, upToDate, changes, facts, alreadyProposed, ambiguous, hidden]
+      properties:
+        at: { type: string, format: date-time }
+        connections: { type: integer, description: Rows in the file }
+        matched: { type: integer, description: Connections matched to someone in OllieOS }
+        upToDate: { type: integer, description: Matched, with nothing new }
+        changes: { type: integer, description: Change cards made for missing or changed details }
+        facts: { type: integer, description: Organisation facts made for companies OllieOS does not know }
+        alreadyProposed: { type: integer, description: Already waiting in the Knowledge Inbox, or rejected lately }
+        ambiguous: { type: integer, description: Names that fit more than one person, left alone }
+        hidden: { type: integer, description: Matched people hidden from AI, left alone }
+
+    LinkedInImportStatus:
+      type: object
+      required: [last]
+      properties:
+        last:
+          oneOf:
+            - $ref: "#/components/schemas/LinkedInImportResult"
+            - type: "null"
+
+    CadenceSuggestionPerson:
+      type: object
+      required: [id, name, slug, confidential, role, organisation, internal]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        confidential: { type: boolean }
+        role: { type: [string, "null"] }
+        organisation:
+          oneOf:
+            - $ref: "#/components/schemas/EntitySummary"
+            - type: "null"
+        internal: { type: boolean }
+
+    CadenceSuggestion:
+      type: object
+      required: [person, cadence, cadenceLabel, reason, contactDays, typicalGapDays, lastContactAt]
+      properties:
+        person: { $ref: "#/components/schemas/CadenceSuggestionPerson" }
+        cadence: { $ref: "#/components/schemas/Cadence" }
+        cadenceLabel: { type: string }
+        reason: { type: string, description: One line on why this cadence }
+        contactDays: { type: integer, description: Distinct days in touch in the last four months }
+        typicalGapDays: { type: [integer, "null"], description: Typical gap in days between contacts }
+        lastContactAt: { type: [string, "null"], format: date-time }
+
+    CadenceSuggestions:
+      type: object
+      required: [suggestions, dismissed]
+      properties:
+        suggestions: { type: array, items: { $ref: "#/components/schemas/CadenceSuggestion" } }
+        dismissed: { type: integer, description: People hidden with Not now }
+
+    DismissCadenceSuggestionInput:
+      type: object
+      required: [personId]
+      additionalProperties: false
+      properties:
+        personId: { type: integer }
 
     CadenceProject:
       type: object

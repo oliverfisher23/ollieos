@@ -11,7 +11,7 @@ const PREP: Record<MeetingRow['prep'], { label: string; tone?: string }> = {
   not_much: { label: 'Brief written, little on file' },
   failed: { label: 'Brief failed, open to try again', tone: 'stale' },
   not_written: { label: 'Brief written when you open it', tone: 'inbox' },
-  none: { label: 'No prep: nobody you know is on it' },
+  none: { label: 'No brief: nobody here is in Contacts yet' },
 };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -49,7 +49,7 @@ export default function MeetingsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
           <h1 className="oo-h1">Meetings</h1>
           <p className="oo-muted" style={{ margin: 0, fontSize: 14, maxWidth: '64ch' }}>
-            Your work meetings for the next seven days and how ready each one is. Open one for its prep.
+            Your work meetings for the next seven days and how ready each one is. Open one for its prep or to add your agenda.
           </p>
         </div>
         <span className="oo-serif" style={{ fontSize: 22 }} data-testid="text-meetings-ahead">{q.data ? plural(ahead, 'meeting ahead', 'meetings ahead') : '…'}</span>
@@ -93,7 +93,7 @@ export default function MeetingsPage() {
 }
 
 function Row({ r, past = false, finished = false }: { r: MeetingRow; past?: boolean; finished?: boolean }) {
-  const prep = PREP[r.prep];
+  const prep = r.prep === 'none' && r.attendees.length === 0 ? { label: 'No brief: nobody else on the invite', tone: undefined } : PREP[r.prep];
   const body = (
     <>
       <span className="oo-mt-when oo-num" data-testid={'text-meeting-time-' + r.id}>
@@ -140,10 +140,9 @@ function Row({ r, past = false, finished = false }: { r: MeetingRow; past?: bool
       </span>
     </>
   );
-  return r.prep === 'none' ? (
-    <div className="oo-mt-row" data-finished={finished || undefined} data-testid={'row-meeting-' + r.id}>{body}</div>
-  ) : (
-    <Link href={'/briefs/' + r.id} className="oo-mt-row" data-link="true" data-finished={finished || undefined} data-testid={'row-meeting-' + r.id}>
+  // Every work meeting opens: the prep page when it has a brief, otherwise its own page for an agenda.
+  return (
+    <Link href={(r.prep === 'none' ? '/meetings/' : '/briefs/') + r.id} className="oo-mt-row" data-link="true" data-finished={finished || undefined} data-testid={'row-meeting-' + r.id}>
       {body}
     </Link>
   );

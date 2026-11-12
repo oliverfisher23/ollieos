@@ -14,6 +14,7 @@ import {
   AskPage,
   BriefPage,
   ClearOutDialog,
+  ContactsPage,
   DecisionPage,
   DecisionsListPage,
   DigestPage,
@@ -22,6 +23,7 @@ import {
   KnowledgeInboxPage,
   LibraryPage,
   MapPage,
+  MeetingPage,
   MeetingsPage,
   MessagesPage,
   NextBriefPage,
@@ -29,9 +31,6 @@ import {
   NotesListPage,
   OAuthConsentPage,
   OrganisationPage,
-  OrganisationsListPage,
-  PeopleCadencePage,
-  PeopleListPage,
   PersonPage,
   PlaybookPage,
   ProductPage,
@@ -49,11 +48,18 @@ import { NotAuthorised, SignIn, Splash } from '@/pages/auth-screens';
 import { AuthProvider } from '@/lib/auth-context';
 import { useForbidden } from '@/lib/forbidden';
 import { queryClient } from '@/lib/query-client';
+import { contactsPathFor } from '@/lib/contacts-path';
 
 /** The Email page is now Messages; old links keep their tab and the item they opened. */
 function EmailRedirect() {
   const search = useSearch();
   return <Redirect to={'/messages' + (search ? '?' + search : '')} replace />;
+}
+
+/** People, and the People and Organisations lists, are now Contacts; old links land on the matching view. */
+function ToContacts() {
+  const [location] = useLocation();
+  return <Redirect to={contactsPathFor(location, window.location.search)} replace />;
 }
 
 function TriagePage() {
@@ -86,9 +92,9 @@ function Router() {
           <Route path="/knowledge/inbox" component={KnowledgeInboxPage} />
           <Route path="/knowledge" component={KnowledgeIndexPage} />
           <Route path="/knowledge/projects/:slug" component={ProjectPage} />
-          <Route path="/knowledge/people" component={PeopleListPage} />
+          <Route path="/knowledge/people" component={ToContacts} />
           <Route path="/knowledge/people/:slug" component={PersonPage} />
-          <Route path="/knowledge/organisations" component={OrganisationsListPage} />
+          <Route path="/knowledge/organisations" component={ToContacts} />
           <Route path="/knowledge/organisations/:slug" component={OrganisationPage} />
           <Route path="/knowledge/decisions" component={DecisionsListPage} />
           <Route path="/knowledge/decisions/:id" component={DecisionPage} />
@@ -101,6 +107,7 @@ function Router() {
           <Route path="/knowledge/sessions" component={SessionsPage} />
           <Route path="/knowledge/map" component={MapPage} />
           <Route path="/meetings" component={MeetingsPage} />
+          <Route path="/meetings/:eventId">{(p) => <MeetingPage key={p.eventId} eventId={p.eventId} />}</Route>
           <Route path="/briefs/next" component={NextBriefPage} />
           <Route path="/briefs/:eventId">{(p) => <BriefPage key={p.eventId} eventId={p.eventId} />}</Route>
           <Route path="/digest">{() => <DigestPage />}</Route>
@@ -108,7 +115,8 @@ function Router() {
           <Route path="/digest/:date">{(p) => <DigestPage key={p.date} date={p.date} />}</Route>
           <Route path="/goals" component={GoalsPage} />
           <Route path="/strategy" component={StrategyPage} />
-          <Route path="/people" component={PeopleCadencePage} />
+          <Route path="/contacts" component={ContactsPage} />
+          <Route path="/people" component={ToContacts} />
           <Route path="/people/:slug">{(p) => <Redirect to={'/knowledge/people/' + p.slug} replace />}</Route>
           <Route path="/settings" component={SettingsPage} />
           <Route path="/settings/:section" component={SettingsPage} />

@@ -15,8 +15,6 @@ const LIBRARY = [
   { href: '/knowledge/library?tab=rules', label: 'Rules' },
   { href: '/knowledge/library?tab=playbooks', label: 'Playbooks' },
   { href: '/knowledge/sessions', label: 'Sessions' },
-  { href: '/knowledge/people', label: 'People' },
-  { href: '/knowledge/organisations', label: 'Organisations' },
   { href: '/knowledge/products', label: 'Products' },
   { href: '/knowledge/decisions', label: 'Decisions' },
   { href: '/knowledge/notes', label: 'Notes' },

@@ -11,21 +11,24 @@ const RAIL = [
   { href: '/tasks', label: 'Tasks', Icon: IconTasks },
   { href: '/messages', label: 'Messages', Icon: IconMessages },
   { href: '/meetings', label: 'Meetings', Icon: IconCalendar },
-  { href: '/people', label: 'People', Icon: IconPeople },
+  { href: '/contacts', label: 'Contacts', Icon: IconPeople },
   { href: '/goals', label: 'Goals', Icon: IconGoal },
   { href: '/strategy', label: 'Strategy', Icon: IconCompass },
   { href: '/knowledge', label: 'Knowledge', Icon: IconBook },
 ];
 
 /**
- * Meetings is active on prep pages too (/briefs/{id}).
- * People is the cadence page at /people, but person pages and the full list live under /knowledge/people,
- * so People is active for those too and Knowledge for everything else under /knowledge.
+ * Meetings is active on a meeting's own page and prep pages too (/meetings/{id}, /briefs/{id}).
+ * Contacts is at /contacts, but person and organisation pages live under /knowledge, so Contacts is
+ * active for those too and Knowledge for everything else under /knowledge.
  */
 export function navActive(href: string, location: string): boolean {
-  const inPeople = location === '/people' || location === '/knowledge/people' || location.startsWith('/knowledge/people/');
-  if (href === '/people') return inPeople;
-  if (href === '/meetings') return location === '/meetings' || location.startsWith('/briefs/');
+  const inPeople =
+    location === '/contacts' ||
+    location === '/people' ||
+    ['/knowledge/people', '/knowledge/organisations'].some((p) => location === p || location.startsWith(p + '/'));
+  if (href === '/contacts') return inPeople;
+  if (href === '/meetings') return location === '/meetings' || location.startsWith('/meetings/') || location.startsWith('/briefs/');
   if (href === '/knowledge') return !inPeople && (location === '/knowledge' || location.startsWith('/knowledge/'));
   if (href === '/') return location === '/' || location === '/triage' || location === '/ask' || location.startsWith('/ask/');
   return location === href || location.startsWith(href + '/');
@@ -99,7 +102,7 @@ export function MainNav({ children }: { children: ReactNode }) {
         <button type="button" aria-label="Add a task. Hold to speak." onClick={() => { if (!held.current) setSheet('add'); held.current = false; }} {...holdToSpeak} data-testid="button-tab-add">
           <span className="oo-add"><IconPlus size={22} /></span>
         </button>
-        <Link href="/people" aria-current={cur('/people')} {...preload('/people')} data-testid="link-tab-people"><IconPeople size={22} />People</Link>
+        <Link href="/contacts" aria-current={cur('/contacts')} {...preload('/contacts')} data-testid="link-tab-contacts"><IconPeople size={22} />Contacts</Link>
         <button type="button" aria-haspopup="dialog" aria-expanded={sheet === 'more'} aria-current={inMore ? 'page' : undefined} onClick={() => setSheet('more')} data-testid="button-tab-more">
           <IconMore size={22} />
           More
@@ -131,7 +134,7 @@ export function MainNav({ children }: { children: ReactNode }) {
 
 /**
  * Pages the phone tab bar has no room for (docs/mobile-plan.md, Part D): Home, Tasks, add and
- * People are tabs, everything else is in the More sheet.
+ * Contacts are tabs, everything else is in the More sheet.
  */
 const MORE = [
   { href: '/knowledge', label: 'Knowledge', Icon: IconBook },

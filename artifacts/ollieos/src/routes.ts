@@ -23,12 +23,13 @@ const load = {
   sessions: () => import('@/pages/knowledge/sessions'),
   map: () => import('@/pages/knowledge/map'),
   meetings: () => import('@/pages/meetings'),
+  meeting: () => import('@/pages/meeting'),
   brief: () => import('@/pages/brief'),
   digest: () => import('@/pages/digest'),
   roundup: () => import('@/pages/roundup'),
   goals: () => import('@/pages/goals'),
   strategy: () => import('@/pages/strategy'),
-  cadence: () => import('@/pages/people-cadence'),
+  contacts: () => import('@/pages/contacts'),
   settings: () => import('@/pages/settings'),
   consent: () => import('@/pages/oauth-consent'),
 };
@@ -42,9 +43,7 @@ export const AskPage = lazyPage(load.ask, 'default');
 export const KnowledgeInboxPage = lazyPage(load.inbox, 'default');
 export const KnowledgeIndexPage = lazyPage(load.projects, 'KnowledgeIndexPage');
 export const ProjectPage = lazyPage(load.projects, 'ProjectPage');
-export const PeopleListPage = lazyPage(load.people, 'PeopleListPage');
 export const PersonPage = lazyPage(load.people, 'PersonPage');
-export const OrganisationsListPage = lazyPage(load.organisations, 'OrganisationsListPage');
 export const OrganisationPage = lazyPage(load.organisations, 'OrganisationPage');
 export const DecisionsListPage = lazyPage(load.records, 'DecisionsListPage');
 export const DecisionPage = lazyPage(load.records, 'DecisionPage');
@@ -57,13 +56,14 @@ export const ProductPage = lazyPage(load.products, 'ProductPage');
 export const SessionsPage = lazyPage(load.sessions, 'default');
 export const MapPage = lazyPage(load.map, 'default');
 export const MeetingsPage = lazyPage(load.meetings, 'default');
+export const MeetingPage = lazyPage(load.meeting, 'default');
 export const BriefPage = lazyPage(load.brief, 'BriefPage');
 export const NextBriefPage = lazyPage(load.brief, 'NextBriefPage');
 export const DigestPage = lazyPage(load.digest, 'default');
 export const RoundupPage = lazyPage(load.roundup, 'default');
 export const GoalsPage = lazyPage(load.goals, 'default');
 export const StrategyPage = lazyPage(load.strategy, 'default');
-export const PeopleCadencePage = lazyPage(load.cadence, 'default');
+export const ContactsPage = lazyPage(load.contacts, 'default');
 export const SettingsPage = lazyPage(load.settings, 'default');
 export const OAuthConsentPage = lazyPage(load.consent, 'default');
 
@@ -78,6 +78,8 @@ function loaderFor(path: string): (() => Promise<unknown>) | null {
   if (under('/voice')) return load.voice;
   if (under('/ask')) return load.ask;
   if (under('/knowledge/inbox')) return load.inbox;
+  // The bare lists are now Contacts; person and organisation pages keep their own code.
+  if (p === '/knowledge/people' || p === '/knowledge/organisations') return load.contacts;
   if (under('/knowledge/people')) return load.people;
   if (under('/knowledge/organisations')) return load.organisations;
   if (under('/knowledge/decisions') || under('/knowledge/notes')) return load.records;
@@ -93,7 +95,7 @@ function loaderFor(path: string): (() => Promise<unknown>) | null {
   if (under('/digest')) return load.digest;
   if (under('/goals')) return load.goals;
   if (under('/strategy')) return load.strategy;
-  if (p === '/people') return load.cadence;
+  if (p === '/contacts' || p === '/people') return load.contacts;
   if (under('/people')) return load.people;
   if (under('/settings')) return load.settings;
   if (under('/oauth/consent')) return load.consent;
