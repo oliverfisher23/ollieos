@@ -95,6 +95,12 @@ export const tasksTable = pgTable(
     delegateCheckedAt: timestamp("delegate_checked_at", { withTimezone: true }),
     /** Ollie said "Not this one", so it is not suggested again */
     delegateDismissedAt: timestamp("delegate_dismissed_at", { withTimezone: true }),
+    /** Section 26: the stuck-task coach's way out for a task that keeps slipping; null when it is not stuck */
+    stuckHint: jsonb("stuck_hint").$type<StuckHint | null>(),
+    /** When the stuck-task coach last looked at it */
+    stuckCheckedAt: timestamp("stuck_checked_at", { withTimezone: true }),
+    /** Ollie said "Not now": it is not flagged again for 30 days */
+    stuckDismissedAt: timestamp("stuck_dismissed_at", { withTimezone: true }),
     search: tsvector("search").generatedAlwaysAs(
       sql`to_tsvector('english', coalesce(title,'') || ' ' || coalesce(snippet,'') || ' ' || coalesce(notes,'') || ' ' || coalesce(source_quote,'') || ' ' || coalesce(from_name,''))`,
     ),
@@ -125,6 +131,25 @@ export const captureLogTable = pgTable(
   },
   (t) => [uniqueIndex("capture_log_source_ref_unique").on(t.source, t.sourceRef)],
 );
+
+/**
+ * Section 26: why a task looks stuck (from its own history, in code) and the way out the coach
+ * suggests. A task hidden from AI gets the signals with no suggestion.
+ */
+export interface StuckHint {
+  /** "Snoozed 4 times, in Now for 5 weeks", from the history */
+  signals: string;
+  wayOut: "break_down" | "delegate" | "drop" | "repeat" | "next_step" | null;
+  why: string | null;
+  /** For break_down: the steps to add */
+  steps: string[];
+  /** For repeat: how often */
+  repeatEvery: "week" | "fortnight" | "month" | "quarter" | null;
+  /** One small, concrete thing to do first */
+  nextStep: string | null;
+  /** When Ollie took the suggestion */
+  appliedAt?: string | null;
+}
 
 /** Section 23: who could take a task off Ollie's hands, and the message he could send them. */
 export interface DelegateHint {

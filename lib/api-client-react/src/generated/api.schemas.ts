@@ -301,6 +301,45 @@ export interface TaskGoal {
   inherited: boolean;
 }
 
+/**
+ * Null for a task hidden from AI, which gets no suggestion
+ */
+export type StuckHintWayOut = typeof StuckHintWayOut[keyof typeof StuckHintWayOut] | null;
+
+
+export const StuckHintWayOut = {
+  break_down: 'break_down',
+  delegate: 'delegate',
+  drop: 'drop',
+  repeat: 'repeat',
+  next_step: 'next_step',
+} as const;
+
+export type StuckHintRepeatEvery = typeof StuckHintRepeatEvery[keyof typeof StuckHintRepeatEvery] | null;
+
+
+export const StuckHintRepeatEvery = {
+  week: 'week',
+  fortnight: 'fortnight',
+  month: 'month',
+  quarter: 'quarter',
+} as const;
+
+export interface StuckHint {
+  /** How it slipped, from its history */
+  signals: string;
+  /** Null for a task hidden from AI, which gets no suggestion */
+  wayOut: StuckHintWayOut;
+  /** @nullable */
+  why: string | null;
+  steps: string[];
+  repeatEvery: StuckHintRepeatEvery;
+  /** @nullable */
+  nextStep: string | null;
+  /** @nullable */
+  appliedAt?: string | null;
+}
+
 export interface DelegateHint {
   personId: number;
   personName: string;
@@ -390,6 +429,8 @@ export interface Task {
      * @nullable
      */
   looksDone?: string | null;
+  /** Section 26: why this Now or Backlog task looks stuck and the coach's way out. Null unless it shows (not taken, not put off in the last 30 days). */
+  stuck?: StuckHint | null;
   /** Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog. */
   delegateHint?: DelegateHint | null;
 }

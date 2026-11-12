@@ -10,6 +10,7 @@ import type { EntitySummary } from './entitySummary';
 import type { NoiseRuleSummary } from './noiseRuleSummary';
 import type { Priority } from './priority';
 import type { RepeatRule } from './repeatRule';
+import type { StuckHint } from './stuckHint';
 import type { TaskGoal } from './taskGoal';
 import type { TaskKind } from './taskKind';
 import type { TaskSource } from './taskSource';
@@ -98,6 +99,8 @@ export interface Task {
      * @nullable
      */
   looksDone?: string | null;
+  /** Section 26: why this Now or Backlog task looks stuck and the coach's way out. Null unless it shows (not taken, not put off in the last 30 days). */
+  stuck?: StuckHint | null;
   /** Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog. */
   delegateHint?: DelegateHint | null;
 }

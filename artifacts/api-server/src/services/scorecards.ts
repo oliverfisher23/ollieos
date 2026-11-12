@@ -213,6 +213,22 @@ function lessonsBy(learnedBy: "reader_coach" | "card_coach"): Spec["count"] {
   };
 }
 
+/** Section 26: a way out was right when Ollie took it, or the task got done; wrong on Not now. */
+const stuckWays: Spec["count"] = async (start, end) => {
+  const coached = sql`${tasksTable.stuckHint} is not null and jsonb_typeof(${tasksTable.stuckHint}) = 'object' and ${tasksTable.stuckHint}->>'wayOut' is not null`;
+  // Taken, or the task moved on (done, handed on to wait on someone, dropped or archived).
+  const taken = sql`(${tasksTable.stuckHint}->>'appliedAt' is not null or ${tasksTable.status} not in ('now','backlog','inbox'))`;
+  const [r] = await db
+    .select({
+      kept: sql<number>`count(*) filter (where ${taken})`,
+      undone: sql<number>`count(*) filter (where not ${taken} and ${tasksTable.stuckDismissedAt} is not null)`,
+      waiting: sql<number>`count(*) filter (where not ${taken} and ${tasksTable.stuckDismissedAt} is null and ${tasksTable.status} in ('now','backlog'))`,
+    })
+    .from(tasksTable)
+    .where(and(coached, gte(tasksTable.stuckCheckedAt, start), lt(tasksTable.stuckCheckedAt, end)));
+  return { kept: n(r?.kept), undone: n(r?.undone), waiting: n(r?.waiting) };
+};
+
 const SPECS: Spec[] = [
   { key: "gmail_tasks", agent: "gmail_sorter", label: "Inbox items kept", count: tasksFrom("email") },
   { key: "gmail_cards", agent: "gmail_sorter", label: "Knowledge cards approved", count: cardsFrom("Gmail check") },
@@ -236,6 +252,7 @@ const SPECS: Spec[] = [
   { key: "presort", agent: "presorter", label: "Hints you agreed with", count: presortHints },
   { key: "stale_evidence", agent: "stale_checker", label: "Findings you agreed with", count: staleFindings },
   { key: "delegation", agent: "delegation", label: "Suggestions you sent", count: delegations },
+  { key: "stuck", agent: "stuck_coach", label: "Ways out you took", count: stuckWays },
   { key: "contacts", agent: "contact_finder", label: "People and organisations kept", count: cardsFrom(CONTACT_PROPOSER) },
   { key: "reader_lessons", agent: "reader_coach", label: "Lessons you turned on", count: lessonsBy("reader_coach") },
   { key: "card_lessons", agent: "card_coach", label: "Lessons you turned on", count: lessonsBy("card_coach") },

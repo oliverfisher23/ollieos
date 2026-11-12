@@ -1,4 +1,5 @@
 import { dismissDelegateHint } from "../services/delegation";
+import { applyStuckHint, dismissStuckHint } from "../services/stuckTasks";
 import { dmOptions, MAX_DM, sendSlackDm } from "../services/slackDm";
 import { Router, type IRouter } from "express";
 import { checkDraft, taskContextRefs } from "../services/draftLearning";
@@ -214,6 +215,10 @@ router.post(
     res.json(await sendSlackDm(id, b, "ollie"));
   }),
 );
+// Section 26: the stuck-task coach's way out: Do this, or Not now.
+router.post("/tasks/:id/stuck/apply", handle(async (req, res) => void res.json(await applyStuckHint(IdParams.parse(req.params).id))));
+router.post("/tasks/:id/stuck/dismiss", handle(async (req, res) => void res.json(await dismissStuckHint(IdParams.parse(req.params).id))));
+
 // Section 23: "Not this one" on the delegation suggester's colleague.
 router.post(
   "/tasks/:id/delegate-hint/dismiss",

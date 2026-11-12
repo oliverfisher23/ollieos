@@ -1,5 +1,5 @@
 import { and, inArray, sql } from "drizzle-orm";
-import { db, goalsTable, noiseRulesTable, peopleTable, projectsTable, tasksTable, type Task as TaskRow } from "@workspace/db";
+import { db, goalsTable, noiseRulesTable, peopleTable, projectsTable, tasksTable, type StuckHint, type Task as TaskRow } from "@workspace/db";
 import { taskVisible } from "../lib/ai-data/visibility";
 import { noiseRuleLabel } from "./noiseRules";
 import { looksDoneFor } from "./taskEvidence";
@@ -12,7 +12,9 @@ export interface EntitySummary {
   confidential: boolean;
 }
 
-export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "waitingOnPersonId" | "noiseRuleId" | "sourceChannel" | "noiseHintKept" | "noiseCheckedAt" | "repeatNextId" | "delegateCheckedAt" | "delegateDismissedAt"> & {
+export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "waitingOnPersonId" | "noiseRuleId" | "sourceChannel" | "noiseHintKept" | "noiseCheckedAt" | "repeatNextId" | "delegateCheckedAt" | "delegateDismissedAt" | "stuckHint" | "stuckCheckedAt" | "stuckDismissedAt"> & {
+  /** Section 26: why it looks stuck and the coach's way out; null unless it shows */
+  stuck: StuckHint | null;
   project: EntitySummary | null;
   person: EntitySummary | null;
   waitingOn: EntitySummary | null;
@@ -97,7 +99,7 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
   };
 
   return rows.map((r) => {
-    const { search: _search, personId, projectId, waitingOnPersonId, noiseRuleId, sourceChannel: _channel, noiseHintKept, noiseCheckedAt: _checked, repeatNextId: _next, delegateCheckedAt: _dc, delegateDismissedAt, ...rest } = r;
+    const { search: _search, personId, projectId, waitingOnPersonId, noiseRuleId, sourceChannel: _channel, noiseHintKept, noiseCheckedAt: _checked, repeatNextId: _next, delegateCheckedAt: _dc, delegateDismissedAt, stuckHint, stuckCheckedAt: _sc, stuckDismissedAt, ...rest } = r;
     return {
       ...rest,
       project: projectId ? (projectById.get(projectId) ?? null) : null,
@@ -113,6 +115,11 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
       looksDone: OPEN_FOR_EVIDENCE.has(r.status) ? (looks.get(r.id) ?? null) : null,
       // Section 23: who could take it, while it is still Ollie's to do and he has not said "Not this one".
       delegateHint: (r.status === "now" || r.status === "backlog") && !delegateDismissedAt ? r.delegateHint : null,
+      // Section 26: shown while open, not taken, and not put off with Not now in the last 30 days.
+      stuck:
+        (r.status === "now" || r.status === "backlog") && stuckHint && !stuckHint.appliedAt && !(stuckDismissedAt && now - stuckDismissedAt.getTime() < 30 * 86_400_000)
+          ? stuckHint
+          : null,
     };
   });
 }

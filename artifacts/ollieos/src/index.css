@@ -373,6 +373,8 @@ body { font-family: var(--oo-font-sans); margin: 0; overflow-x: hidden; }
 .oo-marks { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--oo-ink-muted); }
 .oo-mark-repeat, .oo-mark-steps { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .oo-mark-steps[data-complete="true"] { color: var(--oo-pill-done-fg); }
+/* Section 26: a task that keeps slipping */
+.oo-mark-stuck { display: inline-flex; align-items: center; white-space: nowrap; padding: 0 6px; border-radius: var(--oo-r-pill); background: var(--oo-pill-waiting-bg); color: var(--oo-pill-waiting-fg); font-size: 12px; }
 .oo-pill[data-tone="archived"] { background: var(--oo-pill-archived-bg); color: var(--oo-pill-archived-fg); }
 .oo-pill[data-tone="high"] { background: var(--oo-pill-high-bg); color: var(--oo-pill-high-fg); font-weight: 600; }
 .oo-pill[data-tone="external"] { background: var(--oo-src-meeting-bg); color: var(--oo-src-meeting-fg); font-weight: 600; }

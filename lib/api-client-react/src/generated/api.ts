@@ -5632,6 +5632,154 @@ export function useExportTasksCsv<TData = Awaited<ReturnType<typeof exportTasksC
 
 
 
+export const getApplyTaskStuckHintUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/stuck/apply`
+}
+
+/**
+ * @summary Do this: make the stuck-task coach's suggested change (section 26)
+ */
+export const applyTaskStuckHint = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
+
+  return customFetch<Task>(getApplyTaskStuckHintUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApplyTaskStuckHintMutationKey = () => ['applyTaskStuckHint'] as const;
+
+export const getApplyTaskStuckHintMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyTaskStuckHint>>, TError,ApplyTaskStuckHintMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyTaskStuckHint>>, TError,ApplyTaskStuckHintMutationVariables, TContext> => {
+
+const mutationKey = getApplyTaskStuckHintMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyTaskStuckHint>>, ApplyTaskStuckHintMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  applyTaskStuckHint(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyTaskStuckHintMutationResult = NonNullable<Awaited<ReturnType<typeof applyTaskStuckHint>>>
+
+    export type ApplyTaskStuckHintMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type ApplyTaskStuckHintMutationVariables = {id: number}
+
+    /**
+ * @summary Do this: make the stuck-task coach's suggested change (section 26)
+ */
+export const useApplyTaskStuckHint = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyTaskStuckHint>>, TError,ApplyTaskStuckHintMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof applyTaskStuckHint>>,
+        TError,
+        ApplyTaskStuckHintMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApplyTaskStuckHintMutationOptions(options), queryClient);
+    }
+
+export const getDismissTaskStuckHintUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/stuck/dismiss`
+}
+
+/**
+ * @summary Not now: off the stuck list for 30 days
+ */
+export const dismissTaskStuckHint = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
+
+  return customFetch<Task>(getDismissTaskStuckHintUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDismissTaskStuckHintMutationKey = () => ['dismissTaskStuckHint'] as const;
+
+export const getDismissTaskStuckHintMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissTaskStuckHint>>, TError,DismissTaskStuckHintMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissTaskStuckHint>>, TError,DismissTaskStuckHintMutationVariables, TContext> => {
+
+const mutationKey = getDismissTaskStuckHintMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissTaskStuckHint>>, DismissTaskStuckHintMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  dismissTaskStuckHint(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissTaskStuckHintMutationResult = NonNullable<Awaited<ReturnType<typeof dismissTaskStuckHint>>>
+
+    export type DismissTaskStuckHintMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type DismissTaskStuckHintMutationVariables = {id: number}
+
+    /**
+ * @summary Not now: off the stuck list for 30 days
+ */
+export const useDismissTaskStuckHint = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissTaskStuckHint>>, TError,DismissTaskStuckHintMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof dismissTaskStuckHint>>,
+        TError,
+        DismissTaskStuckHintMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDismissTaskStuckHintMutationOptions(options), queryClient);
+    }
+
 export const getDismissTaskDelegateHintUrl = (id: number,) => {
 
 

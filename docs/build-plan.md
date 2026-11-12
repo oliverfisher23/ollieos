@@ -1614,3 +1614,70 @@ Ollie asked for an agent that adds people and organisations by itself. The reade
   - Undo refused when linked, and working otherwise.
 - The full suite passes: 428 tests. Checked in a browser: Settings, Contacts with "Added by OllieOS" and Undo, and Approve with 2 people.
 - Not built: sightings from calendar invites (only Granola meetings count), and LinkedIn connections that match nobody.
+
+## 26. The stuck-task coach (asked for 12th November 2026)
+
+The Backlog clear-out (Part I) catches tasks nobody has touched for 30 days. It misses the ones Ollie keeps touching without finishing. The stuck-task coach finds those and suggests one way out for each. Nothing changes until he presses **Do this**.
+
+### Looks stuck, in code
+
+- **Slips, from the task's own history:**
+  - times snoozed;
+  - times the due date was moved (a change from one date to another);
+  - times moved from Now back to Backlog;
+  - times kept in the Backlog clear-out;
+  - days it was in a day plan (Plan my day) and still is not done.
+- **Also:** days in Now (since it last moved to Now, else since it was triaged or made) and days overdue.
+- **Stuck** when any of these hold, for an open Now or Backlog task or promise:
+  - three or more slips;
+  - three weeks in Now;
+  - two weeks overdue after at least one slip.
+- **How it shows:** "Snoozed 4 times, due date moved twice, in Now for 5 weeks", from the same numbers.
+
+### The coach (Haiku)
+
+- **Way out.** For each stuck task AI may see, it gets the title, kind, priority, due date, how it slipped, its project, the person it is with, its steps so far, where it came from, the notes, and the colleague the delegation suggester found, if any. It reasons first, then picks one way out:
+  - **break it into steps:** 3 to 5 concrete steps;
+  - **hand it on:** only when the delegation suggester has a colleague for it;
+  - **drop it;**
+  - **make it repeat:** every week, fortnight, month or quarter;
+  - **one small next step.**
+
+  It always gives a first step of under 15 minutes.
+- **Rules enforced in code.** Anything that breaks one becomes the next step instead:
+  - never drop a promise or a high-priority task;
+  - never suggest a repeat without how often, or on a task that already repeats;
+  - steps need at least two;
+  - hand it on needs a colleague.
+- **Hidden from AI.** A task hidden from AI is flagged with how it slipped, and no model call is made.
+- **When.** After each check, up to 30 stuck tasks a pass. Each task is looked at again a week later. A task that no longer looks stuck loses its flag, unless Ollie already took the suggestion.
+
+### Where it shows
+
+- **On the task panel:**
+  - "Looks stuck", how it slipped, the way out, why, and the first step;
+  - **Do this**: add these steps, drop it, make it repeat, or add the first step to the top of the checklist. Each goes through the ordinary task update, so it is in the task's history;
+  - for hand it on, the card points to the Slack draft already on the panel, which Ollie still sends;
+  - **Not now** keeps the task off the stuck list for 30 days.
+- **On the Tasks list:** a "Stuck" mark on the task, and a **Stuck** filter (`/tasks?stuck=1`).
+- **The Monday digest:** "N tasks look stuck, each with a way out".
+- **Scorecard:** "Ways out you took". A suggestion taken, or the task moving on (done, waiting on someone, dropped), counts as kept; Not now counts as undone.
+
+### Built and checked
+
+- **Schema:** `tasks.stuck_hint`, `stuck_checked_at` and `stuck_dismissed_at`.
+- **Code:** `services/stuckTasks.ts`; `POST /tasks/:id/stuck/apply` and `/stuck/dismiss`; each task carries `stuck`; the panel card is `components/stuck-coach.tsx`.
+- **Fixed on the way:** the task panel now refreshes after the delegation suggester's "Not this one" and after sending a Slack message. Both were refreshing the lists but not the open panel.
+- **Tests:** `test/section-26.test.ts` (4 tests) covers:
+  - slips counted from snoozes, moved dates, Now to Backlog and carried day plans, and the line describing them;
+  - three weeks in Now on their own;
+  - each way out, and every rule turning a bad suggestion into a next step;
+  - hidden tasks never sent;
+  - no second look within a week;
+  - Do this for steps, drop and repeat, and no second Do this;
+  - Not now holding for 30 days;
+  - the flag clearing once a task is no longer stuck;
+  - the scorecard.
+
+  The full suite passes: 442 tests.
+- **Browser check:** the Stuck filter, the card, and Add these steps, which put three steps in the checklist and cleared the card.

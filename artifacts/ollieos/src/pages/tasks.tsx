@@ -177,13 +177,16 @@ export default function TasksPage() {
   // Client work or internal, from each task's project (filtered here, so it combines with every other filter).
   const rawWork = sp.get('work');
   const work = rawWork === 'client' || rawWork === 'internal' || rawWork === 'none' ? rawWork : null;
+  // Section 26: only tasks that look stuck.
+  const stuckOnly = sp.get('stuck') === '1';
   const projects = useListProjects(undefined, { query: { enabled: !!work, staleTime: 60_000 } as never });
   const workOf = useMemo(() => new Map((projects.data ?? []).map((p) => [p.id, p.workType ?? null])), [projects.data]);
   const rows = useMemo(() => {
     const all = list.data ?? [];
-    const kept = work ? all.filter((t) => ((t.project ? workOf.get(t.project.id) : null) ?? 'none') === work) : all;
+    const byWork = work ? all.filter((t) => ((t.project ? workOf.get(t.project.id) : null) ?? 'none') === work) : all;
+    const kept = stuckOnly ? byWork.filter((t) => !!t.stuck) : byWork;
     return sortTasks(kept, sort);
-  }, [list.data, sort?.key, sort?.dir, work, workOf]);
+  }, [list.data, sort?.key, sort?.dir, work, workOf, stuckOnly]);
 
   // Dragging tasks into Ollie's own order. A column sort is a temporary view on top, so dragging waits until it is cleared.
   const qc = useQueryClient();
@@ -273,6 +276,8 @@ export default function TasksPage() {
             ]}
             testId="select-work"
           />
+          <button type="button" className="oo-control" aria-pressed={stuckOnly}
+            onClick={() => set({ stuck: stuckOnly ? null : '1' })} data-testid="button-stuck-only">Stuck</button>
           <button type="button" className="oo-control" aria-pressed={week === thisWeek}
             onClick={() => set({ week: week === thisWeek ? null : thisWeek })} data-testid="button-this-week">This week</button>
           <div style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid var(--oo-control-border)', borderRadius: 'var(--oo-r-input)', background: 'var(--oo-panel)' }}>
@@ -375,7 +380,7 @@ export default function TasksPage() {
           </div>
         ) : rows.length === 0 ? (
           <div style={{ padding: '28px 0', display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="state-tasks-empty">
-            <p className="oo-serif" style={{ margin: 0, fontSize: 20 }}>{q || source || week || work ? 'Nothing matches these filters.' : EMPTY[tab]}</p>
+            <p className="oo-serif" style={{ margin: 0, fontSize: 20 }}>{q || source || week || work || stuckOnly ? (stuckOnly && !q && !source && !week && !work ? 'Nothing looks stuck here.' : 'Nothing matches these filters.') : EMPTY[tab]}</p>
             {(q || source || week) && <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>Try another week or clear the search.</p>}
           </div>
         ) : (
