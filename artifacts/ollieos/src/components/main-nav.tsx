@@ -17,14 +17,14 @@ const RAIL = [
 ];
 
 /**
- * Meetings is active on prep pages too (/briefs/{id}).
+ * Meetings is active on a meeting's own page and prep pages too (/meetings/{id}, /briefs/{id}).
  * People is the cadence page at /people, but person pages and the full list live under /knowledge/people,
  * so People is active for those too and Knowledge for everything else under /knowledge.
  */
 export function navActive(href: string, location: string): boolean {
   const inPeople = location === '/people' || location === '/knowledge/people' || location.startsWith('/knowledge/people/');
   if (href === '/people') return inPeople;
-  if (href === '/meetings') return location === '/meetings' || location.startsWith('/briefs/');
+  if (href === '/meetings') return location === '/meetings' || location.startsWith('/meetings/') || location.startsWith('/briefs/');
   if (href === '/knowledge') return !inPeople && (location === '/knowledge' || location.startsWith('/knowledge/'));
   if (href === '/') return location === '/' || location === '/triage' || location === '/ask' || location.startsWith('/ask/');
   return location === href || location.startsWith(href + '/');

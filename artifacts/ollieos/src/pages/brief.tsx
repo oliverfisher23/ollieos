@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { BriefTalkingPoints } from '@/components/talking-points';
+import { MeetingNotes } from '@/components/meeting-notes';
 import { Thumbs } from '@/components/evals';
 import { CommercialLines } from '@/components/client-pulse';
 import { Link } from 'wouter';
@@ -9,7 +10,6 @@ import {
   getGetBriefQueryKey,
   getGetNextBriefQueryKey,
   refreshBrief,
-  updateBriefNotes,
   useGetBrief,
   useGetNextBrief,
   type BriefAttendee,
@@ -285,7 +285,12 @@ function Brief({ brief }: { brief: BriefView }) {
             </Panel>
           )}
 
-          <NotesForAfter brief={brief} />
+          <MeetingNotes
+            eventId={e.id}
+            initial={brief.notes}
+            placeholder="What you want to cover, and anything to capture. Granola notes are added automatically after the call."
+            onSaved={(notes) => qc.setQueryData(getGetBriefQueryKey(e.id), (old: BriefView | undefined) => (old ? { ...old, notes } : old))}
+          />
         </main>
 
         <aside style={{ flex: '1 1 300px', maxWidth: 380, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -555,49 +560,3 @@ function AfterMeeting({ brief }: { brief: BriefView }) {
   );
 }
 
-/** Saves as Ollie types, a moment after he stops. */
-function NotesForAfter({ brief }: { brief: BriefView }) {
-  const qc = useQueryClient();
-  const id = brief.event.id;
-  const [text, setText] = useState(brief.notes ?? '');
-  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const saved = useRef(brief.notes ?? '');
-  useEffect(() => {
-    if (text === saved.current) return;
-    const t = setTimeout(async () => {
-      setState('saving');
-      try {
-        const r = await updateBriefNotes(id, { notes: text.trim() ? text : null });
-        saved.current = text;
-        qc.setQueryData(getGetBriefQueryKey(id), (old: BriefView | undefined) => (old ? { ...old, notes: r.notes } : old));
-        setState('saved');
-      } catch (err) {
-        setState('error');
-        notify('Could not save your notes', errorMessage(err));
-      }
-    }, 800);
-    return () => clearTimeout(t);
-  }, [text, id, qc]);
-
-  return (
-    <section style={{ ...CARD, padding: '26px 30px', display: 'flex', flexDirection: 'column', gap: 10 }} data-testid="section-notes">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-        <label htmlFor="b-notebox" className="oo-h2">Notes for after</label>
-        <span role="status" className="oo-muted" style={{ fontSize: 12 }} data-testid="text-notes-state">
-          {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved' : state === 'error' ? 'Not saved' : ''}
-        </span>
-      </div>
-      <textarea
-        id="b-notebox"
-        className="oo-input"
-        rows={4}
-        maxLength={20000}
-        value={text}
-        onChange={(ev) => setText(ev.target.value)}
-        placeholder="Anything to capture. Granola notes are added automatically after the call."
-        style={{ resize: 'vertical', padding: '12px 14px', borderRadius: 'var(--oo-r-input-lg)', lineHeight: 1.5 }}
-        data-testid="input-brief-notes"
-      />
-    </section>
-  );
-}

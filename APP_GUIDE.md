@@ -32,7 +32,7 @@ The full list by tab (Inbox, Now, Backlog, Waiting on, Done, Noise). Click a tas
 
 ## Meetings and briefs
 
-Meetings lists the next two weeks and the last two. Each work meeting has a prep page: why it matters, a suggested agenda (with your "Next time I see…" points at the top), questions, the people and what is open with them, the client's pulse and research on outside companies. After the meeting, the Granola notes add actions, decisions and, for external meetings, a follow-up email draft. Repeating meetings that have brought nothing lately are listed under "Worth a look".
+Meetings lists the next two weeks and the last two. Each work meeting has a prep page: why it matters, a suggested agenda (with your "Next time I see…" points at the top), questions, the people and what is open with them, the client's pulse and research on outside companies. Every work meeting opens, even one with nobody you know on it: that page shows who is coming, lets you add them to People (one is enough for a brief), and has a box for your own agenda and notes. The same agenda and notes show on the prep page once the meeting has one. After the meeting, the Granola notes add actions, decisions and, for external meetings, a follow-up email draft. Repeating meetings that have brought nothing lately are listed under "Worth a look".
 
 ## Digest and round-up
 

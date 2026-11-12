@@ -4,10 +4,12 @@
  * Granola notes. Ollie's view, so nothing is hidden. Prep pages are the briefs at /briefs/{id}.
  */
 import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
-import { calendarEventsTable, db, meetingBriefsTable, peopleTable, tasksTable } from "@workspace/db";
+import { calendarEventsTable, db, meetingBriefsTable, peopleTable, tasksTable, type CalendarEvent } from "@workspace/db";
 import { OPEN_STATUSES, addDays, londonDate, londonRange, todayLondon } from "@workspace/shared";
 import { eligible, loadMatchers, matchEvent } from "./briefs";
 import type { MeetingScope } from "./meetingScope";
+import { writeAudit } from "../lib/audit";
+import { NotFoundError } from "./tasks";
 
 export const MEETINGS_AHEAD_DAYS = 7;
 export const MEETINGS_PAST_DAYS = 14;
@@ -47,6 +49,13 @@ export interface MeetingsList {
   today: string;
   upcoming: MeetingRow[];
   past: MeetingRow[];
+}
+
+function prepOf(isEligible: boolean, brief: { why: unknown; failed: boolean } | undefined): PrepState {
+  if (!isEligible) return "none";
+  if (!brief) return "not_written";
+  if (brief.failed) return "failed";
+  return brief.why ? "ready" : "not_much";
 }
 
 function snippet(notes: string | null): string | null {
@@ -102,15 +111,7 @@ export async function listMeetings(now = new Date()): Promise<MeetingsList> {
   const rows: MeetingRow[] = events.map((e) => {
     const match = matches.get(e.id)!;
     const brief = briefOf.get(e.id);
-    const prep: PrepState = !eligible(e, match)
-      ? "none"
-      : !brief
-        ? "not_written"
-        : brief.failed
-          ? "failed"
-          : brief.why
-            ? "ready"
-            : "not_much";
+    const prep = prepOf(eligible(e, match), brief);
     return {
       id: e.id,
       title: e.title,
@@ -137,4 +138,76 @@ export async function listMeetings(now = new Date()): Promise<MeetingsList> {
     upcoming: rows.filter((r) => r.startsAt.getTime() >= start),
     past: rows.filter((r) => r.startsAt.getTime() < start).reverse(),
   };
+}
+
+/* ---------- One meeting (any work meeting, with or without a prep page) ---------- */
+
+export interface MeetingView {
+  id: number;
+  title: string;
+  startsAt: Date;
+  endsAt: Date;
+  platform: string | null;
+  location: string | null;
+  scope: MeetingScope;
+  companies: string[];
+  /** Same as on the Meetings list; anything but none means the prep page at /briefs/{id} exists */
+  prep: PrepState;
+  attendees: { name: string; email: string | null; person: { id: number; name: string; slug: string } | null }[];
+  /** Ollie's agenda and notes */
+  notes: string | null;
+}
+
+async function workEvent(eventId: number): Promise<CalendarEvent> {
+  const [event] = await db.select().from(calendarEventsTable).where(eq(calendarEventsTable.id, eventId));
+  if (!event) throw new NotFoundError("That meeting is not on your calendar");
+  if (event.personal) throw new NotFoundError("Personal events are not shown in Meetings");
+  return event;
+}
+
+export async function meetingView(eventId: number): Promise<MeetingView> {
+  const event = await workEvent(eventId);
+  const m = await loadMatchers();
+  const match = matchEvent(event, m);
+  const personIds = match.personIds;
+  const [[brief], people] = await Promise.all([
+    db
+      .select({ why: meetingBriefsTable.why, failed: meetingBriefsTable.failed, notes: meetingBriefsTable.notes })
+      .from(meetingBriefsTable)
+      .where(eq(meetingBriefsTable.calendarEventId, event.id)),
+    personIds.length ? db.select({ id: peopleTable.id, name: peopleTable.name, slug: peopleTable.slug }).from(peopleTable).where(inArray(peopleTable.id, personIds)) : [],
+  ]);
+  const personOf = new Map(people.map((p) => [p.id, p]));
+  return {
+    id: event.id,
+    title: event.title,
+    startsAt: event.startsAt,
+    endsAt: event.endsAt,
+    platform: event.platform,
+    location: event.location,
+    scope: match.scope,
+    companies: match.companies,
+    prep: prepOf(eligible(event, match), brief),
+    attendees: match.attendees.map((a) => {
+      const p = a.personId != null ? personOf.get(a.personId) : undefined;
+      return { name: p?.name ?? a.name, email: a.email ?? null, person: p ? { id: p.id, name: p.name, slug: p.slug } : null };
+    }),
+    // Older notes may still be on the brief.
+    notes: event.notes ?? brief?.notes ?? null,
+  };
+}
+
+/**
+ * Saves Ollie's agenda and notes on the event. Any older copy on the brief is cleared so there is
+ * only ever one.
+ */
+export async function updateMeetingNotes(eventId: number, notes: string | null): Promise<string | null> {
+  const event = await workEvent(eventId);
+  const text = notes?.trim() ? notes.slice(0, 20000) : null;
+  await db.transaction(async (tx) => {
+    await tx.update(calendarEventsTable).set({ notes: text }).where(eq(calendarEventsTable.id, event.id));
+    await tx.update(meetingBriefsTable).set({ notes: null }).where(and(eq(meetingBriefsTable.calendarEventId, event.id), sql`${meetingBriefsTable.notes} is not null`));
+    await writeAudit(tx, { actor: "ollie", action: "update", entityType: "calendar_event", entityId: event.id, payload: { notes: text ? text.length : 0 } });
+  });
+  return text;
 }

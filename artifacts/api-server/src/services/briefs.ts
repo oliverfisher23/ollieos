@@ -852,7 +852,8 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
       .map(({ aiAccess, ...p }) => ({ ...p, confidential: p.confidential || !aiAccess, ruleIds: (rulesByProduct.get(p.id) ?? []).sort((a, b) => a - b) })),
     playbooks: playbookRows.sort(order(inputs.playbookIds)).map((p) => ({ id: p.id, title: p.title, whenToUse: p.whenToUse, steps: p.steps.length })),
     heldBack: brief.heldBack.length,
-    notes: brief.notes,
+    // Ollie's notes live on the event now; older ones may still be on the brief.
+    notes: event.notes ?? brief.notes,
     granolaNotes: brief.granolaNotes,
     granolaRef: brief.granolaRef,
     actions: actionRows,
@@ -948,17 +949,6 @@ async function prepExtras(event: CalendarEvent, people: number[]) {
       url: r.source_url,
     })),
   };
-}
-
-export async function updateBriefNotes(eventId: number, notes: string | null): Promise<string | null> {
-  const brief = await loadBrief(eventId);
-  if (!brief) throw new NotFoundError("That brief does not exist");
-  const text = notes?.trim() ? notes.slice(0, 20000) : null;
-  await db.transaction(async (tx) => {
-    await tx.update(meetingBriefsTable).set({ notes: text }).where(eq(meetingBriefsTable.id, brief.id));
-    await writeAudit(tx, { actor: "ollie", action: "update", entityType: "meeting_brief", entityId: brief.id, payload: { notes: text ? text.length : 0 } });
-  });
-  return text;
 }
 
 /** "Allow for this brief": opens what was held back to Ask OllieOS for one hour and writes the brief again. */

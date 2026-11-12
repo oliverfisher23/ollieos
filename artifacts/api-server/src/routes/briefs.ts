@@ -2,10 +2,10 @@ import { Router, type IRouter } from "express";
 import { keepSeries, timeReport, weekCheck, worthALook } from "../services/timeAndMeetings";
 import { z } from "zod";
 import { handle } from "../lib/handle";
-import { allowForBrief, briefView, markBriefOpened, nextBriefEventId, updateBriefNotes } from "../services/briefs";
+import { allowForBrief, briefView, markBriefOpened, nextBriefEventId } from "../services/briefs";
 import { addPoint, POINT_CHARS } from "../services/talkingPoints";
 import { getDigest, listDigests } from "../services/digest";
-import { listMeetings } from "../services/meetings";
+import { listMeetings, meetingView, updateMeetingNotes } from "../services/meetings";
 import { NotFoundError } from "../services/tasks";
 
 const router: IRouter = Router();
@@ -26,6 +26,15 @@ router.post(
     const { seriesId } = z.object({ seriesId: z.string().min(1).max(300) }).parse(req.params);
     await keepSeries(seriesId);
     res.status(204).end();
+  }),
+);
+
+// Any work meeting, with or without a prep page: who is coming and Ollie's agenda and notes.
+router.get("/meetings/:eventId", handle(async (req, res) => void res.json(await meetingView(EventParams.parse(req.params).eventId))));
+router.patch(
+  "/meetings/:eventId",
+  handle(async (req, res) => {
+    res.json({ notes: await updateMeetingNotes(EventParams.parse(req.params).eventId, NotesBody.parse(req.body).notes) });
   }),
 );
 
@@ -62,7 +71,7 @@ router.post("/briefs/:eventId/allow", handle(async (req, res) => void res.json(a
 router.patch(
   "/briefs/:eventId",
   handle(async (req, res) => {
-    res.json({ notes: await updateBriefNotes(EventParams.parse(req.params).eventId, NotesBody.parse(req.body).notes) });
+    res.json({ notes: await updateMeetingNotes(EventParams.parse(req.params).eventId, NotesBody.parse(req.body).notes) });
   }),
 );
 

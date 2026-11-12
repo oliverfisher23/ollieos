@@ -28,6 +28,7 @@ import SessionsPage from '@/pages/knowledge/sessions';
 import MapPage from '@/pages/knowledge/map';
 import { BriefPage, NextBriefPage } from '@/pages/brief';
 import MeetingsPage from '@/pages/meetings';
+import MeetingPage from '@/pages/meeting';
 import ReviewPage from '@/pages/review';
 import EmailPage from '@/pages/email';
 import DigestPage from '@/pages/digest';
@@ -91,6 +92,7 @@ function Router() {
         <Route path="/knowledge/sessions" component={SessionsPage} />
         <Route path="/knowledge/map" component={MapPage} />
         <Route path="/meetings" component={MeetingsPage} />
+        <Route path="/meetings/:eventId">{(p) => <MeetingPage key={p.eventId} eventId={p.eventId} />}</Route>
         <Route path="/briefs/next" component={NextBriefPage} />
         <Route path="/briefs/:eventId">{(p) => <BriefPage key={p.eventId} eventId={p.eventId} />}</Route>
         <Route path="/digest">{() => <DigestPage />}</Route>

@@ -35,6 +35,11 @@ export const calendarEventsTable = pgTable(
     location: text("location"),
     /** Part R: Google Calendar's id for the repeating series, when the event is one of a series */
     recurringEventId: text("recurring_event_id"),
+    /**
+     * Ollie's own agenda and notes for the meeting. Kept on the event, not the brief, so a meeting
+     * with no prep page has them too. Never handed to AI. Older notes may still be on the brief.
+     */
+    notes: text("notes"),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()

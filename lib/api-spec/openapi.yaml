@@ -2226,6 +2226,43 @@ paths:
               schema: { $ref: "#/components/schemas/MeetingsList" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /meetings/{eventId}:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: getMeeting
+      tags: [preparation]
+      summary: One work meeting, with or without a prep page, with Ollie's agenda and notes
+      responses:
+        "200":
+          description: Meeting
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeetingView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      operationId: updateMeetingNotes
+      tags: [preparation]
+      summary: Ollie's agenda and notes for a work meeting (the same notes the prep page shows)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BriefNotesInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BriefNotesInput" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /briefs/next:
     get:
       operationId: getNextBrief
@@ -2261,7 +2298,7 @@ paths:
     patch:
       operationId: updateBriefNotes
       tags: [preparation]
-      summary: Ollie's notes for after the meeting
+      summary: Ollie's notes for the meeting (kept on the meeting, the same as PATCH /meetings/{eventId})
       requestBody:
         required: true
         content:
@@ -5587,6 +5624,40 @@ components:
         today: { type: string, format: date }
         upcoming: { type: array, items: { $ref: "#/components/schemas/MeetingRow" } }
         past: { type: array, items: { $ref: "#/components/schemas/MeetingRow" } }
+
+    MeetingView:
+      type: object
+      required: [id, title, startsAt, endsAt, platform, location, scope, companies, prep, attendees, notes]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        platform: { type: [string, "null"] }
+        location: { type: [string, "null"] }
+        scope: { $ref: "#/components/schemas/MeetingScope" }
+        companies: { type: array, items: { type: string } }
+        prep:
+          type: string
+          enum: [ready, not_much, failed, not_written, none]
+          description: Anything but none means the meeting has a prep page at /briefs/{id}
+        attendees:
+          type: array
+          items:
+            type: object
+            required: [name, email, person]
+            properties:
+              name: { type: string }
+              email: { type: [string, "null"] }
+              person:
+                type: [object, "null"]
+                description: Set when they are in People
+                required: [id, name, slug]
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  slug: { type: string }
+        notes: { type: [string, "null"], description: Ollie's agenda and notes }
 
     BriefNotesInput:
       type: object

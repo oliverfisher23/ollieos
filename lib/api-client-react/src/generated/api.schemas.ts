@@ -1246,6 +1246,62 @@ export interface MeetingsList {
   past: MeetingRow[];
 }
 
+/**
+ * Anything but none means the meeting has a prep page at /briefs/{id}
+ */
+export type MeetingViewPrep = typeof MeetingViewPrep[keyof typeof MeetingViewPrep];
+
+
+export const MeetingViewPrep = {
+  ready: 'ready',
+  not_much: 'not_much',
+  failed: 'failed',
+  not_written: 'not_written',
+  none: 'none',
+} as const;
+
+/**
+ * Set when they are in People
+ * @nullable
+ */
+export type MeetingViewAttendeesItemPerson = {
+  id: number;
+  name: string;
+  slug: string;
+} | null;
+
+export type MeetingViewAttendeesItem = {
+  name: string;
+  /** @nullable */
+  email: string | null;
+  /**
+     * Set when they are in People
+     * @nullable
+     */
+  person: MeetingViewAttendeesItemPerson;
+};
+
+export interface MeetingView {
+  id: number;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  /** @nullable */
+  platform: string | null;
+  /** @nullable */
+  location: string | null;
+  scope: MeetingScope;
+  companies: string[];
+  /** Anything but none means the meeting has a prep page at /briefs/{id} */
+  prep: MeetingViewPrep;
+  attendees: MeetingViewAttendeesItem[];
+  /**
+     * Ollie's agenda and notes
+     * @nullable
+     */
+  notes: string | null;
+}
+
 export interface BriefNotesInput {
   /**
      * @maxLength 20000
