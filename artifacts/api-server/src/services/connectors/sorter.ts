@@ -195,6 +195,7 @@ export function itemRules(projects: string[]): string[] {
     `- "person" is the name or email of the other person the item is with: who asked, who Ollie promised, or who he is waiting on. "" if none.`,
     `- "quote" is the exact sentence the item comes from, under 300 characters.`,
     `- "project" is one of these project names, copied exactly, when the item is clearly about it, otherwise "": ${projects.length ? projects.map((p) => `"${p}"`).join(", ") : "(none)"}.`,
+    `- Agreeing a time for a meeting or call ("can you do Tuesday at 4?", "sure, hold it", "see you then") is not an item: the calendar covers it. Only add one when Ollie must do something besides turn up, such as send the invite himself or prepare something for it.`,
     `- "confidential" is true when the item is about the sale of the company, buyers, investors, the board, salaries, bonuses, HR matters or anyone's health. Otherwise false.`,
   ];
 }
