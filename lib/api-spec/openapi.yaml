@@ -2123,6 +2123,36 @@ paths:
         "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /contacts/linkedin-import:
+    get:
+      operationId: getLinkedInImport
+      tags: [direction]
+      summary: When the LinkedIn connections were last imported, and what came of it
+      responses:
+        "200":
+          description: Last import
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LinkedInImportStatus" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: importLinkedIn
+      tags: [direction]
+      summary: Match LinkedIn's Connections.csv to people in OllieOS and propose missing or changed details to the Knowledge Inbox
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LinkedInImportInput" }
+      responses:
+        "200":
+          description: What the import found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LinkedInImportResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /people/cadence-suggestions:
     get:
       operationId: listCadenceSuggestions
@@ -7302,7 +7332,7 @@ components:
 
     Person:
       type: object
-      required: [id, name, slug, role, email, relationshipSummary, confidential, aiAccess, lastContactAt, organisation, cadence, cadencePaused, isSelf, otherEmails, slackUserId, createdAt, updatedAt]
+      required: [id, name, slug, role, email, relationshipSummary, confidential, aiAccess, lastContactAt, organisation, cadence, cadencePaused, isSelf, otherEmails, slackUserId, linkedinUrl, createdAt, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -7322,6 +7352,7 @@ components:
         isSelf: { type: boolean, description: "Ollie's own record" }
         otherEmails: { type: array, items: { type: string }, description: "Other addresses they use, in lower case" }
         slackUserId: { type: [string, "null"], description: Their Slack account }
+        linkedinUrl: { type: [string, "null"], description: Their LinkedIn profile link }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
@@ -7351,6 +7382,7 @@ components:
         cadencePaused: { type: boolean }
         otherEmails: { type: array, maxItems: 20, items: { type: string, maxLength: 320 }, description: Replaces the list of other addresses }
         slackUserId: { type: [string, "null"], description: Their Slack account id, or null to unlink }
+        linkedinUrl: { type: [string, "null"], maxLength: 300, description: Their LinkedIn profile link, or null to clear it }
 
     PersonDetail:
       type: object
@@ -8004,6 +8036,36 @@ components:
         cadenceLabel: { type: string }
         cadencePaused: { type: boolean }
         pausedByProjects: { type: boolean, description: True when every linked project is paused or complete }
+
+    LinkedInImportInput:
+      type: object
+      required: [csv]
+      additionalProperties: false
+      properties:
+        csv: { type: string, description: The text of Connections.csv from LinkedIn's data export }
+
+    LinkedInImportResult:
+      type: object
+      required: [at, connections, matched, upToDate, changes, facts, alreadyProposed, ambiguous, hidden]
+      properties:
+        at: { type: string, format: date-time }
+        connections: { type: integer, description: Rows in the file }
+        matched: { type: integer, description: Connections matched to someone in OllieOS }
+        upToDate: { type: integer, description: Matched, with nothing new }
+        changes: { type: integer, description: Change cards made for missing or changed details }
+        facts: { type: integer, description: Organisation facts made for companies OllieOS does not know }
+        alreadyProposed: { type: integer, description: Already waiting in the Knowledge Inbox, or rejected lately }
+        ambiguous: { type: integer, description: Names that fit more than one person, left alone }
+        hidden: { type: integer, description: Matched people hidden from AI, left alone }
+
+    LinkedInImportStatus:
+      type: object
+      required: [last]
+      properties:
+        last:
+          oneOf:
+            - $ref: "#/components/schemas/LinkedInImportResult"
+            - type: "null"
 
     CadenceSuggestionPerson:
       type: object

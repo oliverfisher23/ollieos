@@ -12,7 +12,7 @@ import {
 } from "@workspace/db";
 import { hasEmail } from "../personMatch";
 import { domainsForOrganisation, researchViews, type ResearchView } from "../research";
-import { BUSINESS_FUNCTION_LABELS, CADENCE_LABELS, OPEN_STATUSES, isBusinessFunction, isClientOrgType, type BusinessFunction, type Cadence, type CadenceState, type ProjectLifecycle, type TaskStatus } from "@workspace/shared";
+import { BUSINESS_FUNCTION_LABELS, CADENCE_LABELS, OPEN_STATUSES, linkedinProfileUrl, isBusinessFunction, isClientOrgType, type BusinessFunction, type Cadence, type CadenceState, type ProjectLifecycle, type TaskStatus } from "@workspace/shared";
 import { writeAudit } from "../../lib/audit";
 import { ConflictError, NotFoundError, ValidationError } from "../tasks";
 import { toTaskViews, type TaskView } from "../taskView";
@@ -462,6 +462,8 @@ export type PersonUpdate = Partial<PersonInput> & {
   otherEmails?: string[];
   /** Part N: their Slack user id, or null to unlink */
   slackUserId?: string | null;
+  /** Their LinkedIn profile link, or null to clear it */
+  linkedinUrl?: string | null;
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -554,6 +556,12 @@ export async function updatePerson(slug: string, input: PersonUpdate): Promise<P
     set.slackUserId = id;
   }
   if (input.relationshipSummary !== undefined) set.relationshipSummary = cleanText(input.relationshipSummary);
+  if (input.linkedinUrl !== undefined) {
+    const raw = cleanText(input.linkedinUrl);
+    const url = raw ? linkedinProfileUrl(raw) : null;
+    if (raw && !url) throw new ValidationError("That does not look like a LinkedIn profile link (linkedin.com/in/…)");
+    set.linkedinUrl = url;
+  }
   if (input.confidential !== undefined) set.confidential = input.confidential;
   if (input.aiAccess !== undefined) set.aiAccess = input.aiAccess;
   if (input.cadence !== undefined && input.cadence !== current.cadence) {

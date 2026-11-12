@@ -9,6 +9,7 @@ import { createProduct, getProduct, listProducts, updateProduct } from "../servi
 import { suggestProductUsers } from "../services/productUsers";
 import { suggestProjectFunctions } from "../services/projectFunctions";
 import { CADENCE_TABS, listCadence } from "../services/cadence";
+import { importLinkedInConnections, lastLinkedInImport } from "../services/linkedinImport";
 import { clearDismissedCadenceSuggestions, dismissCadenceSuggestion, suggestCadences } from "../services/cadenceSuggestions";
 import { checkInDraft } from "../services/checkIn";
 import { handle } from "../lib/handle";
@@ -87,6 +88,7 @@ const PersonUpdate = PersonCreate.partial()
     cadencePaused: z.boolean().optional(),
     otherEmails: z.array(z.string().trim().email("That email address does not look right").max(320)).max(20).optional(),
     slackUserId: z.string().trim().min(1).max(40).nullable().optional(),
+    linkedinUrl: z.string().trim().max(300).nullable().optional(),
   })
   .strict();
 const MergeBody = z.object({ otherId: id }).strict();
@@ -94,6 +96,7 @@ const NotSameBody = z.object({ aId: id, bId: id }).strict();
 const SlackQuery = z.object({ q: z.string().max(100).default("") });
 const CadenceQuery = z.object({ tab: z.enum(CADENCE_TABS).optional() });
 const DismissSuggestionBody = z.object({ personId: id }).strict();
+const LinkedInImportBody = z.object({ csv: z.string().min(1, "Choose your Connections.csv file").max(12_000_000) }).strict();
 
 const OrganisationCreate = z
   .object({
@@ -192,6 +195,8 @@ router.get("/people", handle(async (_req, res) => void res.json(await listPeople
 router.post("/people", handle(async (req, res) => void res.status(201).json(await createPerson(PersonCreate.parse(req.body)))));
 // Before /people/:slug so "cadence" is not read as a slug.
 router.get("/people/cadence", handle(async (req, res) => void res.json(await listCadence(CadenceQuery.parse(req.query).tab))));
+router.get("/contacts/linkedin-import", handle(async (_req, res) => void res.json({ last: await lastLinkedInImport() })));
+router.post("/contacts/linkedin-import", handle(async (req, res) => void res.json(await importLinkedInConnections(LinkedInImportBody.parse(req.body).csv))));
 router.get("/people/cadence-suggestions", handle(async (_req, res) => void res.json(await suggestCadences())));
 router.post(
   "/people/cadence-suggestions/dismiss",

@@ -3752,6 +3752,11 @@ export interface Person {
      * @nullable
      */
   slackUserId: string | null;
+  /**
+     * Their LinkedIn profile link
+     * @nullable
+     */
+  linkedinUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -3803,6 +3808,12 @@ export interface PersonUpdate {
      * @nullable
      */
   slackUserId?: string | null;
+  /**
+     * Their LinkedIn profile link
+     * @maxLength 300
+     * @nullable
+     */
+  linkedinUrl?: string | null;
 }
 
 export interface PersonDetail {
@@ -4609,6 +4620,35 @@ export const CadenceTab = {
   due_soon: 'due_soon',
   on_track: 'on_track',
 } as const;
+
+export interface LinkedInImportInput {
+  /** The text of Connections.csv from LinkedIn's data export */
+  csv: string;
+}
+
+export interface LinkedInImportResult {
+  at: string;
+  /** Rows in the file */
+  connections: number;
+  /** Connections matched to someone in OllieOS */
+  matched: number;
+  /** Matched */
+  upToDate: number;
+  /** Change cards made for missing or changed details */
+  changes: number;
+  /** Organisation facts made for companies OllieOS does not know */
+  facts: number;
+  /** Already waiting in the Knowledge Inbox */
+  alreadyProposed: number;
+  /** Names that fit more than one person */
+  ambiguous: number;
+  /** Matched people hidden from AI */
+  hidden: number;
+}
+
+export interface LinkedInImportStatus {
+  last: LinkedInImportResult | null;
+}
 
 export interface CadenceSuggestionPerson {
   id: number;

@@ -34,6 +34,11 @@ export interface Person {
      * @nullable
      */
   slackUserId: string | null;
+  /**
+     * Their LinkedIn profile link
+     * @nullable
+     */
+  linkedinUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

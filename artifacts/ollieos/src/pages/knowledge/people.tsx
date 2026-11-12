@@ -156,6 +156,13 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
             <dd><OtherEmails person={person} /></dd>
             <dt>Slack</dt>
             <dd><SlackAccount person={person} /></dd>
+            <dt>LinkedIn</dt>
+            <dd style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start', minWidth: 0 }}>
+              <InlineText value={person.linkedinUrl} label="LinkedIn" placeholder="Add a LinkedIn profile link" testId="person-linkedin" onSave={(v) => save({ linkedinUrl: v })} />
+              {person.linkedinUrl && (
+                <a href={person.linkedinUrl} target="_blank" rel="noreferrer" className="oo-link" style={{ fontSize: 13 }} data-testid="link-person-linkedin">Open profile</a>
+              )}
+            </dd>
             <dt>Last contact</dt>
             <dd data-testid="text-last-contact">{person.lastContactAt ? formatDayMonth(person.lastContactAt) : 'None recorded'}</dd>
             {!person.isSelf && (
@@ -198,7 +205,7 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
 
         <section className="oo-panel" aria-labelledby="same-h" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <h2 id="same-h" className="oo-h2" style={{ fontSize: 14 }}>Duplicate record?</h2>
-          <p className="oo-muted" style={{ margin: 0, fontSize: 13 }}>If someone else in People is also {first}, merge them here so everything is in one place.</p>
+          <p className="oo-muted" style={{ margin: 0, fontSize: 13 }}>If someone else in Contacts is also {first}, merge them here so everything is in one place.</p>
           <SamePersonAs person={person} />
         </section>
 

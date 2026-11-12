@@ -28,6 +28,7 @@ import { CreateDialog } from '@/components/knowledge/create-dialog';
 import { HiddenFromAi, LockMark, PageProblem } from '@/components/knowledge/parts';
 import { CadencePill, CadenceSelect, CheckInDialog } from '@/components/cadence';
 import { PossibleDuplicates } from '@/components/knowledge/person-identity';
+import { LinkedInImportDialog } from '@/components/linkedin-import';
 import { firstName, useKnowledgeWrite } from '@/lib/knowledge';
 
 type View = 'people' | 'organisations';
@@ -118,6 +119,7 @@ export default function ContactsPage() {
   const [text, setText] = useState('');
   const [creating, setCreating] = useState<null | 'person' | 'organisation'>(null);
   const [drafting, setDrafting] = useState<PersonListItem | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const peopleQ = useListPeople();
   const orgsQ = useListOrganisations();
@@ -150,6 +152,7 @@ export default function ContactsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
           <span className="oo-serif" style={{ fontSize: 22 }} data-testid="text-overdue-count">{peopleQ.data ? `${overdue} overdue` : '…'}</span>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" onClick={() => setImporting(true)} data-testid="button-linkedin-open">Import from LinkedIn</button>
             <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" onClick={() => setCreating('organisation')} data-testid="button-new-organisation">New organisation</button>
             <button type="button" className="oo-btn oo-btn-ink oo-btn-sm" onClick={() => setCreating('person')} data-testid="button-new-person">New person</button>
           </div>
@@ -213,6 +216,7 @@ export default function ContactsPage() {
 
       {creating && <CreateDialog kind={creating} onClose={() => setCreating(null)} />}
       {drafting && <CheckInDialog person={drafting} onClose={() => setDrafting(null)} />}
+      {importing && <LinkedInImportDialog onClose={() => setImporting(false)} />}
     </main>
   );
 }

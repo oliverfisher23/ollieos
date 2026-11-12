@@ -123,6 +123,9 @@ import type {
   LibraryDocument,
   LinkInput,
   LinkResult,
+  LinkedInImportInput,
+  LinkedInImportResult,
+  LinkedInImportStatus,
   ListAiActivityParams,
   ListCadenceParams,
   ListDocumentsParams,
@@ -9415,6 +9418,195 @@ export function useListCadence<TData = Awaited<ReturnType<typeof listCadence>>, 
 
 
 
+
+export const getGetLinkedInImportUrl = () => {
+
+
+
+
+  return `/api/contacts/linkedin-import`
+}
+
+/**
+ * @summary When the LinkedIn connections were last imported, and what came of it
+ */
+export const getLinkedInImport = async ( options?: Parameters<typeof customFetch>[1]): Promise<LinkedInImportStatus> => {
+
+  return customFetch<LinkedInImportStatus>(getGetLinkedInImportUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLinkedInImportQueryKey = () => {
+    return [
+    `/api/contacts/linkedin-import`
+    ] as const;
+    }
+
+
+export const getGetLinkedInImportQueryOptions = <TData = Awaited<ReturnType<typeof getLinkedInImport>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLinkedInImportQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLinkedInImport>>> = ({ signal }) => getLinkedInImport({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetLinkedInImportQueryResult = NonNullable<Awaited<ReturnType<typeof getLinkedInImport>>>
+export type GetLinkedInImportQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetLinkedInImport<TData = Awaited<ReturnType<typeof getLinkedInImport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLinkedInImport>>,
+          TError,
+          Awaited<ReturnType<typeof getLinkedInImport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLinkedInImport<TData = Awaited<ReturnType<typeof getLinkedInImport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLinkedInImport>>,
+          TError,
+          Awaited<ReturnType<typeof getLinkedInImport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLinkedInImport<TData = Awaited<ReturnType<typeof getLinkedInImport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary When the LinkedIn connections were last imported, and what came of it
+ */
+
+export function useGetLinkedInImport<TData = Awaited<ReturnType<typeof getLinkedInImport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetLinkedInImportQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getImportLinkedInUrl = () => {
+
+
+
+
+  return `/api/contacts/linkedin-import`
+}
+
+/**
+ * @summary Match LinkedIn's Connections.csv to people in OllieOS and propose missing or changed details to the Knowledge Inbox
+ */
+export const importLinkedIn = async (linkedInImportInput: LinkedInImportInput, options?: Parameters<typeof customFetch>[1]): Promise<LinkedInImportResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<LinkedInImportResult>(getImportLinkedInUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(linkedInImportInput)
+  }
+);}
+
+
+
+
+
+export const getImportLinkedInMutationKey = () => ['importLinkedIn'] as const;
+
+export const getImportLinkedInMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importLinkedIn>>, TError,ImportLinkedInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importLinkedIn>>, TError,ImportLinkedInMutationVariables, TContext> => {
+
+const mutationKey = getImportLinkedInMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importLinkedIn>>, ImportLinkedInMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  importLinkedIn(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportLinkedInMutationResult = NonNullable<Awaited<ReturnType<typeof importLinkedIn>>>
+    export type ImportLinkedInMutationBody = BodyType<LinkedInImportInput>
+    export type ImportLinkedInMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type ImportLinkedInMutationVariables = {data: BodyType<LinkedInImportInput>}
+
+    /**
+ * @summary Match LinkedIn's Connections.csv to people in OllieOS and propose missing or changed details to the Knowledge Inbox
+ */
+export const useImportLinkedIn = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importLinkedIn>>, TError,ImportLinkedInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importLinkedIn>>,
+        TError,
+        ImportLinkedInMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportLinkedInMutationOptions(options), queryClient);
+    }
 
 export const getListCadenceSuggestionsUrl = () => {
 
