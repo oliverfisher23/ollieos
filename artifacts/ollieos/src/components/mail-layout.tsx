@@ -4,7 +4,7 @@ import { PageProblem } from '@/components/knowledge/parts';
 
 /**
  * The list and the reading pane side by side on wide screens; one at a time on narrow ones.
- * On wide screens the first email opens when none is picked.
+ * On wide screens the first message opens when none is picked.
  */
 export function Mail({ ids, picked, wide, loading, failed, retry, what, empty, onPick, row, reader }: {
   ids: string[];
@@ -39,7 +39,7 @@ export function Mail({ ids, picked, wide, loading, failed, retry, what, empty, o
 
   return (
     <div className="oo-mail" data-open={open != null ? 'true' : 'false'}>
-      <ul className="oo-mail-list" aria-label="Emails">
+      <ul className="oo-mail-list" aria-label="Messages">
         {ids.map((id) => <li key={id}>{row(id, id === open)}</li>)}
         {ids.length === 0 && <li className="oo-muted" style={{ padding: 14, fontSize: 13 }}>{empty}</li>}
       </ul>

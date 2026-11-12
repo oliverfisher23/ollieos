@@ -81,6 +81,7 @@ const ROUTES: RouteCheck[] = [
   { pattern: "/tasks", url: "/tasks?tab=backlog" },
   { pattern: "/tasks", url: (s) => (s.task ? "/tasks?task=" + s.task : null) },
   { pattern: "/review", url: "/review" },
+  { pattern: "/duplicates", url: "/duplicates" },
   { pattern: "/voice", url: "/voice" },
   { pattern: "/messages", url: "/messages" },
   { pattern: "/messages", url: "/messages?tab=drafts" },

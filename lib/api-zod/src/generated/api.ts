@@ -117,6 +117,7 @@ export const GetHomeResponse = zod.object({
   "text": zod.string()
 })).describe('Part Q: services OllieOS reads that need a look'),
   "slackToAnswer": zod.int().describe('Slack messages that need a reply and have waited over a working day (Part P)'),
+  "emailToAnswer": zod.int().describe('Emails that need a reply and have waited over a working day, as of the last look at Gmail'),
   "ideasDue": zod.array(zod.object({
   "id": zod.int(),
   "title": zod.string(),
@@ -237,12 +238,21 @@ export const GetHomeResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),
   "reason": zod.string().describe('One-line reason, e.g. "Overdue by 2 days" or "High priority, due Friday 13th November"')
 })).describe('Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped.'),
@@ -328,12 +338,21 @@ export const GetHomeResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),
   "daysWaiting": zod.int().describe('Whole days since waitingSince (or updatedAt if unknown). Amber at 5 or more.')
 })),
@@ -411,12 +430,21 @@ export const GetHomeResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 })).describe('Open tasks with kind promise'),
   "doneThisWeek": zod.object({
   "count": zod.int(),
@@ -494,12 +522,21 @@ export const GetHomeResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 })).describe('Up to 5, most recently completed first')
 }),
   "lastSweepAt": zod.coerce.date().nullable().describe('When the last successful sweep finished. Null until the sweep runs (milestone 5).'),
@@ -570,6 +607,7 @@ export const ListTasksQueryParams = zod.object({
   "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']).optional(),
   "weekStart": zod.date().optional().describe('Monday of the week (YYYY-MM-DD, London). Open tabs filter by due date, Done by completion date.'),
   "includeUndated": zod.coerce.boolean().optional().describe('With weekStart on open tabs, also include tasks with no due date.'),
+  "due": zod.coerce.string().optional().describe('Section 27: "overdue", or one day (YYYY-MM-DD), to list only tasks due then.'),
   "q": zod.coerce.string().optional()
 })
 
@@ -647,12 +685,21 @@ export const ListTasksResponseItem = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 })
 export const ListTasksResponse = zod.array(ListTasksResponseItem)
 
@@ -665,6 +712,15 @@ export const GetTaskSummaryQueryParams = zod.object({
 })
 
 export const GetTaskSummaryResponse = zod.object({
+  "load": zod.object({
+  "overdue": zod.int().describe('Open tasks past their due date'),
+  "toChase": zod.int().describe('Waiting on tasks ready for a chase'),
+  "busiest": zod.union([zod.object({
+  "date": zod.coerce.date(),
+  "due": zod.int(),
+  "inNow": zod.int()
+}),zod.null()]).describe('The fullest day in the next seven with most of its tasks not yet in Now, or null')
+}),
   "tabs": zod.object({
   "archived": zod.int(),
   "inbox": zod.int(),
@@ -770,15 +826,337 @@ export const QuickAddTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),
   "warnings": zod.array(zod.string()).describe('e.g. "No project called @foo, added without a project"')
 })
+
+
+/**
+ * @summary Pairs of open tasks that look like the same work, waiting for Ollie
+ */
+export const ListTaskDuplicatesResponse = zod.object({
+  "pairs": zod.array(zod.object({
+  "id": zod.int(),
+  "reason": zod.string().nullable().describe('The duplicate check\'s line on what work they share'),
+  "a": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
+}),
+  "b": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
+})
+}))
+})
+
+
+/**
+ * @summary Look for duplicate open tasks now instead of waiting for the daily check
+ */
+export const CheckTaskDuplicatesResponse = zod.object({
+  "checked": zod.int().describe('Pairs with similar titles the duplicate check looked at'),
+  "found": zod.int().describe('New pairs it says are the same work')
+})
+
+
+/**
+ * @summary Merge a pair into the task Ollie keeps; the other is dropped and shows on it as Also came up
+ */
+export const MergeTaskDuplicateParams = zod.object({
+  "pairId": zod.coerce.number().int()
+})
+
+export const MergeTaskDuplicateBody = zod.object({
+  "keep": zod.int().describe('The id of the task to keep')
+})
+
+export const MergeTaskDuplicateResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
+})
+
+
+/**
+ * @summary Not the same; the pair is never suggested again
+ */
+export const DismissTaskDuplicateParams = zod.object({
+  "pairId": zod.coerce.number().int()
+})
+
+export const DismissTaskDuplicateResponse = zod.void()
 
 
 /**
@@ -878,12 +1256,21 @@ export const GetTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),
   "history": zod.array(zod.object({
   "id": zod.int(),
@@ -906,6 +1293,7 @@ export const UpdateTaskParams = zod.object({
 
 
 export const UpdateTaskBody = zod.object({
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why it was dropped or sent to Noise; null clears it'),
   "title": zod.string().min(1).optional(),
   "kind": zod.enum(['task', 'promise']).optional(),
   "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']).optional(),
@@ -1003,12 +1391,21 @@ export const UpdateTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 })
 
 
@@ -1093,12 +1490,21 @@ export const SnoozeTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 })
 
 
@@ -1222,12 +1628,21 @@ export const TriageTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),
   "noiseRule": zod.union([zod.object({
   "id": zod.int(),
@@ -1325,12 +1740,21 @@ export const UndoTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 })
 
 
@@ -1415,12 +1839,21 @@ export const RestoreTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 })
 
 
@@ -1505,12 +1938,21 @@ export const ContinueRepeatResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 })
 
 
@@ -1599,12 +2041,21 @@ export const GetDayPlanResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),
   "minutes": zod.int(),
   "start": zod.string().nullable().describe('HH:MM. Null when it did not fit today.'),
@@ -1693,12 +2144,21 @@ export const GetDayPlanResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),
   "reason": zod.string(),
   "carriedOver": zod.boolean().describe('In an earlier plan and not finished')
@@ -1798,12 +2258,21 @@ export const SaveDayPlanResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),
   "minutes": zod.int(),
   "start": zod.string().nullable().describe('HH:MM. Null when it did not fit today.'),
@@ -1892,12 +2361,21 @@ export const SaveDayPlanResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),
   "reason": zod.string(),
   "carriedOver": zod.boolean().describe('In an earlier plan and not finished')
@@ -1990,12 +2468,21 @@ export const RefitDayPlanResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),
   "minutes": zod.int(),
   "start": zod.string().nullable().describe('HH:MM. Null when it did not fit today.'),
@@ -2084,12 +2571,21 @@ export const RefitDayPlanResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),
   "reason": zod.string(),
   "carriedOver": zod.boolean().describe('In an earlier plan and not finished')
@@ -2200,12 +2696,21 @@ export const GetClearOutResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 })).describe('Oldest first, up to 200')
 })
 
@@ -2300,12 +2805,21 @@ export const KeepInBacklogResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 })
 
 
@@ -2390,12 +2904,21 @@ export const KeepTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 })
 
 
@@ -2747,7 +3270,11 @@ export const ListEmailInboxResponse = zod.object({
   "taskId": zod.int().nullable().describe('The email task linked to it'),
   "gmailUrl": zod.string(),
   "needs": zod.enum(['reply', 'info', 'checking', 'unknown']).describe('Needs a reply, for information, not read yet, or not read by AI (hidden from it, or reading failed)'),
-  "ask": zod.string().nullable().describe('One line on what the sender wants')
+  "ask": zod.string().nullable().describe('One line on what the sender wants'),
+  "snoozedUntil": zod.coerce.date().nullable().describe('Later: the day it comes back, while it is hidden'),
+  "personId": zod.int().nullable().describe('The sender in People, when they are there'),
+  "personSlug": zod.string().nullable(),
+  "priority": zod.string().nullable().describe('Why it comes first: Client, or Overdue to contact')
 })),
   "more": zod.boolean().describe('More inbox emails than are listed'),
   "leftOut": zod.int().describe('Newsletters and automatic emails left out'),
@@ -3462,12 +3989,21 @@ export const GetWeekCheckResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 })),
   "dueCount": zod.int()
 })
@@ -3817,13 +4353,13 @@ export const ListTaskEvidenceParams = zod.object({
 
 export const ListTaskEvidenceResponseItem = zod.object({
   "id": zod.int(),
-  "source": zod.string().describe('slack, email or meeting'),
+  "source": zod.string().describe('slack, email, meeting, or for the same work coming up again, session, manual and the other task sources'),
   "url": zod.string().nullable(),
   "saidBy": zod.string().nullable().describe('"You" for Ollie, otherwise the name as written'),
   "saidAt": zod.coerce.date(),
   "place": zod.string().nullable().describe('The Slack conversation'),
   "quote": zod.string(),
-  "shows": zod.enum(['done', 'progress']),
+  "shows": zod.enum(['done', 'progress', 'same']).describe('same: section 26, the same work came up again here'),
   "strength": zod.enum(['same', 'other']).describe('same: from the task\'s own conversation; other: anywhere else'),
   "applied": zod.boolean().describe('This evidence closed the task'),
   "dismissed": zod.boolean().describe('Ollie said Not done')
@@ -3841,13 +4377,13 @@ export const DismissTaskEvidenceParams = zod.object({
 
 export const DismissTaskEvidenceResponseItem = zod.object({
   "id": zod.int(),
-  "source": zod.string().describe('slack, email or meeting'),
+  "source": zod.string().describe('slack, email, meeting, or for the same work coming up again, session, manual and the other task sources'),
   "url": zod.string().nullable(),
   "saidBy": zod.string().nullable().describe('"You" for Ollie, otherwise the name as written'),
   "saidAt": zod.coerce.date(),
   "place": zod.string().nullable().describe('The Slack conversation'),
   "quote": zod.string(),
-  "shows": zod.enum(['done', 'progress']),
+  "shows": zod.enum(['done', 'progress', 'same']).describe('same: section 26, the same work came up again here'),
   "strength": zod.enum(['same', 'other']).describe('same: from the task\'s own conversation; other: anywhere else'),
   "applied": zod.boolean().describe('This evidence closed the task'),
   "dismissed": zod.boolean().describe('Ollie said Not done')
@@ -3856,9 +4392,116 @@ export const DismissTaskEvidenceResponse = zod.array(DismissTaskEvidenceResponse
 
 
 /**
+ * @summary Messages: how many emails and Slack messages need a reply, and how many of those have waited over a working day. For the menu.
+ */
+export const GetMessageCountsResponse = zod.object({
+  "needsReply": zod.int().describe('Emails and Slack messages under Needs a reply on To answer'),
+  "overdue": zod.int().describe('Those that have waited over one working day'),
+  "emailsOverdue": zod.int(),
+  "slackOverdue": zod.int()
+})
+
+
+/**
+ * @summary Mark all done: takes several emails and Slack messages off To answer at once
+ */
+export const MarkMessagesDoneBody = zod.object({
+  "threadIds": zod.array(zod.string()),
+  "slackIds": zod.array(zod.int())
+})
+
+export const MarkMessagesDoneResponse = zod.object({
+  "emails": zod.array(zod.object({
+  "threadId": zod.string(),
+  "taskId": zod.int().nullable(),
+  "previousStatus": zod.union([zod.literal('inbox'),zod.literal('now'),zod.literal('backlog'),zod.literal('waiting'),zod.literal(null)]).nullable()
+})),
+  "slack": zod.array(zod.object({
+  "id": zod.int(),
+  "taskId": zod.int().nullable(),
+  "previousStatus": zod.union([zod.literal('inbox'),zod.literal('now'),zod.literal('backlog'),zod.literal('waiting'),zod.literal(null)]).nullable()
+}))
+})
+
+
+/**
+ * @summary Puts them back on To answer and their tasks back where they were
+ */
+export const UndoMessagesDoneBody = zod.object({
+  "emails": zod.array(zod.object({
+  "threadId": zod.string(),
+  "taskId": zod.int().nullable(),
+  "previousStatus": zod.union([zod.literal('inbox'),zod.literal('now'),zod.literal('backlog'),zod.literal('waiting'),zod.literal(null)]).nullable()
+})),
+  "slack": zod.array(zod.object({
+  "id": zod.int(),
+  "taskId": zod.int().nullable(),
+  "previousStatus": zod.union([zod.literal('inbox'),zod.literal('now'),zod.literal('backlog'),zod.literal('waiting'),zod.literal(null)]).nullable()
+}))
+})
+
+export const UndoMessagesDoneResponse = zod.void()
+
+
+/**
+ * @summary Later: hides an inbox email until a day, or until a new message arrives. A null day brings it back.
+ */
+export const SnoozeEmailInboxParams = zod.object({
+  "threadId": zod.coerce.string()
+})
+
+export const SnoozeEmailInboxBody = zod.object({
+  "until": zod.coerce.date().nullable().describe('The day it comes back, after today; null brings it back now')
+})
+
+export const SnoozeEmailInboxResponse = zod.void()
+
+
+/**
+ * @summary Check now: looks at the listed Slack conversations again and closes those Ollie has answered
+ */
+export const RefreshSlackToAnswerResponse = zod.object({
+  "closed": zod.int()
+})
+
+
+/**
+ * @summary The last few messages of the conversation, oldest first, for reading on Messages. Read only.
+ */
+export const GetSlackConversationParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetSlackConversationResponse = zod.object({
+  "fromSlack": zod.boolean().describe('False when Slack could not be read, so only the saved message is given'),
+  "messages": zod.array(zod.object({
+  "fromName": zod.string(),
+  "fromOllie": zod.boolean(),
+  "at": zod.coerce.date(),
+  "text": zod.string()
+}))
+})
+
+
+/**
+ * @summary Later: hides a Slack message until a day, or until a newer message arrives. A null day brings it back.
+ */
+export const SnoozeSlackToAnswerParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const SnoozeSlackToAnswerBody = zod.object({
+  "until": zod.coerce.date().nullable().describe('The day it comes back, after today; null brings it back now')
+})
+
+export const SnoozeSlackToAnswerResponse = zod.void()
+
+
+/**
  * @summary Slack to answer: conversations from the last 14 days whose newest message is from someone else, newest first. Nothing is posted to Slack.
  */
 export const ListSlackToAnswerResponse = zod.object({
+  "updating": zod.boolean().describe('The conversations listed are being looked at again'),
   "items": zod.array(zod.object({
   "id": zod.int(),
   "kind": zod.string().describe('im, mpim or channel'),
@@ -3872,7 +4515,14 @@ export const ListSlackToAnswerResponse = zod.object({
   "needs": zod.enum(['reply', 'info', 'unknown']).describe('Needs a reply, for information, or not read by AI'),
   "ask": zod.string().nullable().describe('One line on what they want'),
   "hidden": zod.boolean().describe('Someone in it is hidden from AI, so it was not read and cannot be drafted'),
-  "taskId": zod.int().nullable().describe('The open task for it, when there is one')
+  "taskId": zod.int().nullable().describe('The open task for it, when there is one'),
+  "draft": zod.union([zod.object({
+  "text": zod.string(),
+  "brief": zod.string().nullable().describe('What Ollie asked it to say'),
+  "updatedAt": zod.coerce.date()
+}),zod.null()]).describe('The reply drafted for it, when there is one: it is on Drafts, not To answer'),
+  "snoozedUntil": zod.coerce.date().nullable().describe('Later: the day it comes back, while it is hidden'),
+  "priority": zod.string().nullable().describe('Why it comes first: Client, or Overdue to contact')
 })),
   "readBy": zod.enum(['ollieos', 'claude']).describe('Who reads Slack: only OllieOS\'s own Slack check fills this list'),
   "checkedAt": zod.coerce.date().nullable().describe('When the last good Slack check finished')
@@ -3920,15 +4570,60 @@ export const EnsureSlackToAnswerTaskResponse = zod.object({
 
 
 /**
- * @summary Drafts a short Slack reply in Ollie's style for him to copy. Nothing is posted.
+ * @summary Drafts a short Slack reply in Ollie's style for him to copy, and keeps it so it shows on Drafts. A brief says what it should say; a change asks for the draft it has to be changed. Nothing is posted.
  */
 export const DraftSlackToAnswerReplyParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
-export const DraftSlackToAnswerReplyResponse = zod.object({
-  "text": zod.string()
+export const draftSlackToAnswerReplyBodyBriefMax = 500;
+
+export const draftSlackToAnswerReplyBodyChangeMax = 500;
+
+
+
+export const DraftSlackToAnswerReplyBody = zod.object({
+  "brief": zod.string().max(draftSlackToAnswerReplyBodyBriefMax).nullish().describe('What the reply should say'),
+  "change": zod.string().max(draftSlackToAnswerReplyBodyChangeMax).nullish().describe('What to change about the draft it has: shorter, warmer')
 })
+
+export const DraftSlackToAnswerReplyResponse = zod.object({
+  "text": zod.string(),
+  "brief": zod.string().nullable().describe('What Ollie asked it to say'),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Saves Ollie's own edits to the draft, or a reply he wrote himself
+ */
+export const SaveSlackToAnswerDraftParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const saveSlackToAnswerDraftBodyTextMax = 4000;
+
+
+
+export const SaveSlackToAnswerDraftBody = zod.object({
+  "text": zod.string().max(saveSlackToAnswerDraftBodyTextMax)
+})
+
+export const SaveSlackToAnswerDraftResponse = zod.object({
+  "text": zod.string(),
+  "brief": zod.string().nullable().describe('What Ollie asked it to say'),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Takes the draft off Drafts; the message goes back on To answer
+ */
+export const RemoveSlackToAnswerDraftParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RemoveSlackToAnswerDraftResponse = zod.void()
 
 
 /**
@@ -4017,6 +4712,243 @@ export const UndoEmailInboxDoneResponse = zod.void()
 
 
 /**
+ * @summary Make the same change to several tasks at once
+ */
+export const bulkUpdateTasksBodyIdsMax = 200;
+
+
+
+export const BulkUpdateTasksBody = zod.object({
+  "ids": zod.array(zod.int()).min(1).max(bulkUpdateTasksBodyIdsMax),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']).optional(),
+  "priority": zod.enum(['high', 'medium', 'low']).optional(),
+  "dueDate": zod.coerce.date().nullish(),
+  "projectId": zod.int().nullish(),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional()
+})
+
+export const BulkUpdateTasksResponse = zod.object({
+  "updated": zod.int(),
+  "failed": zod.int()
+})
+
+
+/**
+ * @summary Up to three projects a task with no project probably belongs to
+ */
+export const GetTaskProjectSuggestionsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetTaskProjectSuggestionsResponse = zod.object({
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Not yet, or just chased; do not flag this Waiting on task for a chase for another few days
+ */
+export const ChaseTaskLaterParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ChaseTaskLaterResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
+})
+
+
+/**
+ * @summary Not stuck; the stuck-task coach's line goes and the task is not flagged again
+ */
+export const DismissTaskStuckHintParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DismissTaskStuckHintResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
+})
+
+
+/**
  * @summary A short chase message for the person this task is waiting on
  */
 export const GetTaskChaseLineParams = zod.object({
@@ -4059,6 +4991,35 @@ export const ListNoiseRulesResponseItem = zod.object({
   "createdAt": zod.coerce.date()
 })
 export const ListNoiseRulesResponse = zod.array(ListNoiseRulesResponseItem)
+
+
+/**
+ * @summary Mute from Messages: stop showing a sender's email or a Slack channel's mentions. Makes the rule, or turns the existing one back on.
+ */
+export const muteFromMessagesBodyMatchValueMax = 200;
+
+
+
+export const MuteFromMessagesBody = zod.object({
+  "matchType": zod.enum(['from_address_equals', 'slack_channel_equals']),
+  "matchValue": zod.string().max(muteFromMessagesBodyMatchValueMax)
+})
+
+export const MuteFromMessagesResponse = zod.object({
+  "rule": zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string(),
+  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),zod.null()]),
+  "enabled": zod.boolean(),
+  "hitCount": zod.int(),
+  "lastHitAt": zod.coerce.date().nullable(),
+  "createdFromTaskId": zod.int().nullable(),
+  "createdAt": zod.coerce.date()
+}),
+  "created": zod.boolean().describe('False when the rule was already on')
+})
 
 
 /**
@@ -4428,12 +5389,21 @@ export const GetProjectResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 })),
   "people": zod.array(zod.object({
   "id": zod.int(),
@@ -4757,12 +5727,21 @@ export const GetPersonResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 })),
   "theyOwe": zod.array(zod.object({
   "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
@@ -4838,12 +5817,21 @@ export const GetPersonResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 })),
   "projects": zod.array(zod.object({
   "id": zod.int(),
@@ -7300,6 +8288,7 @@ export const ListSessionsResponseItem = zod.object({
   "title": zod.string(),
   "summary": zod.string(),
   "outcomes": zod.array(zod.string()).describe('What was done'),
+  "openQuestions": zod.array(zod.string()).describe('Section 27: questions the session left open, kept here instead of the Inbox'),
   "happenedAt": zod.coerce.date(),
   "archived": zod.boolean().describe('Older than 90 days with nothing from it still open; left out of briefs'),
   "confidential": zod.boolean().nullable().describe('null means it follows the projects and people it touched'),
@@ -7334,6 +8323,7 @@ export const GetSessionResponse = zod.object({
   "title": zod.string(),
   "summary": zod.string(),
   "outcomes": zod.array(zod.string()).describe('What was done'),
+  "openQuestions": zod.array(zod.string()).describe('Section 27: questions the session left open, kept here instead of the Inbox'),
   "happenedAt": zod.coerce.date(),
   "archived": zod.boolean().describe('Older than 90 days with nothing from it still open; left out of briefs'),
   "confidential": zod.boolean().nullable().describe('null means it follows the projects and people it touched'),
@@ -7394,6 +8384,7 @@ export const UpdateSessionResponse = zod.object({
   "title": zod.string(),
   "summary": zod.string(),
   "outcomes": zod.array(zod.string()).describe('What was done'),
+  "openQuestions": zod.array(zod.string()).describe('Section 27: questions the session left open, kept here instead of the Inbox'),
   "happenedAt": zod.coerce.date(),
   "archived": zod.boolean().describe('Older than 90 days with nothing from it still open; left out of briefs'),
   "confidential": zod.boolean().nullable().describe('null means it follows the projects and people it touched'),
@@ -7449,6 +8440,68 @@ export const DeleteSessionResponse = zod.void()
 
 
 /**
+ * @summary Put one of a session's open questions in the Inbox, or take it off the list
+ */
+export const DecideSessionQuestionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DecideSessionQuestionBody = zod.object({
+  "question": zod.string().describe('The open question'),
+  "action": zod.enum(['task', 'dismiss']).describe('task: put it in the Inbox; dismiss: take it off the list')
+})
+
+export const DecideSessionQuestionResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "summary": zod.string(),
+  "outcomes": zod.array(zod.string()).describe('What was done'),
+  "openQuestions": zod.array(zod.string()).describe('Section 27: questions the session left open, kept here instead of the Inbox'),
+  "happenedAt": zod.coerce.date(),
+  "archived": zod.boolean().describe('Older than 90 days with nothing from it still open; left out of briefs'),
+  "confidential": zod.boolean().nullable().describe('null means it follows the projects and people it touched'),
+  "hiddenFromAi": zod.boolean(),
+  "projects": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "people": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})),
+  "taskCount": zod.int(),
+  "decisionCount": zod.int().describe('Decisions from it Ollie approved'),
+  "documentCount": zod.int().describe('Documents from it Ollie added to the Library'),
+  "waitingCount": zod.int().describe('Suggestions from it still in the Knowledge Inbox')
+}).and(zod.object({
+  "transcript": zod.string().nullable(),
+  "createdBy": zod.string(),
+  "tasks": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.string(),
+  "status": zod.string()
+})),
+  "decisions": zod.array(zod.object({
+  "id": zod.int(),
+  "text": zod.string()
+})),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string()
+})),
+  "knowledge": zod.object({
+  "state": zod.enum(['none', 'waiting', 'reading', 'read', 'failed']),
+  "lastReadAt": zod.coerce.date().nullable(),
+  "found": zod.string().nullable().describe('What the last read proposed'),
+  "error": zod.string().nullable()
+})
+}))
+
+
+/**
  * @summary Read a session for knowledge again; what it finds goes to the Knowledge Inbox
  */
 export const ReadSessionKnowledgeParams = zod.object({
@@ -7460,6 +8513,7 @@ export const ReadSessionKnowledgeResponse = zod.object({
   "title": zod.string(),
   "summary": zod.string(),
   "outcomes": zod.array(zod.string()).describe('What was done'),
+  "openQuestions": zod.array(zod.string()).describe('Section 27: questions the session left open, kept here instead of the Inbox'),
   "happenedAt": zod.coerce.date(),
   "archived": zod.boolean().describe('Older than 90 days with nothing from it still open; left out of briefs'),
   "confidential": zod.boolean().nullable().describe('null means it follows the projects and people it touched'),
@@ -10538,12 +11592,21 @@ export const AskOllieOSResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -10683,12 +11746,21 @@ export const GetAskThreadResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -10828,12 +11900,21 @@ export const DraftAskReplyResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -10973,12 +12054,21 @@ export const AllowAskTurnResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -11127,12 +12217,21 @@ export const BundleAskTasksResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -11272,12 +12371,21 @@ export const UndoAskBundleResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
   "why": zod.string(),
   "message": zod.string()
-}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.')
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -11967,6 +13075,7 @@ export const ListReviewResponse = zod.object({
   "id": zod.int(),
   "kind": zod.enum(['action', 'no_reply']).describe('action: from a Granola look back; no_reply: an email Ollie sent that nobody answered'),
   "state": zod.enum(['pending', 'accepted', 'done', 'dropped', 'answered']).describe('answered means someone wrote back before Ollie decided'),
+  "via": zod.enum(['meeting', 'email', 'slack']).describe('Where it came from: a meeting\'s notes, an email Ollie sent, or a Slack message he sent'),
   "text": zod.string().describe('The action, or for an unanswered email the ask: who owes what'),
   "action": zod.string().nullable().describe('The next step (or chase line), in one sentence'),
   "quote": zod.string().nullable().describe('The line in the notes or email it came from'),
@@ -12020,6 +13129,7 @@ export const SetReviewExpectedByResponse = zod.object({
   "id": zod.int(),
   "kind": zod.enum(['action', 'no_reply']).describe('action: from a Granola look back; no_reply: an email Ollie sent that nobody answered'),
   "state": zod.enum(['pending', 'accepted', 'done', 'dropped', 'answered']).describe('answered means someone wrote back before Ollie decided'),
+  "via": zod.enum(['meeting', 'email', 'slack']).describe('Where it came from: a meeting\'s notes, an email Ollie sent, or a Slack message he sent'),
   "text": zod.string().describe('The action, or for an unanswered email the ask: who owes what'),
   "action": zod.string().nullable().describe('The next step (or chase line), in one sentence'),
   "quote": zod.string().nullable().describe('The line in the notes or email it came from'),
@@ -12179,6 +13289,7 @@ export const DecideReviewResponse = zod.object({
   "id": zod.int(),
   "kind": zod.enum(['action', 'no_reply']).describe('action: from a Granola look back; no_reply: an email Ollie sent that nobody answered'),
   "state": zod.enum(['pending', 'accepted', 'done', 'dropped', 'answered']).describe('answered means someone wrote back before Ollie decided'),
+  "via": zod.enum(['meeting', 'email', 'slack']).describe('Where it came from: a meeting\'s notes, an email Ollie sent, or a Slack message he sent'),
   "text": zod.string().describe('The action, or for an unanswered email the ask: who owes what'),
   "action": zod.string().nullable().describe('The next step (or chase line), in one sentence'),
   "quote": zod.string().nullable().describe('The line in the notes or email it came from'),

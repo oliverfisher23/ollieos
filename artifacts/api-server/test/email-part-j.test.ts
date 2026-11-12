@@ -5,7 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
-import { db, documentContentsTable, documentsTable, knowledgeSourcesTable, peopleTable, replyDraftsTable, tasksTable } from "@workspace/db";
+import { db, documentContentsTable, documentsTable, knowledgeSourcesTable, noiseRulesTable, organisationsTable, peopleTable, replyDraftsTable, tasksTable } from "@workspace/db";
 import { checkSentDrafts } from "../src/services/email";
 import { ageInboxSnapshot, clearInboxCache, inboxIdle } from "../src/services/inbox";
 import { waitForBriefedDrafts } from "../src/services/replyDraft";
@@ -553,5 +553,98 @@ describe("To answer: the Gmail inbox", () => {
     await inbox();
     await inboxIdle();
     expect(inboxReads).toHaveLength(3);
+  });
+  const later = (days: number) => new Date(Date.now() + days * DAY).toISOString().slice(0, 10);
+
+  it("Later hides an email until its day or a new message, and Bring back shows it again", async () => {
+    threads.later111 = [{ id: "q1", from: SAM, to: ME, subject: "Next term", at: ago(1), text: "Can you look at next term's plan?", labels: ["INBOX"] }];
+    expect((await inbox()).items[0]).toMatchObject({ threadId: "later111", snoozedUntil: null });
+
+    expect((await api("email/inbox/later111/later", { body: { until: later(-1) } })).status).toBe(400);
+    const day = later(3);
+    expect((await api("email/inbox/later111/later", { body: { until: day } })).status).toBe(204);
+    expect((await inbox()).items[0]).toMatchObject({ threadId: "later111", snoozedUntil: day });
+    // Hidden until later: not counted as needing a reply.
+    expect((await api("email/counts")).body).toMatchObject({ needsReply: 0 });
+
+    expect((await api("email/inbox/later111/later", { body: { until: null } })).status).toBe(204);
+    expect((await inbox()).items[0].snoozedUntil).toBeNull();
+    expect((await api("email/counts")).body).toMatchObject({ needsReply: 1 });
+
+    // Hidden again, then a new message arrives: back on the list.
+    await api("email/inbox/later111/later", { body: { until: day } });
+    threads.later111.push({ id: "q2", from: SAM, to: ME, subject: "Re: Next term", at: new Date(Date.now() + 1000), text: "It is urgent now", labels: ["INBOX"] });
+    ageInboxSnapshot(60_000);
+    await inbox();
+    await inboxIdle();
+    expect((await inbox()).items[0]).toMatchObject({ messageId: "q2", snoozedUntil: null });
+  });
+
+  it("Mute sender leaves their email off the list, and turning the rule off brings it back", async () => {
+    threads.muted111 = [{ id: "r1", from: "Pat Vendor <pat@vendor.com>", to: ME, subject: "Our new prices", at: ago(1), text: "Have you seen our prices?", labels: ["INBOX"] }];
+    threads.keptOne2 = [{ id: "r2", from: SAM, to: ME, subject: "Tuesday", at: ago(2), text: "Can we meet?", labels: ["INBOX"] }];
+    expect((await inbox()).items.map((i) => i.threadId)).toEqual(["muted111", "keptOne2"]);
+
+    const m = await api("noise-rules", { body: { matchType: "from_address_equals", matchValue: "Pat@Vendor.com" } });
+    expect(m.status).toBe(201);
+    expect(m.body).toMatchObject({ created: true, rule: { matchType: "from_address_equals", matchValue: "pat@vendor.com", source: "email", enabled: true } });
+    const after = await inbox();
+    expect(after.items.map((i) => i.threadId)).toEqual(["keptOne2"]);
+    expect(after.leftOut).toBe(1);
+    // Muting again changes nothing; an address that is not one is refused.
+    expect((await api("noise-rules", { body: { matchType: "from_address_equals", matchValue: "pat@vendor.com" } })).body.created).toBe(false);
+    expect((await api("noise-rules", { body: { matchType: "from_address_equals", matchValue: "not an address" } })).status).toBe(400);
+    expect(await db.select().from(noiseRulesTable)).toHaveLength(1);
+
+    // Undo turns the rule off.
+    await api(`noise-rules/${m.body.rule.id}`, { method: "PATCH", body: { enabled: false } });
+    expect((await inbox()).items.map((i) => i.threadId)).toEqual(["muted111", "keptOne2"]);
+  });
+
+  it("marks clients and people overdue for contact, and links the sender to People", async () => {
+    const [org] = await db.insert(organisationsTable).values({ name: "Client Co", slug: "client-co", type: "Client" }).returning();
+    const [sam] = await db.insert(peopleTable).values({ name: "Sam Lee", slug: "sam-lee", email: "sam@client.com", organisationId: org.id }).returning();
+    const [jo] = await db.insert(peopleTable).values({ name: "Jo Park", slug: "jo-park", email: "jo@friend.org", cadence: "monthly" }).returning();
+    await db.insert(peopleTable).values({ name: "Al Reed", slug: "al-reed", email: "al@other.org" });
+    threads.fromSam1 = [{ id: "s1", from: SAM, to: ME, subject: "Renewal", at: ago(3), text: "Shall we renew?", labels: ["INBOX"] }];
+    threads.fromJo22 = [{ id: "s2", from: "Jo Park <jo@friend.org>", to: ME, subject: "Hello", at: ago(2), text: "Coffee?", labels: ["INBOX"] }];
+    threads.fromAl33 = [{ id: "s3", from: "Al Reed <al@other.org>", to: ME, subject: "Hi", at: ago(1), text: "Quick one?", labels: ["INBOX"] }];
+    threads.unknown4 = [{ id: "s4", from: "New Person <new@nowhere.org>", to: ME, subject: "Intro", at: ago(0.5), text: "Hello?", labels: ["INBOX"] }];
+    const items = (await inbox()).items;
+    expect(items.map((i) => [i.threadId, i.priority, i.personSlug])).toEqual([
+      ["unknown4", null, null],
+      ["fromAl33", null, "al-reed"],
+      ["fromJo22", "Overdue to contact", "jo-park"],
+      ["fromSam1", "Client", "sam-lee"],
+    ]);
+    expect(items[3].personId).toBe(sam.id);
+    expect(items[2].personId).toBe(jo.id);
+  });
+
+  it("Mark all done takes several emails off at once, with one Undo, and counts those waiting over a working day", async () => {
+    threads.manyOne1 = [{ id: "t1", from: SAM, to: ME, subject: "One", at: ago(6), text: "First?", labels: ["INBOX"] }];
+    threads.manyTwo2 = [{ id: "t2", from: SAM, to: ME, subject: "Two", at: ago(5), text: "Second?", labels: ["INBOX"] }];
+    threads.manyThr3 = [{ id: "t3", from: SAM, to: ME, subject: "Three", at: new Date(Date.now() - 60_000), text: "Third?", labels: ["INBOX"] }];
+    const linked = await emailTask("manyOne1", "t1", { status: "now" });
+    expect((await inbox()).items).toHaveLength(3);
+    // Two have waited over a working day; Home shows the same number.
+    expect((await api("email/counts")).body).toEqual({ needsReply: 3, overdue: 2, emailsOverdue: 2, slackOverdue: 0 });
+    expect((await api("home")).body.emailToAnswer).toBe(2);
+
+    const d = await api("email/done-many", { body: { threadIds: ["manyOne1", "manyTwo2", "notThere9"], slackIds: [] } });
+    expect(d.status).toBe(200);
+    expect(d.body).toEqual({
+      emails: [
+        { threadId: "manyOne1", taskId: linked.id, previousStatus: "now" },
+        { threadId: "manyTwo2", taskId: null, previousStatus: null },
+      ],
+      slack: [],
+    });
+    expect((await inbox()).items.map((i) => i.threadId)).toEqual(["manyThr3"]);
+    expect((await db.select().from(tasksTable).where(eq(tasksTable.id, linked.id)))[0].status).toBe("done");
+
+    expect((await api("email/undo-done-many", { body: d.body })).status).toBe(204);
+    expect((await inbox()).items).toHaveLength(3);
+    expect((await db.select().from(tasksTable).where(eq(tasksTable.id, linked.id)))[0].status).toBe("now");
   });
 });

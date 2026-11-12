@@ -8,9 +8,22 @@ import { z } from "zod";
 import { handle } from "../lib/handle";
 import { kickKnowledgeReader } from "../services/documents/reader";
 import { dismissEmailDraft, listEmailDrafts, readTaskThread, readThreadView, saveEmailAttachment } from "../services/email";
-import { ensureInboxTask, isThreadId, listInbox, markInboxDone, undoInboxDone } from "../services/inbox";
+import { ensureInboxTask, isThreadId, listInbox, markInboxDone, markInboxDoneMany, snoozeInbox, undoInboxDone } from "../services/inbox";
+import { messageCounts } from "../services/messages";
 import { briefReply } from "../services/replyDraft";
-import { draftSlackReply, ensureSlackTask, listSlackToAnswer, markSlackDone, undoSlackDone } from "../services/slackToAnswer";
+import {
+  draftSlackReply,
+  ensureSlackTask,
+  listSlackToAnswer,
+  markSlackDone,
+  markSlackDoneMany,
+  refreshSlackToAnswer,
+  removeSlackDraft,
+  saveSlackDraft,
+  slackConversation,
+  snoozeSlack,
+  undoSlackDone,
+} from "../services/slackToAnswer";
 import { getInboxThreadSummary, getThreadSummary } from "../services/threadSummary";
 import { getWritingStyle, readWritingStyle, saveWritingStyle, STYLE_NOTE_CHARS } from "../services/writingStyle";
 
@@ -18,6 +31,36 @@ const router: IRouter = Router();
 const IdParams = z.object({ id: z.coerce.number().int().positive() });
 const ThreadParams = z.object({ threadId: z.string().refine(isThreadId, "That is not a Gmail thread") });
 const ACTOR = "ollie";
+const Undo = z.object({ taskId: z.number().int().positive().nullable(), previousStatus: z.enum(["inbox", "now", "backlog", "waiting"]).nullable() });
+/** Later: a day after today, or null to bring it back */
+const LaterBody = z.object({ until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable() }).strict();
+
+// Messages: how many need a reply, for the menu. Gmail is looked at again when the last look is old.
+router.get("/email/counts", handle(async (_req, res) => void res.json(await messageCounts(new Date(), true))));
+
+// Mark all done: several emails and Slack messages at once, with what Undo needs.
+router.post(
+  "/email/done-many",
+  handle(async (req, res) => {
+    const b = z.object({ threadIds: z.array(z.string().refine(isThreadId)).max(200), slackIds: z.array(z.number().int().positive()).max(200) }).strict().parse(req.body ?? {});
+    res.json({ emails: await markInboxDoneMany(b.threadIds, ACTOR), slack: await markSlackDoneMany(b.slackIds, ACTOR) });
+  }),
+);
+router.post(
+  "/email/undo-done-many",
+  handle(async (req, res) => {
+    const b = z
+      .object({
+        emails: z.array(Undo.extend({ threadId: z.string().refine(isThreadId) }).strict()).max(200),
+        slack: z.array(Undo.extend({ id: z.number().int().positive() }).strict()).max(200),
+      })
+      .strict()
+      .parse(req.body ?? {});
+    for (const e of b.emails) await undoInboxDone(e.threadId, e.taskId, e.previousStatus, ACTOR);
+    for (const s of b.slack) await undoSlackDone(s.id, s.taskId, s.previousStatus, ACTOR);
+    res.status(204).end();
+  }),
+);
 
 router.get("/email/drafts", handle(async (_req, res) => void res.json(await listEmailDrafts())));
 
@@ -64,8 +107,49 @@ router.post(
     res.status(204).end();
   }),
 );
+router.post(
+  "/email/inbox/:threadId/later",
+  handle(async (req, res) => {
+    const { threadId } = ThreadParams.parse(req.params);
+    await snoozeInbox(threadId, LaterBody.parse(req.body ?? {}).until, ACTOR);
+    res.status(204).end();
+  }),
+);
 // Slack to answer (Part P): conversations whose newest message waits on Ollie. Nothing is posted to Slack.
 router.get("/email/slack", handle(async (_req, res) => void res.json(await listSlackToAnswer())));
+// Check now: looks at the listed conversations again and closes those Ollie has answered.
+router.post("/email/slack/refresh", handle(async (_req, res) => void res.json({ closed: await refreshSlackToAnswer() })));
+router.get(
+  "/email/slack/:id/messages",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    res.json(await slackConversation(id));
+  }),
+);
+router.post(
+  "/email/slack/:id/later",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    await snoozeSlack(id, LaterBody.parse(req.body ?? {}).until, ACTOR);
+    res.status(204).end();
+  }),
+);
+router.put(
+  "/email/slack/:id/draft",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    const b = z.object({ text: z.string().max(4000) }).strict().parse(req.body ?? {});
+    res.json(await saveSlackDraft(id, b.text));
+  }),
+);
+router.delete(
+  "/email/slack/:id/draft",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    await removeSlackDraft(id);
+    res.status(204).end();
+  }),
+);
 router.post(
   "/email/slack/:id/done",
   handle(async (req, res) => {
@@ -96,7 +180,8 @@ router.post(
   "/email/slack/:id/draft",
   handle(async (req, res) => {
     const { id } = IdParams.parse(req.params);
-    res.json(await draftSlackReply(id, ACTOR));
+    const b = z.object({ brief: z.string().max(500).nullish(), change: z.string().max(500).nullish() }).strict().parse(req.body ?? {});
+    res.json(await draftSlackReply(id, ACTOR, b));
   }),
 );
 router.get(

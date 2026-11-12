@@ -2,14 +2,16 @@ import { useState } from 'react';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  getGetTaskSummaryQueryKey,
   getListMeetingsWorthALookQueryKey,
   keepMeetingSeries,
+  useGetTaskSummary,
   useGetTimeReport,
   useGetWeekCheck,
   useListMeetingsWorthALook,
   type TimeSlice,
 } from '@workspace/api-client-react';
-import { formatShort } from '@workspace/shared';
+import { formatShort, todayLondon } from '@workspace/shared';
 import { copyText } from '@/lib/knowledge';
 import { reportApiError } from '@/lib/forbidden';
 import { errorMessage, notify } from '@/lib/notify';
@@ -92,6 +94,30 @@ export function WeekCheckCard({ phone = false }: { phone?: boolean }) {
             ))}
           </ul>
         </>
+      )}
+    </section>
+  );
+}
+
+/** Section 27: a day in the next week with too much due and little of it in Now, and anything overdue. */
+export function BusyDayCard({ phone = false }: { phone?: boolean }) {
+  const q = useGetTaskSummary(undefined, { query: { queryKey: getGetTaskSummaryQueryKey(), staleTime: 30_000 } });
+  const load = q.data?.load;
+  if (!load || (!load.busiest && !load.overdue)) return null;
+  const b = load.busiest;
+  return (
+    <section aria-labelledby="h-busy" className="oo-dark-card oo-white-card" style={{ width: '100%', gap: 8, ...(phone ? { padding: 16 } : {}) }} data-testid="card-busy-day">
+      <h2 id="h-busy" className="oo-label">Coming up</h2>
+      {b && (
+        <p style={{ margin: 0, fontSize: 15 }} data-testid="text-busy-day">
+          {b.due} tasks due {b.date === todayLondon() ? 'today' : formatShort(b.date)}, {b.inNow === 0 ? 'none' : `only ${b.inNow}`} in Now.{' '}
+          <Link href={'/tasks?due=' + b.date} style={{ color: 'inherit', textDecoration: 'underline' }}>See them</Link>
+        </p>
+      )}
+      {load.overdue > 0 && (
+        <p style={{ margin: 0, fontSize: 15 }} data-testid="text-overdue">
+          {load.overdue} overdue. <Link href="/tasks?due=overdue" style={{ color: 'inherit', textDecoration: 'underline' }}>See {load.overdue === 1 ? 'it' : 'them'}</Link>
+        </p>
       )}
     </section>
   );
