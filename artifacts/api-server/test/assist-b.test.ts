@@ -3,7 +3,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
-import { activityTable, calendarEventsTable, db, linksTable, meetingBriefsTable, peopleTable, tasksTable } from "@workspace/db";
+import { activityTable, calendarEventsTable, db, linksTable, meetingBriefsTable, organisationsTable, peopleTable, tasksTable } from "@workspace/db";
 import { addDays, londonWallTimeToInstant, todayLondon } from "@workspace/shared";
 import type { AiDoc } from "../src/lib/ai-data/retrieve";
 import { api, useServer } from "./harness";
@@ -182,7 +182,10 @@ describe("Meeting page without a brief", () => {
 
     const v = (await api(`meetings/${ev.id}`)).body;
     expect(v).toMatchObject({ id: ev.id, title: "Weekly huddle", prep: "none", notes: null });
-    expect(v.attendees).toEqual([{ name: "andy.dillow@ourco.test", email: "andy.dillow@ourco.test", person: null }]);
+    // His own company's domain, with no internal organisation yet: a new one is offered, marked internal.
+    expect(v.attendees).toEqual([
+      { name: "andy.dillow@ourco.test", email: "andy.dillow@ourco.test", person: null, suggestedOrganisation: { existing: null, newName: "Ourco", internal: true } },
+    ]);
 
     const saved = await api(`meetings/${ev.id}`, { method: "PATCH", body: { notes: "1. Hiring plan\n2. Budget" } });
     expect(saved.status).toBe(200);
@@ -225,5 +228,33 @@ describe("Meeting page without a brief", () => {
     expect((await api(`meetings/${personal.id}`, { method: "PATCH", body: { notes: "x" } })).status).toBe(404);
     expect((await api("meetings/999999")).status).toBe(404);
     expect((await api("meetings/worth-a-look")).status).toBe(200);
+  });
+});
+
+describe("Adding people from a meeting", () => {
+  it("suggests each unknown attendee's organisation from colleagues at the same email domain, or a new one named after it", async () => {
+    const [acme] = await db.insert(organisationsTable).values({ name: "Acme Learning", slug: "acme-learning" }).returning();
+    const known = await person("Ana Known", { organisationId: acme.id, role: "Head of Talent" });
+    await db.update(peopleTable).set({ email: "ana@acme.test" }).where(eq(peopleTable.id, known.id));
+    const ev = await event("org1", at(1, "10:00"), {
+      attendees: [
+        { name: "Ana Known", email: "ana@acme.test" },
+        { name: "bo@acme.test", email: "bo@acme.test" },
+        { name: "Cy", email: "cy@rolls-royce.test" },
+        { name: "Di", email: "di@gmail.com" },
+      ],
+    });
+
+    const v = (await api(`briefs/${ev.id}`)).body;
+    const by = (email: string) => v.attendees.find((a: { email: string }) => a.email === email);
+    expect(by("ana@acme.test").person).toMatchObject({ organisation: "Acme Learning", organisationSlug: "acme-learning" });
+    expect(by("ana@acme.test").suggestedOrganisation).toBeNull();
+    expect(by("bo@acme.test").suggestedOrganisation).toMatchObject({ existing: { id: acme.id, name: "Acme Learning", slug: "acme-learning" }, newName: null });
+    expect(by("cy@rolls-royce.test").suggestedOrganisation).toMatchObject({ existing: null, newName: "Rolls-Royce" });
+    expect(by("di@gmail.com").suggestedOrganisation).toBeNull();
+
+    const m = (await api(`meetings/${ev.id}`)).body;
+    expect(m.attendees.find((a: { email: string }) => a.email === "ana@acme.test").person.organisation).toEqual({ name: "Acme Learning", slug: "acme-learning" });
+    expect(m.attendees.find((a: { email: string }) => a.email === "bo@acme.test").suggestedOrganisation.existing.id).toBe(acme.id);
   });
 });

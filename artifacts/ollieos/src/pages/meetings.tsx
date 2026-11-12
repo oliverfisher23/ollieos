@@ -14,6 +14,13 @@ const PREP: Record<MeetingRow['prep'], { label: string; tone?: string }> = {
   none: { label: 'No brief: nobody here is in Contacts yet' },
 };
 
+/**
+ * An event with nobody else on it and nothing OllieOS knows about: a block of time or an
+ * appointment, not a meeting. It is listed quietly under its day unless Ollie has given it an agenda
+ * or it has Granola notes.
+ */
+const justYou = (r: MeetingRow) => r.attendees.length === 0 && r.prep === 'none' && !r.hasAgenda && !r.granolaSnippet;
+
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 function dayLabel(day: string, today: string): string {
@@ -35,13 +42,14 @@ export default function MeetingsPage() {
   const now = Date.now();
 
   const upcoming = q.data?.upcoming ?? [];
-  const days: { day: string; rows: MeetingRow[] }[] = [];
+  const days: { day: string; rows: MeetingRow[]; solo: MeetingRow[] }[] = [];
   for (const r of upcoming) {
-    const last = days[days.length - 1];
-    if (last?.day === r.day) last.rows.push(r);
-    else days.push({ day: r.day, rows: [r] });
+    let last = days[days.length - 1];
+    if (last?.day !== r.day) days.push((last = { day: r.day, rows: [], solo: [] }));
+    (justYou(r) ? last.solo : last.rows).push(r);
   }
-  const ahead = upcoming.filter((r) => new Date(r.endsAt).getTime() > now).length;
+  const ahead = upcoming.filter((r) => !justYou(r) && new Date(r.endsAt).getTime() > now).length;
+  const past = (q.data?.past ?? []).filter((r) => !justYou(r));
 
   return (
     <main className="oo-panel oo-kmain oo-fade-in" data-testid="page-meetings">
@@ -66,13 +74,25 @@ export default function MeetingsPage() {
               No work meetings in the next seven days. Your calendar is read on each sweep.
             </p>
           ) : (
-            days.map(({ day, rows }) => (
+            days.map(({ day, rows, solo }) => (
               <section key={day} aria-labelledby={'d-' + day} style={{ display: 'flex', flexDirection: 'column' }} data-testid={'section-day-' + day}>
                 <h2 id={'d-' + day} className="oo-mt-day">
                   {dayLabel(day, q.data.today)}
                   {day === q.data.today || day === addDays(q.data.today, 1) ? <span className="oo-muted" style={{ fontWeight: 400 }}> · {formatLong(day)}</span> : null}
                 </h2>
                 {rows.map((r) => <Row key={r.id} r={r} finished={new Date(r.endsAt).getTime() <= now} />)}
+                {solo.length > 0 && (
+                  <p className="oo-muted" style={{ margin: 0, padding: '12px 0 4px', fontSize: 13, lineHeight: 1.6 }} data-testid={'text-just-you-' + day}>
+                    Just you:{' '}
+                    {solo.map((r, i) => (
+                      <span key={r.id}>
+                        {i > 0 && ', '}
+                        <Link href={'/meetings/' + r.id} style={{ color: 'var(--oo-ink-soft)', textUnderlineOffset: 2 }} data-testid={'link-just-you-' + r.id}>{r.title}</Link>
+                        {' '}<span className="oo-num">({formatTime(r.startsAt)})</span>
+                      </span>
+                    ))}
+                  </p>
+                )}
               </section>
             ))
           )}
@@ -80,10 +100,10 @@ export default function MeetingsPage() {
           <section aria-labelledby="m-past" style={{ display: 'flex', flexDirection: 'column', gap: 4 }} data-testid="section-past">
             <WorthALookSection />
             <h2 id="m-past" className="oo-h2">Last two weeks</h2>
-            {q.data.past.length === 0 ? (
+            {past.length === 0 ? (
               <p className="oo-muted" style={{ margin: '6px 0 0', fontSize: 14 }} data-testid="state-past-empty">No work meetings in the last two weeks.</p>
             ) : (
-              q.data.past.map((r) => <Row key={r.id} r={r} past />)
+              past.map((r) => <Row key={r.id} r={r} past />)
             )}
           </section>
         </>
@@ -133,6 +153,7 @@ function Row({ r, past = false, finished = false }: { r: MeetingRow; past?: bool
             <ScopePill scope={r.scope} companies={r.companies} testId={'pill-scope-' + r.id} />
             {finished && <span className="oo-pill">Finished</span>}
             <span className="oo-pill" data-tone={prep.tone} data-testid={'pill-prep-' + r.id}>{prep.label}</span>
+            {r.hasAgenda && <span className="oo-pill" data-tone="done" data-testid={'pill-agenda-' + r.id}>Agenda written</span>}
             {r.promises > 0 && <span className="oo-pill" data-tone="now" data-testid={'pill-promises-' + r.id}>{plural(r.promises, 'open promise', 'open promises')}</span>}
             {r.waiting > 0 && <span className="oo-pill" data-tone="waiting" data-testid={'pill-waiting-' + r.id}>{plural(r.waiting, 'item', 'items')} waiting on them</span>}
           </span>

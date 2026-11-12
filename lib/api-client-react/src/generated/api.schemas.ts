@@ -873,6 +873,11 @@ export interface BriefAttendeePerson {
   role: string | null;
   /** @nullable */
   organisation: string | null;
+  /**
+     * For the link to the organisation's page
+     * @nullable
+     */
+  organisationSlug: string | null;
   confidential: boolean;
   /** @nullable */
   lastContactAt: string | null;
@@ -882,6 +887,31 @@ export interface BriefAttendeePerson {
   cadence: BriefCadence | null;
   /** The projects, products and organisations this person decides on */
   decidesOn: DecidesOnItem[];
+}
+
+/**
+ * An organisation already in Contacts
+ * @nullable
+ */
+export type OrgSuggestionExisting = {
+  id: number;
+  name: string;
+  slug: string;
+} | null;
+
+export interface OrgSuggestion {
+  /**
+     * An organisation already in Contacts
+     * @nullable
+     */
+  existing: OrgSuggestionExisting;
+  /**
+     * When none fits
+     * @nullable
+     */
+  newName: string | null;
+  /** The domain is Ollie's own company's */
+  internal: boolean;
 }
 
 export interface BriefAttendee {
@@ -896,6 +926,8 @@ export interface BriefAttendee {
   organiser: boolean;
   /** The matching person, or null for no previous contact */
   person: BriefAttendeePerson | null;
+  /** Not in Contacts yet, the organisation they probably belong to from their email domain; null for personal addresses */
+  suggestedOrganisation: OrgSuggestion | null;
 }
 
 export interface BriefPromise {
@@ -1327,6 +1359,8 @@ export interface MeetingRow {
   waiting: number;
   /** @nullable */
   granolaSnippet: string | null;
+  /** Ollie has written an agenda or notes for it */
+  hasAgenda: boolean;
 }
 
 export interface MeetingsList {
@@ -1350,13 +1384,23 @@ export const MeetingViewPrep = {
 } as const;
 
 /**
- * Set when they are in People
+ * @nullable
+ */
+export type MeetingViewAttendeesItemPersonOrganisation = {
+  name: string;
+  slug: string;
+} | null;
+
+/**
+ * Set when they are in Contacts
  * @nullable
  */
 export type MeetingViewAttendeesItemPerson = {
   id: number;
   name: string;
   slug: string;
+  /** @nullable */
+  organisation: MeetingViewAttendeesItemPersonOrganisation;
 } | null;
 
 export type MeetingViewAttendeesItem = {
@@ -1364,10 +1408,11 @@ export type MeetingViewAttendeesItem = {
   /** @nullable */
   email: string | null;
   /**
-     * Set when they are in People
+     * Set when they are in Contacts
      * @nullable
      */
   person: MeetingViewAttendeesItemPerson;
+  suggestedOrganisation: OrgSuggestion | null;
 };
 
 export type MeetingViewGranolaActionsItem = {
@@ -1431,6 +1476,10 @@ export interface MeetingView {
   granola: MeetingViewGranola;
   /** True when OllieOS reads Granola itself */
   granolaCheck: boolean;
+}
+
+export interface MeetingPersonalInput {
+  personal: boolean;
 }
 
 export interface GranolaLinkInput {

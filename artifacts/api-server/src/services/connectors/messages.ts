@@ -31,6 +31,8 @@ export interface WorkUnit {
    * makes tasks, activity or knowledge; only checked against open tasks for "Looks done".
    */
   confirmation?: boolean;
+  /** Meetings: whether Ollie took the notes himself, so a replay can rebuild the note (Part X) */
+  ownedByMe?: boolean;
 }
 
 /** Collapses runs of blank lines and spaces, and cuts to a length on a word boundary. */

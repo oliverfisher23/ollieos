@@ -616,6 +616,17 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-mini:disabled { opacity: .6; cursor: default; }
 .oo-mini kbd { font: inherit; font-size: 11px; color: var(--oo-ink-muted); margin-left: 4px; }
 @media (max-width: 639px) { .oo-mini { min-height: 40px; padding: 6px 12px; font-size: 13px; } }
+.oo-contact-row { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr); gap: 8px 14px; align-items: start; padding: 14px 0; border-top: 1px solid var(--oo-line-soft); }
+.oo-contact-row:first-child { border-top: 0; padding-top: 0; }
+.oo-contact-row:not([data-included]) .oo-dd-field { opacity: .5; }
+.oo-contact-check { width: 16px; height: 16px; margin-top: 30px; accent-color: var(--oo-ink); cursor: pointer; }
+@media (max-width: 639px) { .oo-contact-row { grid-template-columns: auto minmax(0, 1fr); } .oo-contact-row > :last-child { grid-column: 2; } }
+.oo-attendee { display: flex; gap: 12px; padding: 14px 16px; border: 1px solid var(--oo-line); border-radius: var(--oo-r-card-sm); color: var(--oo-ink); min-width: 0; }
+.oo-attendee:not([data-known]) { border-style: dashed; }
+.oo-attendee-name { min-width: 0; overflow-wrap: anywhere; color: var(--oo-ink); text-decoration: none; }
+.oo-attendee-name:hover, .oo-attendee-org:hover { text-decoration: underline; text-underline-offset: 2px; }
+.oo-attendee-org { color: inherit; text-decoration: none; }
+.oo-hover-underline:hover { text-decoration: underline !important; text-underline-offset: 2px; }
 /* Rich text agenda (components/rich-agenda.tsx). Tailwind's reset strips list styles, so they are set here. */
 .oo-rich-box { display: flex; flex-direction: column; flex: 1; border: 1px solid var(--oo-control-border); border-radius: var(--oo-r-input-lg); background: var(--oo-panel); min-width: 0; }
 .oo-rich-box:focus-within { border-color: var(--oo-ink); }

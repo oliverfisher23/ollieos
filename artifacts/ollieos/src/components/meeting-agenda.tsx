@@ -73,6 +73,34 @@ function Agenda({ m }: { m: MeetingView }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, busy, m.id]);
 
+  // Leaving the page, or closing the tab, before the pause is up still saves what was typed.
+  const latest = useRef({ text, busy });
+  latest.current = { text, busy };
+  useEffect(() => {
+    const flush = () => {
+      const { text: t, busy: b } = latest.current;
+      if (b || t === saved.current) return;
+      const before = saved.current;
+      saved.current = t;
+      updateMeetingNotes(m.id, { notes: t.trim() ? t : null }, { keepalive: true })
+        .then((r) => remember({ notes: r.notes }))
+        .catch(() => {
+          saved.current = before;
+        });
+    };
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [m.id]);
+
   useEffect(() => {
     log.current?.scrollTo({ top: log.current.scrollHeight });
   }, [chat.length, busy]);

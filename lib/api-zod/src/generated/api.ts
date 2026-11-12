@@ -5620,7 +5620,8 @@ export const ListMeetingsResponse = zod.object({
   "prep": zod.enum(['ready', 'not_much', 'failed', 'not_written', 'none']).describe('none means nobody or nothing OllieOS knows is on it, so there is no prep page'),
   "promises": zod.int().describe('Open promises to people on the meeting'),
   "waiting": zod.int().describe('Tasks waiting on people on the meeting'),
-  "granolaSnippet": zod.string().nullable()
+  "granolaSnippet": zod.string().nullable(),
+  "hasAgenda": zod.boolean().describe('Ollie has written an agenda or notes for it')
 })),
   "past": zod.array(zod.object({
   "id": zod.int(),
@@ -5639,7 +5640,8 @@ export const ListMeetingsResponse = zod.object({
   "prep": zod.enum(['ready', 'not_much', 'failed', 'not_written', 'none']).describe('none means nobody or nothing OllieOS knows is on it, so there is no prep page'),
   "promises": zod.int().describe('Open promises to people on the meeting'),
   "waiting": zod.int().describe('Tasks waiting on people on the meeting'),
-  "granolaSnippet": zod.string().nullable()
+  "granolaSnippet": zod.string().nullable(),
+  "hasAgenda": zod.boolean().describe('Ollie has written an agenda or notes for it')
 }))
 })
 
@@ -5667,8 +5669,21 @@ export const GetMeetingResponse = zod.object({
   "person": zod.object({
   "id": zod.int(),
   "name": zod.string(),
+  "slug": zod.string(),
+  "organisation": zod.object({
+  "name": zod.string(),
   "slug": zod.string()
-}).nullable().describe('Set when they are in People')
+}).nullable()
+}).nullable().describe('Set when they are in Contacts'),
+  "suggestedOrganisation": zod.union([zod.object({
+  "existing": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}).nullable().describe('An organisation already in Contacts'),
+  "newName": zod.string().nullable().describe('When none fits'),
+  "internal": zod.boolean().describe('The domain is Ollie\'s own company\'s')
+}),zod.null()])
 })),
   "notes": zod.string().nullable().describe('Ollie\'s agenda and notes'),
   "agendaChat": zod.array(zod.object({
@@ -5754,6 +5769,20 @@ export const ClearAgendaChatResponse = zod.void()
 
 
 /**
+ * @summary Ollie says an event is personal or not; stands through calendar checks and carries to its series
+ */
+export const SetMeetingPersonalParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const SetMeetingPersonalBody = zod.object({
+  "personal": zod.boolean()
+})
+
+export const SetMeetingPersonalResponse = zod.void()
+
+
+/**
  * @summary Link a Granola note to the meeting from its link, when OllieOS did not match it
  */
 export const LinkGranolaNoteParams = zod.object({
@@ -5784,8 +5813,21 @@ export const LinkGranolaNoteResponse = zod.object({
   "person": zod.object({
   "id": zod.int(),
   "name": zod.string(),
+  "slug": zod.string(),
+  "organisation": zod.object({
+  "name": zod.string(),
   "slug": zod.string()
-}).nullable().describe('Set when they are in People')
+}).nullable()
+}).nullable().describe('Set when they are in Contacts'),
+  "suggestedOrganisation": zod.union([zod.object({
+  "existing": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}).nullable().describe('An organisation already in Contacts'),
+  "newName": zod.string().nullable().describe('When none fits'),
+  "internal": zod.boolean().describe('The domain is Ollie\'s own company\'s')
+}),zod.null()])
 })),
   "notes": zod.string().nullable().describe('Ollie\'s agenda and notes'),
   "agendaChat": zod.array(zod.object({
@@ -5963,6 +6005,7 @@ export const GetNextBriefResponse = zod.object({
   "name": zod.string(),
   "role": zod.string().nullable(),
   "organisation": zod.string().nullable(),
+  "organisationSlug": zod.string().nullable().describe('For the link to the organisation\'s page'),
   "confidential": zod.boolean(),
   "lastContactAt": zod.coerce.date().nullable(),
   "facts": zod.array(zod.object({
@@ -5983,7 +6026,16 @@ export const GetNextBriefResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })).describe('The projects, products and organisations this person decides on')
-}),zod.null()]).describe('The matching person, or null for no previous contact')
+}),zod.null()]).describe('The matching person, or null for no previous contact'),
+  "suggestedOrganisation": zod.union([zod.object({
+  "existing": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}).nullable().describe('An organisation already in Contacts'),
+  "newName": zod.string().nullable().describe('When none fits'),
+  "internal": zod.boolean().describe('The domain is Ollie\'s own company\'s')
+}),zod.null()]).describe('Not in Contacts yet, the organisation they probably belong to from their email domain; null for personal addresses')
 })),
   "promises": zod.array(zod.object({
   "id": zod.int(),
@@ -6222,6 +6274,7 @@ export const GetBriefResponse = zod.object({
   "name": zod.string(),
   "role": zod.string().nullable(),
   "organisation": zod.string().nullable(),
+  "organisationSlug": zod.string().nullable().describe('For the link to the organisation\'s page'),
   "confidential": zod.boolean(),
   "lastContactAt": zod.coerce.date().nullable(),
   "facts": zod.array(zod.object({
@@ -6242,7 +6295,16 @@ export const GetBriefResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })).describe('The projects, products and organisations this person decides on')
-}),zod.null()]).describe('The matching person, or null for no previous contact')
+}),zod.null()]).describe('The matching person, or null for no previous contact'),
+  "suggestedOrganisation": zod.union([zod.object({
+  "existing": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}).nullable().describe('An organisation already in Contacts'),
+  "newName": zod.string().nullable().describe('When none fits'),
+  "internal": zod.boolean().describe('The domain is Ollie\'s own company\'s')
+}),zod.null()]).describe('Not in Contacts yet, the organisation they probably belong to from their email domain; null for personal addresses')
 })),
   "promises": zod.array(zod.object({
   "id": zod.int(),
@@ -6505,6 +6567,7 @@ export const RefreshBriefResponse = zod.object({
   "name": zod.string(),
   "role": zod.string().nullable(),
   "organisation": zod.string().nullable(),
+  "organisationSlug": zod.string().nullable().describe('For the link to the organisation\'s page'),
   "confidential": zod.boolean(),
   "lastContactAt": zod.coerce.date().nullable(),
   "facts": zod.array(zod.object({
@@ -6525,7 +6588,16 @@ export const RefreshBriefResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })).describe('The projects, products and organisations this person decides on')
-}),zod.null()]).describe('The matching person, or null for no previous contact')
+}),zod.null()]).describe('The matching person, or null for no previous contact'),
+  "suggestedOrganisation": zod.union([zod.object({
+  "existing": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}).nullable().describe('An organisation already in Contacts'),
+  "newName": zod.string().nullable().describe('When none fits'),
+  "internal": zod.boolean().describe('The domain is Ollie\'s own company\'s')
+}),zod.null()]).describe('Not in Contacts yet, the organisation they probably belong to from their email domain; null for personal addresses')
 })),
   "promises": zod.array(zod.object({
   "id": zod.int(),
@@ -6764,6 +6836,7 @@ export const AllowForBriefResponse = zod.object({
   "name": zod.string(),
   "role": zod.string().nullable(),
   "organisation": zod.string().nullable(),
+  "organisationSlug": zod.string().nullable().describe('For the link to the organisation\'s page'),
   "confidential": zod.boolean(),
   "lastContactAt": zod.coerce.date().nullable(),
   "facts": zod.array(zod.object({
@@ -6784,7 +6857,16 @@ export const AllowForBriefResponse = zod.object({
   "name": zod.string(),
   "slug": zod.string()
 })).describe('The projects, products and organisations this person decides on')
-}),zod.null()]).describe('The matching person, or null for no previous contact')
+}),zod.null()]).describe('The matching person, or null for no previous contact'),
+  "suggestedOrganisation": zod.union([zod.object({
+  "existing": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}).nullable().describe('An organisation already in Contacts'),
+  "newName": zod.string().nullable().describe('When none fits'),
+  "internal": zod.boolean().describe('The domain is Ollie\'s own company\'s')
+}),zod.null()]).describe('Not in Contacts yet, the organisation they probably belong to from their email domain; null for personal addresses')
 })),
   "promises": zod.array(zod.object({
   "id": zod.int(),
