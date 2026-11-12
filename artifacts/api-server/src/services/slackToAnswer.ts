@@ -5,8 +5,9 @@
  * Kept up to date by the Slack check, from the same read that sorts Slack into tasks (no extra AI
  * call): a newer message from someone else replaces a conversation's row, and a message from Ollie
  * after it closes it. Channel mentions are also closed when Ollie answers in their thread. Done
- * hides a row until a newer message arrives. Nothing is ever posted to Slack: a drafted reply is
- * only copied.
+ * hides a row until a newer message arrives. A newest message that needs nothing from Ollie (thanks,
+ * "ok", an emoji; by the AI's reading or by isAcknowledgement) closes the row instead of listing it.
+ * Nothing is ever posted to Slack: a drafted reply is only copied.
  */
 import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db, peopleTable, slackToAnswerTable, tasksTable, type SlackToAnswer } from "@workspace/db";
@@ -65,6 +66,39 @@ const tsOf = (ref: string) => ref.split(":").pop()!.split("#")[0];
 const refOf = (r: Pick<SlackToAnswer, "conversationId" | "messageTs">) => `slack:${r.conversationId}:${r.messageTs}`;
 const windowStart = (now: Date) => new Date(now.getTime() - SLACK_WINDOW_DAYS * 86_400_000);
 
+/* ---------- Acknowledgements ---------- */
+
+/** Words that only acknowledge, longest first so "thank you so much" goes before "thank you". */
+const ACK_PHRASES = [
+  "thank you so much", "thanks so much", "thanks a lot", "many thanks", "thank you", "thank u", "thanks", "thx", "ty", "cheers", "ta",
+  "appreciate it", "appreciated", "much appreciated", "sounds good", "sounds great", "no worries", "no problem", "np", "will do", "got it", "noted",
+  "all good", "all sorted", "sorted", "that works", "works now", "working now", "great stuff", "nice one", "perfect", "great", "brilliant",
+  "amazing", "awesome", "lovely", "fantastic", "excellent", "super", "fab", "legend", "nice", "cool", "ok", "okay", "kk", "yep", "yes", "yeah", "done", "of course",
+].sort((a, b) => b.length - a.length);
+/** Words that can sit beside an acknowledgement without asking anything. */
+const ACK_FILLER = new Set(["ollie", "you", "so", "much", "very", "again", "for", "that", "this", "now", "it", "all", "a", "lot", "mate", "guys", "both", "and", "oh", "ah", "haha", "lol", "x", "xx", "really", "just", "the", "help"]);
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const ACK_RE = new RegExp(`\\b(${ACK_PHRASES.map(escapeRe).join("|")})\\b`, "g");
+
+/**
+ * A short message that only thanks or acknowledges ("perfect thank you!", "working now thanks Ollie",
+ * a thumbs up) and asks nothing, so needs no reply. Read without AI. Anything with a question mark,
+ * or more than one word besides the acknowledgement (a name, say), is left to the AI's reading.
+ */
+export function isAcknowledgement(text: string): boolean {
+  if (text.includes("?")) return false;
+  let t = text.toLowerCase().replace(/<[@#!][^>]*>/g, " ");
+  const emoji = /\p{Extended_Pictographic}|:[a-z0-9_+-]+:/u.test(t);
+  t = t.replace(/:[a-z0-9_+-]+:/g, " ").replace(/\p{Extended_Pictographic}|\u{FE0F}|\u{200D}/gu, " ").replace(/[^\p{L}\p{N}'\s]/gu, " ").replace(/'/g, "");
+  let found = emoji;
+  t = t.replace(ACK_RE, () => {
+    found = true;
+    return " ";
+  });
+  const left = t.split(/\s+/).filter((w) => w && !ACK_FILLER.has(w));
+  return found && left.length <= 1;
+}
+
 /* ---------- Kept up to date by the Slack check ---------- */
 
 export interface SlackToAnswerUpdate {
@@ -110,7 +144,12 @@ export async function updateSlackToAnswer(u: SlackToAnswerUpdate): Promise<{ wai
     const person = senderOf(u.read!.people, last);
     const hidden = !u.read!.readable[i] || (!!person && (person.confidential || !person.aiAccess));
     const reply = u.read!.sorted[i]?.reply;
-    const needs: SlackNeeds = hidden || !reply || reply.needs === "none" ? "unknown" : reply.needs;
+    // Nothing needed from Ollie: the conversation is answered, so any older waiting message closes too.
+    if ((!hidden && reply?.needs === "done") || isAcknowledgement(last.text)) {
+      await close(conv.id, ts);
+      continue;
+    }
+    const needs: SlackNeeds = hidden || !reply || reply.needs === "none" || reply.needs === "done" ? "unknown" : reply.needs;
     const values = {
       kind: conv.kind,
       place: unit.channel ?? "Slack",
@@ -208,11 +247,13 @@ async function openTasks(rows: SlackToAnswer[]): Promise<Map<number, number>> {
 }
 
 export async function listSlackToAnswer(now = new Date()): Promise<SlackToAnswerView> {
-  const [rows, readBy, run] = await Promise.all([
+  const [all, readBy, run] = await Promise.all([
     db.select().from(slackToAnswerTable).where(waitingWhere(now)).orderBy(desc(slackToAnswerTable.at)),
     readByNow("slack"),
     lastGoodRun("slack"),
   ]);
+  // Rows kept before acknowledgements closed them are left out too.
+  const rows = all.filter((r) => !isAcknowledgement(r.text));
   const personIds = [...new Set(rows.flatMap((r) => (r.personId != null ? [r.personId] : [])))];
   const [people, tasks] = await Promise.all([
     personIds.length
@@ -254,11 +295,11 @@ export function oneWorkingDayBefore(now: Date): Date {
 export async function slackRepliesOverdue(now = new Date()): Promise<number> {
   const cutoff = oneWorkingDayBefore(now);
   const rows = await db
-    .select({ id: slackToAnswerTable.id, needs: slackToAnswerTable.needs, at: slackToAnswerTable.at, why: slackToAnswerTable.why })
+    .select({ id: slackToAnswerTable.id, needs: slackToAnswerTable.needs, at: slackToAnswerTable.at, why: slackToAnswerTable.why, text: slackToAnswerTable.text })
     .from(slackToAnswerTable)
     .where(waitingWhere(now));
   // Not read by AI counts as needing a reply, as on the tab.
-  return rows.filter((r) => r.needs !== "info" && r.at <= cutoff).length;
+  return rows.filter((r) => r.needs !== "info" && r.at <= cutoff && !isAcknowledgement(r.text)).length;
 }
 
 /* ---------- Ollie's actions ---------- */
