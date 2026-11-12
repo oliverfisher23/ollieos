@@ -277,6 +277,29 @@ paths:
         "403":
           $ref: "#/components/responses/NotAuthorised"
 
+  /tasks/reorder:
+    post:
+      operationId: reorderTasks
+      tags: [tasks]
+      summary: Put tasks in the order Ollie dragged them, or clear that order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskReorderInput"
+      responses:
+        "204":
+          description: Saved
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
   /tasks/{id}:
     get:
       operationId: getTask
@@ -4705,7 +4728,11 @@ components:
         - noiseHint
         - repeat
         - steps
+        - position
       properties:
+        position:
+          type: [integer, "null"]
+          description: Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.
         repeat:
           description: How it repeats, anchored on its due date. Null when it does not.
           oneOf:
@@ -6448,6 +6475,21 @@ components:
         cc: { type: string, maxLength: 2000 }
         subject: { type: string, maxLength: 500 }
         body: { type: string, minLength: 1, maxLength: 20000 }
+
+    TaskReorderInput:
+      type: object
+      required: [ids]
+      additionalProperties: false
+      properties:
+        ids:
+          type: array
+          description: Task ids in the new order, top first
+          minItems: 1
+          maxItems: 500
+          items: { type: integer }
+        clear:
+          type: boolean
+          description: Forget the dragged order for these tasks instead, so they go back to due-date order
 
     TriageInput:
       type: object
