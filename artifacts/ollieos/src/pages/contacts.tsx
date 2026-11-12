@@ -24,6 +24,7 @@ import { CADENCES, CADENCE_LABELS, formatDayMonthShort, isClientOrgType } from '
 import { Avatar, Skel } from '@/components/bits';
 import { IconRight, IconSearch } from '@/components/icons';
 import { Dropdown } from '@/components/dropdown';
+import { ScrollRow } from '@/components/scroll-row';
 import { CreateDialog } from '@/components/knowledge/create-dialog';
 import { HiddenFromAi, LockMark, PageProblem } from '@/components/knowledge/parts';
 import { CadencePill, CadenceSelect, CheckInDialog } from '@/components/cadence';
@@ -99,16 +100,6 @@ function matchesText(q: string, ...parts: (string | null | undefined)[]) {
   return parts.some((p) => p?.toLowerCase().includes(q));
 }
 
-/** Old links (/people?tab=…, /knowledge/people, /knowledge/organisations) land on the matching Contacts view. */
-export function contactsPathFor(location: string, search: string): string {
-  if (location === '/knowledge/organisations') return '/contacts?view=organisations';
-  const tab = new URLSearchParams(search).get('tab');
-  if (tab === 'overdue') return '/contacts?filter=overdue';
-  if (tab === 'due-soon') return '/contacts?filter=due';
-  if (tab === 'on-track' || tab === 'all') return '/contacts?filter=keep';
-  return '/contacts';
-}
-
 export default function ContactsPage() {
   const search = useSearch();
   const [, navigate] = useLocation();
@@ -181,7 +172,7 @@ export default function ContactsPage() {
       {!q && view === 'people' && (filter === 'all' || filter === 'keep') && <Suggestions />}
       {!q && view === 'people' && filter === 'all' && <PossibleDuplicates />}
 
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0" style={{ marginTop: -6 }}>
+      <ScrollRow className="-mx-4 px-4 sm:mx-0 sm:px-0" style={{ marginTop: -6 }}>
         <div role="tablist" aria-label="Contacts view" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--oo-line)', minWidth: 'max-content' }}>
           {(['people', 'organisations'] as const).map((v) => (
             <button key={v} type="button" role="tab" className="oo-tab" aria-selected={view === v} onClick={() => setParams({ view: v })} data-testid={'tab-contacts-' + v}>
@@ -190,7 +181,7 @@ export default function ContactsPage() {
             </button>
           ))}
         </div>
-      </div>
+      </ScrollRow>
 
       <div role="tabpanel" aria-label={view === 'people' ? 'People' : 'Organisations'} style={{ marginTop: -10, display: 'flex', flexDirection: 'column', gap: 14 }}>
         {view === 'people' ? (
@@ -593,7 +584,7 @@ function OrgRow({ o, people, pulse, openByDefault, onDraft }: { o: OrganisationL
             aria-controls={panelId}
             aria-label={`${open ? 'Hide' : 'Show'} people at ${o.name}`}
             onClick={() => setOpen((v) => !v)}
-            style={{ minWidth: 32, padding: '4px 6px' }}
+            style={{ minWidth: 44, minHeight: 44, padding: 0 }}
             data-testid={'button-toggle-org-' + o.slug}
           >
             <span aria-hidden="true" style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : undefined, transition: 'transform 120ms' }}><IconRight size={14} /></span>

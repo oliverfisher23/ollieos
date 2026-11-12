@@ -1,6 +1,7 @@
 import * as React from 'react';
 import * as ToastPrimitives from '@radix-ui/react-toast';
-import { cn } from '@/lib/utils';
+// clsx alone: these get no conflicting Tailwind classes, so tailwind-merge (about 8 KB gzipped) stays out of the first load.
+import { clsx as cn } from 'clsx';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { X } from 'lucide-react';
 

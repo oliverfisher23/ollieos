@@ -945,6 +945,36 @@ export async function rejectSuggestion(id: number, now = new Date()) {
   });
 }
 
+export interface BulkResult {
+  approved: number;
+  rejected: number;
+  /** Cards left waiting, with why: a conflict to decide, already decided, or a problem approving */
+  skipped: { id: number; reason: string }[];
+}
+
+/**
+ * Approves or rejects many cards at once, each in its own transaction, as if Ollie had pressed the
+ * button on each. Cards waiting on the Conflicts tab, already decided, or that cannot be approved
+ * as they stand are skipped and listed, never forced.
+ */
+export async function bulkDecide(action: "approve" | "reject", ids: number[], now = new Date()): Promise<BulkResult> {
+  const out: BulkResult = { approved: 0, rejected: 0, skipped: [] };
+  for (const id of [...new Set(ids)]) {
+    try {
+      if (action === "approve") {
+        await approveSuggestion(id, undefined, now);
+        out.approved++;
+      } else {
+        await rejectSuggestion(id, now);
+        out.rejected++;
+      }
+    } catch (err) {
+      out.skipped.push({ id, reason: err instanceof Error ? err.message : "Could not be decided" });
+    }
+  }
+  return out;
+}
+
 /**
  * Rejects everything still waiting that came from one document or Dropbox file, except items
  * waiting on the Conflicts tab. Returns how many were rejected.

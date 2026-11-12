@@ -82,6 +82,11 @@ export const tasksTable = pgTable(
     repeat: jsonb("repeat").$type<RepeatRule>(),
     /** The next copy made when this one was ticked off, so it is only made once */
     repeatNextId: integer("repeat_next_id"),
+    /**
+     * Where Ollie dragged it in the task list; lower comes first. Null means never placed by hand,
+     * so it sorts after placed tasks in the usual due-date order.
+     */
+    position: integer("position"),
     /** Checklist steps inside the task, in order */
     steps: jsonb("steps").$type<TaskStep[]>().notNull().default([]),
     search: tsvector("search").generatedAlwaysAs(

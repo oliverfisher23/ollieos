@@ -620,7 +620,7 @@ export async function listInbox(tab: InboxTab, origin: InboxOrigin = "all") {
         ),
       )
       .orderBy(asc(suggestionsTable.createdAt), asc(suggestionsTable.id))
-      .limit(400);
+      .limit(1000);
     const supersedeIds = rows.map((s) => (s.kind === "fact" ? (s.payload as FactPayload).supersedes : null)).filter((x): x is number => x != null);
     const replaced = supersedeIds.length ? await db.select({ id: factsTable.id, text: factsTable.text }).from(factsTable).where(inArray(factsTable.id, supersedeIds)) : [];
     const t = await targetsFor(rows.filter((s) => s.entityType && s.entityId != null).map((s) => ({ type: s.entityType!, id: s.entityId! })));

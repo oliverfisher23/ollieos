@@ -156,8 +156,9 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
             <dd><OtherEmails person={person} /></dd>
             <dt>Slack</dt>
             <dd><SlackAccount person={person} /></dd>
-            <dt>LinkedIn</dt>
-            <dd style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start', minWidth: 0 }}>
+            <dt style={{ paddingTop: 12 }}>LinkedIn</dt>
+            {/* Space above keeps its phone tap area clear of Slack's Link button. */}
+            <dd style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start', minWidth: 0, paddingTop: 12 }}>
               <InlineText value={person.linkedinUrl} label="LinkedIn" placeholder="Add a LinkedIn profile link" testId="person-linkedin" onSave={(v) => save({ linkedinUrl: v })} />
               {person.linkedinUrl && (
                 <a href={person.linkedinUrl} target="_blank" rel="noreferrer" className="oo-link" style={{ fontSize: 13 }} data-testid="link-person-linkedin">Open profile</a>

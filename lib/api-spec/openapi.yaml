@@ -277,6 +277,29 @@ paths:
         "403":
           $ref: "#/components/responses/NotAuthorised"
 
+  /tasks/reorder:
+    post:
+      operationId: reorderTasks
+      tags: [tasks]
+      summary: Put tasks in the order Ollie dragged them, or clear that order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskReorderInput"
+      responses:
+        "204":
+          description: Saved
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
   /tasks/{id}:
     get:
       operationId: getTask
@@ -1251,6 +1274,41 @@ paths:
             text/csv:
               schema: { type: string }
         "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /tasks/{id}/slack-dm:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getTaskSlackDmOptions
+      tags: [tasks]
+      summary: "Colleagues this task can be sent to on Slack, and who it is suggested for"
+      responses:
+        "200":
+          description: Options
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackDmOptions" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    post:
+      operationId: sendTaskSlackDm
+      tags: [tasks]
+      summary: "Send a colleague a Slack direct message as Ollie, then move the task to Waiting on them"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SlackDmInput" }
+      responses:
+        "200":
+          description: Sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackDmResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
 
   /library/drive-search:
     get:
@@ -3413,6 +3471,25 @@ paths:
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
+  /suggestions/bulk:
+    post:
+      operationId: bulkDecideSuggestions
+      tags: [knowledge]
+      summary: Approve or reject many Knowledge Inbox cards at once; cards that cannot be decided as they stand are skipped
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulkDecideInput" }
+      responses:
+        "200":
+          description: What was decided
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulkDecideResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /suggestions/reject-source:
     post:
       operationId: rejectSuggestionsFromSource
@@ -4780,7 +4857,11 @@ components:
         - noiseHint
         - repeat
         - steps
+        - position
       properties:
+        position:
+          type: [integer, "null"]
+          description: Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.
         repeat:
           description: How it repeats, anchored on its due date. Null when it does not.
           oneOf:
@@ -6282,6 +6363,56 @@ components:
             properties:
               status: { type: string }
               suggestionId: { type: integer }
+    SlackDmPerson:
+      type: object
+      required: [id, name, role]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        role: { type: [string, "null"] }
+    SlackDmOptions:
+      type: object
+      required: [people, suggestedPersonId]
+      properties:
+        people: { type: array, items: { $ref: "#/components/schemas/SlackDmPerson" } }
+        suggestedPersonId: { type: [integer, "null"] }
+    SlackDmInput:
+      type: object
+      additionalProperties: false
+      required: [personId, text]
+      properties:
+        personId: { type: integer }
+        text: { type: string, maxLength: 3000 }
+    SlackDmResult:
+      type: object
+      required: [personId, personName, channel, ts, url]
+      properties:
+        personId: { type: integer }
+        personName: { type: string }
+        channel: { type: string }
+        ts: { type: string }
+        url: { type: string }
+    BulkDecideInput:
+      type: object
+      additionalProperties: false
+      required: [action, ids]
+      properties:
+        action: { type: string, enum: [approve, reject] }
+        ids: { type: array, minItems: 1, maxItems: 500, items: { type: integer } }
+    BulkDecideResult:
+      type: object
+      required: [approved, rejected, skipped]
+      properties:
+        approved: { type: integer }
+        rejected: { type: integer }
+        skipped:
+          type: array
+          items:
+            type: object
+            required: [id, reason]
+            properties:
+              id: { type: integer }
+              reason: { type: string }
     TestCaseAvailability:
       type: object
       required: [available, expected, caseId]
@@ -6523,6 +6654,21 @@ components:
         cc: { type: string, maxLength: 2000 }
         subject: { type: string, maxLength: 500 }
         body: { type: string, minLength: 1, maxLength: 20000 }
+
+    TaskReorderInput:
+      type: object
+      required: [ids]
+      additionalProperties: false
+      properties:
+        ids:
+          type: array
+          description: Task ids in the new order, top first
+          minItems: 1
+          maxItems: 500
+          items: { type: integer }
+        clear:
+          type: boolean
+          description: Forget the dragged order for these tasks instead, so they go back to due-date order
 
     TriageInput:
       type: object

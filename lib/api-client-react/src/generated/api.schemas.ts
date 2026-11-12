@@ -302,6 +302,11 @@ export interface TaskGoal {
 }
 
 export interface Task {
+  /**
+     * Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.
+     * @nullable
+     */
+  position: number | null;
   /** How it repeats, anchored on its due date. Null when it does not. */
   repeat: RepeatRule | null;
   /** Checklist steps, in order */
@@ -1980,6 +1985,61 @@ export interface VoiceSaveResult {
   facts: VoiceSaveResultFactsItem[];
 }
 
+export interface SlackDmPerson {
+  id: number;
+  name: string;
+  /** @nullable */
+  role: string | null;
+}
+
+export interface SlackDmOptions {
+  people: SlackDmPerson[];
+  /** @nullable */
+  suggestedPersonId: number | null;
+}
+
+export interface SlackDmInput {
+  personId: number;
+  /** @maxLength 3000 */
+  text: string;
+}
+
+export interface SlackDmResult {
+  personId: number;
+  personName: string;
+  channel: string;
+  ts: string;
+  url: string;
+}
+
+export type BulkDecideInputAction = typeof BulkDecideInputAction[keyof typeof BulkDecideInputAction];
+
+
+export const BulkDecideInputAction = {
+  approve: 'approve',
+  reject: 'reject',
+} as const;
+
+export interface BulkDecideInput {
+  action: BulkDecideInputAction;
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  ids: number[];
+}
+
+export type BulkDecideResultSkippedItem = {
+  id: number;
+  reason: string;
+};
+
+export interface BulkDecideResult {
+  approved: number;
+  rejected: number;
+  skipped: BulkDecideResultSkippedItem[];
+}
+
 export type TestCaseAvailabilityExpected = typeof TestCaseAvailabilityExpected[keyof typeof TestCaseAvailabilityExpected];
 
 
@@ -2294,6 +2354,17 @@ export interface ReplyDraftInput {
      * @maxLength 20000
      */
   body: string;
+}
+
+export interface TaskReorderInput {
+  /**
+     * Task ids in the new order, top first
+     * @minItems 1
+     * @maxItems 500
+     */
+  ids: number[];
+  /** Forget the dragged order for these tasks instead, so they go back to due-date order */
+  clear?: boolean;
 }
 
 export type TriageInputAction = typeof TriageInputAction[keyof typeof TriageInputAction];
