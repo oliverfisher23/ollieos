@@ -3,6 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { Logo } from '@/components/bits';
 import { AddBox } from '@/components/add-box';
 import { IconBook, IconCalendar, IconCompass, IconGoal, IconHome, IconLogout, IconMessages, IconMore, IconPeople, IconPlus, IconRight, IconSettings, IconTasks } from '@/components/icons';
+import { getGetMessageCountsQueryKey, useGetMessageCounts } from '@workspace/api-client-react';
 import { useSession } from '@/lib/auth-context';
 import { preloadRoute } from '@/routes';
 
@@ -66,6 +67,10 @@ export function MainNav({ children }: { children: ReactNode }) {
     onContextMenu: (e: { preventDefault: () => void }) => e.preventDefault(),
   };
   const cur = (href: string) => (navActive(href, location) ? 'page' : undefined);
+  // Messages needing a reply, on its icon. Looked at again every 2 minutes and when the window is back in view.
+  const counts = useGetMessageCounts({ query: { queryKey: getGetMessageCountsQueryKey(), refetchInterval: 120_000, staleTime: 60_000, retry: false } });
+  const toAnswer = counts.data?.needsReply ?? 0;
+  const badge = (href: string) => (href === '/messages' && toAnswer > 0 ? toAnswer : 0);
   const inMore = MORE.some((m) => navActive(m.href, location));
   // A page opened from the More sheet closes it.
   useEffect(() => setSheet((s) => (s === 'more' ? null : s)), [location]);
@@ -78,9 +83,10 @@ export function MainNav({ children }: { children: ReactNode }) {
             <Logo size={32} />
           </Link>
           {RAIL.map(({ href, label, Icon }) => (
-            <Link key={href} href={href} aria-label={label} aria-current={cur(href)} {...preload(href)} data-testid={'link-rail-' + label.toLowerCase()}>
+            <Link key={href} href={href} aria-label={badge(href) ? `${label}, ${badge(href)} to answer` : label} aria-current={cur(href)} {...preload(href)} data-testid={'link-rail-' + label.toLowerCase()}>
               <Icon />
-              <RailTip label={label} />
+              {badge(href) > 0 && <span className="oo-rail-badge oo-num" aria-hidden="true" data-testid="badge-rail-messages">{badge(href) > 99 ? '99+' : badge(href)}</span>}
+              <RailTip label={badge(href) ? `${label}: ${badge(href)} to answer` : label} />
             </Link>
           ))}
           <div aria-hidden="true" className="oo-rail-sep" />
@@ -117,6 +123,7 @@ export function MainNav({ children }: { children: ReactNode }) {
               <Link key={href} href={href} aria-current={cur(href)} data-autofocus={i === 0 || undefined} {...preload(href)} data-testid={'link-more-' + label.toLowerCase()}>
                 <Icon size={20} />
                 <span>{label}</span>
+                {badge(href) > 0 && <span className="oo-pill oo-num" data-testid="badge-more-messages">{badge(href)} to answer</span>}
                 <IconRight size={16} className="oo-sheet-chev" />
               </Link>
             ))}

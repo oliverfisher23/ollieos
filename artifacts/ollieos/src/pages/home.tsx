@@ -212,7 +212,7 @@ export default function HomePage() {
             <span className="oo-btn oo-btn-white" style={{ borderRadius: 999, minHeight: 40 }}>{d.inbox.count ? 'Triage' : 'Open'}</span>
           </span>
         </Link>
-        {d.slackToAnswer > 0 && <SlackWaitingLink count={d.slackToAnswer} phone />}
+        {d.slackToAnswer + d.emailToAnswer > 0 && <MessagesWaitingLink emails={d.emailToAnswer} slack={d.slackToAnswer} phone />}
         <ClearOutCard phone />
         <TodayPhone events={d.today} />
         <WaitingCard items={d.waitingOn} phone />
@@ -242,7 +242,7 @@ export default function HomePage() {
             <h2 id="h-inbox" className="oo-label">Inbox</h2>
             <p className="oo-serif-roman" style={{ margin: 0, fontSize: 48, lineHeight: 1 }} data-testid="text-inbox-count">{d.inbox.count}</p>
             <p className="oo-t2" style={{ margin: 0, fontSize: 13 }} data-testid="text-inbox-breakdown">{breakdown(d)}</p>
-            {d.slackToAnswer > 0 && <SlackWaitingLink count={d.slackToAnswer} />}
+            {d.slackToAnswer + d.emailToAnswer > 0 && <MessagesWaitingLink emails={d.emailToAnswer} slack={d.slackToAnswer} />}
             <div style={{ marginTop: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {d.inbox.count ? (
                 <Link href="/triage" className="oo-btn oo-btn-white" data-testid="link-triage">Triage {d.inbox.count}</Link>
@@ -582,19 +582,21 @@ function DoneCard({ home }: { home: HomeSummary }) {
   );
 }
 
-/** Slack to answer (Part P): messages that need a reply and have waited over a working day. */
-function SlackWaitingLink({ count, phone = false }: { count: number; phone?: boolean }) {
-  const label = `${count === 1 ? '1 Slack message' : `${count} Slack messages`} to answer`;
+/** Messages to answer: emails and Slack messages that need a reply and have waited over a working day. */
+function MessagesWaitingLink({ emails, slack, phone = false }: { emails: number; slack: number; phone?: boolean }) {
+  const parts = [emails ? (emails === 1 ? '1 email' : `${emails} emails`) : '', slack ? (slack === 1 ? '1 Slack message' : `${slack} Slack messages`) : ''].filter(Boolean);
+  const label = `${parts.join(' and ')} to answer`;
+  const href = emails && slack ? '/messages' : emails ? '/messages?tab=to-answer&from=email' : '/messages?tab=to-answer&from=slack';
   if (phone) {
     return (
-      <Link href="/messages?tab=to-answer&from=slack" className="oo-dark-card oo-glass-quiet" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-slack-to-answer">
+      <Link href={href} className="oo-dark-card oo-glass-quiet" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-slack-to-answer">
         <span className="oo-t2" style={{ fontSize: 13 }}>{label}, waiting over a working day</span>
         <IconArrowOut size={18} />
       </Link>
     );
   }
   return (
-    <Link href="/messages?tab=to-answer&from=slack" className="oo-t2" style={{ fontSize: 13, color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-slack-to-answer">
+    <Link href={href} className="oo-t2" style={{ fontSize: 13, color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-slack-to-answer">
       {label}
     </Link>
   );
