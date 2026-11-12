@@ -14,7 +14,8 @@ import { ConflictError } from "../tasks";
 import { applyProgress, cleanProgress, openItemsBlock, openItemsFor, type ProgressCounts } from "../taskEvidence";
 import { markCovered, openPointsFor, pointsBlock } from "../talkingPoints";
 import { writeFollowUp } from "../meetingFollowUp";
-import { captureSorted, emptyCounts, loadPeople, peopleIdsIn, projectChoices, type CaptureCounts } from "./capture";
+import { captureSorted, emptyCounts, loadPeople, mayReadForKnowledge, peopleIdsIn, projectChoices, type CaptureCounts } from "./capture";
+import { addSpottedIdea } from "../strategy";
 import { meetingUnit, sortMeeting, type MeetingNote } from "./granola";
 
 export const MEETING_PROPOSER = "OllieOS";
@@ -37,7 +38,8 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
     const event = n.calendarEventId ? await findEventBySourceRef(n.calendarEventId) : null;
     // Part U: open tasks with the people in the meeting, checked in the same read; always Looks done.
     const unit = meetingUnit(n);
-    const personIds = peopleIdsIn(unit, await loadPeople([unit], []));
+    const loaded = await loadPeople([unit], []);
+    const personIds = peopleIdsIn(unit, loaded);
     const [open] = await openItemsFor([unit], [personIds]);
     // Part K: points Ollie wanted to raise with the people in the meeting.
     const points = await openPointsFor([...new Set([...personIds, ...(event?.personIds ?? [])])]);
@@ -80,6 +82,26 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
         ctx.now,
       );
       if (r.status === "suggested" || r.status === "conflict") counts.decisions++;
+    }
+
+    // Section 23, the idea spotter: never from a meeting with anyone hidden from AI. A problem never stops the check.
+    if (sorted.ideas?.length && mayReadForKnowledge(unit, loaded)) {
+      for (const [k, idea] of sorted.ideas.entries()) {
+        try {
+          const added = await addSpottedIdea({
+            title: idea.title,
+            notes: idea.notes || null,
+            projectId: projectIdByName.get(idea.project.toLowerCase().trim()) ?? event?.projectId ?? null,
+            confidential: idea.confidential,
+            sourceRef: `granola:${n.noteId}#idea:${k + 1}`,
+            sourceLabel: `Granola: ${event?.title ?? n.title}`,
+            sourceUrl: n.url ?? null,
+          });
+          if (added) counts.ideas = (counts.ideas ?? 0) + 1;
+        } catch (err) {
+          logger.warn({ err, note: n.noteId }, "Could not add a spotted idea");
+        }
+      }
     }
 
     // Part K: a follow-up draft for external meetings, saved to Gmail; never sent. A problem never stops the check.

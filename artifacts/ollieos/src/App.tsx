@@ -32,6 +32,7 @@ import ReviewPage from '@/pages/review';
 import MessagesPage from '@/pages/messages';
 import DigestPage from '@/pages/digest';
 import RoundupPage from '@/pages/roundup';
+import FridayUpdatePage from '@/pages/friday-update';
 import OAuthConsentPage from '@/pages/oauth-consent';
 import { TriageDialog } from '@/components/triage';
 import { ClearOutDialog } from '@/components/clear-out';
@@ -102,6 +103,7 @@ function Router() {
         <Route path="/briefs/:eventId">{(p) => <BriefPage key={p.eventId} eventId={p.eventId} />}</Route>
         <Route path="/digest">{() => <DigestPage />}</Route>
         <Route path="/digest/week">{() => <RoundupPage />}</Route>
+        <Route path="/digest/friday">{() => <FridayUpdatePage />}</Route>
         <Route path="/digest/:date">{(p) => <DigestPage key={p.date} date={p.date} />}</Route>
         <Route path="/goals" component={GoalsPage} />
         <Route path="/strategy" component={StrategyPage} />

@@ -19,6 +19,7 @@ import { emailsOf, hasAnyEmail, hasAnySlackId } from "../personMatch";
 import { propose, type Proposal } from "../suggestions";
 import { applyProgress, cleanProgress, openItemsFor, openItemsBlock, type ProgressCounts } from "../taskEvidence";
 import { proposeSignature, proposeWorksAt, recordTogether } from "../peopleSignals";
+import { addSpottedIdea } from "../strategy";
 import type { WorkMessage, WorkUnit } from "./messages";
 import type { AgentKey } from "../../lib/agents";
 import { sortUnits, type KnownNames, type SortedClaim, type SortedUnit } from "./sorter";
@@ -41,6 +42,8 @@ export interface CaptureCounts {
   /** Part S: relationship and works-at cards, and details from signatures */
   relationships?: number;
   details?: number;
+  /** Section 23: ideas the idea spotter added from Slack */
+  ideas?: number;
 }
 
 /** True when one of Ollie's noise rules covers every message in the exchange from someone else. */
@@ -338,6 +341,29 @@ export async function sortAndCapture(
   for (const [i, u] of keep.entries()) {
     const claims = readable[i] ? (sorted[i].knowledge ?? []) : [];
     if (claims.length) counts.knowledge += await proposeClaims(u, claims, known, before, selfName);
+  }
+  // Section 23, the idea spotter: ideas from Slack exchanges that may be read by AI. A problem never stops the check.
+  const projectIdByName = new Map(choices.map((p) => [p.name.toLowerCase(), p.id]));
+  for (const [i, u] of keep.entries()) {
+    if (u.source !== "slack" || !readable[i]) continue;
+    for (const [k, idea] of (sorted[i].ideas ?? []).entries()) {
+      const msg = u.messages.find((m) => m.ref === idea.ref) ?? u.messages[u.messages.length - 1];
+      if (!msg) continue;
+      try {
+        const added = await addSpottedIdea({
+          title: idea.title,
+          notes: idea.notes || null,
+          projectId: projectIdByName.get(idea.project.toLowerCase().trim()) ?? null,
+          confidential: idea.confidential,
+          sourceRef: `${msg.ref}#idea:${k + 1}`,
+          sourceLabel: sourceLabel(u, msg),
+          sourceUrl: msg.url || null,
+        });
+        if (added) counts.ideas = (counts.ideas ?? 0) + 1;
+      } catch (err) {
+        logger.warn({ err, unit: u.key }, "Could not add a spotted idea");
+      }
+    }
   }
   if (ctx.onSorted) await ctx.onSorted({ keep, sorted, readable, people: before });
   return counts;

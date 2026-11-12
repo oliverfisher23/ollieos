@@ -301,6 +301,13 @@ export interface TaskGoal {
   inherited: boolean;
 }
 
+export interface DelegateHint {
+  personId: number;
+  personName: string;
+  why: string;
+  message: string;
+}
+
 export interface Task {
   /**
      * Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.
@@ -383,6 +390,8 @@ export interface Task {
      * @nullable
      */
   looksDone?: string | null;
+  /** Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog. */
+  delegateHint?: DelegateHint | null;
 }
 
 export interface RepeatInput {
@@ -670,6 +679,9 @@ export interface SessionLink {
   slug: string;
 }
 
+/**
+ * ollieos is the idea spotter (section 23)
+ */
 export type IdeaSource = typeof IdeaSource[keyof typeof IdeaSource];
 
 
@@ -677,6 +689,7 @@ export const IdeaSource = {
   ollie: 'ollie',
   claude: 'claude',
   session: 'session',
+  ollieos: 'ollieos',
 } as const;
 
 export type IdeaTakenTask = {
@@ -704,7 +717,15 @@ export interface Idea {
   confidential: boolean;
   aiAccess: boolean;
   hiddenFromAi: boolean;
+  /** ollieos is the idea spotter (section 23) */
   source: IdeaSource;
+  /**
+     * Idea spotter: the meeting or Slack conversation it came up in
+     * @nullable
+     */
+  sourceLabel: string | null;
+  /** @nullable */
+  sourceUrl: string | null;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -2012,15 +2033,20 @@ export interface SlackDmResult {
   url: string;
 }
 
+/**
+ * same merges each card into the approved item its pre-sort hint names
+ */
 export type BulkDecideInputAction = typeof BulkDecideInputAction[keyof typeof BulkDecideInputAction];
 
 
 export const BulkDecideInputAction = {
   approve: 'approve',
   reject: 'reject',
+  same: 'same',
 } as const;
 
 export interface BulkDecideInput {
+  /** same merges each card into the approved item its pre-sort hint names */
   action: BulkDecideInputAction;
   /**
      * @minItems 1
@@ -2037,6 +2063,7 @@ export type BulkDecideResultSkippedItem = {
 export interface BulkDecideResult {
   approved: number;
   rejected: number;
+  merged: number;
   skipped: BulkDecideResultSkippedItem[];
 }
 
@@ -3020,6 +3047,62 @@ export interface KnowledgeInboxPlaybook {
   reason: string | null;
 }
 
+export type PresortHintVerdict = typeof PresortHintVerdict[keyof typeof PresortHintVerdict];
+
+
+export const PresortHintVerdict = {
+  keep: 'keep',
+  reject: 'reject',
+  same: 'same',
+  duplicate: 'duplicate',
+} as const;
+
+export type PresortHintSameAsType = typeof PresortHintSameAsType[keyof typeof PresortHintSameAsType];
+
+
+export const PresortHintSameAsType = {
+  fact: 'fact',
+  decision: 'decision',
+  rule: 'rule',
+} as const;
+
+export type PresortHintSameAs = {
+  type: PresortHintSameAsType;
+  id: number;
+  text: string;
+} | null;
+
+export interface PresortHint {
+  verdict: PresortHintVerdict;
+  why: string;
+  sameAs?: PresortHintSameAs;
+  /** @nullable */
+  duplicateOf?: number | null;
+}
+
+export type StaleEvidenceVerdict = typeof StaleEvidenceVerdict[keyof typeof StaleEvidenceVerdict];
+
+
+export const StaleEvidenceVerdict = {
+  confirmed: 'confirmed',
+  changed: 'changed',
+  none: 'none',
+} as const;
+
+export type StaleEvidenceSourcesItem = {
+  ref: string;
+  label: string;
+  at: string;
+};
+
+export interface StaleEvidence {
+  verdict: StaleEvidenceVerdict;
+  why: string;
+  /** @nullable */
+  newText: string | null;
+  sources: StaleEvidenceSourcesItem[];
+}
+
 export interface KnowledgeInboxItem {
   key: string;
   /** Suggestion id on the Suggested tab */
@@ -3071,6 +3154,90 @@ export interface KnowledgeInboxItem {
   saidAt: string | null;
   /** Contradiction and out-of-date cards: the approved items the new card disagrees with */
   contradicts?: KnowledgeInboxContradicted[];
+  /** Suggested cards: the pre-sorter's hint (section 23); null when it gave none or has not looked */
+  presort?: PresortHint | null;
+  /** Stale facts: what the stale fact checker found (section 23); null until it has looked */
+  evidence?: StaleEvidence | null;
+}
+
+export interface FridayUpdateTextInput {
+  weekEnding: string;
+  /**
+     * @maxLength 8000
+     * @nullable
+     */
+  editedText: string | null;
+}
+
+export type FridayUpdateRedraftInputSection = typeof FridayUpdateRedraftInputSection[keyof typeof FridayUpdateRedraftInputSection];
+
+
+export const FridayUpdateRedraftInputSection = {
+  wins: 'wins',
+  blockers: 'blockers',
+  ai: 'ai',
+  quarterly: 'quarterly',
+} as const;
+
+export interface FridayUpdateRedraftInput {
+  section: FridayUpdateRedraftInputSection;
+}
+
+export type FridayUpdateSections = {
+  wins: string[];
+  blockers: string[];
+  ai: string[];
+  quarterly: string[];
+};
+
+export type FridayUpdateBasis = {
+  done: number;
+  decisions: number;
+  meetings: number;
+  waiting: number;
+  overdue: number;
+  goals: number;
+  /** Items left out because they are hidden from AI */
+  hidden: number;
+};
+
+export interface FridayUpdate {
+  id: number;
+  weekEnding: string;
+  sections: FridayUpdateSections;
+  /** The post as drafted */
+  text: string;
+  /**
+     * Ollie's edited post, when he has changed it
+     * @nullable
+     */
+  editedText: string | null;
+  basis: FridayUpdateBasis;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FridayUpdateWeek {
+  weekEnding: string;
+  update: FridayUpdate | null;
+}
+
+export interface PresortResult {
+  looked: number;
+  repeats: number;
+  hinted: number;
+  /** Cards about something hidden from AI */
+  private: number;
+  failed: boolean;
+}
+
+export interface StaleCheckResult {
+  looked: number;
+  confirmed: number;
+  changed: number;
+  none: number;
+  private: number;
+  failed: boolean;
 }
 
 export type MergeOptionItemType = typeof MergeOptionItemType[keyof typeof MergeOptionItemType];
@@ -3167,9 +3334,16 @@ export interface MergePersonResult {
   moved: MergePersonResultMoved;
 }
 
+/**
+ * Suggested tab: cards waiting by pre-sort hint (keep, reject, same, duplicate, none, unsorted)
+ */
+export type KnowledgeInboxPresort = {[key: string]: number};
+
 export interface KnowledgeInbox {
   counts: KnowledgeInboxCounts;
   items: KnowledgeInboxItem[];
+  /** Suggested tab: cards waiting by pre-sort hint (keep, reject, same, duplicate, none, unsorted) */
+  presort?: KnowledgeInboxPresort;
 }
 
 /**
@@ -5507,6 +5681,10 @@ export type ListFeedbackParams = {
 subjects: string;
 };
 
+export type DismissTaskDelegateHint200 = {
+  id: number;
+};
+
 export type SearchDriveParams = {
 /**
  * @maxLength 200
@@ -5575,6 +5753,10 @@ tab?: ListKnowledgeInboxTab;
  * look_back shows only suggestions from a Granola look back; documents only those from reading documents
  */
 origin?: ListKnowledgeInboxOrigin;
+/**
+ * Suggested only: cards with this pre-sort hint. none is looked at with no hint; unsorted is not looked at yet.
+ */
+hint?: ListKnowledgeInboxHint;
 };
 
 export type ListKnowledgeInboxTab = typeof ListKnowledgeInboxTab[keyof typeof ListKnowledgeInboxTab];
@@ -5594,6 +5776,30 @@ export const ListKnowledgeInboxOrigin = {
   look_back: 'look_back',
   documents: 'documents',
 } as const;
+
+export type ListKnowledgeInboxHint = typeof ListKnowledgeInboxHint[keyof typeof ListKnowledgeInboxHint];
+
+
+export const ListKnowledgeInboxHint = {
+  all: 'all',
+  keep: 'keep',
+  reject: 'reject',
+  same: 'same',
+  duplicate: 'duplicate',
+  none: 'none',
+  unsorted: 'unsorted',
+} as const;
+
+export type GetFridayUpdateParams = {
+/**
+ * The Friday the week ends on, YYYY-MM-DD
+ */
+week?: string;
+};
+
+export type ConfirmFoundStillTrue200 = {
+  confirmed: number;
+};
 
 export type RejectSuggestionsFromSource200 = {
   rejected: number;

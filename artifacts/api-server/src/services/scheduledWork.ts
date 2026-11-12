@@ -21,6 +21,10 @@ import { checkInboxNoise } from "./noiseCheck";
 import { researchUpcoming } from "./research";
 import { checkNewCards } from "./contradictions";
 import { buildRoundupIfDue, clearOldRoundups } from "./roundup";
+import { presortCards } from "./presort";
+import { checkStaleFacts } from "./staleCheck";
+import { suggestDelegations } from "./delegation";
+import { draftWeeklyUpdateIfDue } from "./weeklyUpdate";
 
 /** OllieOS's own checks start at 07:00, so they wait for 07:40 (when the morning sweep ran) before building the digest. */
 export const DIGEST_NOT_BEFORE = { hour: 7, minute: 40 };
@@ -75,11 +79,17 @@ async function runScheduledWork(from: "sweep" | "connectors", now: Date): Promis
   if (process.env.NODE_ENV !== "test") await part("noise", () => checkInboxNoise());
   // Part O: new cards checked against approved knowledge. Calls the model, so tests run it directly.
   if (process.env.NODE_ENV !== "test") await part("contradictions", () => checkNewCards(now));
+  // Section 23: hints on Knowledge Inbox cards, and evidence for stale facts. Call the model, so tests run them directly.
+  if (process.env.NODE_ENV !== "test") await part("presort", () => presortCards(now));
+  if (process.env.NODE_ENV !== "test") await part("stale_evidence", () => checkStaleFacts(now));
+  if (process.env.NODE_ENV !== "test") await part("delegation", () => suggestDelegations(now));
   await part("briefs", () => buildUpcomingBriefs(now));
   // Searches the web and calls the model on real companies, so tests run it directly with the model stood in.
   if (process.env.NODE_ENV !== "test") await part("research", () => researchUpcoming(now));
   if (from === "sweep" || digestTimeReached(now)) await part("digest", () => buildDigestIfDue(now));
   await part("roundup", () => buildRoundupIfDue(now));
+  // Section 23: the Friday update, drafted on Friday mornings. Calls the model, so tests run it directly.
+  if (process.env.NODE_ENV !== "test") await part("weekly_update", () => draftWeeklyUpdateIfDue(now));
   // Part L: rules from Ollie's edits, once a week. Calls the model, so tests run it directly.
   if (process.env.NODE_ENV !== "test") await part("rules_from_edits", () => learnRulesIfDue(now));
   if (process.env.NODE_ENV !== "test") await part("writer_grades", () => gradeIfDue(now));

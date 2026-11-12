@@ -38,7 +38,7 @@ describe("bulk decisions in the Knowledge Inbox", () => {
     const acme = await organisation("Acme");
     const ids = [(await fact(acme.id, "One")).suggestionId, (await fact(acme.id, "Two")).suggestionId];
     const res = await api("suggestions/bulk", { method: "POST", body: { action: "reject", ids } });
-    expect(res.body).toEqual({ approved: 0, rejected: 2, skipped: [] });
+    expect(res.body).toEqual({ approved: 0, rejected: 2, merged: 0, skipped: [] });
     const rows = await db.select().from(suggestionsTable);
     expect(rows.every((r) => r.status === "rejected")).toBe(true);
     expect(await db.select().from(factsTable)).toHaveLength(0);

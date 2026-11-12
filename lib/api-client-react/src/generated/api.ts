@@ -55,6 +55,7 @@ import type {
   ClipboardText,
   CompanyResearch,
   CompanyResearchList,
+  ConfirmFoundStillTrue200,
   ConnectorCheckResult,
   ConnectorKey,
   ConnectorReadByInput,
@@ -68,6 +69,7 @@ import type {
   DecisionUpdate,
   Digest,
   DigestListItem,
+  DismissTaskDelegateHint200,
   DocumentInput,
   DocumentTextInput,
   DocumentUpdate,
@@ -98,6 +100,11 @@ import type {
   FactSupersede,
   FindGraphConnectionParams,
   FindSlackAccountsParams,
+  FridayUpdate,
+  FridayUpdateRedraftInput,
+  FridayUpdateTextInput,
+  FridayUpdateWeek,
+  GetFridayUpdateParams,
   GetOAuthConsentParams,
   GetRoundupsParams,
   GetTaskSummaryParams,
@@ -174,6 +181,7 @@ import type {
   PlaybookInput,
   PlaybookRunInput,
   PlaybookUpdate,
+  PresortResult,
   Product,
   ProductDetail,
   ProductInput,
@@ -226,6 +234,7 @@ import type {
   SlackDmResult,
   SlackReplyDraft,
   SlackToAnswer,
+  StaleCheckResult,
   StrategyOrder,
   StrategySection,
   StrategySectionInput,
@@ -5266,6 +5275,80 @@ export function useExportTasksCsv<TData = Awaited<ReturnType<typeof exportTasksC
 
 
 
+
+export const getDismissTaskDelegateHintUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/delegate-hint/dismiss`
+}
+
+/**
+ * @summary Not this one: drop the delegation suggester's colleague for this task (section 23)
+ */
+export const dismissTaskDelegateHint = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<DismissTaskDelegateHint200> => {
+
+  return customFetch<DismissTaskDelegateHint200>(getDismissTaskDelegateHintUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDismissTaskDelegateHintMutationKey = () => ['dismissTaskDelegateHint'] as const;
+
+export const getDismissTaskDelegateHintMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissTaskDelegateHint>>, TError,DismissTaskDelegateHintMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissTaskDelegateHint>>, TError,DismissTaskDelegateHintMutationVariables, TContext> => {
+
+const mutationKey = getDismissTaskDelegateHintMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissTaskDelegateHint>>, DismissTaskDelegateHintMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  dismissTaskDelegateHint(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissTaskDelegateHintMutationResult = NonNullable<Awaited<ReturnType<typeof dismissTaskDelegateHint>>>
+
+    export type DismissTaskDelegateHintMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type DismissTaskDelegateHintMutationVariables = {id: number}
+
+    /**
+ * @summary Not this one: drop the delegation suggester's colleague for this task (section 23)
+ */
+export const useDismissTaskDelegateHint = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissTaskDelegateHint>>, TError,DismissTaskDelegateHintMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof dismissTaskDelegateHint>>,
+        TError,
+        DismissTaskDelegateHintMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDismissTaskDelegateHintMutationOptions(options), queryClient);
+    }
 
 export const getGetTaskSlackDmOptionsUrl = (id: number,) => {
 
@@ -16266,6 +16349,586 @@ export const useBulkDecideSuggestions = <TError = ErrorType<ErrorResponse | NotA
         TContext
       > => {
       return useMutation(getBulkDecideSuggestionsMutationOptions(options), queryClient);
+    }
+
+export const getGetFridayUpdateUrl = (params?: GetFridayUpdateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/weekly-update?${stringifiedParams}` : `/api/weekly-update`
+}
+
+/**
+ * @summary The Friday update for a week (section 23): this week's unless a week is given
+ */
+export const getFridayUpdate = async (params?: GetFridayUpdateParams, options?: Parameters<typeof customFetch>[1]): Promise<FridayUpdateWeek> => {
+
+  return customFetch<FridayUpdateWeek>(getGetFridayUpdateUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFridayUpdateQueryKey = (params?: GetFridayUpdateParams,) => {
+    return [
+    `/api/weekly-update`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetFridayUpdateQueryOptions = <TData = Awaited<ReturnType<typeof getFridayUpdate>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(params?: GetFridayUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFridayUpdate>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFridayUpdateQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFridayUpdate>>> = ({ signal }) => getFridayUpdate(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFridayUpdate>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetFridayUpdateQueryResult = NonNullable<Awaited<ReturnType<typeof getFridayUpdate>>>
+export type GetFridayUpdateQueryError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+
+
+export function useGetFridayUpdate<TData = Awaited<ReturnType<typeof getFridayUpdate>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params: undefined |  GetFridayUpdateParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFridayUpdate>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFridayUpdate>>,
+          TError,
+          Awaited<ReturnType<typeof getFridayUpdate>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFridayUpdate<TData = Awaited<ReturnType<typeof getFridayUpdate>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params?: GetFridayUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFridayUpdate>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getFridayUpdate>>,
+          TError,
+          Awaited<ReturnType<typeof getFridayUpdate>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetFridayUpdate<TData = Awaited<ReturnType<typeof getFridayUpdate>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params?: GetFridayUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFridayUpdate>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The Friday update for a week (section 23): this week's unless a week is given
+ */
+
+export function useGetFridayUpdate<TData = Awaited<ReturnType<typeof getFridayUpdate>>, TError = ErrorType<ErrorResponse | NotAuthorisedResponse>>(
+ params?: GetFridayUpdateParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getFridayUpdate>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetFridayUpdateQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveFridayUpdateTextUrl = () => {
+
+
+
+
+  return `/api/weekly-update`
+}
+
+/**
+ * @summary Save Ollie's edits to the post; null goes back to the draft
+ */
+export const saveFridayUpdateText = async (fridayUpdateTextInput: FridayUpdateTextInput, options?: Parameters<typeof customFetch>[1]): Promise<FridayUpdate> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FridayUpdate>(getSaveFridayUpdateTextUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fridayUpdateTextInput)
+  }
+);}
+
+
+
+
+
+export const getSaveFridayUpdateTextMutationKey = () => ['saveFridayUpdateText'] as const;
+
+export const getSaveFridayUpdateTextMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveFridayUpdateText>>, TError,SaveFridayUpdateTextMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveFridayUpdateText>>, TError,SaveFridayUpdateTextMutationVariables, TContext> => {
+
+const mutationKey = getSaveFridayUpdateTextMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveFridayUpdateText>>, SaveFridayUpdateTextMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveFridayUpdateText(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveFridayUpdateTextMutationResult = NonNullable<Awaited<ReturnType<typeof saveFridayUpdateText>>>
+    export type SaveFridayUpdateTextMutationBody = BodyType<FridayUpdateTextInput>
+    export type SaveFridayUpdateTextMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SaveFridayUpdateTextMutationVariables = {data: BodyType<FridayUpdateTextInput>}
+
+    /**
+ * @summary Save Ollie's edits to the post; null goes back to the draft
+ */
+export const useSaveFridayUpdateText = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveFridayUpdateText>>, TError,SaveFridayUpdateTextMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveFridayUpdateText>>,
+        TError,
+        SaveFridayUpdateTextMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveFridayUpdateTextMutationOptions(options), queryClient);
+    }
+
+export const getDraftFridayUpdateUrl = () => {
+
+
+
+
+  return `/api/weekly-update/draft`
+}
+
+/**
+ * @summary Draft this week's Friday update (again), from what OllieOS saw this week
+ */
+export const draftFridayUpdate = async ( options?: Parameters<typeof customFetch>[1]): Promise<FridayUpdate> => {
+
+  return customFetch<FridayUpdate>(getDraftFridayUpdateUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDraftFridayUpdateMutationKey = () => ['draftFridayUpdate'] as const;
+
+export const getDraftFridayUpdateMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftFridayUpdate>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof draftFridayUpdate>>, TError,void, TContext> => {
+
+const mutationKey = getDraftFridayUpdateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof draftFridayUpdate>>, void> = () => {
+
+
+          return  draftFridayUpdate(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DraftFridayUpdateMutationResult = NonNullable<Awaited<ReturnType<typeof draftFridayUpdate>>>
+
+    export type DraftFridayUpdateMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+
+
+    /**
+ * @summary Draft this week's Friday update (again), from what OllieOS saw this week
+ */
+export const useDraftFridayUpdate = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftFridayUpdate>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof draftFridayUpdate>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getDraftFridayUpdateMutationOptions(options), queryClient);
+    }
+
+export const getRedraftFridayUpdateSectionUrl = () => {
+
+
+
+
+  return `/api/weekly-update/redraft`
+}
+
+/**
+ * @summary Draft one section of this week's update again, keeping the others
+ */
+export const redraftFridayUpdateSection = async (fridayUpdateRedraftInput: FridayUpdateRedraftInput, options?: Parameters<typeof customFetch>[1]): Promise<FridayUpdate> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FridayUpdate>(getRedraftFridayUpdateSectionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(fridayUpdateRedraftInput)
+  }
+);}
+
+
+
+
+
+export const getRedraftFridayUpdateSectionMutationKey = () => ['redraftFridayUpdateSection'] as const;
+
+export const getRedraftFridayUpdateSectionMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redraftFridayUpdateSection>>, TError,RedraftFridayUpdateSectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof redraftFridayUpdateSection>>, TError,RedraftFridayUpdateSectionMutationVariables, TContext> => {
+
+const mutationKey = getRedraftFridayUpdateSectionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof redraftFridayUpdateSection>>, RedraftFridayUpdateSectionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  redraftFridayUpdateSection(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RedraftFridayUpdateSectionMutationResult = NonNullable<Awaited<ReturnType<typeof redraftFridayUpdateSection>>>
+    export type RedraftFridayUpdateSectionMutationBody = BodyType<FridayUpdateRedraftInput>
+    export type RedraftFridayUpdateSectionMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type RedraftFridayUpdateSectionMutationVariables = {data: BodyType<FridayUpdateRedraftInput>}
+
+    /**
+ * @summary Draft one section of this week's update again, keeping the others
+ */
+export const useRedraftFridayUpdateSection = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redraftFridayUpdateSection>>, TError,RedraftFridayUpdateSectionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof redraftFridayUpdateSection>>,
+        TError,
+        RedraftFridayUpdateSectionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRedraftFridayUpdateSectionMutationOptions(options), queryClient);
+    }
+
+export const getPresortSuggestionsUrl = () => {
+
+
+
+
+  return `/api/suggestions/presort`
+}
+
+/**
+ * @summary Pre-sort the next Knowledge Inbox cards now (section 23)
+ */
+export const presortSuggestions = async ( options?: Parameters<typeof customFetch>[1]): Promise<PresortResult> => {
+
+  return customFetch<PresortResult>(getPresortSuggestionsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getPresortSuggestionsMutationKey = () => ['presortSuggestions'] as const;
+
+export const getPresortSuggestionsMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof presortSuggestions>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof presortSuggestions>>, TError,void, TContext> => {
+
+const mutationKey = getPresortSuggestionsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof presortSuggestions>>, void> = () => {
+
+
+          return  presortSuggestions(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PresortSuggestionsMutationResult = NonNullable<Awaited<ReturnType<typeof presortSuggestions>>>
+
+    export type PresortSuggestionsMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Pre-sort the next Knowledge Inbox cards now (section 23)
+ */
+export const usePresortSuggestions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof presortSuggestions>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof presortSuggestions>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPresortSuggestionsMutationOptions(options), queryClient);
+    }
+
+export const getCheckStaleEvidenceUrl = () => {
+
+
+
+
+  return `/api/fact-reviews/check-evidence`
+}
+
+/**
+ * @summary Run the stale fact checker now on facts waiting on Needs a check (section 23)
+ */
+export const checkStaleEvidence = async ( options?: Parameters<typeof customFetch>[1]): Promise<StaleCheckResult> => {
+
+  return customFetch<StaleCheckResult>(getCheckStaleEvidenceUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckStaleEvidenceMutationKey = () => ['checkStaleEvidence'] as const;
+
+export const getCheckStaleEvidenceMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkStaleEvidence>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkStaleEvidence>>, TError,void, TContext> => {
+
+const mutationKey = getCheckStaleEvidenceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkStaleEvidence>>, void> = () => {
+
+
+          return  checkStaleEvidence(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckStaleEvidenceMutationResult = NonNullable<Awaited<ReturnType<typeof checkStaleEvidence>>>
+
+    export type CheckStaleEvidenceMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Run the stale fact checker now on facts waiting on Needs a check (section 23)
+ */
+export const useCheckStaleEvidence = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkStaleEvidence>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof checkStaleEvidence>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCheckStaleEvidenceMutationOptions(options), queryClient);
+    }
+
+export const getConfirmFoundStillTrueUrl = () => {
+
+
+
+
+  return `/api/fact-reviews/confirm-found`
+}
+
+/**
+ * @summary Mark every stale fact the checker found still true as confirmed today (section 23)
+ */
+export const confirmFoundStillTrue = async ( options?: Parameters<typeof customFetch>[1]): Promise<ConfirmFoundStillTrue200> => {
+
+  return customFetch<ConfirmFoundStillTrue200>(getConfirmFoundStillTrueUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getConfirmFoundStillTrueMutationKey = () => ['confirmFoundStillTrue'] as const;
+
+export const getConfirmFoundStillTrueMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmFoundStillTrue>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmFoundStillTrue>>, TError,void, TContext> => {
+
+const mutationKey = getConfirmFoundStillTrueMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmFoundStillTrue>>, void> = () => {
+
+
+          return  confirmFoundStillTrue(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmFoundStillTrueMutationResult = NonNullable<Awaited<ReturnType<typeof confirmFoundStillTrue>>>
+
+    export type ConfirmFoundStillTrueMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Mark every stale fact the checker found still true as confirmed today (section 23)
+ */
+export const useConfirmFoundStillTrue = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmFoundStillTrue>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof confirmFoundStillTrue>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getConfirmFoundStillTrueMutationOptions(options), queryClient);
     }
 
 export const getRejectSuggestionsFromSourceUrl = () => {

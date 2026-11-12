@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getGetTaskSlackDmOptionsQueryKey, sendTaskSlackDm, useGetTaskSlackDmOptions, type SlackDmResult, type Task } from '@workspace/api-client-react';
+import { dismissTaskDelegateHint, getGetTaskSlackDmOptionsQueryKey, sendTaskSlackDm, useGetTaskSlackDmOptions, type SlackDmResult, type Task } from '@workspace/api-client-react';
 import { Dropdown } from '@/components/dropdown';
 import { useInvalidateTasks } from '@/lib/task-cache';
 import { reportApiError } from '@/lib/forbidden';
@@ -20,6 +20,29 @@ export function SlackDm({ task }: { task: Task }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<SlackDmResult | null>(null);
+  const [dismissing, setDismissing] = useState(false);
+  const hint = task.delegateHint ?? null;
+
+  // Section 23: the delegation suggester's colleague fills in the box; Ollie still sends and confirms.
+  const useHint = () => {
+    if (!hint) return;
+    setPersonId(String(hint.personId));
+    setText(hint.message);
+    setConfirming(false);
+    setOpen(true);
+  };
+  const notThisOne = async () => {
+    setDismissing(true);
+    try {
+      await dismissTaskDelegateHint(task.id);
+      await invalidate();
+    } catch (err) {
+      reportApiError(err);
+      notify('That did not save', errorMessage(err));
+    } finally {
+      setDismissing(false);
+    }
+  };
   const q = useGetTaskSlackDmOptions(task.id, { query: { queryKey: getGetTaskSlackDmOptionsQueryKey(task.id), enabled: open, staleTime: 60_000 } });
   const people = q.data?.people ?? [];
   const chosen = personId || (q.data?.suggestedPersonId ? String(q.data.suggestedPersonId) : '');
@@ -47,6 +70,21 @@ export function SlackDm({ task }: { task: Task }) {
   if (!open) {
     return (
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+        {hint && !sent && (
+          <div className="oo-source" style={{ gap: 8, flexBasis: '100%' }} data-testid="card-delegate-hint">
+            <span style={{ fontSize: 13 }}>
+              <span style={{ fontWeight: 500 }}>Could go to {hint.personName}.</span> <span className="oo-muted">{hint.why}</span>
+            </span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" onClick={useHint} data-testid="button-delegate-use">
+                Message {hint.personName.split(' ')[0]}
+              </button>
+              <button type="button" className="oo-btn oo-btn-quiet oo-btn-sm" disabled={dismissing} onClick={() => void notThisOne()} data-testid="button-delegate-dismiss">
+                Not this one
+              </button>
+            </div>
+          </div>
+        )}
         <button type="button" className="oo-btn oo-btn-outline" onClick={() => setOpen(true)} data-testid="button-slack-dm">Message on Slack</button>
         {sent && (
           <span className="oo-muted" style={{ fontSize: 13 }} data-testid="text-slack-dm-sent">

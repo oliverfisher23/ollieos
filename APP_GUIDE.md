@@ -21,6 +21,7 @@ The full list by tab (Inbox, Now, Backlog, Waiting on, Done, Noise). Click a tas
 - **Looks done.** When a later message, email or meeting says a task is finished, the task shows "Looks done" with Mark done and Not done. A task finished in its own conversation (you replied "done" in the same Slack thread) closes itself, and "What OllieOS has seen" lists why.
 - **Reply drafts.** On email tasks, Draft a reply writes one in your style and your rules; Check lists any line that breaks a rule, Fix these rewrites only those lines, and Save to Gmail puts it in your drafts. You send it.
 - **Message on Slack.** To hand a task to a colleague or ask their view, choose who and write the message; after you confirm, OllieOS sends it to them as a Slack direct message from you, and the task moves to Waiting on them. Their reply shows on the task. Only colleagues with Slack, never anyone at an outside organisation.
+- **Could go to.** On a Now or Backlog task, OllieOS may suggest a colleague who could take it, with why. Message them opens the Slack box with a draft filled in; you still send it. Not this one removes the suggestion for good.
 - **Keep as a test case.** On an item OllieOS found that it got wrong (or right), this saves what the reader was given so a later change can be checked against it.
 - **Sort.** Click a column heading to sort by it; click again to flip it, and a third time to go back. On a phone, use Sort by.
 - **Your own order.** On All open, Now, Backlog and Waiting on, drag a task by its grip (or press Space on the grip and use the arrow keys) to put it where you want. The order is kept. New tasks join below in due-date order, and Go back to due-date order forgets it.
@@ -36,6 +37,10 @@ The full list by tab (Inbox, Now, Backlog, Waiting on, Done, Noise). Click a tas
 
 Meetings lists the next two weeks and the last two. Each work meeting has a prep page: why it matters, a suggested agenda (with your "Next time I see…" points at the top), questions, the people and what is open with them, the client's pulse and research on outside companies. After the meeting, the Granola notes add actions, decisions and, for external meetings, a follow-up email draft. Repeating meetings that have brought nothing lately are listed under "Worth a look".
 
+## Friday update
+
+From Home or the round-up, Friday update drafts your weekly leadership post for Slack (Wins, Blockers, AI & Automation, Quarterly Actions) from what OllieOS saw this week. It is drafted on Friday mornings, or whenever you press Draft. Draft again on any section redrafts that section alone. Edit the post, then Copy for Slack. OllieOS never posts it, and anything hidden from AI is left out.
+
 ## Digest and round-up
 
 The digest (built with the first check of each weekday) says what changed overnight: what needs you, what moved, who has gone quiet, documents colleagues changed, and meetings not yet prepared. The weekly round-up looks back at the week, including where your time went and any agent that slipped. Thumbs up or down on a digest, a brief or an Ask answer tells OllieOS how it is doing.
@@ -47,13 +52,15 @@ Ask a question in plain words. Answers come only from what OllieOS holds, with a
 ## Knowledge
 
 - **Knowledge Inbox.** Everything proposed by OllieOS's readers, by Claude and the other AIs, and by your edits: facts, decisions, people, organisations, rules, playbooks and relationships. Approve, reject or mark as the same as one you have. Nothing becomes knowledge without your approval.
+- **Pre-sort hints.** Each card says whether it looks worth keeping, looks like a reject, is the same as something approved or repeats another card. Filter by hint, tick the cards and decide them together; Merge into existing marks the "same" cards against what each names.
+- **Needs a check.** For each stale fact, OllieOS says what it has seen since: looks still true, looks changed (Use this takes the new wording), or nothing new. Confirm all that look still true at once.
 - **Projects, People, Organisations, Products.** Each page holds its facts, decisions, notes, documents, tasks and links. Organisations show their pulse (meetings, emails, what is owed, tone of the last meeting) and, for clients, renewal date, contract value and account health when known. People show "Next time I see…" points.
 - **Library.** Documents (add from Drive by search or link, from Dropbox, or upload), rules (how you want things written or done; each shows how often it was used) and playbooks (how your team does things, step by step; Run makes the steps into tasks for a person, organisation or project).
 - **Decisions, Notes, Sessions, Map.** Decisions and notes as lists; Cowork sessions saved by Claude; the map shows how everything connects.
 
 ## Goals, strategy and People
 
-Goals link projects to what you want this quarter, with time spent against each. Strategy holds your direction and the ideas list. People shows who is due a catch-up on the cadence you set for each.
+Goals link projects to what you want this quarter, with time spent against each. Strategy holds your direction and the ideas list; ideas floated in meetings or on Slack are added as "Spotted by OllieOS", with a link to where they came up. People shows who is due a catch-up on the cadence you set for each.
 
 ## Settings
 

@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { ListKnowledgeInboxHint } from './listKnowledgeInboxHint';
 import type { ListKnowledgeInboxOrigin } from './listKnowledgeInboxOrigin';
 import type { ListKnowledgeInboxTab } from './listKnowledgeInboxTab';
 
@@ -14,4 +15,8 @@ tab?: ListKnowledgeInboxTab;
  * look_back shows only suggestions from a Granola look back; documents only those from reading documents
  */
 origin?: ListKnowledgeInboxOrigin;
+/**
+ * Suggested only: cards with this pre-sort hint. none is looked at with no hint; unsorted is not looked at yet.
+ */
+hint?: ListKnowledgeInboxHint;
 };

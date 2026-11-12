@@ -10,5 +10,6 @@ import type { BulkDecideResultSkippedItem } from './bulkDecideResultSkippedItem'
 export interface BulkDecideResult {
   approved: number;
   rejected: number;
+  merged: number;
   skipped: BulkDecideResultSkippedItem[];
 }

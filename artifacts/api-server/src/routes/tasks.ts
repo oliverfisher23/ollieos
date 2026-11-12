@@ -1,3 +1,4 @@
+import { dismissDelegateHint } from "../services/delegation";
 import { dmOptions, MAX_DM, sendSlackDm } from "../services/slackDm";
 import { Router, type IRouter } from "express";
 import { checkDraft, taskContextRefs } from "../services/draftLearning";
@@ -212,6 +213,11 @@ router.post(
     const b = z.object({ personId: z.number().int().positive(), text: z.string().min(1).max(MAX_DM) }).strict().parse(req.body ?? {});
     res.json(await sendSlackDm(id, b, "ollie"));
   }),
+);
+// Section 23: "Not this one" on the delegation suggester's colleague.
+router.post(
+  "/tasks/:id/delegate-hint/dismiss",
+  handle(async (req, res) => void res.json(await dismissDelegateHint(IdParams.parse(req.params).id))),
 );
 router.post(
   "/tasks/:id/reply-draft/check",
