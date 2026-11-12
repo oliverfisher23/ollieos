@@ -9,6 +9,7 @@ import { OPEN_STATUSES, addDays, londonDate, londonRange, todayLondon } from "@w
 import { eligible, loadMatchers, matchEvent } from "./briefs";
 import type { MeetingScope } from "./meetingScope";
 import { writeAudit } from "../lib/audit";
+import { readByNow } from "./connectors";
 import { NotFoundError } from "./tasks";
 
 export const MEETINGS_AHEAD_DAYS = 7;
@@ -129,7 +130,7 @@ export async function listMeetings(now = new Date()): Promise<MeetingsList> {
       prep,
       promises: sum(match.personIds, promisesOf),
       waiting: sum(match.personIds, waitingOf),
-      granolaSnippet: snippet(brief?.granolaNotes ?? null),
+      granolaSnippet: snippet(brief?.granolaNotes ?? e.granolaNotes),
     };
   });
   const start = ahead.start.getTime();
@@ -158,6 +159,10 @@ export interface MeetingView {
   notes: string | null;
   /** The conversation that shaped the agenda */
   agendaChat: AgendaTurn[];
+  /** The Granola note, once one is linked to the meeting */
+  granola: { url: string | null; notes: string; attachedAt: Date | null; actions: { id: number; title: string; status: string }[] } | null;
+  /** True when OllieOS reads Granola itself, so Check Granola now can fetch the note */
+  granolaCheck: boolean;
 }
 
 export async function workEvent(eventId: number): Promise<CalendarEvent> {
@@ -174,12 +179,21 @@ export async function meetingView(eventId: number): Promise<MeetingView> {
   const personIds = match.personIds;
   const [[brief], people] = await Promise.all([
     db
-      .select({ why: meetingBriefsTable.why, failed: meetingBriefsTable.failed, notes: meetingBriefsTable.notes })
+      .select({ why: meetingBriefsTable.why, failed: meetingBriefsTable.failed, notes: meetingBriefsTable.notes, granolaNotes: meetingBriefsTable.granolaNotes, actionTaskIds: meetingBriefsTable.actionTaskIds })
       .from(meetingBriefsTable)
       .where(eq(meetingBriefsTable.calendarEventId, event.id)),
     personIds.length ? db.select({ id: peopleTable.id, name: peopleTable.name, slug: peopleTable.slug }).from(peopleTable).where(inArray(peopleTable.id, personIds)) : [],
   ]);
   const personOf = new Map(people.map((p) => [p.id, p]));
+  // Notes attached before meetings kept their own copy are only on the brief.
+  const granolaNotes = event.granolaNotes ?? brief?.granolaNotes ?? null;
+  const taskIds = [...new Set([...event.granolaTaskIds, ...(brief?.actionTaskIds ?? [])])];
+  const [actions, granolaCheck] = await Promise.all([
+    granolaNotes && taskIds.length
+      ? db.select({ id: tasksTable.id, title: tasksTable.title, status: tasksTable.status }).from(tasksTable).where(inArray(tasksTable.id, taskIds)).orderBy(asc(tasksTable.id))
+      : [],
+    readByNow("granola").then((r) => r === "ollieos"),
+  ]);
   return {
     id: event.id,
     title: event.title,
@@ -197,6 +211,8 @@ export async function meetingView(eventId: number): Promise<MeetingView> {
     // Older notes may still be on the brief.
     notes: event.notes ?? brief?.notes ?? null,
     agendaChat: event.agendaChat,
+    granola: granolaNotes ? { url: event.granolaUrl, notes: granolaNotes, attachedAt: event.granolaAttachedAt, actions } : null,
+    granolaCheck,
   };
 }
 

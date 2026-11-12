@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { BriefTalkingPoints } from '@/components/talking-points';
 import { LazyMeetingAgenda as MeetingAgenda } from '@/components/meeting-agenda-lazy';
+import { FromGranola } from '@/components/from-granola';
 import { Thumbs } from '@/components/evals';
 import { CommercialLines } from '@/components/client-pulse';
 import { Link } from 'wouter';
@@ -258,7 +259,7 @@ function Brief({ brief }: { brief: BriefView }) {
             </Panel>
           )}
 
-          {(brief.granolaNotes || brief.actions.length > 0) && <AfterMeeting brief={brief} />}
+          <FromGranola eventId={e.id} endsAt={e.endsAt} />
 
           {brief.earlier.length > 0 && (
             <Panel id="b-earlier" title="Last time, from Granola">
@@ -529,30 +530,6 @@ function EarlierMeeting({ m }: { m: BriefView['earlier'][number] }) {
         </div>
       )}
     </div>
-  );
-}
-
-function AfterMeeting({ brief }: { brief: BriefView }) {
-  const n = brief.actions.length;
-  return (
-    <Panel id="b-granola" title="From Granola">
-      {n > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="list-granola-actions">
-          <p style={{ margin: 0, fontSize: 14 }}>{n === 1 ? '1 action went to your Inbox' : `${n} actions went to your Inbox`}</p>
-          <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14 }}>
-            {brief.actions.map((t) => (
-              <li key={t.id}>
-                <Link href={'/tasks?task=' + t.id} style={{ color: 'var(--oo-ink)', textDecoration: 'underline', textUnderlineOffset: 2 }} data-testid={'link-action-' + t.id}>{t.title}</Link>
-                {t.status !== 'inbox' && <span className="oo-muted" style={{ fontSize: 12 }}> · {t.status === 'done' ? 'done' : 'triaged'}</span>}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {brief.granolaNotes && (
-        <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap', maxWidth: '72ch', color: 'var(--oo-ink-soft)' }} data-testid="text-granola-notes">{brief.granolaNotes}</div>
-      )}
-    </Panel>
   );
 }
 

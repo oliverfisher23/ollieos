@@ -4760,7 +4760,18 @@ export const GetMeetingResponse = zod.object({
   "role": zod.enum(['ollie', 'ai']),
   "text": zod.string(),
   "at": zod.coerce.date()
-}))
+})),
+  "granola": zod.object({
+  "url": zod.string().nullable(),
+  "notes": zod.string(),
+  "attachedAt": zod.coerce.date().nullable(),
+  "actions": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string()
+})).describe('Inbox tasks made from the note\'s actions')
+}).nullable().describe('The Granola note, once one is linked to the meeting'),
+  "granolaCheck": zod.boolean().describe('True when OllieOS reads Granola itself')
 })
 
 

@@ -1007,32 +1007,77 @@ export async function findEventBySourceRef(sourceRef: string): Promise<CalendarE
 /** Attaches notes and action task ids to an event's brief, writing the brief first if there is none. */
 export async function attachMeetingNotes(
   event: CalendarEvent,
-  input: { granolaRef: string; notes: string; actionTaskIds: number[]; actor: string; clientId: number | null },
-): Promise<MeetingBrief> {
+  input: { granolaRef: string; notes: string; url?: string | null; actionTaskIds: number[]; actor: string; clientId: number | null },
+  now = new Date(),
+): Promise<MeetingBrief | null> {
   if (event.personal) throw new ConflictError("Personal events have no brief");
+  // A brief only exists when someone or something on the meeting is known; the meeting keeps the note either way.
   let brief = await loadBrief(event.id);
   if (!brief) {
     const inputs = await gatherInputs(event);
-    if (!inputs) throw new ConflictError("This meeting has no brief: no one on it is known to OllieOS");
-    brief = await generate(inputs, null);
+    if (inputs) brief = await generate(inputs, null);
   }
-  const ids = [...new Set([...brief.actionTaskIds, ...input.actionTaskIds])];
+  const notes = input.notes.slice(0, 50000);
+  const sameNote = event.granolaRef === input.granolaRef;
+  const eventIds = [...new Set([...(sameNote ? event.granolaTaskIds : []), ...input.actionTaskIds])];
   return db.transaction(async (tx) => {
-    const [row] = await tx
-      .update(meetingBriefsTable)
-      .set({ granolaRef: input.granolaRef, granolaNotes: input.notes.slice(0, 50000), actionTaskIds: ids })
-      .where(eq(meetingBriefsTable.id, brief!.id))
-      .returning();
+    await tx
+      .update(calendarEventsTable)
+      .set({ granolaRef: input.granolaRef, granolaUrl: input.url ?? (sameNote ? event.granolaUrl : null), granolaNotes: notes, granolaTaskIds: eventIds, granolaAttachedAt: now })
+      .where(eq(calendarEventsTable.id, event.id));
+    let row: MeetingBrief | null = null;
+    if (brief) {
+      [row] = await tx
+        .update(meetingBriefsTable)
+        .set({ granolaRef: input.granolaRef, granolaNotes: notes, actionTaskIds: [...new Set([...brief.actionTaskIds, ...input.actionTaskIds])] })
+        .where(eq(meetingBriefsTable.id, brief.id))
+        .returning();
+    }
     await writeAudit(tx, {
       actor: input.actor,
       clientId: input.clientId,
       action: "attach_notes",
-      entityType: "meeting_brief",
-      entityId: row.id,
-      payload: { granolaRef: input.granolaRef, actions: input.actionTaskIds },
+      entityType: row ? "meeting_brief" : "calendar_event",
+      entityId: row ? row.id : event.id,
+      payload: { granolaRef: input.granolaRef, actions: input.actionTaskIds, event: event.id },
     });
     return row;
   });
+}
+
+/**
+ * The work meeting a Granola note belongs to when Granola did not link a calendar event: one that
+ * started within half an hour of the note, with the same title or someone in common (Ollie aside).
+ * A meeting already linked to a different note is never taken.
+ */
+export async function findEventForNote(
+  note: { noteId: string; title: string; at: Date; people: { email: string | null }[] },
+  myEmails: Set<string> = new Set(),
+): Promise<CalendarEvent | null> {
+  const window = 30 * 60_000;
+  const rows = await db
+    .select()
+    .from(calendarEventsTable)
+    .where(
+      and(
+        eq(calendarEventsTable.personal, false),
+        gt(calendarEventsTable.startsAt, new Date(note.at.getTime() - window)),
+        lt(calendarEventsTable.startsAt, new Date(note.at.getTime() + window)),
+      ),
+    );
+  const me = new Set([...myEmails, ...(process.env.ALLOWED_EMAIL ? [process.env.ALLOWED_EMAIL] : [])].map((e) => e.trim().toLowerCase()));
+  const theirs = new Set(note.people.map((p) => p.email?.trim().toLowerCase()).filter((e): e is string => !!e && !me.has(e)));
+  const norm = (t: string) => t.normalize("NFKC").trim().toLowerCase().replace(/\s+/g, " ");
+  let best: { e: CalendarEvent; score: number; gap: number } | null = null;
+  for (const e of rows) {
+    if (e.granolaRef && e.granolaRef !== note.noteId) continue;
+    const shared = (e.attendeeDetails ?? []).filter((a) => a.email && theirs.has(a.email.trim().toLowerCase())).length;
+    const score = (norm(e.title) === norm(note.title) ? 2 : 0) + shared;
+    if (!score) continue;
+    const gap = Math.abs(e.startsAt.getTime() - note.at.getTime());
+    if (!best || score > best.score || (score === best.score && gap < best.gap)) best = { e, score, gap };
+  }
+  return best?.e ?? null;
 }
 
 /* ---------- For AI tools (get_meeting_brief, ollieos://brief/next) ---------- */

@@ -12,6 +12,7 @@ import { formatLong, formatTime } from '@workspace/shared';
 import { Avatar } from '@/components/bits';
 import { IconLeft } from '@/components/icons';
 import { LazyMeetingAgenda as MeetingAgenda } from '@/components/meeting-agenda-lazy';
+import { FromGranola } from '@/components/from-granola';
 import { ScopePill } from '@/components/research';
 import { PageProblem, PageSkeleton } from '@/components/knowledge/parts';
 import { isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
@@ -84,6 +85,7 @@ function Meeting({ m }: { m: MeetingView }) {
         </section>
       </main>
 
+      <FromGranola eventId={m.id} endsAt={m.endsAt} />
       <MeetingAgenda eventId={m.id} />
     </>
   );

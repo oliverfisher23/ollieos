@@ -5669,7 +5669,7 @@ components:
 
     MeetingView:
       type: object
-      required: [id, title, startsAt, endsAt, platform, location, scope, companies, prep, attendees, notes, agendaChat]
+      required: [id, title, startsAt, endsAt, platform, location, scope, companies, prep, attendees, notes, agendaChat, granola, granolaCheck]
       properties:
         id: { type: integer }
         title: { type: string }
@@ -5701,6 +5701,25 @@ components:
                   slug: { type: string }
         notes: { type: [string, "null"], description: Ollie's agenda and notes }
         agendaChat: { type: array, items: { $ref: "#/components/schemas/AgendaTurn" } }
+        granola:
+          type: [object, "null"]
+          description: The Granola note, once one is linked to the meeting
+          required: [url, notes, attachedAt, actions]
+          properties:
+            url: { type: [string, "null"] }
+            notes: { type: string }
+            attachedAt: { type: [string, "null"], format: date-time }
+            actions:
+              type: array
+              description: Inbox tasks made from the note's actions
+              items:
+                type: object
+                required: [id, title, status]
+                properties:
+                  id: { type: integer }
+                  title: { type: string }
+                  status: { type: string }
+        granolaCheck: { type: boolean, description: True when OllieOS reads Granola itself, so a check can fetch the note now }
 
     AgendaTurn:
       type: object

@@ -1281,6 +1281,26 @@ export type MeetingViewAttendeesItem = {
   person: MeetingViewAttendeesItemPerson;
 };
 
+export type MeetingViewGranolaActionsItem = {
+  id: number;
+  title: string;
+  status: string;
+};
+
+/**
+ * The Granola note, once one is linked to the meeting
+ * @nullable
+ */
+export type MeetingViewGranola = {
+  /** @nullable */
+  url: string | null;
+  notes: string;
+  /** @nullable */
+  attachedAt: string | null;
+  /** Inbox tasks made from the note's actions */
+  actions: MeetingViewGranolaActionsItem[];
+} | null;
+
 export type AgendaTurnRole = typeof AgendaTurnRole[keyof typeof AgendaTurnRole];
 
 
@@ -1315,6 +1335,13 @@ export interface MeetingView {
      */
   notes: string | null;
   agendaChat: AgendaTurn[];
+  /**
+     * The Granola note, once one is linked to the meeting
+     * @nullable
+     */
+  granola: MeetingViewGranola;
+  /** True when OllieOS reads Granola itself */
+  granolaCheck: boolean;
 }
 
 export interface AgendaInput {

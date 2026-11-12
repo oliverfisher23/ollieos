@@ -8,6 +8,7 @@
 import type { AgendaTurn } from './agendaTurn';
 import type { MeetingScope } from './meetingScope';
 import type { MeetingViewAttendeesItem } from './meetingViewAttendeesItem';
+import type { MeetingViewGranola } from './meetingViewGranola';
 import type { MeetingViewPrep } from './meetingViewPrep';
 
 export interface MeetingView {
@@ -30,4 +31,11 @@ export interface MeetingView {
      */
   notes: string | null;
   agendaChat: AgendaTurn[];
+  /**
+     * The Granola note, once one is linked to the meeting
+     * @nullable
+     */
+  granola: MeetingViewGranola;
+  /** True when OllieOS reads Granola itself */
+  granolaCheck: boolean;
 }

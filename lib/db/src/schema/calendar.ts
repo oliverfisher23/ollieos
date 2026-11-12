@@ -50,6 +50,16 @@ export const calendarEventsTable = pgTable(
     notes: text("notes"),
     /** The conversation that shaped the agenda in notes: Ollie's thoughts and the agenda writer's replies */
     agendaChat: jsonb("agenda_chat").$type<AgendaTurn[]>().notNull().default([]),
+    /**
+     * The Granola note for the meeting, once it has ended: kept on every work meeting, with or
+     * without a brief (a brief keeps its own copy too).
+     */
+    granolaRef: text("granola_ref"),
+    granolaUrl: text("granola_url"),
+    granolaNotes: text("granola_notes"),
+    /** Inbox tasks made from the note's actions */
+    granolaTaskIds: integer("granola_task_ids").array().notNull().default(sql`'{}'::integer[]`),
+    granolaAttachedAt: timestamp("granola_attached_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()

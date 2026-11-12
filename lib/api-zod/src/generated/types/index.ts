@@ -275,6 +275,8 @@ export * from './meetingsList';
 export * from './meetingView';
 export * from './meetingViewAttendeesItem';
 export * from './meetingViewAttendeesItemPerson';
+export * from './meetingViewGranola';
+export * from './meetingViewGranolaActionsItem';
 export * from './meetingViewPrep';
 export * from './mergeOption';
 export * from './mergeOptionItemType';
