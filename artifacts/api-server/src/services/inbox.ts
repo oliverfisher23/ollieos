@@ -337,7 +337,10 @@ export async function listInbox(freshMs = FRESH_MS): Promise<InboxView> {
   return buildView(snapshot!);
 }
 
-/** The list as of the last look at Gmail, for counts on Home and the digest: Gmail is not looked at and nothing is read by AI. */
+/**
+ * The list as of the last look at Gmail, for counts on Home and the digest: Gmail is not looked
+ * at, nothing is read by AI and senders are not looked up, so it is one round of reads.
+ */
 export async function peekInbox(): Promise<InboxItem[]> {
   const snap = await loadSnapshot();
   return snap ? (await buildView(snap, false)).items : [];
@@ -356,7 +359,8 @@ async function buildView(snap: Snapshot, read = true): Promise<InboxView> {
   ]);
   const today = todayLondon();
   const candidates = snap.candidates.filter((c) => !muted(rules, c));
-  const senders = await sendersFor(candidates.map((c) => c.fromEmail), []);
+  // Who each is from, for the page; counts do not need it.
+  const senders = read ? await sendersFor(candidates.map((c) => c.fromEmail), []) : null;
   const items: InboxItem[] = [];
   let toRead = false;
   for (const c of candidates) {
@@ -367,7 +371,7 @@ async function buildView(snap: Snapshot, read = true): Promise<InboxView> {
     if (task && CLOSED.has(task.status) && task.updatedAt.getTime() >= at.getTime()) continue;
     const a = asks[c.threadId];
     const l = later[c.threadId];
-    const sender = c.fromEmail ? senders.byEmail.get(c.fromEmail.toLowerCase()) : undefined;
+    const sender = c.fromEmail ? senders?.byEmail.get(c.fromEmail.toLowerCase()) : undefined;
     const current = a && a.messageId === c.messageId ? a : null;
     if (!current || (current.why === "failed" && Date.now() - Date.parse(current.at) > RETRY_MS)) toRead = true;
     items.push({

@@ -44,10 +44,16 @@ export async function messageCounts(now = new Date(), look = false): Promise<Mes
   return { needsReply: waitingEmails.length + waitingSlack.length, overdue: emailsOverdue + slackOverdue, emailsOverdue, slackOverdue };
 }
 
-/** For Home and the digest: emails that need a reply and have waited over one working day, as of the last look at Gmail. */
+/**
+ * For Home and the digest: emails that need a reply and have waited over one working day, as of the
+ * last look at Gmail. Kept light, as Home waits for it: the list and the drafts are read together.
+ */
 export async function emailRepliesOverdue(now = new Date()): Promise<number> {
   try {
-    return (await messageCounts(now)).emailsOverdue;
+    const [emails, drafts] = await Promise.all([peekInbox(), listEmailDrafts()]);
+    const drafted = new Set(drafts.items.map((d) => d.task.id));
+    const cutoff = oneWorkingDayBefore(now);
+    return emails.filter((e) => needsReply(e) && (e.taskId == null || !drafted.has(e.taskId)) && e.at <= cutoff).length;
   } catch (err) {
     logger.warn({ err }, "Could not count emails waiting for a reply");
     return 0;
