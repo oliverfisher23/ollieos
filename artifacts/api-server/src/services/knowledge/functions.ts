@@ -71,6 +71,23 @@ export const clientNamesSql = (projectId: SQLWrapper) => sql<string[]>`coalesce(
     (l.to_type = 'project' and l.to_id = ${projectId} and l.from_type = 'organisation' and l.from_id = o.id))
 ), '{}')`;
 
+/**
+ * SQL for a project's kind of work, "client", "internal" or null (not sorted yet): what Ollie set;
+ * else a function's own record is internal; else a project linked to a client is client work.
+ */
+export const workTypeSql = sql<"client" | "internal" | null>`(case
+  when "projects"."work_type" is not null then "projects"."work_type"::text
+  when "projects"."is_function" then 'internal'
+  when cardinality(${clientNamesSql(PROJECT_ID)}) > 0 then 'client'
+end)`;
+
+/** The kind of work of each project, as `workTypeSql` works it out. */
+export async function workTypesOf(ids: number[]): Promise<Map<number, "client" | "internal" | null>> {
+  if (!ids.length) return new Map();
+  const rows = await db.select({ id: projectsTable.id, w: workTypeSql }).from(projectsTable).where(inArray(projectsTable.id, [...new Set(ids)]));
+  return new Map(rows.map((r) => [r.id, r.w ?? null]));
+}
+
 export interface FunctionProject {
   id: number;
   name: string;

@@ -22,7 +22,7 @@ import {
   type Suggestion,
 } from "@workspace/db";
 import { hasEmail } from "./personMatch";
-import { RULE_MAX, RELATIONSHIPS, isBusinessFunction, type BusinessFunction, isClientOrgType, isProductUser, type Cadence, type ProductState, type ProductUser, type Relationship } from "@workspace/shared";
+import { RULE_MAX, RELATIONSHIPS, isBusinessFunction, type BusinessFunction, isClientOrgType, isProductUser, type Cadence, type ProductState, type ProductUser, type Relationship, isWorkType } from "@workspace/shared";
 import { writeAudit, type DbOrTx } from "../lib/audit";
 import { ACTOR, cleanText, resolveEntity, touch, uniqueSlug, type EntityKind } from "./knowledge/common";
 import { ConflictError, NotFoundError, ValidationError } from "./tasks";
@@ -291,6 +291,7 @@ export const FIELD_LABELS: Record<string, string> = {
   primary_user: "Primary user",
   function: "Function",
   client: "Client",
+  work_type: "Client or internal",
   linkedin_url: "LinkedIn",
 };
 const EDITABLE: Record<Exclude<SuggestionKind, "summary_change">, string[]> = {
@@ -316,7 +317,7 @@ const CHANGEABLE: Record<EntityKind, string[]> = {
 };
 
 /** Fields on a change card that are picked from a fixed list, so they are approved or rejected but not typed over. */
-const FIXED_FIELDS = new Set(["organisation", "primary_user", "function", "client"]);
+const FIXED_FIELDS = new Set(["organisation", "primary_user", "function", "client", "work_type"]);
 
 export function changeableFields(type: EntityKind): string[] {
   return CHANGEABLE[type];
@@ -418,6 +419,9 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
   }
   if (p.kind === "summary_change" && "function" in p.payload.fields && (p.entityType !== "project" || !isBusinessFunction(p.payload.fields.function))) {
     throw new ValidationError("Choose a function from the list");
+  }
+  if (p.kind === "summary_change" && "work_type" in p.payload.fields && (p.entityType !== "project" || !isWorkType(p.payload.fields.work_type))) {
+    throw new ValidationError("Choose client work or internal");
   }
   if (p.kind === "summary_change" && "client" in p.payload.fields) {
     const id = p.payload.client_id;
@@ -770,6 +774,7 @@ export async function applySuggestion(
           if (row?.isFunction) throw new ValidationError("This is a function, so it cannot move to another one");
           set.function = f.function;
         }
+        if (isWorkType(f.work_type)) set.workType = f.work_type;
         if (Object.keys(set).length) await tx.update(projectsTable).set(set).where(eq(projectsTable.id, id));
         if (f.client !== undefined && p.client_id != null) await linkClient(tx, id, p.client_id);
       } else {

@@ -37,6 +37,7 @@ import { askClient, defaultScope, recordReads, visibleRefs, type AiScope } from 
 import { writeAudit } from "../lib/audit";
 import { logger } from "../lib/logger";
 import { recordCheck } from "./writerChecks";
+import { workTypesOf } from "./knowledge/functions";
 import type { GrantType } from "../lib/ai-data/visibility";
 import { describeRefs, grantDirect } from "./access";
 import { askScope } from "./ask/ask";
@@ -412,6 +413,11 @@ async function generate(inputs: BriefInputs, existing: MeetingBrief | null, opts
     await recordCheck("brief_writer", `brief:${saved.id}`, text, { given: inputRefs, cited: citedIds, maxWords: 450 });
   }
   return saved;
+}
+
+async function clientFirst<T extends { id: number }>(rows: T[]): Promise<T[]> {
+  const work = await workTypesOf(rows.map((r) => r.id));
+  return [...rows.filter((r) => work.get(r.id) === "client"), ...rows.filter((r) => work.get(r.id) !== "client")];
 }
 
 /** Whole-word patterns for the names of attendees, projects and organisations hidden from AI. */
@@ -843,7 +849,8 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
     waitingOn: extra.waitingOn,
     earlier: extra.earlier,
     threads: extra.threads,
-    projects: projectRows.sort(order(inputs.projectIds)),
+    // Client work first, then the order the meeting matched them in.
+    projects: await clientFirst(projectRows.sort(order(inputs.projectIds))),
     goals: goalRows,
     documents: docRows,
     rules: bookRows,

@@ -92,23 +92,35 @@ function KnowledgeSidebar() {
   const all = projects.data ?? [];
   const functions = BUSINESS_FUNCTIONS.map((f) => all.find((p) => p.isFunction && p.function === f)).filter((p): p is ProjectListItem => !!p);
   const plain = all.filter((p) => !p.isFunction);
-  const groups = [
-    ...BUSINESS_FUNCTIONS.map((f) => ({ key: f, label: BUSINESS_FUNCTION_LABELS[f] as string | null, items: plain.filter((p) => p.function === f) })),
-    { key: 'none', label: 'No function yet' as string | null, items: plain.filter((p) => !p.function) },
+  // Client work, grouped by client; internal work, grouped by function; then anything not sorted yet.
+  const clientWork = plain.filter((p) => p.workType === 'client');
+  const internalWork = plain.filter((p) => p.workType === 'internal');
+  const unsorted = plain.filter((p) => !p.workType);
+  const clientNames = [...new Set(clientWork.map((p) => p.clients[0] ?? ''))].sort((a, b) => (a ? (b ? a.localeCompare(b) : -1) : 1));
+  const clientGroups = clientNames.map((c) => ({ key: 'client-' + (c || 'none'), label: c || 'Client not named yet', items: clientWork.filter((p) => (p.clients[0] ?? '') === c) }));
+  const internalGroups = [
+    ...BUSINESS_FUNCTIONS.map((f) => ({ key: f, label: BUSINESS_FUNCTION_LABELS[f] as string, items: internalWork.filter((p) => p.function === f) })),
+    { key: 'none', label: 'No function yet', items: internalWork.filter((p) => !p.function) },
   ].filter((g) => g.items.length);
-  const unfiled = plain.filter((p) => !p.function || !p.clients.length).length;
+  const sections = [
+    { key: 'clients', label: 'Clients', groups: clientGroups },
+    { key: 'internal', label: 'Internal', groups: internalGroups },
+    { key: 'unsorted', label: 'Not sorted yet', groups: unsorted.length ? [{ key: 'unsorted', label: '', items: unsorted }] : [] },
+  ].filter((s) => s.groups.length);
+  const unfiled = plain.filter((p) => !p.function || !p.workType || (p.workType === 'client' && !p.clients.length)).length;
   const suggest = async () => {
     setSuggesting(true);
     const r = await write(() => suggestProjectFunctions(), { fail: 'Could not suggest functions and clients' });
     setSuggesting(false);
     if (!r) return;
-    if (!r.checked) return notify('Nothing to check', 'Every project AI may read has a function and a client, or a suggestion waiting.');
-    const made = r.functions + r.clients;
+    if (!r.checked) return notify('Nothing to check', 'Every project AI may read is sorted, or has a suggestion waiting.');
+    const made = r.functions + r.clients + r.workTypes;
     notify(
       made ? `${made === 1 ? '1 suggestion' : `${made} suggestions`} in your Knowledge Inbox` : 'No new suggestions',
       [
         r.functions ? `${r.functions === 1 ? '1 function' : `${r.functions} functions`}` : null,
         r.clients ? `${r.clients === 1 ? '1 client' : `${r.clients} clients`}` : null,
+        r.workTypes ? `${r.workTypes === 1 ? '1 client or internal' : `${r.workTypes} client or internal`}` : null,
         r.unclear ? `${r.unclear === 1 ? '1 project' : `${r.unclear} projects`} not settled by what OllieOS knows` : null,
       ].filter(Boolean).join('. ') || undefined,
     );
@@ -182,20 +194,24 @@ function KnowledgeSidebar() {
               {functions.map((p) => <ProjectLink key={p.id} p={p} current={location === '/knowledge/projects/' + p.slug} />)}
             </nav>
           )}
+          {sections.map((sec) => (
+            <nav key={sec.key} aria-label={sec.label} data-testid={'nav-projects-' + sec.key}>
+              <span className="oo-side-label">{sec.label}</span>
+              {sec.groups.map((g) => (
+                <Fragment key={g.key}>
+                  {g.label && <span className="oo-muted" style={{ fontSize: 12, padding: '6px 10px 0' }} data-testid={'text-project-group-' + g.key}>{g.label}</span>}
+                  {g.items.map((p) => <ProjectLink key={p.id} p={p} current={location === '/knowledge/projects/' + p.slug} />)}
+                </Fragment>
+              ))}
+            </nav>
+          ))}
           <nav aria-label="Projects">
-            <span className="oo-side-label">Projects</span>
+            {!sections.length && <span className="oo-side-label">Projects</span>}
             {projects.isLoading ? (
               [0, 1, 2].map((i) => <Skel key={i} h={30} />)
             ) : projects.error ? (
               <p className="oo-muted" style={{ margin: 0, fontSize: 13, padding: '0 10px' }}>Could not load projects.</p>
-            ) : (
-              groups.map((g) => (
-                <Fragment key={g.key}>
-                  {g.label && groups.length > 1 && <span className="oo-muted" style={{ fontSize: 12, padding: '6px 10px 0' }} data-testid={'text-project-group-' + g.key}>{g.label}</span>}
-                  {g.items.map((p) => <ProjectLink key={p.id} p={p} current={location === '/knowledge/projects/' + p.slug} />)}
-                </Fragment>
-              ))
-            )}
+            ) : null}
             {projects.data && plain.length === 0 && (
               <p className="oo-muted" style={{ margin: 0, fontSize: 13, padding: '0 10px 4px' }}>No projects yet.</p>
             )}
@@ -204,7 +220,7 @@ function KnowledgeSidebar() {
             </button>
             {unfiled > 0 && (
               <button type="button" className="oo-textbtn" style={{ alignSelf: 'flex-start', margin: `${phone ? 14 : 2}px 10px 0`, textAlign: 'left' }} onClick={suggest} disabled={suggesting} data-testid="button-suggest-project-functions">
-                {suggesting ? 'Suggesting…' : 'Suggest functions and clients'}
+                {suggesting ? 'Suggesting…' : 'Sort projects: client or internal, function'}
               </button>
             )}
           </nav>

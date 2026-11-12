@@ -7,6 +7,7 @@
  */
 import type { BusinessFunction } from './businessFunction';
 import type { ProjectLifecycle } from './projectLifecycle';
+import type { WorkType } from './workType';
 
 export interface Project {
   id: number;
@@ -27,6 +28,8 @@ export interface Project {
   /** @nullable */
   goalId: number | null;
   lifecycle: ProjectLifecycle;
+  /** Client work or internal as Ollie set or approved it; null leaves it to whether a client is linked */
+  workType: WorkType | null;
   createdAt: Date;
   updatedAt: Date;
 }

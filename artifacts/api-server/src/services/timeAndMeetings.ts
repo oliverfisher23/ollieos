@@ -10,6 +10,7 @@
  *   could move. OllieOS never moves anything itself.
  * - Meetings worth keeping: repeating meetings where 3 of the last 4 brought no actions or decisions.
  */
+import { workTypesOf } from "./knowledge/functions";
 import { and, asc, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import {
   appSettingsTable,
@@ -22,7 +23,7 @@ import {
   tasksTable,
   type CalendarEvent,
 } from "@workspace/db";
-import { OPEN_STATUSES, addDays, londonRange, londonWallTimeToInstant, todayLondon, weekday } from "@workspace/shared";
+import { OPEN_STATUSES, addDays, londonRange, londonWallTimeToInstant, todayLondon, weekday, WORK_TYPE_LABELS, isWorkType } from "@workspace/shared";
 import { logger } from "../lib/logger";
 import type { CalendarInput } from "./aiWrites";
 import { loadMatchers, matchEvent } from "./briefs";
@@ -128,6 +129,8 @@ export interface TimeWeek {
   meetingHours: number;
   byGoal: TimeSlice[];
   byFunction: TimeSlice[];
+  /** Meeting hours on client work, internal projects, and meetings with no sorted project */
+  byWork: TimeSlice[];
   internalHours: number;
   externalHours: number;
   /** Planned task time from Plan my day, for tasks ticked off */
@@ -154,6 +157,7 @@ export async function timeReport(now = new Date(), weeks = 5): Promise<TimeRepor
     db.select().from(dayPlansTable).where(gte(dayPlansTable.date, firstMonday)),
   ]);
   const goalName = new Map(goals.map((g) => [g.id, g.name]));
+  const work = await workTypesOf(rows.map((r) => r.projectId).filter((id): id is number => id != null));
   const planTaskIds = [...new Set(plans.flatMap((p) => p.items.map((i) => i.taskId)))];
   const done = planTaskIds.length
     ? new Set((await db.select({ id: tasksTable.id }).from(tasksTable).where(and(inArray(tasksTable.id, planTaskIds), eq(tasksTable.status, "done")))).map((t) => t.id))
@@ -166,6 +170,7 @@ export async function timeReport(now = new Date(), weeks = 5): Promise<TimeRepor
     const inWeek = rows.filter((r) => r.startsAt >= range.start && r.startsAt < range.end);
     const goalHours = new Map<string, number>();
     const fnHours = new Map<string, number>();
+    const workHours = new Map<string, number>();
     let internal = 0;
     let external = 0;
     for (const r of inWeek) {
@@ -174,6 +179,8 @@ export async function timeReport(now = new Date(), weeks = 5): Promise<TimeRepor
       goalHours.set(g, (goalHours.get(g) ?? 0) + h);
       const f = r.businessFunction ?? "none";
       fnHours.set(f, (fnHours.get(f) ?? 0) + h);
+      const k = (r.projectId != null ? work.get(r.projectId) : null) ?? "none";
+      workHours.set(k, (workHours.get(k) ?? 0) + h);
       if (r.scope === "external") external += h;
       else internal += h;
     }
@@ -191,6 +198,7 @@ export async function timeReport(now = new Date(), weeks = 5): Promise<TimeRepor
       meetingHours: round1(inWeek.reduce((n, r) => n + r.minutes / 60, 0)),
       byGoal: slices(goalHours, (k) => goalName.get(Number(k)) ?? "A goal"),
       byFunction: slices(fnHours, (k) => FUNCTION_LABEL[k] ?? k),
+      byWork: slices(workHours, (k) => (isWorkType(k) ? WORK_TYPE_LABELS[k] : k)),
       internalHours: round1(internal),
       externalHours: round1(external),
       plannedTaskHours: round1(planned),
@@ -212,7 +220,8 @@ export async function weekTimeLine(end: Date): Promise<string | null> {
   const w = r.weeks[0];
   if (!w.meetingHours) return null;
   const top = w.byGoal.find((s) => s.key !== "none");
-  return `${w.meetingHours} hours in meetings${top ? `, ${top.hours} towards ${top.label}` : ""}${w.plannedTaskHours ? `, and ${w.plannedTaskHours} hours of planned task time ticked off` : ""}`;
+  const client = w.byWork.find((s) => s.key === "client");
+  return `${w.meetingHours} hours in meetings${client ? `, ${client.hours} on client work` : ""}${top ? `, ${top.hours} towards ${top.label}` : ""}${w.plannedTaskHours ? `, and ${w.plannedTaskHours} hours of planned task time ticked off` : ""}`;
 }
 
 /* ---------- Is this week realistic? ---------- */

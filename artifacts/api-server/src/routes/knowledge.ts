@@ -5,7 +5,7 @@ import { listPulses, pulseFor, setQuietDays } from "../services/clientPulse";
 import { addPoint, deletePoint, listPoints, POINT_CHARS, setPointRaised } from "../services/talkingPoints";
 import { z } from "zod";
 import { FACT_ATTRIBUTES } from "@workspace/db";
-import { BUSINESS_FUNCTIONS, CADENCES, PRODUCT_STATES, PRODUCT_USERS, PROJECT_LIFECYCLES, isIsoDate } from "@workspace/shared";
+import { BUSINESS_FUNCTIONS, CADENCES, PRODUCT_STATES, PRODUCT_USERS, PROJECT_LIFECYCLES, WORK_TYPES, isIsoDate } from "@workspace/shared";
 import { createProduct, getProduct, listProducts, updateProduct } from "../services/products";
 import { suggestProductUsers } from "../services/productUsers";
 import { suggestProjectFunctions } from "../services/projectFunctions";
@@ -69,7 +69,7 @@ const ProjectCreate = z
   })
   .strict();
 const ProjectUpdate = ProjectCreate.partial()
-  .extend({ archived: z.boolean().optional(), goalId: id.nullable().optional(), lifecycle: z.enum(PROJECT_LIFECYCLES).optional() })
+  .extend({ archived: z.boolean().optional(), goalId: id.nullable().optional(), lifecycle: z.enum(PROJECT_LIFECYCLES).optional(), workType: z.enum(WORK_TYPES).nullable().optional() })
   .strict();
 
 const PersonCreate = z
