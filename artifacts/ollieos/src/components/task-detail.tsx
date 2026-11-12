@@ -27,6 +27,7 @@ import { KeepTestCase } from '@/components/evals';
 import { SlackDm } from '@/components/slack-dm';
 import { DropReasonChips, madeByReader } from '@/components/drop-reason';
 import { ChaseCard, ProjectSuggestChips, StuckCard } from '@/components/task-nudges';
+import { WorkPackPanel } from '@/components/work-pack';
 import { goalOptions, personOptions, projectOptions } from '@/components/dropdown-options';
 
 const STATUSES: { value: TaskStatus; label: string }[] = [
@@ -169,6 +170,8 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                 </div>
               </div>
             )}
+
+            <WorkPackPanel task={task} />
 
             <ChaseCard task={task} busy={acting} />
             <StuckCard task={task} busy={acting} onDrop={() => setStatus('dropped')} />

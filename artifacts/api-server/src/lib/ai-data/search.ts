@@ -60,7 +60,8 @@ const WORD = /[\p{L}\p{N}]+/gu;
 
 /** Builds a safe tsquery string from free text: only letters and digits survive. */
 export function buildTsQuery(q: string, mode: "user" | "ask"): string | null {
-  const words = (q.toLowerCase().match(WORD) ?? []).filter((w) => w.length >= 2).slice(0, 24);
+  // The empty list is typed, so the words stay strings whatever order the files are checked in.
+  const words: string[] = (q.toLowerCase().match(WORD) ?? ([] as string[])).filter((w) => w.length >= 2).slice(0, 24);
   if (!words.length) return null;
   if (mode === "user") return words.map((w) => `'${w}':*`).join(" & ");
   return [...new Set(words)].map((w) => `'${w}'`).join(" | ");

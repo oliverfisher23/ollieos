@@ -351,6 +351,38 @@ body { font-family: var(--oo-font-sans); margin: 0; overflow-x: hidden; }
 .oo-pstep-days { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
 .oo-pstep-days input { width: 72px; min-height: 30px; padding: 3px 8px; font-size: 13px; }
 .oo-pstep .oo-step-tools { margin-top: 2px; }
+/* Home: Do next beside Inbox and Waiting on. One column once the two would get cramped. */
+.oo-home-grid { width: 100%; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+@media (max-width: 820px) { .oo-home-grid { grid-template-columns: minmax(0, 1fr); } }
+.oo-home-stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.oo-next-title { color: var(--oo-ink); text-decoration: none; }
+.oo-next-title:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.oo-next-after { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; padding-top: 14px; border-top: 1px solid var(--oo-line); }
+.oo-next-after-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding-bottom: 4px; }
+.oo-next-after-head h3 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--oo-ink-muted); }
+.oo-next-after-head a { font-size: 12px; color: var(--oo-ink-muted) !important; text-underline-offset: 2px; }
+.oo-next-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.oo-next-row { display: flex; align-items: center; gap: 10px; padding: 8px 6px; margin: 0 -6px; border-radius: var(--oo-r-input); color: var(--oo-ink); text-decoration: none; font-size: 14px; }
+.oo-next-row:hover { background: var(--oo-row-hover); }
+.oo-next-pos { flex: none; width: 14px; font-size: 12px; color: var(--oo-ink-faint); }
+.oo-next-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oo-next-meta { flex: none; font-size: 12px; color: var(--oo-ink-muted); }
+.oo-next-meta[data-high="true"] { color: var(--oo-danger); font-weight: 600; }
+.oo-inbox-card { display: flex; flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 16px; }
+.oo-inbox-count { font-size: 44px; line-height: 1; }
+.oo-inbox-count[data-clear="true"] { color: var(--oo-text-on-dark-4); }
+.oo-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.oo-card-head a { font-size: 12px; color: var(--oo-text-on-dark-2); text-underline-offset: 2px; }
+.oo-wait-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.oo-wait-row { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--oo-white-08); }
+.oo-wait-row:first-child { border-top: 0; padding-top: 2px; }
+.oo-wait-mark { flex: none; width: 28px; height: 28px; box-sizing: border-box; border-radius: var(--oo-r-full); display: inline-flex; align-items: center; justify-content: center; border: 1px dashed var(--oo-white-20); color: var(--oo-text-on-dark-4); }
+.oo-wait-mark::before { content: ''; width: 6px; height: 6px; border-radius: var(--oo-r-full); background: currentColor; }
+.oo-wait-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.oo-wait-title { font-size: 14px; font-weight: 500; line-height: 1.35; color: var(--oo-text-on-dark); text-decoration: none; }
+.oo-wait-title:hover { text-decoration: underline; text-underline-offset: 2px; }
+.oo-wait-meta { font-size: 12px; color: var(--oo-text-on-dark-3); }
+@media (max-width: 639px) { .oo-next-row { min-height: 44px; box-sizing: border-box; } }
 /* Today's plan on Home */
 .oo-plan-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .oo-plan-pick { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--oo-r-input-lg); background: var(--oo-field); }

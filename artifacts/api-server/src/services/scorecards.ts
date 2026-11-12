@@ -5,7 +5,7 @@
  * all count against the agent that made it.
  */
 import { and, eq, gte, isNull, lt, sql, type SQL } from "drizzle-orm";
-import { db, factReviewsTable, readerLessonsTable, reviewItemsTable, suggestionsTable, taskEvidenceTable, tasksTable } from "@workspace/db";
+import { db, factReviewsTable, readerLessonsTable, reviewItemsTable, suggestionsTable, taskEvidenceTable, taskPacksTable, tasksTable } from "@workspace/db";
 import type { AgentKey } from "../lib/agents";
 import { DOCUMENT_PROPOSER } from "./documents/counts";
 import { PRODUCT_USER_ACTOR } from "./productUsers";
@@ -213,6 +213,22 @@ function lessonsBy(learnedBy: "reader_coach" | "card_coach"): Spec["count"] {
   };
 }
 
+/** Section 28, the work pack: used when Ollie copied or saved its message, or the task got done; wrong on Not useful. */
+const workPacks: Spec["count"] = async (start, end) => {
+  const shown = sql`${taskPacksTable.content}->>'status' <> 'nothing_found'`;
+  const used = sql`(${taskPacksTable.usedAt} is not null or ${tasksTable.status} = 'done')`;
+  const [r] = await db
+    .select({
+      kept: sql<number>`count(*) filter (where ${used} and ${taskPacksTable.dismissedAt} is null)`,
+      undone: sql<number>`count(*) filter (where ${taskPacksTable.dismissedAt} is not null)`,
+      waiting: sql<number>`count(*) filter (where not ${used} and ${taskPacksTable.dismissedAt} is null)`,
+    })
+    .from(taskPacksTable)
+    .innerJoin(tasksTable, eq(tasksTable.id, taskPacksTable.taskId))
+    .where(and(shown, gte(taskPacksTable.createdAt, start), lt(taskPacksTable.createdAt, end)));
+  return { kept: n(r?.kept), undone: n(r?.undone), waiting: n(r?.waiting) };
+};
+
 const SPECS: Spec[] = [
   { key: "gmail_tasks", agent: "gmail_sorter", label: "Inbox items kept", count: tasksFrom("email") },
   { key: "gmail_cards", agent: "gmail_sorter", label: "Knowledge cards approved", count: cardsFrom("Gmail check") },
@@ -236,6 +252,7 @@ const SPECS: Spec[] = [
   { key: "presort", agent: "presorter", label: "Hints you agreed with", count: presortHints },
   { key: "stale_evidence", agent: "stale_checker", label: "Findings you agreed with", count: staleFindings },
   { key: "delegation", agent: "delegation", label: "Suggestions you sent", count: delegations },
+  { key: "work_packs", agent: "work_pack", label: "Packs you used", count: workPacks },
   { key: "contacts", agent: "contact_finder", label: "People and organisations kept", count: cardsFrom(CONTACT_PROPOSER) },
   { key: "reader_lessons", agent: "reader_coach", label: "Lessons you turned on", count: lessonsBy("reader_coach") },
   { key: "card_lessons", agent: "card_coach", label: "Lessons you turned on", count: lessonsBy("card_coach") },

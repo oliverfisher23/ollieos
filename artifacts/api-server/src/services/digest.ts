@@ -37,6 +37,7 @@ import { clearOutMonday, untouchedCount } from "./planning";
 import { emailRepliesOverdue } from "./messages";
 import { slackRepliesOverdue } from "./slackToAnswer";
 import { connectorWarnings } from "./connectorHealth";
+import { readyCount } from "./workPack";
 import { changedDocuments, changedText } from "./documentChanges";
 import { closedByEvidence } from "./taskEvidence";
 import { dueIdeas } from "./strategy";
@@ -221,6 +222,10 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
       confidential: false,
     });
   }
+
+  // Section 28: tasks whose work is already done and only need sending.
+  const ready = await readyCount();
+  if (ready) needs.push({ text: `${plural(ready, "task is", "tasks are")} ready to send: what they need already exists`, href: "/tasks?ready=1", refs: [], confidential: false });
 
   // Every other Monday: the Backlog clear-out (Part I).
   if (clearOutMonday(date) === date) {
