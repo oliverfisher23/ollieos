@@ -2,13 +2,13 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Logo } from '@/components/bits';
 import { AddBox } from '@/components/add-box';
-import { IconBook, IconCalendar, IconCompass, IconGoal, IconHome, IconLogout, IconPeople, IconPlus, IconSettings, IconTasks, IconMail } from '@/components/icons';
+import { IconBook, IconCalendar, IconCompass, IconGoal, IconHome, IconLogout, IconPeople, IconPlus, IconSettings, IconTasks, IconInbox } from '@/components/icons';
 import { useSession } from '@/lib/auth-context';
 
 const RAIL = [
   { href: '/', label: 'Home', Icon: IconHome },
   { href: '/tasks', label: 'Tasks', Icon: IconTasks },
-  { href: '/email', label: 'Email', Icon: IconMail },
+  { href: '/inbox', label: 'Inbox', Icon: IconInbox },
   { href: '/meetings', label: 'Meetings', Icon: IconCalendar },
   { href: '/people', label: 'People', Icon: IconPeople },
   { href: '/goals', label: 'Goals', Icon: IconGoal },

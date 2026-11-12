@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import {
@@ -13,18 +13,17 @@ import {
 } from '@workspace/api-client-react';
 import { formatShort, formatTime, londonDate, todayLondon } from '@workspace/shared';
 import { IconArrowOut, IconLeft } from '@/components/icons';
-import { Mail } from '@/components/mail-layout';
 import { reportApiError } from '@/lib/forbidden';
 import { copyText } from '@/lib/knowledge';
 import { errorMessage, notify, notifyUndo } from '@/lib/notify';
 
-/** Slack to answer in two groups: messages not read by AI count as needing a reply. */
+/** Slack messages to answer, listed with emails on the Inbox page's To answer tab. In two groups: messages not read by AI count as needing a reply. */
 type Group = 'reply' | 'info';
 const GROUPS: { id: Group; label: string }[] = [
   { id: 'reply', label: 'Needs a reply' },
   { id: 'info', label: 'For your information' },
 ];
-const groupOf = (s: SlackToAnswerItem): Group => (s.needs === 'info' ? 'info' : 'reply');
+export const slackGroupOf = (s: SlackToAnswerItem): Group => (s.needs === 'info' ? 'info' : 'reply');
 
 function when(at: string): string {
   return londonDate(at) === todayLondon() ? formatTime(at) : formatShort(at);
@@ -37,81 +36,23 @@ export function useSlackToAnswer() {
   const q = useListSlackToAnswer({ query: { queryKey: getListSlackToAnswerQueryKey(), refetchInterval: 60_000, staleTime: 20_000, retry: false } });
   const items = useMemo(() => {
     const all = q.data?.items ?? [];
-    return GROUPS.flatMap((g) => all.filter((s) => groupOf(s) === g.id));
+    return GROUPS.flatMap((g) => all.filter((s) => slackGroupOf(s) === g.id));
   }, [q.data]);
-  return { q, items, needsReply: items.filter((s) => groupOf(s) === 'reply').length };
+  return { q, items, needsReply: items.filter((s) => slackGroupOf(s) === 'reply').length };
 }
 
-/**
- * Slack on the Email page (build plan section 19, Part P): direct messages, group DMs and channel
- * mentions where someone else wrote last. The Slack check keeps it up to date; nothing is posted to Slack.
- */
-export function SlackTab({ picked, wide, onPick }: { picked: string | null; wide: boolean; onPick: (id: string | null) => void }) {
-  const { q, items } = useSlackToAnswer();
-  // The message open now, kept after it leaves the list (Done) so Undo still shows.
-  const [kept, setKept] = useState<SlackToAnswerItem | null>(null);
-  const open = items.find((s) => String(s.id) === picked) ?? (kept && String(kept.id) === picked ? kept : null);
-  useEffect(() => {
-    if (open && open !== kept) setKept(open);
-  }, [open, kept]);
-
-  if (q.data?.readBy === 'claude') {
-    return (
-      <p className="oo-muted" style={{ margin: 0, fontSize: 14, lineHeight: 1.5, maxWidth: '64ch' }} data-testid="state-slack-not-read">
-        OllieOS is not reading Slack itself yet, so this list is empty. Switch Slack to OllieOS in <Link href="/settings/connectors" className="oo-link">Settings, Connectors</Link>.
-      </p>
-    );
-  }
-
+/** The note shown where Slack would be while Claude, not OllieOS, reads Slack. */
+export function SlackNotRead() {
   return (
-    <>
-      <Mail
-        ids={items.map((s) => String(s.id))}
-        picked={picked}
-        wide={wide}
-        loading={q.isLoading}
-        failed={!q.data && !q.isLoading}
-        retry={() => q.refetch()}
-        what="Slack"
-        empty="Nothing to answer on Slack. In every direct message, group DM and mention from the last 14 days, you wrote last."
-        onPick={(id) => onPick(id)}
-        row={(id, current) => {
-          const s = items.find((x) => String(x.id) === id)!;
-          const at = items.indexOf(s);
-          const group = groupOf(s);
-          const heading = at === 0 || groupOf(items[at - 1]) !== group ? GROUPS.find((g) => g.id === group)! : null;
-          return (
-            <>
-              {heading && (
-                <span className="oo-mail-group" data-testid={'heading-slack-' + group}>
-                  {heading.label} <span className="oo-num">{items.filter((x) => groupOf(x) === group).length}</span>
-                </span>
-              )}
-              <SlackRow s={s} current={current} onPick={() => onPick(id)} />
-            </>
-          );
-        }}
-        reader={(_id, next) =>
-          open ? (
-            <SlackReader key={open.id} s={open} onBack={() => onPick(null)} onNext={() => onPick(wide ? next : null)} />
-          ) : (
-            <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>This message is not waiting on you any more.</p>
-          )
-        }
-      />
-      {q.data && (
-        <p className="oo-muted" style={{ margin: 0, fontSize: 12, lineHeight: 1.5 }} data-testid="text-slack-checked">
-          {q.data.checkedAt ? `Checked Slack at ${when(q.data.checkedAt)}. ` : 'Slack has not been checked yet. '}
-          Quiet direct messages are looked at every 2 hours, so they can show up to 2 hours late. Needs a reply and For your information are OllieOS's best guess.
-        </p>
-      )}
-    </>
+    <p className="oo-muted" style={{ margin: 0, fontSize: 14, lineHeight: 1.5, maxWidth: '64ch' }} data-testid="state-slack-not-read">
+      OllieOS is not reading Slack itself yet, so no Slack messages are listed. Switch Slack to OllieOS in <Link href="/settings/connectors" className="oo-link">Settings, Connectors</Link>.
+    </p>
   );
 }
 
-const KIND_LABEL: Record<string, string> = { im: 'Direct message', mpim: 'Group DM', channel: 'Mention' };
+export const KIND_LABEL: Record<string, string> = { im: 'Direct message', mpim: 'Group DM', channel: 'Mention' };
 
-function SlackRow({ s, current, onPick }: { s: SlackToAnswerItem; current: boolean; onPick: () => void }) {
+export function SlackRow({ s, current, onPick }: { s: SlackToAnswerItem; current: boolean; onPick: () => void }) {
   return (
     <button type="button" className="oo-mail-row" aria-current={current ? 'true' : undefined} onClick={onPick} data-testid={'row-slack-' + s.id}>
       <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
@@ -125,14 +66,14 @@ function SlackRow({ s, current, onPick }: { s: SlackToAnswerItem; current: boole
         <span className="oo-muted oo-mail-clamp" style={{ fontSize: 13 }}>{firstLine(s.text)}</span>
       )}
       <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 3 }}>
-        <span className="oo-pill">{KIND_LABEL[s.kind] ?? 'Slack'}</span>
+        <span className="oo-pill" data-source="slack">Slack · {KIND_LABEL[s.kind] ?? 'Message'}</span>
         {s.taskId != null && <span className="oo-pill">Task</span>}
       </span>
     </button>
   );
 }
 
-function SlackReader({ s, onBack, onNext }: { s: SlackToAnswerItem; onBack: () => void; onNext: () => void }) {
+export function SlackReader({ s, onBack, onNext }: { s: SlackToAnswerItem; onBack: () => void; onNext: () => void }) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState<'done' | 'task' | 'draft' | null>(null);
   const [done, setDone] = useState(false);

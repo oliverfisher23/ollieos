@@ -173,7 +173,7 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
   // Slack to answer (Part P): only messages that have waited over a working day.
   const slackWaiting = await slackRepliesOverdue(now);
   if (slackWaiting) {
-    needs.push({ text: `${plural(slackWaiting, "Slack message", "Slack messages")} to answer, waiting over a working day`, href: "/email?tab=slack", refs: [], confidential: false });
+    needs.push({ text: `${plural(slackWaiting, "Slack message", "Slack messages")} to answer, waiting over a working day`, href: "/inbox?tab=to-answer&from=slack", refs: [], confidential: false });
   }
   if (g.deadline?.dueDate) {
     const d = g.deadline.dueDate;

@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Redirect, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
+import { Redirect, Route, Switch, useLocation, useSearch, Router as WouterRouter } from 'wouter';
 import { useAuth } from '@workspace/replit-auth-web';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -29,7 +29,7 @@ import MapPage from '@/pages/knowledge/map';
 import { BriefPage, NextBriefPage } from '@/pages/brief';
 import MeetingsPage from '@/pages/meetings';
 import ReviewPage from '@/pages/review';
-import EmailPage from '@/pages/email';
+import InboxPage from '@/pages/inbox';
 import DigestPage from '@/pages/digest';
 import RoundupPage from '@/pages/roundup';
 import OAuthConsentPage from '@/pages/oauth-consent';
@@ -49,6 +49,12 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+/** The Email page is now Inbox; old links keep their tab and the item they opened. */
+function EmailRedirect() {
+  const search = useSearch();
+  return <Redirect to={'/inbox' + (search ? '?' + search : '')} replace />;
+}
 
 function TriagePage() {
   const [, navigate] = useLocation();
@@ -70,7 +76,8 @@ function Router() {
         <Route path="/tasks" component={TasksPage} />
         <Route path="/voice" component={VoicePage} />
         <Route path="/review" component={ReviewPage} />
-        <Route path="/email" component={EmailPage} />
+        <Route path="/inbox" component={InboxPage} />
+        <Route path="/email" component={EmailRedirect} />
         <Route path="/ask" component={AskPage} />
         <Route path="/ask/:threadId" component={AskPage} />
         <Route path="/knowledge/inbox" component={KnowledgeInboxPage} />
