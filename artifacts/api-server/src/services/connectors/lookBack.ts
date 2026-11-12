@@ -20,7 +20,7 @@ import { logger } from "../../lib/logger";
 import { closeMatch, wordsOf } from "../similar";
 import { LOOK_BACK_PROPOSER, propose, type DecisionPayload } from "../suggestions";
 import { ValidationError } from "../tasks";
-import { loadPeople, personByName, projectChoices } from "./capture";
+import { itemPerson, loadPeople, projectChoices } from "./capture";
 import { meetingUnit, sortMeeting, toMeetingNote, wasInMeeting, type GranolaNote, type MeetingNote, type SortedMeeting } from "./granola";
 import { ConnectorError, proxyJson, proxyJsonOrNull } from "./http";
 
@@ -401,7 +401,8 @@ async function addActions(n: MeetingNote, sorted: SortedMeeting, s: Saved, ctx: 
     s.counts.duplicates += sorted.items.length;
     return;
   }
-  const people = await loadPeople([meetingUnit(n)], [sorted]);
+  const unit = meetingUnit(n);
+  const people = await loadPeople([unit], [sorted]);
   const refs = sorted.items.map((_, i) => (i === 0 ? base : `${base}#${i + 1}`));
   const taken = new Set(
     (await db.select({ ref: reviewItemsTable.sourceRef }).from(reviewItemsTable).where(inArray(reviewItemsTable.sourceRef, refs))).map((r) => r.ref),
@@ -412,8 +413,7 @@ async function addActions(n: MeetingNote, sorted: SortedMeeting, s: Saved, ctx: 
       s.counts.duplicates++;
       continue;
     }
-    const hint = it.person.toLowerCase().trim();
-    const person = hint ? ((hint.includes("@") ? people.byEmail.get(hint) : (people.byName.get(hint) ?? personByName(people, hint))) ?? null) : null;
+    const person = itemPerson(people, unit, it, unit.messages[0]);
     const personName = person?.name ?? (it.person.trim() || null);
     const owner = it.type === "waiting" ? (personName ?? "Someone else") : "You";
     const inserted = await db
