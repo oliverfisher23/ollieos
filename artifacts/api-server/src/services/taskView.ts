@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { db, goalsTable, noiseRulesTable, peopleTable, projectsTable, taskEvidenceTable, tasksTable, type Task as TaskRow } from "@workspace/db";
+import { db, goalsTable, noiseRulesTable, peopleTable, projectsTable, taskEvidenceTable, tasksTable, type Task as TaskRow, taskPacksTable } from "@workspace/db";
 import { taskVisible } from "../lib/ai-data/visibility";
 import { noiseRuleLabel } from "./noiseRules";
 import { looksDoneFor } from "./taskEvidence";
@@ -14,6 +14,8 @@ export interface EntitySummary {
 }
 
 export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "waitingOnPersonId" | "noiseRuleId" | "sourceChannel" | "noiseHintKept" | "noiseCheckedAt" | "repeatNextId" | "delegateCheckedAt" | "delegateDismissedAt" | "personCheckedAt" | "stuckCheckedAt" | "stuckDismissedAt" | "chaseAfter"> & {
+  /** Section 28: the task's work pack, when it has one worth showing */
+  pack: "ready_to_send" | "needs_work" | null;
   /** Section 27: a Waiting on task that has waited long enough for a chase */
   chaseDue: boolean;
   project: EntitySummary | null;
@@ -78,6 +80,14 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
   ]);
   const hiddenSet = new Set(hidden.map((h) => h.id));
   const looks = await looksDoneFor(rows.filter((r) => OPEN_FOR_EVIDENCE.has(r.status)).map((r) => r.id));
+  // Section 28: which of these tasks have a work pack worth showing.
+  const packRows = taskIds.length
+    ? await conn
+        .select({ taskId: taskPacksTable.taskId, status: sql<string>`${taskPacksTable.content}->>'status'` })
+        .from(taskPacksTable)
+        .where(and(inArray(taskPacksTable.taskId, taskIds), sql`${taskPacksTable.dismissedAt} is null`, sql`${taskPacksTable.content}->>'status' <> 'nothing_found'`))
+    : [];
+  const packs = new Map(packRows.map((p) => [p.taskId, p.status as "ready_to_send" | "needs_work"]));
   // Section 26: where else the same work came up.
   const alsoRows = taskIds.length
     ? await conn
@@ -129,6 +139,7 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
       alsoFrom: [...new Set(also.get(r.id) ?? [])].filter((s) => s !== r.source),
       // Section 23: who could take it, while it is still Ollie's to do and he has not said "Not this one".
       delegateHint: (r.status === "now" || r.status === "backlog") && !delegateDismissedAt ? r.delegateHint : null,
+      pack: ["inbox", "now", "backlog", "waiting"].includes(r.status) ? (packs.get(r.id) ?? null) : null,
       // Section 27: chase nudges and the stuck-task coach.
       chaseDue: r.status === "waiting" && chaseFrom.getTime() <= now,
       stuckHint: (r.status === "now" || r.status === "backlog") && !stuckDismissedAt ? r.stuckHint : null,

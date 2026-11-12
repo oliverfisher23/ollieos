@@ -29,6 +29,7 @@ import { learnLessonsIfDue } from "./readerLessons";
 import { findDuplicatesIfDue } from "./duplicates";
 import { linkPeopleToTasks } from "./taskPeople";
 import { coachStuckIfDue } from "./stuckCoach";
+import { buildWorkPacks } from "./workPack";
 import { clearOldSightings, findContacts } from "./contactFinder";
 
 /** OllieOS's own checks start at 07:00, so they wait for 07:40 (when the morning sweep ran) before building the digest. */
@@ -108,6 +109,8 @@ async function runScheduledWork(from: "sweep" | "connectors", now: Date): Promis
   if (process.env.NODE_ENV !== "test") await part("duplicates", () => findDuplicatesIfDue(now));
   // Section 27: tasks that keep slipping, with one thing to try on each.
   if (process.env.NODE_ENV !== "test") await part("stuck", () => coachStuckIfDue(now));
+  // Section 28: work packs for Now tasks and tasks due soon. Calls the model, so tests run it directly.
+  if (process.env.NODE_ENV !== "test") await part("work_packs", () => buildWorkPacks(now));
   await part("cleared", async () => ({ digests: await clearOldDigests(now), calendar_events: await clearOldCalendar(now), roundups: await clearOldRoundups(now), ai_runs: await clearOldAiRuns(now), meeting_history: await clearOldHistory(now), ai_inputs: await clearOldInputs(now), noise: await clearOldNoise(now), contact_sightings: await clearOldSightings(now) }));
   return out;
 }

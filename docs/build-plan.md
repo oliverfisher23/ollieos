@@ -1670,3 +1670,46 @@ Ollie asked for a review of tasks. Three days of real use (109 tasks, 10th to 12
 - App: `components/drop-reason.tsx`, `components/task-nudges.tsx` (project chips, chase card, stuck card), `LoadLine`, `BulkBar` and grouping in `pages/tasks.tsx`, `BusyDayCard` on Home, open questions on the session page.
 - **Checked by** `test/section-27.test.ts` (13 tests).
 - **Not included:** saving a Slack id on a person matched by name; a hold on Slack items to see whether Ollie replies first; undo for a bulk change; a scorecard for the stuck-task coach.
+
+## 28. The work pack (asked for 12th November 2026)
+
+Ollie asked for a review of every agent, the code and his live data, with one aim: be productive, and hold knowledge and context accurate enough to ship tasks quickly. The review (through the connector, 12th November 2026) found work already done in Cowork sessions, such as the DNE options deck and the Army pack, sitting behind tasks in Backlog. Of the five agents suggested, he asked for the task linker and the work pack.
+
+**What was built and what was dropped.** While this was being built, section 27 landed on `main` from another session with its own people links on tasks, project suggestions and stuck-task coach, and section 26 with the duplicate check. The task linker and a second stuck-task coach built on this branch were therefore dropped, not merged beside them. What this section adds is the work pack and two fixes.
+
+### The work pack (Sonnet)
+
+- **Which tasks.** Now tasks, and Inbox or Backlog tasks due within three days or overdue, that AI may see and have no pack yet. Up to six a pass, most pressing first, after each check. Any open task can have one built from its panel (**Build a work pack**, **Build again**).
+- **What it gathers.** Ask's own search on the task's words, plus what hangs off its project and person: Cowork sessions, documents, decisions, facts, notes, related tasks, and the rules that apply. Up to 30 items, only ones AI may see. With nothing found, no model is called.
+- **What it writes.** After its reasoning:
+  - a status: **Ready to send** (the thing already exists), **Something to build on**, or nothing found;
+  - what is held and where;
+  - the next step;
+  - a message to send, in Ollie's writing style and rules, with anything missing in square brackets;
+  - for work still to do, an outline and up to three things not known yet.
+- **Rules enforced in code:**
+  - it may only cite items it was given, and a pack that cites none says nothing was found;
+  - a task that came from an email gets no message, because Draft a reply on the task writes that;
+  - the writers' code checks run on it.
+- **Where it shows.**
+  - The task panel: the pack with its sources linked, **Copy message**, **Save to Gmail drafts** (a new draft to the task's person when their email is known; never sent), **Build again** and **Not useful**.
+  - Tasks: a "Ready to send" pill and a **Ready to send** filter (`/tasks?ready=1`).
+  - The digest: "N tasks are ready to send: what they need already exists".
+- **Scorecard.** "Packs you used": the message copied or saved, or the task done; undone on Not useful.
+- **Built.** `task_packs` table; `services/workPack.ts`; `GET` and `POST /tasks/:id/work-pack`, and `/used`, `/dismiss`, `/gmail-draft`; each task carries `pack`; the panel card is `components/work-pack.tsx`.
+
+### Fixes
+
+- **The Backlog clear-out clock.** The delegation suggester (section 23) changed a task's `updated_at` each time it looked at it, which reset "untouched for 30 days", so the clear-out would have stopped listing those tasks. It now leaves `updated_at` alone, as the noise check and the stuck-task coach do.
+- **The task panel** now refreshes after "Not this one" on a delegation suggestion and after sending a Slack message. Both refreshed the lists but not the open panel.
+
+### How it was checked
+
+- `test/work-pack.test.ts` (4 tests) covers:
+  - a session deck found and the task marked ready, with hidden items never gathered;
+  - a ref it was not given dropped, and "nothing found" when nothing valid is cited;
+  - no message for an email task, and no model call with nothing held;
+  - the Gmail draft addressed to the task's person, Not useful, Build again, and the scorecard;
+  - the delegation suggester leaving `updated_at` alone.
+- The full suite: 486 of 487 passed. The one failure, "opens from the last look at Gmail at once…" in `email-part-j.test.ts`, is intermittent (it passed two of three reruns with no code change) and is in inbox code this section does not touch.
+- In a browser, before the rebuild on `main`: the Ready to send filter and mark, the panel with the pack, and Not useful, at desktop and phone width. Save to Gmail drafts was not pressed, because it would write a real draft.

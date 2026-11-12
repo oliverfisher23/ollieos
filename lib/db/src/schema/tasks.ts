@@ -169,6 +169,42 @@ export interface PlanItem {
   start: string | null;
 }
 
+/** Section 28: a task's work pack, as the writer gave it. */
+export interface WorkPackContent {
+  /** ready_to_send: the thing to send exists; needs_work: there is something to build on; nothing_found: nothing useful held */
+  status: "ready_to_send" | "needs_work" | "nothing_found";
+  /** What OllieOS already holds for this task, in a line or two */
+  have: string;
+  /** The next concrete step */
+  next: string;
+  /** A message to send, when one helps */
+  draft: { to: string; subject: string; body: string } | null;
+  /** For work still to do: the shape of it */
+  outline: string[];
+  /** What is not known and would be needed */
+  questions: string[];
+  /** Refs of the items it rests on */
+  uses: string[];
+}
+
+/**
+ * Section 28: the work pack for a task: what OllieOS already holds for it and the first output.
+ * One per task; rebuilt on request. Only made for tasks AI may see, from items AI may see.
+ */
+export const taskPacksTable = pgTable("task_packs", {
+  taskId: integer("task_id")
+    .primaryKey()
+    .references(() => tasksTable.id, { onDelete: "cascade" }),
+  content: jsonb("content").$type<WorkPackContent>().notNull(),
+  /** The Gmail draft the pack's message was saved as, if it was */
+  gmailDraftId: text("gmail_draft_id"),
+  /** Ollie copied or saved the draft */
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  /** Ollie said it was not useful */
+  dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Plan my day: the tasks Ollie picked for a day, fitted around his meetings. */
 export const dayPlansTable = pgTable("day_plans", {
   date: date("date", { mode: "string" }).primaryKey(),

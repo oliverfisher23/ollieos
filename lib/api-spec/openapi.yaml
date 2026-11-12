@@ -2313,6 +2313,86 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /tasks/{id}/work-pack:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getTaskWorkPack
+      tags: [tasks]
+      summary: "The task's work pack, if it has one (section 28)"
+      responses:
+        "200":
+          description: The pack or null
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkPackEnvelope" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: buildTaskWorkPack
+      tags: [tasks]
+      summary: Build the work pack for this task, or build it again
+      responses:
+        "200":
+          description: The pack
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkPack" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /tasks/{id}/work-pack/used:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: markTaskWorkPackUsed
+      tags: [tasks]
+      summary: "The message was copied: the pack counts as used"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkPack" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /tasks/{id}/work-pack/dismiss:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: dismissTaskWorkPack
+      tags: [tasks]
+      summary: "Not useful: take the pack off the task"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkPack" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /tasks/{id}/work-pack/gmail-draft:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: saveTaskWorkPackDraft
+      tags: [tasks]
+      summary: "Save the pack message to Gmail as a draft; never sent"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WorkPack" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /tasks/{id}/stuck/dismiss:
     post:
       operationId: dismissTaskStuckHint
@@ -5853,6 +5933,11 @@ components:
         chaseDue:
           type: boolean
           description: "Section 27: a Waiting on task that has waited long enough for a chase"
+        pack:
+          description: "Section 28: the task's work pack status, when it has one worth showing"
+          oneOf:
+            - { type: string, enum: [ready_to_send, needs_work] }
+            - type: "null"
         stuckHint:
           description: "Section 27: the stuck-task coach's line on a Now or Backlog task that keeps slipping. Null once dismissed."
           oneOf:
@@ -5862,6 +5947,40 @@ components:
     DropReason:
       type: string
       enum: [not_mine, already_done, fyi, arranging, duplicate, not_needed]
+
+    WorkPack:
+      type: object
+      required: [taskId, status, have, next, draft, outline, questions, sources, createdAt, usedAt, dismissedAt, savedToGmail]
+      properties:
+        taskId: { type: integer }
+        status: { type: string, enum: [ready_to_send, needs_work, nothing_found] }
+        have: { type: string, description: What OllieOS already holds for the task }
+        next: { type: string }
+        draft:
+          oneOf:
+            - type: object
+              required: [to, subject, body]
+              properties:
+                to: { type: string }
+                subject: { type: string }
+                body: { type: string }
+            - type: "null"
+        outline: { type: array, items: { type: string } }
+        questions: { type: array, items: { type: string } }
+        sources: { type: array, items: { $ref: "#/components/schemas/SourceChip" } }
+        createdAt: { type: string, format: date-time }
+        usedAt: { type: [string, "null"], format: date-time }
+        dismissedAt: { type: [string, "null"], format: date-time }
+        savedToGmail: { type: boolean }
+
+    WorkPackEnvelope:
+      type: object
+      required: [pack]
+      properties:
+        pack:
+          oneOf:
+            - $ref: "#/components/schemas/WorkPack"
+            - type: "null"
 
     StuckHint:
       type: object

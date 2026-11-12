@@ -126,7 +126,7 @@ function entityPath(type: string, slug: string | null, id: number): string | nul
 const clip = (s: string, n = 48) => (s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s);
 
 /** Resolves refs to chips and task badges for Ollie. Everything here was visible when the answer was made. */
-async function resolveChips(refs: string[]) {
+export async function resolveChips(refs: string[]) {
   const parsed = refs.map(parseRef).filter((r): r is NonNullable<typeof r> => !!r);
   const ids = (t: string) => [...new Set(parsed.filter((r) => r.type === t).map((r) => r.id))];
   const [tasks, decisions, notes, facts, goals, documents, sessions, sections, ideas] = await Promise.all([
