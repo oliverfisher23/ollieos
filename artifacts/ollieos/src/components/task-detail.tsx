@@ -26,6 +26,7 @@ import { TaskEvidencePanel } from '@/components/task-evidence';
 import { KeepTestCase } from '@/components/evals';
 import { SlackDm } from '@/components/slack-dm';
 import { StuckCoach } from '@/components/stuck-coach';
+import { WorkPackPanel } from '@/components/work-pack';
 import { goalOptions, personOptions, projectOptions } from '@/components/dropdown-options';
 
 const STATUSES: { value: TaskStatus; label: string }[] = [
@@ -168,6 +169,8 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                 </div>
               </div>
             )}
+
+            <WorkPackPanel task={task} />
 
             <StuckCoach task={task} />
 

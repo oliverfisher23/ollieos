@@ -1682,3 +1682,67 @@ The Backlog clear-out (Part I) catches tasks nobody has touched for 30 days. It 
 
   The full suite passes: 442 tests.
 - **Browser check:** the Stuck filter, the card, and Add these steps, which put three steps in the checklist and cleared the card.
+
+## 27. The task linker and the work pack (asked for 12th November 2026)
+
+Ollie asked for a review of every agent, the code and his live data, with one aim: be productive, and hold knowledge and context accurate enough to ship tasks quickly. The review (through the connector, 12th November 2026) found:
+
+- None of 36 open tasks had a person, none of 6 waiting tasks said who they waited on, and 27 had no project, though the people were in Contacts.
+- Work already done in Cowork sessions (the DNE options deck, the Army pack) was sitting behind tasks in Backlog.
+
+Ollie asked for the first two of five suggested agents. Not built: the duplicate spotter, State of play, and the goal setter.
+
+| Part | What | Model | Size |
+|---|---|---|---|
+| Z11 | Task linker, with the matching fixes behind the missing links | Haiku, plus code | Medium |
+| Z12 | Work pack | Sonnet | Medium to large |
+
+### Fixes found on the way
+
+- **Names.** A name on a task only matched a person on its exact full form. Now a first name on its own ("Konrad") matches when exactly one person in Contacts has it.
+- **Slack accounts.** Nothing ever learned whose Slack account was whose, so Slack messages from colleagues never linked to them. Now someone seen on Slack whose account is on nobody yet is matched to the person with the same email, or failing that the only person with exactly the same name, and the account is saved (in the person's history).
+- **The Backlog clear-out clock.** The delegation suggester (section 23, already live) and the stuck-task coach (section 26) changed a task's `updated_at` each time they looked at it, which reset "untouched for 30 days", so the clear-out would have stopped listing those tasks. Agent writes now leave `updated_at` alone, as the noise check always did. The task linker does the same.
+
+### Part Z11: Task linker
+
+- **Which tasks.** Open tasks and promises (Inbox, Now, Backlog, Waiting on) that AI may see and that lack a person (or, when waiting, who they wait on) or a project. Up to 40 a pass, after each check and before the delegation suggester. A task it could not link is looked at again after 7 days.
+- **How.** The sender's email is matched to a person in code. Haiku gets the people and active projects AI may see and, for each task, gives its reasoning, then each link with a yes or no on whether it is sure.
+- **Rules enforced in code:**
+  - a person is only accepted when their name appears in the task itself (title, sender, quote, snippet, notes or subject);
+  - links only fill gaps and never replace what is there;
+  - nothing hidden from AI is sent or offered.
+- **Where it shows.** The task panel says "Linked by OllieOS: for Veronica Wilkinson, project DNE outreach", with why, and **Undo**. Undo takes off the links still as the linker left them, and the linker leaves that task alone from then on. Each link is in the task's history.
+- **Goals.** A task counts towards its project's goal, so a linked project brings the goal with it.
+- **Scorecard.** "Links that stayed": undone when Ollie pressed Undo or changed a linked field.
+- **Built.** `tasks.link_hint`, `link_checked_at`, `link_undone_at`; `services/taskLinker.ts`; `POST /tasks/link` and `/tasks/:id/links/undo`; each task carries `linked`.
+
+### Part Z12: Work pack
+
+- **Which tasks.** Now tasks, and Inbox or Backlog tasks due within three days or overdue, that AI may see and have no pack yet. Up to six a pass, most pressing first. Any open task can have one built from its panel (**Build a work pack**, **Build again**).
+- **What it gathers.** Ask's own search on the task's words, plus what hangs off its project and person: Cowork sessions, documents, decisions, facts, notes, related tasks, and the rules that apply. Up to 30 items, only ones AI may see. With nothing found, no model is called.
+- **What Sonnet writes.** After its reasoning:
+  - a status: **Ready to send** (the thing already exists), **Something to build on**, or nothing found;
+  - what is held and where;
+  - the next step;
+  - a message to send, in Ollie's writing style and rules, with anything missing in square brackets;
+  - for work still to do, an outline and up to three things not known yet.
+- **Rules enforced in code:**
+  - it may only cite items it was given, and a pack that cites none says nothing was found;
+  - a task that came from an email gets no message, because Draft a reply on the task writes that;
+  - the writers' code checks run on it.
+- **Where it shows.**
+  - The task panel: the pack with its sources linked, **Copy message**, **Save to Gmail drafts** (a new draft to the task's person when their email is known; never sent), **Build again** and **Not useful**.
+  - Tasks: a "Ready to send" mark and a **Ready to send** filter (`/tasks?ready=1`).
+  - The digest: "N tasks are ready to send: what they need already exists".
+- **Scorecard.** "Packs you used": the message copied or saved, or the task done; undone on Not useful.
+- **Built.** `task_packs` table; `services/workPack.ts`; `GET` and `POST /tasks/:id/work-pack`, and `/used`, `/dismiss`, `/gmail-draft`; each task carries `pack`.
+
+### How it was checked
+
+- `test/section-27.test.ts` (7 tests) covers:
+  - a Slack account learned from the sender's email, and a first name linking when only one person has it;
+  - the linker: sure and named links only, the sender's email matched in code, nothing overwritten, hidden tasks and people never sent, `updated_at` unchanged, no second look within a week, Undo and its scorecard;
+  - the delegation suggester and stuck-task coach leaving `updated_at` alone;
+  - the work pack: a session deck found and marked ready, hidden items never gathered, a ref it was not given dropped, "nothing found" when nothing valid is cited, no message for an email task, no model call with nothing held, the Gmail draft addressed to the task's person, Not useful and Build again.
+- The full suite passes: 457 tests.
+- In a browser: the Ready to send filter and mark, the panel with links and pack, Undo and Not useful, at desktop and phone width. Save to Gmail drafts was not pressed, because it would write a real draft.

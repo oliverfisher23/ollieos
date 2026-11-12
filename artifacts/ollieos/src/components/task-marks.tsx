@@ -3,12 +3,18 @@ import { REPEAT_SHORT, repeatLabel, type RepeatRule } from '@workspace/shared';
 import { IconRepeat } from '@/components/icons';
 
 /** The small marks after a task title on lists: how it repeats, and how far through its checklist it is. */
-export function TaskMarks({ task }: { task: Pick<Task, 'id' | 'repeat' | 'steps'> & Partial<Pick<Task, 'stuck'>> }) {
+export function TaskMarks({ task }: { task: Pick<Task, 'id' | 'repeat' | 'steps'> & Partial<Pick<Task, 'stuck' | 'pack'>> }) {
   const steps = task.steps ?? [];
   const done = steps.filter((s) => s.done).length;
-  if (!task.repeat && !steps.length && !task.stuck) return null;
+  const ready = task.pack === 'ready_to_send';
+  if (!task.repeat && !steps.length && !task.stuck && !ready) return null;
   return (
     <span className="oo-marks">
+      {ready && (
+        <span className="oo-mark-ready" title="What this needs already exists. Open it for the work pack." data-testid={'mark-ready-' + task.id}>
+          Ready to send
+        </span>
+      )}
       {task.stuck && (
         <span className="oo-mark-stuck" title={task.stuck.signals} data-testid={'mark-stuck-' + task.id}>
           Stuck

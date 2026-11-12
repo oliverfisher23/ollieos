@@ -1,5 +1,7 @@
 import { dismissDelegateHint } from "../services/delegation";
 import { applyStuckHint, dismissStuckHint } from "../services/stuckTasks";
+import { linkTasks, undoTaskLinks } from "../services/taskLinker";
+import { buildWorkPack, dismissPack, getWorkPack, markPackUsed, savePackToGmail } from "../services/workPack";
 import { dmOptions, MAX_DM, sendSlackDm } from "../services/slackDm";
 import { Router, type IRouter } from "express";
 import { checkDraft, taskContextRefs } from "../services/draftLearning";
@@ -215,6 +217,15 @@ router.post(
     res.json(await sendSlackDm(id, b, "ollie"));
   }),
 );
+// Section 27: the task linker (run now, and Undo on a task) and the work pack.
+router.post("/tasks/link", handle(async (_req, res) => void res.json(await linkTasks())));
+router.post("/tasks/:id/links/undo", handle(async (req, res) => void res.json(await undoTaskLinks(IdParams.parse(req.params).id))));
+router.get("/tasks/:id/work-pack", handle(async (req, res) => void res.json({ pack: await getWorkPack(IdParams.parse(req.params).id) })));
+router.post("/tasks/:id/work-pack", handle(async (req, res) => void res.json(await buildWorkPack(IdParams.parse(req.params).id))));
+router.post("/tasks/:id/work-pack/used", handle(async (req, res) => void res.json(await markPackUsed(IdParams.parse(req.params).id))));
+router.post("/tasks/:id/work-pack/dismiss", handle(async (req, res) => void res.json(await dismissPack(IdParams.parse(req.params).id))));
+router.post("/tasks/:id/work-pack/gmail-draft", handle(async (req, res) => void res.json(await savePackToGmail(IdParams.parse(req.params).id))));
+
 // Section 26: the stuck-task coach's way out: Do this, or Not now.
 router.post("/tasks/:id/stuck/apply", handle(async (req, res) => void res.json(await applyStuckHint(IdParams.parse(req.params).id))));
 router.post("/tasks/:id/stuck/dismiss", handle(async (req, res) => void res.json(await dismissStuckHint(IdParams.parse(req.params).id))));

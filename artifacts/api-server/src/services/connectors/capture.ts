@@ -14,6 +14,7 @@ import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { db, organisationsTable, peopleTable, productsTable, projectsTable, type NoiseRule } from "@workspace/db";
 import { londonDate } from "@workspace/shared";
 import { logger } from "../../lib/logger";
+import { writeAudit } from "../../lib/audit";
 import { captureTask, enabledRules, logActivity, matchNoiseRule, type CaptureWriter } from "../aiWrites";
 import { emailsOf, hasAnyEmail, hasAnySlackId } from "../personMatch";
 import { propose, type Proposal } from "../suggestions";
@@ -48,6 +49,8 @@ export interface CaptureCounts {
   ideas?: number;
   /** Section 25: people seen who are not in Contacts */
   sightings?: number;
+  /** Section 27: people matched to their Slack account */
+  slack_accounts?: number;
 }
 
 /** True when one of Ollie's noise rules covers every message in the exchange from someone else. */
@@ -81,6 +84,19 @@ export interface LoadedPeople {
   byEmail: Map<string, PersonRow>;
   byName: Map<string, PersonRow>;
   bySlack: Map<string, PersonRow>;
+  /** Section 27: a first name on its own ("Konrad"), when exactly one person in Contacts has it */
+  byFirst: Map<string, PersonRow>;
+}
+
+/**
+ * Section 27: the person a name or email points at. An email, then the exact full name, then a
+ * first name on its own when only one person in Contacts has it.
+ */
+export function personByHint(people: LoadedPeople, hint: string | null | undefined): PersonRow | null {
+  const h = (hint ?? "").toLowerCase().trim();
+  if (!h) return null;
+  if (h.includes("@")) return people.byEmail.get(h) ?? null;
+  return people.byName.get(h) ?? (!h.includes(" ") ? (people.byFirst.get(h) ?? null) : null);
 }
 
 /** The person for someone in an exchange: by Slack account first, then any of their emails. */
@@ -117,17 +133,26 @@ export async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promi
     isSelf: peopleTable.isSelf,
   };
   const none: PersonRow[] = [];
-  const [a, b] = await Promise.all([
+  const firsts = [...names].filter((n) => n && !n.includes(" ") && !n.includes("@"));
+  const [a, b, c] = await Promise.all([
     emails.size || slackIds.size ? db.select(cols).from(peopleTable).where(or(hasAnyEmail([...emails]), hasAnySlackId([...slackIds]))) : none,
     names.size ? db.select(cols).from(peopleTable).where(inArray(sql`lower(${peopleTable.name})`, [...names])) : none,
+    firsts.length ? db.select(cols).from(peopleTable).where(and(inArray(sql`lower(split_part(${peopleTable.name}, ' ', 1))`, firsts), eq(peopleTable.isSelf, false))) : none,
   ]);
+  // A first name only counts when one person has it.
+  const firstCount = new Map<string, PersonRow[]>();
+  for (const p of c) {
+    const f = p.name.toLowerCase().split(" ")[0];
+    firstCount.set(f, [...(firstCount.get(f) ?? []), p]);
+  }
+  const byFirst = new Map([...firstCount].filter(([, rows]) => rows.length === 1).map(([f, rows]) => [f, rows[0]]));
   const byEmail = new Map<string, PersonRow>();
   const bySlack = new Map<string, PersonRow>();
   for (const p of a) {
     for (const e of emailsOf(p)) if (!byEmail.has(e)) byEmail.set(e, p);
     if (p.slackUserId) bySlack.set(p.slackUserId, p);
   }
-  return { byEmail, bySlack, byName: new Map(b.map((p) => [p.name.toLowerCase(), p])) };
+  return { byEmail, bySlack, byName: new Map(b.map((p) => [p.name.toLowerCase(), p])), byFirst };
 }
 
 /** Active projects the AI may link items to. Confidential projects are never sent to it. */
@@ -281,6 +306,43 @@ export interface SortedRead {
   people: LoadedPeople;
 }
 
+/**
+ * Section 27: learns which Slack account belongs to whom. Someone seen on Slack whose account is on
+ * nobody yet is matched to the person in Contacts with the same email, or failing that the only
+ * person with exactly the same name, and their Slack account is saved. Until this, Slack messages
+ * from colleagues never linked to them.
+ */
+export async function learnSlackAccounts(units: WorkUnit[]): Promise<number> {
+  const seen = new Map<string, { name: string | null; email: string | null }>();
+  for (const u of units) {
+    if (u.source !== "slack") continue;
+    for (const p of u.people) if (p.slackId) seen.set(p.slackId, { name: p.name ?? seen.get(p.slackId)?.name ?? null, email: p.email?.toLowerCase() ?? seen.get(p.slackId)?.email ?? null });
+    for (const m of u.messages) if (m.fromSlackId && !m.fromMe && !seen.has(m.fromSlackId)) seen.set(m.fromSlackId, { name: m.fromName, email: null });
+  }
+  if (!seen.size) return 0;
+  const taken = await db.select({ slack: peopleTable.slackUserId }).from(peopleTable).where(hasAnySlackId([...seen.keys()]));
+  const have = new Set(taken.map((t) => t.slack));
+  let learned = 0;
+  for (const [slackId, who] of seen) {
+    if (have.has(slackId)) continue;
+    let match: { id: number }[] = [];
+    if (who.email) match = await db.select({ id: peopleTable.id }).from(peopleTable).where(and(hasAnyEmail([who.email]), sql`${peopleTable.slackUserId} is null`));
+    if (match.length !== 1 && who.name?.trim().includes(" ")) {
+      match = await db
+        .select({ id: peopleTable.id })
+        .from(peopleTable)
+        .where(and(sql`lower(${peopleTable.name}) = ${who.name.trim().toLowerCase()}`, sql`${peopleTable.slackUserId} is null`, eq(peopleTable.isSelf, false)));
+    }
+    if (match.length !== 1) continue;
+    await db.transaction(async (tx) => {
+      await tx.update(peopleTable).set({ slackUserId: slackId }).where(and(eq(peopleTable.id, match[0].id), sql`${peopleTable.slackUserId} is null`));
+      await writeAudit(tx, { actor: "ollieos", action: "update", entityType: "person", entityId: match[0].id, payload: { changes: [{ field: "slack", from: null, to: "Matched to their Slack account" }], via: who.email ? "email" : "name" } });
+    });
+    learned++;
+  }
+  return learned;
+}
+
 export async function sortAndCapture(
   units: WorkUnit[],
   ctx: { me: string; now: Date; agent: AgentKey; onSorted?: (r: SortedRead) => Promise<void> },
@@ -295,6 +357,13 @@ export async function sortAndCapture(
   if (!keep.length) return counts;
 
   const choices = await projectChoices();
+  // Section 27: match Slack accounts to people first, so this run's messages link to them.
+  try {
+    const learned = await learnSlackAccounts(keep);
+    if (learned) counts.slack_accounts = learned;
+  } catch (err) {
+    logger.warn({ err }, "Could not match Slack accounts to people");
+  }
   const before = await loadPeople(keep, []);
   const known = await knownNames(before);
   // Confirmation emails are never read for knowledge (Part U).
@@ -395,11 +464,7 @@ export async function captureSorted(
   const projects = new Map(opts.choices.map((p) => [p.name.toLowerCase(), p.id]));
   const people = await loadPeople(keep, sorted);
   const taskIds: number[][] = keep.map(() => []);
-  const personFor = (hint: string): PersonRow | null => {
-    const h = hint.toLowerCase().trim();
-    if (!h) return null;
-    return (h.includes("@") ? people.byEmail.get(h) : people.byName.get(h)) ?? null;
-  };
+  const personFor = (hint: string): PersonRow | null => personByHint(people, hint);
   const projectFor = (name: string): number | null => projects.get(name.toLowerCase().trim()) ?? null;
 
   for (const [i, u] of keep.entries()) {

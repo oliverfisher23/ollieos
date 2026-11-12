@@ -95,6 +95,12 @@ export const tasksTable = pgTable(
     delegateCheckedAt: timestamp("delegate_checked_at", { withTimezone: true }),
     /** Ollie said "Not this one", so it is not suggested again */
     delegateDismissedAt: timestamp("delegate_dismissed_at", { withTimezone: true }),
+    /** Section 27: what the task linker linked (person, waiting on, project), so it can be undone and scored */
+    linkHint: jsonb("link_hint").$type<LinkHint | null>(),
+    /** When the task linker last looked at it */
+    linkCheckedAt: timestamp("link_checked_at", { withTimezone: true }),
+    /** Ollie pressed Undo: the linker leaves this task alone from then on */
+    linkUndoneAt: timestamp("link_undone_at", { withTimezone: true }),
     /** Section 26: the stuck-task coach's way out for a task that keeps slipping; null when it is not stuck */
     stuckHint: jsonb("stuck_hint").$type<StuckHint | null>(),
     /** When the stuck-task coach last looked at it */
@@ -131,6 +137,33 @@ export const captureLogTable = pgTable(
   },
   (t) => [uniqueIndex("capture_log_source_ref_unique").on(t.source, t.sourceRef)],
 );
+
+/** Section 27: the links the task linker made on a task, each with the name it had then, and why. */
+export interface LinkHint {
+  person: { id: number; name: string } | null;
+  waitingOn: { id: number; name: string } | null;
+  project: { id: number; name: string } | null;
+  why: string;
+  at: string;
+}
+
+/** Section 27: a task's work pack, as the writer gave it. */
+export interface WorkPackContent {
+  /** ready_to_send: the thing to send exists; needs_work: there is something to build on; nothing_found: nothing useful held */
+  status: "ready_to_send" | "needs_work" | "nothing_found";
+  /** What OllieOS already holds for this task, in a line or two */
+  have: string;
+  /** The next concrete step */
+  next: string;
+  /** A message to send, when one helps */
+  draft: { to: string; subject: string; body: string } | null;
+  /** For work still to do: the shape of it */
+  outline: string[];
+  /** What is not known and would be needed */
+  questions: string[];
+  /** Refs of the items it rests on */
+  uses: string[];
+}
 
 /**
  * Section 26: why a task looks stuck (from its own history, in code) and the way out the coach
@@ -181,6 +214,24 @@ export interface PlanItem {
   minutes: number;
   start: string | null;
 }
+
+/**
+ * Section 27: the work pack for a task: what OllieOS already holds for it and the first output.
+ * One per task; rebuilt on request. Only made for tasks AI may see, from items AI may see.
+ */
+export const taskPacksTable = pgTable("task_packs", {
+  taskId: integer("task_id")
+    .primaryKey()
+    .references(() => tasksTable.id, { onDelete: "cascade" }),
+  content: jsonb("content").$type<WorkPackContent>().notNull(),
+  /** The Gmail draft the pack's message was saved as, if it was */
+  gmailDraftId: text("gmail_draft_id"),
+  /** Ollie copied or saved the draft */
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  /** Ollie said it was not useful */
+  dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** Plan my day: the tasks Ollie picked for a day, fitted around his meetings. */
 export const dayPlansTable = pgTable("day_plans", {

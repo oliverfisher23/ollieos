@@ -179,14 +179,17 @@ export default function TasksPage() {
   const work = rawWork === 'client' || rawWork === 'internal' || rawWork === 'none' ? rawWork : null;
   // Section 26: only tasks that look stuck.
   const stuckOnly = sp.get('stuck') === '1';
+  // Section 27: only tasks whose work pack says they are ready to send.
+  const readyOnly = sp.get('ready') === '1';
   const projects = useListProjects(undefined, { query: { enabled: !!work, staleTime: 60_000 } as never });
   const workOf = useMemo(() => new Map((projects.data ?? []).map((p) => [p.id, p.workType ?? null])), [projects.data]);
   const rows = useMemo(() => {
     const all = list.data ?? [];
     const byWork = work ? all.filter((t) => ((t.project ? workOf.get(t.project.id) : null) ?? 'none') === work) : all;
-    const kept = stuckOnly ? byWork.filter((t) => !!t.stuck) : byWork;
+    const byStuck = stuckOnly ? byWork.filter((t) => !!t.stuck) : byWork;
+    const kept = readyOnly ? byStuck.filter((t) => t.pack === 'ready_to_send') : byStuck;
     return sortTasks(kept, sort);
-  }, [list.data, sort?.key, sort?.dir, work, workOf, stuckOnly]);
+  }, [list.data, sort?.key, sort?.dir, work, workOf, stuckOnly, readyOnly]);
 
   // Dragging tasks into Ollie's own order. A column sort is a temporary view on top, so dragging waits until it is cleared.
   const qc = useQueryClient();
@@ -276,6 +279,8 @@ export default function TasksPage() {
             ]}
             testId="select-work"
           />
+          <button type="button" className="oo-control" aria-pressed={readyOnly}
+            onClick={() => set({ ready: readyOnly ? null : '1' })} data-testid="button-ready-only">Ready to send</button>
           <button type="button" className="oo-control" aria-pressed={stuckOnly}
             onClick={() => set({ stuck: stuckOnly ? null : '1' })} data-testid="button-stuck-only">Stuck</button>
           <button type="button" className="oo-control" aria-pressed={week === thisWeek}
@@ -380,7 +385,7 @@ export default function TasksPage() {
           </div>
         ) : rows.length === 0 ? (
           <div style={{ padding: '28px 0', display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="state-tasks-empty">
-            <p className="oo-serif" style={{ margin: 0, fontSize: 20 }}>{q || source || week || work || stuckOnly ? (stuckOnly && !q && !source && !week && !work ? 'Nothing looks stuck here.' : 'Nothing matches these filters.') : EMPTY[tab]}</p>
+            <p className="oo-serif" style={{ margin: 0, fontSize: 20 }}>{q || source || week || work || stuckOnly || readyOnly ? (stuckOnly && !readyOnly && !q && !source && !week && !work ? 'Nothing looks stuck here.' : readyOnly && !stuckOnly && !q && !source && !week && !work ? 'Nothing is ready to send yet.' : 'Nothing matches these filters.') : EMPTY[tab]}</p>
             {(q || source || week) && <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>Try another week or clear the search.</p>}
           </div>
         ) : (

@@ -268,6 +268,7 @@ import type {
   Task,
   TaskDetail,
   TaskEvidence,
+  TaskLinkerResult,
   TaskReorderInput,
   TaskSummary,
   TaskUpdate,
@@ -289,6 +290,8 @@ import type {
   VoiceSaveResult,
   WeekCheck,
   WeeklyUpdate,
+  WorkPack,
+  WorkPackEnvelope,
   WorkingHours,
   WorthALook,
   WritingStyle,
@@ -5632,6 +5635,551 @@ export function useExportTasksCsv<TData = Awaited<ReturnType<typeof exportTasksC
 
 
 
+
+export const getLinkTasksUrl = () => {
+
+
+
+
+  return `/api/tasks/link`
+}
+
+/**
+ * @summary Run the task linker now (section 27)
+ */
+export const linkTasks = async ( options?: Parameters<typeof customFetch>[1]): Promise<TaskLinkerResult> => {
+
+  return customFetch<TaskLinkerResult>(getLinkTasksUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getLinkTasksMutationKey = () => ['linkTasks'] as const;
+
+export const getLinkTasksMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof linkTasks>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof linkTasks>>, TError,void, TContext> => {
+
+const mutationKey = getLinkTasksMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof linkTasks>>, void> = () => {
+
+
+          return  linkTasks(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LinkTasksMutationResult = NonNullable<Awaited<ReturnType<typeof linkTasks>>>
+
+    export type LinkTasksMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Run the task linker now (section 27)
+ */
+export const useLinkTasks = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof linkTasks>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof linkTasks>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getLinkTasksMutationOptions(options), queryClient);
+    }
+
+export const getUndoTaskLinksUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/links/undo`
+}
+
+/**
+ * @summary Undo the links the task linker made on this task; it is then left alone
+ */
+export const undoTaskLinks = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
+
+  return customFetch<Task>(getUndoTaskLinksUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getUndoTaskLinksMutationKey = () => ['undoTaskLinks'] as const;
+
+export const getUndoTaskLinksMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoTaskLinks>>, TError,UndoTaskLinksMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof undoTaskLinks>>, TError,UndoTaskLinksMutationVariables, TContext> => {
+
+const mutationKey = getUndoTaskLinksMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof undoTaskLinks>>, UndoTaskLinksMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  undoTaskLinks(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UndoTaskLinksMutationResult = NonNullable<Awaited<ReturnType<typeof undoTaskLinks>>>
+
+    export type UndoTaskLinksMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type UndoTaskLinksMutationVariables = {id: number}
+
+    /**
+ * @summary Undo the links the task linker made on this task; it is then left alone
+ */
+export const useUndoTaskLinks = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoTaskLinks>>, TError,UndoTaskLinksMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof undoTaskLinks>>,
+        TError,
+        UndoTaskLinksMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUndoTaskLinksMutationOptions(options), queryClient);
+    }
+
+export const getGetTaskWorkPackUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/work-pack`
+}
+
+/**
+ * @summary The task's work pack, if it has one (section 27)
+ */
+export const getTaskWorkPack = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<WorkPackEnvelope> => {
+
+  return customFetch<WorkPackEnvelope>(getGetTaskWorkPackUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTaskWorkPackQueryKey = (id: number,) => {
+    return [
+    `/api/tasks/${id}/work-pack`
+    ] as const;
+    }
+
+
+export const getGetTaskWorkPackQueryOptions = <TData = Awaited<ReturnType<typeof getTaskWorkPack>>, TError = ErrorType<NotAuthorisedResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskWorkPack>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTaskWorkPackQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTaskWorkPack>>> = ({ signal }) => getTaskWorkPack(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTaskWorkPack>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTaskWorkPackQueryResult = NonNullable<Awaited<ReturnType<typeof getTaskWorkPack>>>
+export type GetTaskWorkPackQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetTaskWorkPack<TData = Awaited<ReturnType<typeof getTaskWorkPack>>, TError = ErrorType<NotAuthorisedResponse>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskWorkPack>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskWorkPack>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskWorkPack>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskWorkPack<TData = Awaited<ReturnType<typeof getTaskWorkPack>>, TError = ErrorType<NotAuthorisedResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskWorkPack>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskWorkPack>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskWorkPack>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskWorkPack<TData = Awaited<ReturnType<typeof getTaskWorkPack>>, TError = ErrorType<NotAuthorisedResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskWorkPack>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The task's work pack, if it has one (section 27)
+ */
+
+export function useGetTaskWorkPack<TData = Awaited<ReturnType<typeof getTaskWorkPack>>, TError = ErrorType<NotAuthorisedResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskWorkPack>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTaskWorkPackQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getBuildTaskWorkPackUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/work-pack`
+}
+
+/**
+ * @summary Build the work pack for this task, or build it again
+ */
+export const buildTaskWorkPack = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<WorkPack> => {
+
+  return customFetch<WorkPack>(getBuildTaskWorkPackUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getBuildTaskWorkPackMutationKey = () => ['buildTaskWorkPack'] as const;
+
+export const getBuildTaskWorkPackMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof buildTaskWorkPack>>, TError,BuildTaskWorkPackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof buildTaskWorkPack>>, TError,BuildTaskWorkPackMutationVariables, TContext> => {
+
+const mutationKey = getBuildTaskWorkPackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof buildTaskWorkPack>>, BuildTaskWorkPackMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  buildTaskWorkPack(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BuildTaskWorkPackMutationResult = NonNullable<Awaited<ReturnType<typeof buildTaskWorkPack>>>
+
+    export type BuildTaskWorkPackMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type BuildTaskWorkPackMutationVariables = {id: number}
+
+    /**
+ * @summary Build the work pack for this task, or build it again
+ */
+export const useBuildTaskWorkPack = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof buildTaskWorkPack>>, TError,BuildTaskWorkPackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof buildTaskWorkPack>>,
+        TError,
+        BuildTaskWorkPackMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBuildTaskWorkPackMutationOptions(options), queryClient);
+    }
+
+export const getMarkTaskWorkPackUsedUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/work-pack/used`
+}
+
+/**
+ * @summary The message was copied: the pack counts as used
+ */
+export const markTaskWorkPackUsed = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<WorkPack> => {
+
+  return customFetch<WorkPack>(getMarkTaskWorkPackUsedUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkTaskWorkPackUsedMutationKey = () => ['markTaskWorkPackUsed'] as const;
+
+export const getMarkTaskWorkPackUsedMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markTaskWorkPackUsed>>, TError,MarkTaskWorkPackUsedMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markTaskWorkPackUsed>>, TError,MarkTaskWorkPackUsedMutationVariables, TContext> => {
+
+const mutationKey = getMarkTaskWorkPackUsedMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markTaskWorkPackUsed>>, MarkTaskWorkPackUsedMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  markTaskWorkPackUsed(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkTaskWorkPackUsedMutationResult = NonNullable<Awaited<ReturnType<typeof markTaskWorkPackUsed>>>
+
+    export type MarkTaskWorkPackUsedMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type MarkTaskWorkPackUsedMutationVariables = {id: number}
+
+    /**
+ * @summary The message was copied: the pack counts as used
+ */
+export const useMarkTaskWorkPackUsed = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markTaskWorkPackUsed>>, TError,MarkTaskWorkPackUsedMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof markTaskWorkPackUsed>>,
+        TError,
+        MarkTaskWorkPackUsedMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkTaskWorkPackUsedMutationOptions(options), queryClient);
+    }
+
+export const getDismissTaskWorkPackUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/work-pack/dismiss`
+}
+
+/**
+ * @summary Not useful: take the pack off the task
+ */
+export const dismissTaskWorkPack = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<WorkPack> => {
+
+  return customFetch<WorkPack>(getDismissTaskWorkPackUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDismissTaskWorkPackMutationKey = () => ['dismissTaskWorkPack'] as const;
+
+export const getDismissTaskWorkPackMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissTaskWorkPack>>, TError,DismissTaskWorkPackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissTaskWorkPack>>, TError,DismissTaskWorkPackMutationVariables, TContext> => {
+
+const mutationKey = getDismissTaskWorkPackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissTaskWorkPack>>, DismissTaskWorkPackMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  dismissTaskWorkPack(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissTaskWorkPackMutationResult = NonNullable<Awaited<ReturnType<typeof dismissTaskWorkPack>>>
+
+    export type DismissTaskWorkPackMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type DismissTaskWorkPackMutationVariables = {id: number}
+
+    /**
+ * @summary Not useful: take the pack off the task
+ */
+export const useDismissTaskWorkPack = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissTaskWorkPack>>, TError,DismissTaskWorkPackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof dismissTaskWorkPack>>,
+        TError,
+        DismissTaskWorkPackMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDismissTaskWorkPackMutationOptions(options), queryClient);
+    }
+
+export const getSaveTaskWorkPackDraftUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/work-pack/gmail-draft`
+}
+
+/**
+ * @summary Save the pack message to Gmail as a draft; never sent
+ */
+export const saveTaskWorkPackDraft = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<WorkPack> => {
+
+  return customFetch<WorkPack>(getSaveTaskWorkPackDraftUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSaveTaskWorkPackDraftMutationKey = () => ['saveTaskWorkPackDraft'] as const;
+
+export const getSaveTaskWorkPackDraftMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveTaskWorkPackDraft>>, TError,SaveTaskWorkPackDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveTaskWorkPackDraft>>, TError,SaveTaskWorkPackDraftMutationVariables, TContext> => {
+
+const mutationKey = getSaveTaskWorkPackDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveTaskWorkPackDraft>>, SaveTaskWorkPackDraftMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  saveTaskWorkPackDraft(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveTaskWorkPackDraftMutationResult = NonNullable<Awaited<ReturnType<typeof saveTaskWorkPackDraft>>>
+
+    export type SaveTaskWorkPackDraftMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SaveTaskWorkPackDraftMutationVariables = {id: number}
+
+    /**
+ * @summary Save the pack message to Gmail as a draft; never sent
+ */
+export const useSaveTaskWorkPackDraft = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveTaskWorkPackDraft>>, TError,SaveTaskWorkPackDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveTaskWorkPackDraft>>,
+        TError,
+        SaveTaskWorkPackDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveTaskWorkPackDraftMutationOptions(options), queryClient);
+    }
 
 export const getApplyTaskStuckHintUrl = (id: number,) => {
 

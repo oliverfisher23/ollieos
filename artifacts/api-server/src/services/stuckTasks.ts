@@ -36,6 +36,8 @@ const RECHECK_DAYS = 7;
 const PER_PASS = 30;
 const BATCH = 10;
 const DAY = 86_400_000;
+/** An agent looking at a task is not Ollie touching it: the Backlog clear-out clock (updatedAt) stays as it was. */
+const KEEP_UPDATED_AT = sql`${tasksTable.updatedAt}`;
 
 export interface Signals {
   taskId: number;
@@ -274,14 +276,14 @@ export async function coachStuckTasks(now = new Date(), limit = PER_PASS): Promi
       // No longer stuck: the flag goes (a suggestion already taken is kept for the record).
       result.looked++;
       const taken = !!t.stuckHint?.appliedAt;
-      await db.update(tasksTable).set({ stuckCheckedAt: now, ...(t.stuckHint && !taken ? { stuckHint: null } : {}) }).where(eq(tasksTable.id, t.id));
+      await db.update(tasksTable).set({ stuckCheckedAt: now, updatedAt: KEEP_UPDATED_AT, ...(t.stuckHint && !taken ? { stuckHint: null } : {}) }).where(eq(tasksTable.id, t.id));
       if (t.stuckHint && !taken) result.cleared++;
     }
 
     const hidden = stuck.filter((t) => !visible.has(t.id));
     for (const t of hidden) {
       const hint: StuckHint = { signals: signalsLine(signals.get(t.id)!), wayOut: null, why: null, steps: [], repeatEvery: null, nextStep: null, appliedAt: null };
-      await db.update(tasksTable).set({ stuckHint: hint, stuckCheckedAt: now }).where(eq(tasksTable.id, t.id));
+      await db.update(tasksTable).set({ stuckHint: hint, stuckCheckedAt: now, updatedAt: KEEP_UPDATED_AT }).where(eq(tasksTable.id, t.id));
       result.looked++;
       result.stuck++;
     }
@@ -298,7 +300,7 @@ export async function coachStuckTasks(now = new Date(), limit = PER_PASS): Promi
       }
       for (const t of batch) {
         const hint = hints.get(t.id) ?? { signals: signalsLine(signals.get(t.id)!), wayOut: null, why: null, steps: [], repeatEvery: null, nextStep: null, appliedAt: null };
-        await db.update(tasksTable).set({ stuckHint: hint, stuckCheckedAt: now }).where(eq(tasksTable.id, t.id));
+        await db.update(tasksTable).set({ stuckHint: hint, stuckCheckedAt: now, updatedAt: KEEP_UPDATED_AT }).where(eq(tasksTable.id, t.id));
         result.looked++;
         result.stuck++;
         if (hint.wayOut) result.coached++;

@@ -245,6 +245,17 @@ export interface EntitySummary {
   confidential: boolean;
 }
 
+/**
+ * Section 27: the task's work pack status, when it has one worth showing
+ */
+export type TaskPack = typeof TaskPack[keyof typeof TaskPack] | null;
+
+
+export const TaskPack = {
+  ready_to_send: 'ready_to_send',
+  needs_work: 'needs_work',
+} as const;
+
 export type RepeatEvery = typeof RepeatEvery[keyof typeof RepeatEvery];
 
 
@@ -299,6 +310,19 @@ export interface TaskGoal {
   name: string;
   /** True when it comes from the task's project */
   inherited: boolean;
+}
+
+export interface NamedId {
+  id: number;
+  name: string;
+}
+
+export interface TaskLinkHint {
+  person: NamedId | null;
+  waitingOn: NamedId | null;
+  project: NamedId | null;
+  why: string;
+  at: string;
 }
 
 /**
@@ -429,10 +453,68 @@ export interface Task {
      * @nullable
      */
   looksDone?: string | null;
+  /** Section 27: the links the task linker made that still stand, with why. Null when none, or undone. */
+  linked?: TaskLinkHint | null;
+  /** Section 27: the task's work pack status, when it has one worth showing */
+  pack?: TaskPack;
   /** Section 26: why this Now or Backlog task looks stuck and the coach's way out. Null unless it shows (not taken, not put off in the last 30 days). */
   stuck?: StuckHint | null;
   /** Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog. */
   delegateHint?: DelegateHint | null;
+}
+
+export interface TaskLinkerResult {
+  looked: number;
+  linked: number;
+  people: number;
+  projects: number;
+  failed: boolean;
+}
+
+export type WorkPackStatus = typeof WorkPackStatus[keyof typeof WorkPackStatus];
+
+
+export const WorkPackStatus = {
+  ready_to_send: 'ready_to_send',
+  needs_work: 'needs_work',
+  nothing_found: 'nothing_found',
+} as const;
+
+export type WorkPackDraft = {
+  to: string;
+  subject: string;
+  body: string;
+} | null;
+
+export interface SourceChip {
+  ref: string;
+  type: string;
+  label: string;
+  /** @nullable */
+  path: string | null;
+  confidential: boolean;
+}
+
+export interface WorkPack {
+  taskId: number;
+  status: WorkPackStatus;
+  /** What OllieOS already holds for the task */
+  have: string;
+  next: string;
+  draft: WorkPackDraft;
+  outline: string[];
+  questions: string[];
+  sources: SourceChip[];
+  createdAt: string;
+  /** @nullable */
+  usedAt: string | null;
+  /** @nullable */
+  dismissedAt: string | null;
+  savedToGmail: boolean;
+}
+
+export interface WorkPackEnvelope {
+  pack: WorkPack | null;
 }
 
 export interface RepeatInput {
@@ -4814,15 +4896,6 @@ export interface AskInput {
   question: string;
   /** @nullable */
   parentId?: number | null;
-}
-
-export interface SourceChip {
-  ref: string;
-  type: string;
-  label: string;
-  /** @nullable */
-  path: string | null;
-  confidential: boolean;
 }
 
 export type AskBadgeTone = typeof AskBadgeTone[keyof typeof AskBadgeTone];
