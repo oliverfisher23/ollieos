@@ -262,7 +262,7 @@ async function linkedPlaybooks(projectIds: number[], orgIds: number[]): Promise<
 
 /* ---------- Writing the brief ---------- */
 
-function contextRefs(c: ContextOut): string[] {
+export function contextRefs(c: ContextOut): string[] {
   return [
     c.entity.ref,
     ...c.facts.map((x) => x.ref),

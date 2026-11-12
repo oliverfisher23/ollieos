@@ -11,6 +11,13 @@ export interface CalendarAttendee {
   organiser?: boolean;
 }
 
+/** One message in the conversation that shapes a meeting's agenda. */
+export interface AgendaTurn {
+  role: "ollie" | "ai";
+  text: string;
+  at: string;
+}
+
 /**
  * Today and the next 7 days, upserted by source_ref on each sweep so ids stay stable for briefs.
  * Future events no longer in the feed are removed; past events are kept for 30 days (build plan 29).
@@ -37,9 +44,12 @@ export const calendarEventsTable = pgTable(
     recurringEventId: text("recurring_event_id"),
     /**
      * Ollie's own agenda and notes for the meeting. Kept on the event, not the brief, so a meeting
-     * with no prep page has them too. Never handed to AI. Older notes may still be on the brief.
+     * with no prep page has them too. Only handed to AI when Ollie asks the agenda writer to shape
+     * it. Older notes may still be on the brief.
      */
     notes: text("notes"),
+    /** The conversation that shaped the agenda in notes: Ollie's thoughts and the agenda writer's replies */
+    agendaChat: jsonb("agenda_chat").$type<AgendaTurn[]>().notNull().default([]),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()

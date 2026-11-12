@@ -2263,6 +2263,48 @@ paths:
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
+  /meetings/{eventId}/agenda:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: shapeAgenda
+      tags: [preparation]
+      summary: Shape the meeting's agenda from Ollie's thoughts, starting from the agenda he sends
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgendaInput" }
+      responses:
+        "200":
+          description: The agenda, saved as the meeting's notes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgendaResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /meetings/{eventId}/agenda/chat:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    delete:
+      operationId: clearAgendaChat
+      tags: [preparation]
+      summary: Start the agenda conversation again (the agenda itself stays)
+      responses:
+        "204": { description: Cleared }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /briefs/next:
     get:
       operationId: getNextBrief
@@ -5627,7 +5669,7 @@ components:
 
     MeetingView:
       type: object
-      required: [id, title, startsAt, endsAt, platform, location, scope, companies, prep, attendees, notes]
+      required: [id, title, startsAt, endsAt, platform, location, scope, companies, prep, attendees, notes, agendaChat]
       properties:
         id: { type: integer }
         title: { type: string }
@@ -5658,6 +5700,31 @@ components:
                   name: { type: string }
                   slug: { type: string }
         notes: { type: [string, "null"], description: Ollie's agenda and notes }
+        agendaChat: { type: array, items: { $ref: "#/components/schemas/AgendaTurn" } }
+
+    AgendaTurn:
+      type: object
+      required: [role, text, at]
+      properties:
+        role: { type: string, enum: [ollie, ai] }
+        text: { type: string }
+        at: { type: string, format: date-time }
+
+    AgendaInput:
+      type: object
+      required: [message, agenda]
+      additionalProperties: false
+      properties:
+        message: { type: string, minLength: 1, maxLength: 4000, description: Ollie's thoughts }
+        agenda: { type: string, maxLength: 20000, description: The agenda as it stands in the box, edits included }
+
+    AgendaResult:
+      type: object
+      required: [agenda, previous, chat]
+      properties:
+        agenda: { type: string }
+        previous: { type: string, description: The agenda before this change, for Undo }
+        chat: { type: array, items: { $ref: "#/components/schemas/AgendaTurn" } }
 
     BriefNotesInput:
       type: object

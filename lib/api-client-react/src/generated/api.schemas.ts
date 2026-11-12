@@ -1281,6 +1281,20 @@ export type MeetingViewAttendeesItem = {
   person: MeetingViewAttendeesItemPerson;
 };
 
+export type AgendaTurnRole = typeof AgendaTurnRole[keyof typeof AgendaTurnRole];
+
+
+export const AgendaTurnRole = {
+  ollie: 'ollie',
+  ai: 'ai',
+} as const;
+
+export interface AgendaTurn {
+  role: AgendaTurnRole;
+  text: string;
+  at: string;
+}
+
 export interface MeetingView {
   id: number;
   title: string;
@@ -1300,6 +1314,28 @@ export interface MeetingView {
      * @nullable
      */
   notes: string | null;
+  agendaChat: AgendaTurn[];
+}
+
+export interface AgendaInput {
+  /**
+     * Ollie's thoughts
+     * @minLength 1
+     * @maxLength 4000
+     */
+  message: string;
+  /**
+     * The agenda as it stands in the box
+     * @maxLength 20000
+     */
+  agenda: string;
+}
+
+export interface AgendaResult {
+  agenda: string;
+  /** The agenda before this change */
+  previous: string;
+  chat: AgendaTurn[];
 }
 
 export interface BriefNotesInput {

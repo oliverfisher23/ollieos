@@ -6,6 +6,7 @@ import { allowForBrief, briefView, markBriefOpened, nextBriefEventId } from "../
 import { addPoint, POINT_CHARS } from "../services/talkingPoints";
 import { getDigest, listDigests } from "../services/digest";
 import { listMeetings, meetingView, updateMeetingNotes } from "../services/meetings";
+import { MAX_THOUGHTS, clearAgendaChat, shapeAgenda } from "../services/meetingAgenda";
 import { NotFoundError } from "../services/tasks";
 
 const router: IRouter = Router();
@@ -35,6 +36,23 @@ router.patch(
   "/meetings/:eventId",
   handle(async (req, res) => {
     res.json({ notes: await updateMeetingNotes(EventParams.parse(req.params).eventId, NotesBody.parse(req.body).notes) });
+  }),
+);
+
+// Ollie's thoughts into an agenda he can edit; the agenda he sends is the starting point.
+router.post(
+  "/meetings/:eventId/agenda",
+  handle(async (req, res) => {
+    const { eventId } = EventParams.parse(req.params);
+    const b = z.object({ message: z.string().min(1).max(MAX_THOUGHTS), agenda: z.string().max(20000) }).strict().parse(req.body ?? {});
+    res.json(await shapeAgenda(eventId, b));
+  }),
+);
+router.delete(
+  "/meetings/:eventId/agenda/chat",
+  handle(async (req, res) => {
+    await clearAgendaChat(EventParams.parse(req.params).eventId);
+    res.status(204).end();
   }),
 );
 

@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { AgendaTurn } from './agendaTurn';
 import type { MeetingScope } from './meetingScope';
 import type { MeetingViewAttendeesItem } from './meetingViewAttendeesItem';
 import type { MeetingViewPrep } from './meetingViewPrep';
@@ -28,4 +29,5 @@ export interface MeetingView {
      * @nullable
      */
   notes: string | null;
+  agendaChat: AgendaTurn[];
 }

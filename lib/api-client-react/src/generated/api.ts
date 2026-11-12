@@ -27,6 +27,8 @@ import type {
 import type {
   AccessRequest,
   AccessRequestList,
+  AgendaInput,
+  AgendaResult,
   AgentsView,
   AiAccessSummary,
   AiActivity,
@@ -10164,6 +10166,169 @@ export const useUpdateMeetingNotes = <TError = ErrorType<ErrorResponse | NotAuth
         TContext
       > => {
       return useMutation(getUpdateMeetingNotesMutationOptions(options), queryClient);
+    }
+
+export const getShapeAgendaUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/meetings/${eventId}/agenda`
+}
+
+/**
+ * @summary Shape the meeting's agenda from Ollie's thoughts, starting from the agenda he sends
+ */
+export const shapeAgenda = async (eventId: number,
+    agendaInput: AgendaInput, options?: Parameters<typeof customFetch>[1]): Promise<AgendaResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AgendaResult>(getShapeAgendaUrl(eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(agendaInput)
+  }
+);}
+
+
+
+
+
+export const getShapeAgendaMutationKey = () => ['shapeAgenda'] as const;
+
+export const getShapeAgendaMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof shapeAgenda>>, TError,ShapeAgendaMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof shapeAgenda>>, TError,ShapeAgendaMutationVariables, TContext> => {
+
+const mutationKey = getShapeAgendaMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof shapeAgenda>>, ShapeAgendaMutationVariables> = (props) => {
+          const {eventId,data} = props ?? {};
+
+          return  shapeAgenda(eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ShapeAgendaMutationResult = NonNullable<Awaited<ReturnType<typeof shapeAgenda>>>
+    export type ShapeAgendaMutationBody = BodyType<AgendaInput>
+    export type ShapeAgendaMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type ShapeAgendaMutationVariables = {eventId: number;data: BodyType<AgendaInput>}
+
+    /**
+ * @summary Shape the meeting's agenda from Ollie's thoughts, starting from the agenda he sends
+ */
+export const useShapeAgenda = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof shapeAgenda>>, TError,ShapeAgendaMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof shapeAgenda>>,
+        TError,
+        ShapeAgendaMutationVariables,
+        TContext
+      > => {
+      return useMutation(getShapeAgendaMutationOptions(options), queryClient);
+    }
+
+export const getClearAgendaChatUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/meetings/${eventId}/agenda/chat`
+}
+
+/**
+ * @summary Start the agenda conversation again (the agenda itself stays)
+ */
+export const clearAgendaChat = async (eventId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getClearAgendaChatUrl(eventId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getClearAgendaChatMutationKey = () => ['clearAgendaChat'] as const;
+
+export const getClearAgendaChatMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearAgendaChat>>, TError,ClearAgendaChatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof clearAgendaChat>>, TError,ClearAgendaChatMutationVariables, TContext> => {
+
+const mutationKey = getClearAgendaChatMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof clearAgendaChat>>, ClearAgendaChatMutationVariables> = (props) => {
+          const {eventId} = props ?? {};
+
+          return  clearAgendaChat(eventId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ClearAgendaChatMutationResult = NonNullable<Awaited<ReturnType<typeof clearAgendaChat>>>
+
+    export type ClearAgendaChatMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type ClearAgendaChatMutationVariables = {eventId: number}
+
+    /**
+ * @summary Start the agenda conversation again (the agenda itself stays)
+ */
+export const useClearAgendaChat = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof clearAgendaChat>>, TError,ClearAgendaChatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof clearAgendaChat>>,
+        TError,
+        ClearAgendaChatMutationVariables,
+        TContext
+      > => {
+      return useMutation(getClearAgendaChatMutationOptions(options), queryClient);
     }
 
 export const getGetNextBriefUrl = () => {

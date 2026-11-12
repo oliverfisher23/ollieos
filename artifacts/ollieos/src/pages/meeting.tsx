@@ -11,7 +11,7 @@ import {
 import { formatLong, formatTime } from '@workspace/shared';
 import { Avatar } from '@/components/bits';
 import { IconLeft } from '@/components/icons';
-import { MeetingNotes } from '@/components/meeting-notes';
+import { MeetingAgenda } from '@/components/meeting-agenda';
 import { ScopePill } from '@/components/research';
 import { PageProblem, PageSkeleton } from '@/components/knowledge/parts';
 import { isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
@@ -44,7 +44,6 @@ export default function MeetingPage({ eventId }: { eventId: string }) {
 }
 
 function Meeting({ m }: { m: MeetingView }) {
-  const qc = useQueryClient();
   const hasPrep = m.prep !== 'none';
   const unknown = m.attendees.filter((a) => !a.person).length;
   return (
@@ -85,12 +84,7 @@ function Meeting({ m }: { m: MeetingView }) {
         </section>
       </main>
 
-      <MeetingNotes
-        eventId={m.id}
-        initial={m.notes}
-        placeholder="What you want to cover, questions to ask, anything to capture."
-        onSaved={(notes) => qc.setQueryData(getGetMeetingQueryKey(m.id), (old: MeetingView | undefined) => (old ? { ...old, notes } : old))}
-      />
+      <MeetingAgenda eventId={m.id} />
     </>
   );
 }

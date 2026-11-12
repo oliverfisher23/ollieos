@@ -4755,7 +4755,12 @@ export const GetMeetingResponse = zod.object({
   "slug": zod.string()
 }).nullable().describe('Set when they are in People')
 })),
-  "notes": zod.string().nullable().describe('Ollie\'s agenda and notes')
+  "notes": zod.string().nullable().describe('Ollie\'s agenda and notes'),
+  "agendaChat": zod.array(zod.object({
+  "role": zod.enum(['ollie', 'ai']),
+  "text": zod.string(),
+  "at": zod.coerce.date()
+}))
 })
 
 
@@ -4781,6 +4786,45 @@ export const updateMeetingNotesResponseNotesMax = 20000;
 export const UpdateMeetingNotesResponse = zod.object({
   "notes": zod.string().max(updateMeetingNotesResponseNotesMax).nullable()
 })
+
+
+/**
+ * @summary Shape the meeting's agenda from Ollie's thoughts, starting from the agenda he sends
+ */
+export const ShapeAgendaParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const shapeAgendaBodyMessageMax = 4000;
+
+export const shapeAgendaBodyAgendaMax = 20000;
+
+
+
+export const ShapeAgendaBody = zod.object({
+  "message": zod.string().min(1).max(shapeAgendaBodyMessageMax).describe('Ollie\'s thoughts'),
+  "agenda": zod.string().max(shapeAgendaBodyAgendaMax).describe('The agenda as it stands in the box')
+})
+
+export const ShapeAgendaResponse = zod.object({
+  "agenda": zod.string(),
+  "previous": zod.string().describe('The agenda before this change'),
+  "chat": zod.array(zod.object({
+  "role": zod.enum(['ollie', 'ai']),
+  "text": zod.string(),
+  "at": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Start the agenda conversation again (the agenda itself stays)
+ */
+export const ClearAgendaChatParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const ClearAgendaChatResponse = zod.void()
 
 
 /**

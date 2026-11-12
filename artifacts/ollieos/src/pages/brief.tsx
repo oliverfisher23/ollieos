@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { BriefTalkingPoints } from '@/components/talking-points';
-import { MeetingNotes } from '@/components/meeting-notes';
+import { MeetingAgenda } from '@/components/meeting-agenda';
 import { Thumbs } from '@/components/evals';
 import { CommercialLines } from '@/components/client-pulse';
 import { Link } from 'wouter';
@@ -239,6 +239,8 @@ function Brief({ brief }: { brief: BriefView }) {
             </Panel>
           )}
 
+          <MeetingAgenda eventId={e.id} />
+
           {brief.followUpTaskId != null && (
             <p className="oo-soft" style={{ margin: 0, fontSize: 14 }} data-testid="text-brief-follow-up">
               A follow-up email was drafted from the meeting notes and saved to Gmail. <Link href={'/email?tab=drafts&id=' + brief.followUpTaskId} className="oo-link">Open it in Drafts</Link>
@@ -285,12 +287,6 @@ function Brief({ brief }: { brief: BriefView }) {
             </Panel>
           )}
 
-          <MeetingNotes
-            eventId={e.id}
-            initial={brief.notes}
-            placeholder="What you want to cover, and anything to capture. Granola notes are added automatically after the call."
-            onSaved={(notes) => qc.setQueryData(getGetBriefQueryKey(e.id), (old: BriefView | undefined) => (old ? { ...old, notes } : old))}
-          />
         </main>
 
         <aside style={{ flex: '1 1 300px', maxWidth: 380, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>

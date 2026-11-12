@@ -4,7 +4,7 @@
  * Granola notes. Ollie's view, so nothing is hidden. Prep pages are the briefs at /briefs/{id}.
  */
 import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
-import { calendarEventsTable, db, meetingBriefsTable, peopleTable, tasksTable, type CalendarEvent } from "@workspace/db";
+import { calendarEventsTable, db, meetingBriefsTable, peopleTable, tasksTable, type AgendaTurn, type CalendarEvent } from "@workspace/db";
 import { OPEN_STATUSES, addDays, londonDate, londonRange, todayLondon } from "@workspace/shared";
 import { eligible, loadMatchers, matchEvent } from "./briefs";
 import type { MeetingScope } from "./meetingScope";
@@ -156,9 +156,11 @@ export interface MeetingView {
   attendees: { name: string; email: string | null; person: { id: number; name: string; slug: string } | null }[];
   /** Ollie's agenda and notes */
   notes: string | null;
+  /** The conversation that shaped the agenda */
+  agendaChat: AgendaTurn[];
 }
 
-async function workEvent(eventId: number): Promise<CalendarEvent> {
+export async function workEvent(eventId: number): Promise<CalendarEvent> {
   const [event] = await db.select().from(calendarEventsTable).where(eq(calendarEventsTable.id, eventId));
   if (!event) throw new NotFoundError("That meeting is not on your calendar");
   if (event.personal) throw new NotFoundError("Personal events are not shown in Meetings");
@@ -194,6 +196,7 @@ export async function meetingView(eventId: number): Promise<MeetingView> {
     }),
     // Older notes may still be on the brief.
     notes: event.notes ?? brief?.notes ?? null,
+    agendaChat: event.agendaChat,
   };
 }
 
