@@ -2508,6 +2508,51 @@ paths:
         "409": { $ref: "#/components/responses/Error" }
         "502": { $ref: "#/components/responses/Error" }
 
+  /meetings/{eventId}/agenda/check:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: checkAgenda
+      tags: [preparation]
+      summary: Compare the meeting's Granola note with its agenda, marking each item covered, partly or not covered
+      responses:
+        "200":
+          description: The meeting, with the check
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeetingView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /meetings/{eventId}/agenda/check/items/{index}:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: index
+        in: path
+        required: true
+        schema: { type: integer }
+    put:
+      operationId: setLeftoverDropped
+      tags: [preparation]
+      summary: Drop an item that was not covered so it is not offered on the next agenda, or bring it back
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgendaItemDropInput" }
+      responses:
+        "204": { description: Saved }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /meetings/{eventId}/agenda/chat:
     parameters:
       - name: eventId
@@ -2520,6 +2565,26 @@ paths:
       summary: Start the agenda conversation again (the agenda itself stays)
       responses:
         "204": { description: Cleared }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /meetings/{eventId}/personal:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    put:
+      operationId: setMeetingPersonal
+      tags: [preparation]
+      summary: Ollie says an event is personal or not; stands through calendar checks and carries to its series
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MeetingPersonalInput" }
+      responses:
+        "204": { description: Saved }
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
@@ -5790,13 +5855,14 @@ components:
 
     BriefAttendeePerson:
       type: object
-      required: [id, slug, name, role, organisation, confidential, lastContactAt, facts, cadence, decidesOn]
+      required: [id, slug, name, role, organisation, organisationSlug, confidential, lastContactAt, facts, cadence, decidesOn]
       properties:
         id: { type: integer }
         slug: { type: string }
         name: { type: string }
         role: { type: [string, "null"] }
         organisation: { type: [string, "null"] }
+        organisationSlug: { type: [string, "null"], description: For the link to the organisation's page }
         confidential: { type: boolean }
         lastContactAt: { type: [string, "null"], format: date-time }
         facts:
@@ -5840,7 +5906,7 @@ components:
 
     BriefAttendee:
       type: object
-      required: [name, email, response, organiser, person]
+      required: [name, email, response, organiser, person, suggestedOrganisation]
       properties:
         name: { type: string }
         email: { type: [string, "null"] }
@@ -5851,6 +5917,26 @@ components:
           oneOf:
             - $ref: "#/components/schemas/BriefAttendeePerson"
             - type: "null"
+        suggestedOrganisation:
+          description: Not in Contacts yet, the organisation they probably belong to from their email domain; null for personal addresses
+          oneOf:
+            - $ref: "#/components/schemas/OrgSuggestion"
+            - type: "null"
+
+    OrgSuggestion:
+      type: object
+      required: [existing, newName, internal]
+      properties:
+        existing:
+          type: [object, "null"]
+          description: An organisation already in Contacts
+          required: [id, name, slug]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            slug: { type: string }
+        newName: { type: [string, "null"], description: When none fits, a name for a new one from the domain }
+        internal: { type: boolean, description: The domain is Ollie's own company's }
 
     BriefPromise:
       type: object
@@ -6152,7 +6238,7 @@ components:
 
     MeetingRow:
       type: object
-      required: [id, title, startsAt, endsAt, day, platform, location, attendees, scope, companies, prep, promises, waiting, granolaSnippet]
+      required: [id, title, startsAt, endsAt, day, platform, location, attendees, scope, companies, prep, promises, waiting, granolaSnippet, hasAgenda]
       properties:
         id: { type: integer }
         title: { type: string }
@@ -6178,6 +6264,7 @@ components:
         promises: { type: integer, description: Open promises to people on the meeting }
         waiting: { type: integer, description: Tasks waiting on people on the meeting }
         granolaSnippet: { type: [string, "null"] }
+        hasAgenda: { type: boolean, description: Ollie has written an agenda or notes for it }
 
     MeetingsList:
       type: object
@@ -6189,7 +6276,7 @@ components:
 
     MeetingView:
       type: object
-      required: [id, title, startsAt, endsAt, platform, location, scope, companies, prep, attendees, notes, agendaChat, granola, granolaCheck]
+      required: [id, title, startsAt, endsAt, platform, location, scope, companies, prep, attendees, notes, agendaChat, granola, granolaCheck, agendaCheck, leftovers]
       properties:
         id: { type: integer }
         title: { type: string }
@@ -6207,18 +6294,28 @@ components:
           type: array
           items:
             type: object
-            required: [name, email, person]
+            required: [name, email, person, suggestedOrganisation]
             properties:
               name: { type: string }
               email: { type: [string, "null"] }
               person:
                 type: [object, "null"]
-                description: Set when they are in People
-                required: [id, name, slug]
+                description: Set when they are in Contacts
+                required: [id, name, slug, organisation]
                 properties:
                   id: { type: integer }
                   name: { type: string }
                   slug: { type: string }
+                  organisation:
+                    type: [object, "null"]
+                    required: [name, slug]
+                    properties:
+                      name: { type: string }
+                      slug: { type: string }
+              suggestedOrganisation:
+                oneOf:
+                  - $ref: "#/components/schemas/OrgSuggestion"
+                  - type: "null"
         notes: { type: [string, "null"], description: Ollie's agenda and notes }
         agendaChat: { type: array, items: { $ref: "#/components/schemas/AgendaTurn" } }
         granola:
@@ -6240,6 +6337,23 @@ components:
                   title: { type: string }
                   status: { type: string }
         granolaCheck: { type: boolean, description: True when OllieOS reads Granola itself, so a check can fetch the note now }
+        agendaCheck:
+          description: How the meeting went against the agenda, once its Granola note has been compared with it
+          oneOf:
+            - $ref: "#/components/schemas/AgendaCheck"
+            - type: "null"
+        leftovers:
+          description: What was not covered at the last meeting like this one, offered for this agenda
+          oneOf:
+            - $ref: "#/components/schemas/AgendaLeftovers"
+            - type: "null"
+
+    MeetingPersonalInput:
+      type: object
+      required: [personal]
+      additionalProperties: false
+      properties:
+        personal: { type: boolean }
 
     GranolaLinkInput:
       type: object
@@ -6254,6 +6368,53 @@ components:
       additionalProperties: false
       properties:
         related: { type: boolean }
+
+    AgendaItemStatus:
+      type: string
+      enum: [covered, partly, not_covered]
+
+    AgendaCheck:
+      type: object
+      required: [at, stale, items]
+      properties:
+        at: { type: string, format: date-time }
+        stale: { type: boolean, description: The agenda or the note changed since the check }
+        items:
+          type: array
+          items:
+            type: object
+            required: [index, title, status, note, dropped]
+            properties:
+              index: { type: integer }
+              title: { type: string }
+              status: { $ref: "#/components/schemas/AgendaItemStatus" }
+              note: { type: string }
+              dropped: { type: boolean, description: Ollie dropped it, so it is not offered on the next agenda }
+
+    AgendaLeftovers:
+      type: object
+      required: [eventId, title, startsAt, items]
+      properties:
+        eventId: { type: integer, description: The earlier meeting they are left over from }
+        title: { type: string }
+        startsAt: { type: string, format: date-time }
+        items:
+          type: array
+          items:
+            type: object
+            required: [index, title, status, note]
+            properties:
+              index: { type: integer }
+              title: { type: string }
+              status: { $ref: "#/components/schemas/AgendaItemStatus" }
+              note: { type: string }
+
+    AgendaItemDropInput:
+      type: object
+      required: [dropped]
+      additionalProperties: false
+      properties:
+        dropped: { type: boolean }
 
     AgendaTurn:
       type: object

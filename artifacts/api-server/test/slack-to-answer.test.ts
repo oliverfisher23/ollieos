@@ -8,7 +8,7 @@ import { auditEventsTable, db, peopleTable, slackToAnswerTable, tasksTable } fro
 import type { SlackRead } from "../src/services/connectors/slack";
 import { cleanReply, type SortedUnit } from "../src/services/connectors/sorter";
 import type { WorkUnit } from "../src/services/connectors/messages";
-import { oneWorkingDayBefore, slackRepliesOverdue } from "../src/services/slackToAnswer";
+import { isAcknowledgement, oneWorkingDayBefore, slackRepliesOverdue } from "../src/services/slackToAnswer";
 import { api, useServer } from "./harness";
 import { person } from "./helpers";
 
@@ -73,7 +73,7 @@ function unit(conv: string, kind: "im" | "mpim" | "channel", msgs: { at: Date; f
   };
 }
 
-const reply = (needs: "reply" | "info" | "none", ask: string): SortedUnit => ({ summary: "", project: "", items: [], reply: { needs, ask } });
+const reply = (needs: "reply" | "info" | "done" | "none", ask: string): SortedUnit => ({ summary: "", project: "", items: [], reply: { needs, ask } });
 
 async function check(read: Partial<SlackRead>, sorted: SortedUnit[] = []) {
   nextSlack = { ...emptyRead(), ...read };
@@ -202,6 +202,23 @@ describe("Slack to answer", () => {
     expect(l.items).toHaveLength(0);
   });
 
+  it("closes a conversation when the newest message needs nothing from Ollie", async () => {
+    // Asked, then thanked: the thanks closes it, by the text alone.
+    await check({ units: [unit("D6", "im", [{ at: new Date(Date.now() - 3 * HOUR) }])] }, [reply("reply", "Wants numbers")]);
+    expect((await list()).items).toHaveLength(1);
+    await check({ units: [unit("D6", "im", [{ at: new Date(Date.now() - 2 * HOUR), text: "perfect thank you!" }])] }, [reply("info", "Says thanks")]);
+    expect((await list()).items).toHaveLength(0);
+
+    // The AI reads a group DM as needing nothing: not listed, though the words are not a plain thanks.
+    await check({ units: [unit("G1", "mpim", [{ at: new Date(Date.now() - HOUR), text: "all working on my side now, legend" }], "Zoe, Konrad")] }, [reply("done", "")]);
+    expect((await list()).items).toHaveLength(0);
+    expect(await db.select().from(slackToAnswerTable).where(eq(slackToAnswerTable.conversationId, "G1"))).toHaveLength(0);
+
+    // A row kept before this change, an acknowledgement waiting as not read by AI, is left out.
+    await db.insert(slackToAnswerTable).values({ conversationId: "DOLDACK", kind: "im", place: "Saish", text: "working now thanks Ollie", url: "u", messageTs: "9", at: new Date(Date.now() - HOUR), needs: "unknown" });
+    expect((await list()).items.map((i) => i.place)).not.toContain("Saish");
+  });
+
   it("counts messages needing a reply that have waited over a working day, for the digest and Home", async () => {
     const now = new Date();
     const old = new Date(oneWorkingDayBefore(now).getTime() - HOUR);
@@ -240,6 +257,18 @@ describe("the sorter's reply reading", () => {
     expect(cleanReply("reply", "x", u(true))).toEqual({ needs: "none", ask: "" });
     expect(cleanReply("info", "x", u(false, "email"))).toEqual({ needs: "none", ask: "" });
     expect(cleanReply("maybe", "x", u(false))).toEqual({ needs: "none", ask: "" });
+    expect(cleanReply(undefined, undefined, u(false))).toEqual({ needs: "none", ask: "" });
+    // "none" for someone else's Slack message means it needs nothing from Ollie.
+    expect(cleanReply("none", "", u(false))).toEqual({ needs: "done", ask: "" });
+    expect(cleanReply("none", "", u(true))).toEqual({ needs: "none", ask: "" });
+  });
+  it("knows a plain thanks or acknowledgement from a message that asks or tells something", () => {
+    for (const t of ["perfect thank you!", "working now thanks Ollie", "👍", ":+1:", "Thanks Zoe 🙏", "ok", "sounds good, thanks!", "<@U123> thanks!", "Great, thank you so much Ollie!!"]) {
+      expect(isAcknowledgement(t), t).toBe(true);
+    }
+    for (const t of ["Thanks! One more thing?", "thanks, the client said no", "great news, we signed the contract", "ok I'll send it tomorrow", "Thanks, could you also check the invoice"]) {
+      expect(isAcknowledgement(t), t).toBe(false);
+    }
   });
   it("looks back one working day, skipping the weekend", () => {
     // Monday 16th November 2026, 10:00 London, looks back to Friday 13th November.

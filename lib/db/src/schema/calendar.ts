@@ -18,6 +18,22 @@ export interface AgendaTurn {
   at: string;
 }
 
+/** How the meeting went against Ollie's agenda, worked out from its Granola note. */
+export interface AgendaCheck {
+  /** The note and the agenda (a hash of it) the check was made from, so a change to either shows as out of date */
+  granolaRef: string;
+  agendaHash: string;
+  at: string;
+  items: {
+    title: string;
+    status: "covered" | "partly" | "not_covered";
+    /** One line on what was said or decided, or what was left */
+    note: string;
+    /** Ollie dropped it, so it is not offered on the next meeting's agenda */
+    dropped?: boolean;
+  }[];
+}
+
 /**
  * Today and the next 7 days, upserted by source_ref on each sweep so ids stay stable for briefs.
  * Future events no longer in the feed are removed; past events are kept for 30 days (build plan 29).
@@ -37,6 +53,8 @@ export const calendarEventsTable = pgTable(
     /** Teams, Zoom, Meet or In person; from the sweep, or worked out from the location */
     platform: text("platform"),
     personal: boolean("personal").notNull().default(false),
+    /** Ollie said whether this is personal, so the calendar check leaves `personal` alone; carries to the rest of a repeating series */
+    personalSetByOllie: boolean("personal_set_by_ollie").notNull().default(false),
     personIds: integer("person_ids").array().notNull().default(sql`'{}'::integer[]`),
     projectId: integer("project_id").references(() => projectsTable.id),
     location: text("location"),
@@ -60,6 +78,8 @@ export const calendarEventsTable = pgTable(
     /** Inbox tasks made from the note's actions */
     granolaTaskIds: integer("granola_task_ids").array().notNull().default(sql`'{}'::integer[]`),
     granolaAttachedAt: timestamp("granola_attached_at", { withTimezone: true }),
+    /** Each agenda item marked covered, partly or not covered from the Granola note; null until checked */
+    agendaCheck: jsonb("agenda_check").$type<AgendaCheck | null>(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()
@@ -67,6 +87,18 @@ export const calendarEventsTable = pgTable(
   },
   (t) => [index("calendar_events_starts_idx").on(t.startsAt)],
 );
+
+/**
+ * Ollie's agenda for a meeting that left the calendar window before it started (moved further out,
+ * or cancelled). Given back when an event with the same source_ref returns; cleared after 90 days.
+ */
+export const parkedMeetingNotesTable = pgTable("parked_meeting_notes", {
+  sourceRef: text("source_ref").primaryKey(),
+  title: text("title").notNull(),
+  notes: text("notes"),
+  agendaChat: jsonb("agenda_chat").$type<AgendaTurn[]>().notNull().default([]),
+  parkedAt: timestamp("parked_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const sweepRunsTable = pgTable(
   "sweep_runs",

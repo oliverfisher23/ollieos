@@ -85,11 +85,11 @@ function DigestBody({ d }: { d: Digest }) {
                 <span className="oo-num oo-muted" style={{ flex: 'none', width: 48 }}>{formatTime(e.startsAt)}</span>
                 <span>
                   {e.title}
-                  {e.hasBrief && (
-                    <>
-                      {' '}
-                      <Link href={'/briefs/' + e.eventId} style={{ fontSize: 13, color: 'var(--oo-ink)', textDecoration: 'underline', textUnderlineOffset: 2 }} data-testid={'link-digest-brief-' + e.eventId}>Brief</Link>
-                    </>
+                  {' '}
+                  {e.hasBrief ? (
+                    <Link href={'/briefs/' + e.eventId} style={{ fontSize: 13, color: 'var(--oo-ink)', textDecoration: 'underline', textUnderlineOffset: 2 }} data-testid={'link-digest-brief-' + e.eventId}>Brief</Link>
+                  ) : (
+                    <Link href={'/meetings/' + e.eventId} style={{ fontSize: 13, color: 'var(--oo-ink-muted)', textDecoration: 'underline', textUnderlineOffset: 2 }} data-testid={'link-digest-meeting-' + e.eventId}>Agenda</Link>
                   )}
                 </span>
               </div>

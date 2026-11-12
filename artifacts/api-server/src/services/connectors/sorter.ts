@@ -58,7 +58,8 @@ export interface SortedUnit {
   knowledge?: SortedClaim[];
   /**
    * Part P (section 19): for a Slack exchange whose newest message is not from Ollie, whether it
-   * needs his reply or is for information, with one line on what is wanted. "none" otherwise.
+   * needs his reply, is for information, or needs nothing from him ("done": thanks, "ok", a sign-off),
+   * with one line on what is wanted. "none" otherwise, or when the AI gave no reading.
    */
   reply?: SortedReply;
   /** Part U: what the exchange shows about its open items, as the AI gave it; cleaned against the items before use */
@@ -135,7 +136,7 @@ export function cleanIdeas(raw: unknown, u: WorkUnit): SpottedIdeaOut[] {
 }
 
 export interface SortedReply {
-  needs: "reply" | "info" | "none";
+  needs: "reply" | "info" | "done" | "none";
   ask: string;
 }
 
@@ -250,7 +251,7 @@ function knowledgeRules(known: KnownNames): string[] {
 function replyRules(): string[] {
   return [
     `Slack to answer:`,
-    `- "reply_needed" is only for exchanges with source="slack" whose newest message is NOT from Ollie. "reply" when it asks Ollie a question, asks him to do, decide, confirm, send, approve or book something, or plainly expects his answer. "info" when it is for information: updates, thanks, confirmations, announcements, or nothing asked of him. For email exchanges, and Slack exchanges whose newest message is from Ollie, it is "none".`,
+    `- "reply_needed" is only for exchanges with source="slack" whose newest message is NOT from Ollie. "reply" when it asks Ollie a question, asks him to do, decide, confirm, send, approve or book something, or plainly expects his answer. "info" when it tells him something worth knowing and asks nothing: an update, news, a decision, an announcement. "none" when it needs nothing from him at all: thanks, an acknowledgement or sign-off that closes the exchange ("perfect thank you!", "working now, thanks", "ok", "will do", an emoji), or anything that would read oddly to answer. For email exchanges, and Slack exchanges whose newest message is from Ollie, it is also "none".`,
     `- "reply_ask" is under 12 words: when a reply is needed, what the sender wants ("Wants the pilot numbers by Friday"); when it is for information, what it is ("Update on the Ely rollout"). Use first names and refer to Ollie as "you". "" when "reply_needed" is "none".`,
   ];
 }
@@ -379,7 +380,7 @@ async function sortBatch(units: WorkUnit[], ctx: SortContext, offset: number): P
 }
 
 /** Part X: what each exchange was and what was found, so a correction can be kept as a test case. */
-async function keepInputs(units: WorkUnit[], sorted: SortedUnit[], ctx: SortContext) {
+export async function keepInputs(units: WorkUnit[], sorted: SortedUnit[], ctx: { agent: AgentKey; me: string }) {
   try {
     await db.insert(aiInputsTable).values(
       units.map((u, i) => ({
@@ -427,10 +428,16 @@ export function cleanClaims(claims: SortedClaim[], u: WorkUnit, known: KnownName
     }));
 }
 
-/** Part P: a reply reading only for a Slack exchange whose newest message is from someone else. */
+/**
+ * Part P: a reply reading only for a Slack exchange whose newest message is from someone else.
+ * "none" from the AI for such an exchange means it needs nothing from Ollie ("done"); no answer or
+ * anything else stays "none", which To answer treats as not read by AI.
+ */
 export function cleanReply(needed: unknown, ask: unknown, u: WorkUnit): SortedReply {
   const last = u.messages[u.messages.length - 1];
-  if (u.source !== "slack" || !last || last.fromMe || (needed !== "reply" && needed !== "info")) return { needs: "none", ask: "" };
+  if (u.source !== "slack" || !last || last.fromMe) return { needs: "none", ask: "" };
+  if (needed === "none") return { needs: "done", ask: "" };
+  if (needed !== "reply" && needed !== "info") return { needs: "none", ask: "" };
   return { needs: needed, ask: String(ask ?? "").replace(/\s+/g, " ").trim().slice(0, 140) };
 }
 

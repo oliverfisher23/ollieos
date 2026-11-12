@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   clearAgendaChat,
   getGetMeetingQueryKey,
+  setLeftoverDropped,
   shapeAgenda,
   updateMeetingNotes,
   useGetMeeting,
@@ -11,7 +12,9 @@ import {
 } from '@workspace/api-client-react';
 import { errorMessage, notify } from '@/lib/notify';
 import { Skel } from '@/components/bits';
-import { AgendaEditorBox, replaceAgenda, useAgendaEditor } from '@/components/rich-agenda';
+import { AgendaEditorBox, appendAgendaItem, replaceAgenda, useAgendaEditor } from '@/components/rich-agenda';
+import { formatDayMonth } from '@workspace/shared';
+import { AddIdea, type AgendaHandle } from '@/components/agenda-ideas';
 
 const finePointer = () => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: fine)').matches;
 
@@ -22,7 +25,9 @@ const CARD = { background: 'var(--oo-panel)', borderRadius: 'var(--oo-r-panel)',
  * rewritten from them and stays his to edit. The next message starts from his edited version.
  * Used on the prep page and on a meeting with no prep page, because the agenda lives on the meeting.
  */
-export function MeetingAgenda({ eventId }: { eventId: number }) {
+const plain = (t: string) => t.toLowerCase().replace(/[*_`#>\[\]()]/g, '').replace(/\s+/g, ' ').trim();
+
+export function MeetingAgenda({ eventId, ideas }: { eventId: number; ideas?: (agenda: AgendaHandle) => ReactNode }) {
   const q = useGetMeeting(eventId, { query: { queryKey: getGetMeetingQueryKey(eventId) } });
   if (q.isLoading) return <section style={{ ...CARD, padding: '26px 30px' }}><Skel h={180} /></section>;
   if (!q.data) {
@@ -32,10 +37,10 @@ export function MeetingAgenda({ eventId }: { eventId: number }) {
       </section>
     );
   }
-  return <Agenda key={eventId} m={q.data} />;
+  return <Agenda key={eventId} m={q.data} ideas={ideas} />;
 }
 
-function Agenda({ m }: { m: MeetingView }) {
+function Agenda({ m, ideas }: { m: MeetingView; ideas?: (agenda: AgendaHandle) => ReactNode }) {
   const qc = useQueryClient();
   const key = getGetMeetingQueryKey(m.id);
   const [text, setText] = useState(m.notes ?? '');
@@ -46,6 +51,7 @@ function Agenda({ m }: { m: MeetingView }) {
   const [busy, setBusy] = useState(false);
   const [previous, setPrevious] = useState<string | null>(null);
   const log = useRef<HTMLDivElement>(null);
+  const [droppedLeft, setDroppedLeft] = useState<number[]>([]);
   const editor = useAgendaEditor({ initial: m.notes ?? '', placeholder: 'Your agenda appears here. Edit it freely, or write your own.', onChange: setText });
 
   useEffect(() => {
@@ -72,6 +78,34 @@ function Agenda({ m }: { m: MeetingView }) {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, busy, m.id]);
+
+  // Leaving the page, or closing the tab, before the pause is up still saves what was typed.
+  const latest = useRef({ text, busy });
+  latest.current = { text, busy };
+  useEffect(() => {
+    const flush = () => {
+      const { text: t, busy: b } = latest.current;
+      if (b || t === saved.current) return;
+      const before = saved.current;
+      saved.current = t;
+      updateMeetingNotes(m.id, { notes: t.trim() ? t : null }, { keepalive: true })
+        .then((r) => remember({ notes: r.notes }))
+        .catch(() => {
+          saved.current = before;
+        });
+    };
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [m.id]);
 
   useEffect(() => {
     log.current?.scrollTo({ top: log.current.scrollHeight });
@@ -125,10 +159,30 @@ function Agenda({ m }: { m: MeetingView }) {
     setPrevious(null);
   };
 
+  const handle: AgendaHandle = {
+    busy,
+    add: (item) => {
+      if (!busy) appendAgendaItem(editor, item.trim());
+    },
+    has: (item) => plain(text).includes(plain(item)),
+  };
+  const extra = ideas?.(handle);
+  const left = (m.leftovers?.items ?? []).filter((i) => !droppedLeft.includes(i.index));
+  const dropLeft = async (index: number) => {
+    if (!m.leftovers) return;
+    setDroppedLeft((xs) => [...xs, index]);
+    try {
+      await setLeftoverDropped(m.leftovers.eventId, index, { dropped: true });
+    } catch (err) {
+      setDroppedLeft((xs) => xs.filter((x) => x !== index));
+      notify('That did not save', errorMessage(err));
+    }
+  };
+
   return (
     <section aria-labelledby="agenda-h" style={{ ...CARD, padding: '26px 30px', display: 'flex', flexDirection: 'column', gap: 16 }} data-testid="section-agenda">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-        <h2 id="agenda-h" className="oo-h2">Your agenda</h2>
+        <h2 id="agenda-h" className="oo-h2">Agenda</h2>
         <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span role="status" className="oo-muted" style={{ fontSize: 12 }} data-testid="text-notes-state">
             {busy ? 'Shaping…' : state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved' : state === 'error' ? 'Not saved' : ''}
@@ -136,6 +190,33 @@ function Agenda({ m }: { m: MeetingView }) {
           {chat.length > 0 && <button type="button" className="oo-mini" onClick={startAgain} disabled={busy} data-testid="button-agenda-start-again">Start again</button>}
         </span>
       </div>
+
+      {(left.length > 0 || extra) && (
+        <div className="oo-agenda-ideas" data-testid="section-agenda-ideas">
+          {left.length > 0 && m.leftovers && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="list-agenda-leftovers">
+              <span className="oo-field-label">
+                Not covered last time ({formatDayMonth(m.leftovers.startsAt)})
+              </span>
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {left.map((it) => (
+                  <li key={it.index} className="oo-idea-row" data-testid={'item-leftover-' + it.index}>
+                    <span style={{ flex: '1 1 220px', lineHeight: 1.5, minWidth: 0 }}>
+                      {it.title}
+                      {it.note && <span className="oo-muted"> · {it.note}</span>}
+                    </span>
+                    <span style={{ display: 'flex', gap: 4 }}>
+                      <AddIdea agenda={handle} text={it.title} testId={'leftover-' + it.index} />
+                      <button type="button" className="oo-mini" onClick={() => dropLeft(it.index)} data-testid={'button-leftover-drop-' + it.index}>Drop</button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {extra}
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'stretch' }}>
         <div style={{ flex: '1 1 280px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
