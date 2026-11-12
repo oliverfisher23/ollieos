@@ -8,6 +8,7 @@ import { getDigest, listDigests } from "../services/digest";
 import { listMeetings, meetingView, setMeetingPersonal, updateMeetingNotes } from "../services/meetings";
 import { MAX_THOUGHTS, clearAgendaChat, shapeAgenda } from "../services/meetingAgenda";
 import { linkGranolaNote } from "../services/connectors";
+import { checkAgenda, setLeftoverDropped } from "../services/agendaCheck";
 import { setThreadVerdict } from "../services/threadMatch";
 import { NotFoundError } from "../services/tasks";
 
@@ -48,6 +49,24 @@ router.post(
     const { eventId } = EventParams.parse(req.params);
     const b = z.object({ message: z.string().min(1).max(MAX_THOUGHTS), agenda: z.string().max(20000) }).strict().parse(req.body ?? {});
     res.json(await shapeAgenda(eventId, b));
+  }),
+);
+// Close the loop: compare the Granola note with the agenda (again), and drop or bring back a left-over item.
+router.post(
+  "/meetings/:eventId/agenda/check",
+  handle(async (req, res) => {
+    const { eventId } = EventParams.parse(req.params);
+    await checkAgenda(eventId);
+    res.json(await meetingView(eventId));
+  }),
+);
+router.put(
+  "/meetings/:eventId/agenda/check/items/:index",
+  handle(async (req, res) => {
+    const { eventId, index } = z.object({ eventId: z.coerce.number().int().positive(), index: z.coerce.number().int().min(0) }).parse(req.params);
+    const b = z.object({ dropped: z.boolean() }).strict().parse(req.body ?? {});
+    await setLeftoverDropped(eventId, index, b.dropped);
+    res.status(204).end();
   }),
 );
 router.delete(
