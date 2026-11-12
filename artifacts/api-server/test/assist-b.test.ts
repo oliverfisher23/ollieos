@@ -172,3 +172,58 @@ describe("Prep page", () => {
     expect(v).toMatchObject({ notMuch: true, agenda: null, earlier: [], threads: [], tasks: [], waitingOn: [] });
   });
 });
+
+describe("Meeting page without a brief", () => {
+  it("opens any work meeting, keeps Ollie's agenda, and moves to a brief once someone is in People", async () => {
+    // Ollie's own address makes ourco.test his company, so the colleague below is internal.
+    const me = await person("Ollie Self");
+    await db.update(peopleTable).set({ isSelf: true, email: "ollie@ourco.test" }).where(eq(peopleTable.id, me.id));
+    const ev = await event("np1", at(1, "11:00"), { title: "Weekly huddle", attendees: [{ name: "andy.dillow@ourco.test", email: "andy.dillow@ourco.test" }] });
+
+    const v = (await api(`meetings/${ev.id}`)).body;
+    expect(v).toMatchObject({ id: ev.id, title: "Weekly huddle", prep: "none", notes: null });
+    expect(v.attendees).toEqual([{ name: "andy.dillow@ourco.test", email: "andy.dillow@ourco.test", person: null }]);
+
+    const saved = await api(`meetings/${ev.id}`, { method: "PATCH", body: { notes: "1. Hiring plan\n2. Budget" } });
+    expect(saved.status).toBe(200);
+    expect(saved.body.notes).toBe("1. Hiring plan\n2. Budget");
+    expect((await api(`meetings/${ev.id}`)).body.notes).toBe("1. Hiring plan\n2. Budget");
+    expect((await api("meetings")).body.upcoming.find((r: { id: number }) => r.id === ev.id).prep).toBe("none");
+
+    // Adding the attendee to People gives the meeting a brief, and the agenda goes with it.
+    const p = await api("people", { method: "POST", body: { name: "Andy Dillow", email: "andy.dillow@ourco.test" } });
+    expect(p.status).toBe(201);
+    const after = (await api(`meetings/${ev.id}`)).body;
+    expect(after.prep).toBe("not_written");
+    expect(after.attendees[0].person).toMatchObject({ id: p.body.id, name: "Andy Dillow" });
+    expect((await api(`briefs/${ev.id}`)).body.notes).toBe("1. Hiring plan\n2. Budget");
+
+    // Clearing the notes from the prep page clears them everywhere.
+    await api(`briefs/${ev.id}`, { method: "PATCH", body: { notes: "  " } });
+    expect((await api(`meetings/${ev.id}`)).body.notes).toBeNull();
+  });
+
+  it("notes written on the brief before they moved still show, and move to the meeting when edited", async () => {
+    await sam();
+    const ev = await event("np2", at(1, "12:00"), { attendees: [SAM] });
+    await api(`briefs/${ev.id}`);
+    await db.update(meetingBriefsTable).set({ notes: "Older note" }).where(eq(meetingBriefsTable.calendarEventId, ev.id));
+    expect((await api(`briefs/${ev.id}`)).body.notes).toBe("Older note");
+    expect((await api(`meetings/${ev.id}`)).body.notes).toBe("Older note");
+
+    await api(`briefs/${ev.id}`, { method: "PATCH", body: { notes: "Newer note" } });
+    const [b] = await db.select().from(meetingBriefsTable).where(eq(meetingBriefsTable.calendarEventId, ev.id));
+    const [e] = await db.select().from(calendarEventsTable).where(eq(calendarEventsTable.id, ev.id));
+    expect(b.notes).toBeNull();
+    expect(e.notes).toBe("Newer note");
+    expect((await api(`briefs/${ev.id}`)).body.notes).toBe("Newer note");
+  });
+
+  it("personal events and missing meetings answer 404, and Worth a look still has its own route", async () => {
+    const personal = await event("np3", at(1, "13:00"), { personal: true });
+    expect((await api(`meetings/${personal.id}`)).status).toBe(404);
+    expect((await api(`meetings/${personal.id}`, { method: "PATCH", body: { notes: "x" } })).status).toBe(404);
+    expect((await api("meetings/999999")).status).toBe(404);
+    expect((await api("meetings/worth-a-look")).status).toBe(200);
+  });
+});

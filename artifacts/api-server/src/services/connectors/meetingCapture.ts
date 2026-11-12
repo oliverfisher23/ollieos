@@ -8,9 +8,8 @@ import { markHistoryNotes } from "../timeAndMeetings";
 import { db, meetingTonesTable } from "@workspace/db";
 import { todayLondon } from "@workspace/shared";
 import { logger } from "../../lib/logger";
-import { attachMeetingNotes, findEventBySourceRef } from "../briefs";
+import { attachMeetingNotes, findEventBySourceRef, findEventForNote } from "../briefs";
 import { propose } from "../suggestions";
-import { ConflictError } from "../tasks";
 import { applyProgress, cleanProgress, openItemsBlock, openItemsFor, type ProgressCounts } from "../taskEvidence";
 import { markCovered, openPointsFor, pointsBlock } from "../talkingPoints";
 import { writeFollowUp } from "../meetingFollowUp";
@@ -38,7 +37,8 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
   const projectIdByName = new Map(choices.map((p) => [p.name.toLowerCase(), p.id]));
 
   for (const n of notes) {
-    const event = n.calendarEventId ? await findEventBySourceRef(n.calendarEventId) : null;
+    // Granola's own calendar link first; otherwise the work meeting at the same time with the same title or people.
+    const event = (n.calendarEventId ? await findEventBySourceRef(n.calendarEventId) : null) ?? (await findEventForNote(n, ctx.myEmails));
     // Part U: open tasks with the people in the meeting, checked in the same read; always Looks done.
     const unit = meetingUnit(n);
     const loaded = await loadPeople([unit], []);
@@ -119,11 +119,11 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
 
     if (event && !event.personal) {
       try {
-        await attachMeetingNotes(event, { granolaRef: n.noteId, notes: n.notes, actionTaskIds: taskIds, actor: "ollieos", clientId: null });
+        // Every work meeting keeps its note, with or without a brief.
+        await attachMeetingNotes(event, { granolaRef: n.noteId, notes: n.notes, url: n.url, actionTaskIds: taskIds, actor: "ollieos", clientId: null });
         counts.attached++;
       } catch (err) {
-        // No brief is possible when no one in the meeting is known to OllieOS; the items still landed.
-        if (!(err instanceof ConflictError)) logger.warn({ err, note: n.noteId }, "Could not attach Granola notes to the brief");
+        logger.warn({ err, note: n.noteId }, "Could not attach Granola notes to the meeting");
       }
     }
   }

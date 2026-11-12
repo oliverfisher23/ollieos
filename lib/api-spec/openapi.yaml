@@ -2444,6 +2444,85 @@ paths:
               schema: { $ref: "#/components/schemas/MeetingsList" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /meetings/{eventId}:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: getMeeting
+      tags: [preparation]
+      summary: One work meeting, with or without a prep page, with Ollie's agenda and notes
+      responses:
+        "200":
+          description: Meeting
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeetingView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      operationId: updateMeetingNotes
+      tags: [preparation]
+      summary: Ollie's agenda and notes for a work meeting (the same notes the prep page shows)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BriefNotesInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BriefNotesInput" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /meetings/{eventId}/agenda:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: shapeAgenda
+      tags: [preparation]
+      summary: Shape the meeting's agenda from Ollie's thoughts, starting from the agenda he sends
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgendaInput" }
+      responses:
+        "200":
+          description: The agenda, saved as the meeting's notes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgendaResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /meetings/{eventId}/agenda/chat:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    delete:
+      operationId: clearAgendaChat
+      tags: [preparation]
+      summary: Start the agenda conversation again (the agenda itself stays)
+      responses:
+        "204": { description: Cleared }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /briefs/next:
     get:
       operationId: getNextBrief
@@ -2479,7 +2558,7 @@ paths:
     patch:
       operationId: updateBriefNotes
       tags: [preparation]
-      summary: Ollie's notes for after the meeting
+      summary: Ollie's notes for the meeting (kept on the meeting, the same as PATCH /meetings/{eventId})
       requestBody:
         required: true
         content:
@@ -5962,6 +6041,84 @@ components:
         today: { type: string, format: date }
         upcoming: { type: array, items: { $ref: "#/components/schemas/MeetingRow" } }
         past: { type: array, items: { $ref: "#/components/schemas/MeetingRow" } }
+
+    MeetingView:
+      type: object
+      required: [id, title, startsAt, endsAt, platform, location, scope, companies, prep, attendees, notes, agendaChat, granola, granolaCheck]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        platform: { type: [string, "null"] }
+        location: { type: [string, "null"] }
+        scope: { $ref: "#/components/schemas/MeetingScope" }
+        companies: { type: array, items: { type: string } }
+        prep:
+          type: string
+          enum: [ready, not_much, failed, not_written, none]
+          description: Anything but none means the meeting has a prep page at /briefs/{id}
+        attendees:
+          type: array
+          items:
+            type: object
+            required: [name, email, person]
+            properties:
+              name: { type: string }
+              email: { type: [string, "null"] }
+              person:
+                type: [object, "null"]
+                description: Set when they are in People
+                required: [id, name, slug]
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  slug: { type: string }
+        notes: { type: [string, "null"], description: Ollie's agenda and notes }
+        agendaChat: { type: array, items: { $ref: "#/components/schemas/AgendaTurn" } }
+        granola:
+          type: [object, "null"]
+          description: The Granola note, once one is linked to the meeting
+          required: [url, notes, attachedAt, actions]
+          properties:
+            url: { type: [string, "null"] }
+            notes: { type: string }
+            attachedAt: { type: [string, "null"], format: date-time }
+            actions:
+              type: array
+              description: Inbox tasks made from the note's actions
+              items:
+                type: object
+                required: [id, title, status]
+                properties:
+                  id: { type: integer }
+                  title: { type: string }
+                  status: { type: string }
+        granolaCheck: { type: boolean, description: True when OllieOS reads Granola itself, so a check can fetch the note now }
+
+    AgendaTurn:
+      type: object
+      required: [role, text, at]
+      properties:
+        role: { type: string, enum: [ollie, ai] }
+        text: { type: string }
+        at: { type: string, format: date-time }
+
+    AgendaInput:
+      type: object
+      required: [message, agenda]
+      additionalProperties: false
+      properties:
+        message: { type: string, minLength: 1, maxLength: 4000, description: Ollie's thoughts }
+        agenda: { type: string, maxLength: 20000, description: The agenda as it stands in the box, edits included }
+
+    AgendaResult:
+      type: object
+      required: [agenda, previous, chat]
+      properties:
+        agenda: { type: string }
+        previous: { type: string, description: The agenda before this change, for Undo }
+        chat: { type: array, items: { $ref: "#/components/schemas/AgendaTurn" } }
 
     BriefNotesInput:
       type: object
