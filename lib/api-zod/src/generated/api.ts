@@ -5188,7 +5188,8 @@ export const ListMeetingsResponse = zod.object({
   "prep": zod.enum(['ready', 'not_much', 'failed', 'not_written', 'none']).describe('none means nobody or nothing OllieOS knows is on it, so there is no prep page'),
   "promises": zod.int().describe('Open promises to people on the meeting'),
   "waiting": zod.int().describe('Tasks waiting on people on the meeting'),
-  "granolaSnippet": zod.string().nullable()
+  "granolaSnippet": zod.string().nullable(),
+  "hasAgenda": zod.boolean().describe('Ollie has written an agenda or notes for it')
 })),
   "past": zod.array(zod.object({
   "id": zod.int(),
@@ -5207,7 +5208,8 @@ export const ListMeetingsResponse = zod.object({
   "prep": zod.enum(['ready', 'not_much', 'failed', 'not_written', 'none']).describe('none means nobody or nothing OllieOS knows is on it, so there is no prep page'),
   "promises": zod.int().describe('Open promises to people on the meeting'),
   "waiting": zod.int().describe('Tasks waiting on people on the meeting'),
-  "granolaSnippet": zod.string().nullable()
+  "granolaSnippet": zod.string().nullable(),
+  "hasAgenda": zod.boolean().describe('Ollie has written an agenda or notes for it')
 }))
 })
 
@@ -5332,6 +5334,20 @@ export const ClearAgendaChatParams = zod.object({
 })
 
 export const ClearAgendaChatResponse = zod.void()
+
+
+/**
+ * @summary Ollie says an event is personal or not; stands through calendar checks and carries to its series
+ */
+export const SetMeetingPersonalParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const SetMeetingPersonalBody = zod.object({
+  "personal": zod.boolean()
+})
+
+export const SetMeetingPersonalResponse = zod.void()
 
 
 /**

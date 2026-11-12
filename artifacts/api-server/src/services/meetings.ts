@@ -3,7 +3,7 @@
  * who is coming and how ready it is, and the work meetings of the last two weeks with their
  * Granola notes. Ollie's view, so nothing is hidden. Prep pages are the briefs at /briefs/{id}.
  */
-import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { calendarEventsTable, db, meetingBriefsTable, organisationsTable, peopleTable, tasksTable, type AgendaTurn, type CalendarEvent } from "@workspace/db";
 import { OPEN_STATUSES, addDays, londonDate, londonRange, todayLondon } from "@workspace/shared";
 import { eligible, loadMatchers, matchEvent } from "./briefs";
@@ -45,6 +45,8 @@ export interface MeetingRow {
   waiting: number;
   /** The start of the Granola notes, when there are any */
   granolaSnippet: string | null;
+  /** Ollie has written an agenda or notes for it */
+  hasAgenda: boolean;
 }
 
 export interface MeetingsList {
@@ -85,7 +87,7 @@ export async function listMeetings(now = new Date()): Promise<MeetingsList> {
   const personIds = [...new Set([...matches.values()].flatMap((x) => x.personIds))];
   const [briefs, people, promiseCounts, waitingCounts] = await Promise.all([
     db
-      .select({ eventId: meetingBriefsTable.calendarEventId, why: meetingBriefsTable.why, failed: meetingBriefsTable.failed, granolaNotes: meetingBriefsTable.granolaNotes })
+      .select({ eventId: meetingBriefsTable.calendarEventId, why: meetingBriefsTable.why, failed: meetingBriefsTable.failed, granolaNotes: meetingBriefsTable.granolaNotes, notes: meetingBriefsTable.notes })
       .from(meetingBriefsTable)
       .where(inArray(meetingBriefsTable.calendarEventId, events.map((e) => e.id))),
     personIds.length ? db.select({ id: peopleTable.id, name: peopleTable.name, slug: peopleTable.slug }).from(peopleTable).where(inArray(peopleTable.id, personIds)) : [],
@@ -132,6 +134,7 @@ export async function listMeetings(now = new Date()): Promise<MeetingsList> {
       promises: sum(match.personIds, promisesOf),
       waiting: sum(match.personIds, waitingOf),
       granolaSnippet: snippet(brief?.granolaNotes ?? e.granolaNotes),
+      hasAgenda: !!(e.notes?.trim() || brief?.notes?.trim()),
     };
   });
   const start = ahead.start.getTime();
@@ -248,4 +251,21 @@ export async function updateMeetingNotes(eventId: number, notes: string | null):
     await writeAudit(tx, { actor: "ollie", action: "update", entityType: "calendar_event", entityId: event.id, payload: { notes: text ? text.length : 0 } });
   });
   return text;
+}
+
+/**
+ * Ollie says an event is personal (or is not). Personal events leave Meetings, get no brief and are
+ * kept from AI like any private event. His answer stands through later calendar checks and applies
+ * to the rest of a repeating series.
+ */
+export async function setMeetingPersonal(eventId: number, personal: boolean): Promise<void> {
+  const [event] = await db.select({ id: calendarEventsTable.id, series: calendarEventsTable.recurringEventId }).from(calendarEventsTable).where(eq(calendarEventsTable.id, eventId));
+  if (!event) throw new NotFoundError("That meeting is not on your calendar");
+  await db.transaction(async (tx) => {
+    await tx
+      .update(calendarEventsTable)
+      .set({ personal, personalSetByOllie: true })
+      .where(event.series ? or(eq(calendarEventsTable.id, event.id), eq(calendarEventsTable.recurringEventId, event.series)) : eq(calendarEventsTable.id, event.id));
+    await writeAudit(tx, { actor: "ollie", action: "update", entityType: "calendar_event", entityId: event.id, payload: { personal, series: !!event.series } });
+  });
 }

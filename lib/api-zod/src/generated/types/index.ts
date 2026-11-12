@@ -301,6 +301,7 @@ export * from './lookBackInput';
 export * from './lookBackInputActionsDays';
 export * from './lookBackInputDecisionsDays';
 export * from './lookBackStatus';
+export * from './meetingPersonalInput';
 export * from './meetingRow';
 export * from './meetingRowAttendeesItem';
 export * from './meetingRowPrep';

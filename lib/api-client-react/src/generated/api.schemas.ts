@@ -1318,6 +1318,8 @@ export interface MeetingRow {
   waiting: number;
   /** @nullable */
   granolaSnippet: string | null;
+  /** Ollie has written an agenda or notes for it */
+  hasAgenda: boolean;
 }
 
 export interface MeetingsList {
@@ -1433,6 +1435,10 @@ export interface MeetingView {
   granola: MeetingViewGranola;
   /** True when OllieOS reads Granola itself */
   granolaCheck: boolean;
+}
+
+export interface MeetingPersonalInput {
+  personal: boolean;
 }
 
 export interface GranolaLinkInput {

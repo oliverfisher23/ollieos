@@ -1,5 +1,7 @@
-import { Link } from 'wouter';
-import { getGetMeetingQueryKey, useGetMeeting, type MeetingView } from '@workspace/api-client-react';
+import { Link, useLocation } from 'wouter';
+import { useQueryClient } from '@tanstack/react-query';
+import { getGetMeetingQueryKey, getListMeetingsQueryKey, setMeetingPersonal, useGetMeeting, type MeetingView } from '@workspace/api-client-react';
+import { errorMessage, notify, notifyUndo } from '@/lib/notify';
 import { formatLong, formatTime } from '@workspace/shared';
 import { Avatar } from '@/components/bits';
 import { IconLeft } from '@/components/icons';
@@ -39,6 +41,23 @@ export default function MeetingPage({ eventId }: { eventId: string }) {
 
 function Meeting({ m }: { m: MeetingView }) {
   const hasPrep = m.prep !== 'none';
+  const qc = useQueryClient();
+  const [, navigate] = useLocation();
+  // Personal events leave Meetings and are kept from AI. Undo brings it straight back.
+  const markPersonal = async () => {
+    try {
+      await setMeetingPersonal(m.id, { personal: true });
+      void qc.invalidateQueries({ queryKey: getListMeetingsQueryKey() });
+      navigate('/meetings');
+      notifyUndo('Marked as personal', 'It has left Meetings and is kept from AI, along with the rest of its series.', () => {
+        void setMeetingPersonal(m.id, { personal: false })
+          .then(() => qc.invalidateQueries({ queryKey: getListMeetingsQueryKey() }))
+          .catch((err) => notify('Could not undo that', errorMessage(err)));
+      });
+    } catch (err) {
+      notify('That did not save', errorMessage(err));
+    }
+  };
   const unknown = m.attendees.filter((a) => !a.person).length;
   return (
     <>
@@ -49,7 +68,10 @@ function Meeting({ m }: { m: MeetingView }) {
             {m.location && m.location !== m.platform ? ' · ' + m.location : ''}
           </p>
           <h1 className="oo-h1" style={{ overflowWrap: 'anywhere' }} data-testid="text-meeting-title">{m.title}</h1>
-          <div><ScopePill scope={m.scope} companies={m.companies} testId="pill-meeting-scope" /></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <ScopePill scope={m.scope} companies={m.companies} testId="pill-meeting-scope" />
+            {!hasPrep && <button type="button" className="oo-textbtn" onClick={markPersonal} data-testid="button-mark-personal">This is personal</button>}
+          </div>
         </div>
 
         {hasPrep ? (

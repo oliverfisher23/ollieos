@@ -2523,6 +2523,26 @@ paths:
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
+  /meetings/{eventId}/personal:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    put:
+      operationId: setMeetingPersonal
+      tags: [preparation]
+      summary: Ollie says an event is personal or not; stands through calendar checks and carries to its series
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MeetingPersonalInput" }
+      responses:
+        "204": { description: Saved }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /meetings/{eventId}/granola:
     parameters:
       - name: eventId
@@ -6173,7 +6193,7 @@ components:
 
     MeetingRow:
       type: object
-      required: [id, title, startsAt, endsAt, day, platform, location, attendees, scope, companies, prep, promises, waiting, granolaSnippet]
+      required: [id, title, startsAt, endsAt, day, platform, location, attendees, scope, companies, prep, promises, waiting, granolaSnippet, hasAgenda]
       properties:
         id: { type: integer }
         title: { type: string }
@@ -6199,6 +6219,7 @@ components:
         promises: { type: integer, description: Open promises to people on the meeting }
         waiting: { type: integer, description: Tasks waiting on people on the meeting }
         granolaSnippet: { type: [string, "null"] }
+        hasAgenda: { type: boolean, description: Ollie has written an agenda or notes for it }
 
     MeetingsList:
       type: object
@@ -6271,6 +6292,13 @@ components:
                   title: { type: string }
                   status: { type: string }
         granolaCheck: { type: boolean, description: True when OllieOS reads Granola itself, so a check can fetch the note now }
+
+    MeetingPersonalInput:
+      type: object
+      required: [personal]
+      additionalProperties: false
+      properties:
+        personal: { type: boolean }
 
     GranolaLinkInput:
       type: object

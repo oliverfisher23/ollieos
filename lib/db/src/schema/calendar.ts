@@ -37,6 +37,8 @@ export const calendarEventsTable = pgTable(
     /** Teams, Zoom, Meet or In person; from the sweep, or worked out from the location */
     platform: text("platform"),
     personal: boolean("personal").notNull().default(false),
+    /** Ollie said whether this is personal, so the calendar check leaves `personal` alone; carries to the rest of a repeating series */
+    personalSetByOllie: boolean("personal_set_by_ollie").notNull().default(false),
     personIds: integer("person_ids").array().notNull().default(sql`'{}'::integer[]`),
     projectId: integer("project_id").references(() => projectsTable.id),
     location: text("location"),
@@ -67,6 +69,18 @@ export const calendarEventsTable = pgTable(
   },
   (t) => [index("calendar_events_starts_idx").on(t.startsAt)],
 );
+
+/**
+ * Ollie's agenda for a meeting that left the calendar window before it started (moved further out,
+ * or cancelled). Given back when an event with the same source_ref returns; cleared after 90 days.
+ */
+export const parkedMeetingNotesTable = pgTable("parked_meeting_notes", {
+  sourceRef: text("source_ref").primaryKey(),
+  title: text("title").notNull(),
+  notes: text("notes"),
+  agendaChat: jsonb("agenda_chat").$type<AgendaTurn[]>().notNull().default([]),
+  parkedAt: timestamp("parked_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const sweepRunsTable = pgTable(
   "sweep_runs",

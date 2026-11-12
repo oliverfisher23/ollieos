@@ -31,4 +31,6 @@ export interface MeetingRow {
   waiting: number;
   /** @nullable */
   granolaSnippet: string | null;
+  /** Ollie has written an agenda or notes for it */
+  hasAgenda: boolean;
 }
