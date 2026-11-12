@@ -24,7 +24,7 @@ import { addSpottedIdea } from "../strategy";
 import { lessonsFor } from "../readerLessons";
 import { recordSightings, sightingsFromUnits } from "../contactFinder";
 import type { WorkMessage, WorkUnit } from "./messages";
-import { firstNameKey, matchName } from "../personNames";
+import { firstNameKey, matchName, nameKey, nameKeysOf } from "../personNames";
 import type { AgentKey } from "../../lib/agents";
 import { sortUnits, type KnownNames, type SortedClaim, type SortedUnit } from "./sorter";
 
@@ -81,6 +81,7 @@ export type PersonRow = {
   confidential: boolean;
   aiAccess: boolean;
   isSelf: boolean;
+  otherNames: string[];
 };
 
 export interface LoadedPeople {
@@ -137,7 +138,9 @@ export async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promi
     confidential: peopleTable.confidential,
     aiAccess: peopleTable.aiAccess,
     isSelf: peopleTable.isSelf,
+    otherNames: peopleTable.otherNames,
   };
+  const firstList = sql`array[${sql.join([...firsts].map((f) => sql`${f}`), sql`, `)}]::text[]`;
   const none: PersonRow[] = [];
   const [a, b, named] = await Promise.all([
     emails.size || slackIds.size ? db.select(cols).from(peopleTable).where(or(hasAnyEmail([...emails]), hasAnySlackId([...slackIds]))) : none,
@@ -151,6 +154,8 @@ export async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promi
               inArray(sql`split_part(lower(${peopleTable.name}), ' ', 1)`, [...firsts]),
               // The first part of an address is often the full first name: "Volodymyr" for Vova (volodymyr.t@).
               inArray(sql`split_part(split_part(lower(${peopleTable.email}), '@', 1), '.', 1)`, [...firsts]),
+              // Section 28: or one of their other names starts with it.
+              sql`exists (select 1 from unnest(${peopleTable.otherNames}) as o(n) where split_part(lower(o.n), ' ', 1) = any(${firstList}))`,
             ),
           )
           .limit(400)
@@ -194,6 +199,44 @@ export function itemPerson(people: LoadedPeople, u: WorkUnit, it: { type: string
   if (it.type === "task") return sender;
   if (it.type === "waiting") return sender ?? onlyOtherPerson(u, people);
   return null;
+}
+
+/**
+ * Section 28: saves a Slack account on the contact it belongs to, so Message on Slack and the
+ * delegation suggester work for them and later messages match without the name. Only when the Slack
+ * name is exactly one contact's full name (two words or more), they have no Slack account saved,
+ * and nobody else has this one. A first name alone is never enough: a message would go to the
+ * account, whoever OllieOS thought it was.
+ */
+export async function learnSlackIds(units: WorkUnit[], people: LoadedPeople): Promise<number> {
+  const seen = new Map<string, string>();
+  for (const u of units) {
+    if (u.source !== "slack") continue;
+    for (const p of u.people) if (p.slackId && p.name) seen.set(p.slackId, p.name);
+    for (const m of u.messages) if (!m.fromMe && m.fromSlackId && m.fromName) seen.set(m.fromSlackId, m.fromName);
+  }
+  let saved = 0;
+  for (const [slackId, name] of seen) {
+    if (people.bySlack.has(slackId)) continue;
+    const key = nameKey(name);
+    if (key.split(" ").length < 2) continue;
+    const exact = people.named.filter((p) => !p.isSelf && nameKeysOf(p).includes(key));
+    if (exact.length !== 1 || exact[0].slackUserId) continue;
+    try {
+      const [row] = await db
+        .update(peopleTable)
+        .set({ slackUserId: slackId })
+        .where(and(eq(peopleTable.id, exact[0].id), sql`${peopleTable.slackUserId} is null`, sql`not exists (select 1 from people x where x.slack_user_id = ${slackId})`))
+        .returning({ id: peopleTable.id });
+      if (!row) continue;
+      exact[0].slackUserId = slackId;
+      people.bySlack.set(slackId, exact[0]);
+      saved++;
+    } catch (err) {
+      logger.warn({ err, person: exact[0].id }, "Could not save a Slack account on a contact");
+    }
+  }
+  return saved;
 }
 
 /** Active projects the AI may link items to. Confidential projects are never sent to it. */
@@ -363,6 +406,8 @@ export async function sortAndCapture(
   const choices = await projectChoices();
   const before = await loadPeople(keep, []);
   const known = await knownNames(before);
+  // Section 28: a Slack account whose name is exactly one contact's full name is saved on them.
+  if (keep.some((u) => u.source === "slack")) await learnSlackIds(keep, before);
   // Confirmation emails are never read for knowledge (Part U).
   const readable = keep.map((u) => !u.confirmation && mayReadForKnowledge(u, before));
   // Part U: the open tasks each exchange could show progress on.
@@ -537,6 +582,8 @@ export async function captureSorted(
           confidential: it.confidential || person?.confidential ? true : null,
           // Section 27: one message asking for several things is one task with a checklist.
           steps: it.steps?.length ? it.steps : undefined,
+          // Section 28: the reader's guess at a date, offered with one tap when none was stated.
+          suggestedDue: !it.due && /^\d{4}-\d{2}-\d{2}$/.test(it.due_guess ?? "") ? it.due_guess : null,
           capturedAt: msg.at,
         },
         { applyNoise: opts.applyNoise, via: "connector", rules },

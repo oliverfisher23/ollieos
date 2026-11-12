@@ -95,6 +95,8 @@ export const peopleTable = pgTable(
     email: text("email"),
     /** Part N: other addresses the same person uses; matched like the main one */
     otherEmails: text("other_emails").array().notNull().default(sql`'{}'::text[]`),
+    /** Section 28: other names they go by (a nickname, a full first name, a Slack name), so a task that says "Volodymyr" finds "Vova" */
+    otherNames: text("other_names").array().notNull().default(sql`'{}'::text[]`),
     /** Part N: their Slack user id, so Slack messages match them */
     slackUserId: text("slack_user_id"),
     /** Their LinkedIn profile, from Ollie or the LinkedIn connections import */

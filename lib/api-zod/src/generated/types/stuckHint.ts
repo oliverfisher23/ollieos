@@ -18,4 +18,6 @@ export interface StuckHint {
      * @nullable
      */
   step: string | null;
+  /** Section 28: used or not_stuck, once Ollie has dealt with it */
+  outcome?: string;
 }

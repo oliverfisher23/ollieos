@@ -29,6 +29,8 @@ export interface Person {
   isSelf: boolean;
   /** Other addresses they use, in lower case */
   otherEmails: string[];
+  /** Section 28: other names they go by, so a task that says Volodymyr finds Vova */
+  otherNames: string[];
   /**
      * Their Slack account
      * @nullable

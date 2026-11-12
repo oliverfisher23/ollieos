@@ -32,6 +32,12 @@ export interface PersonUpdate {
      */
   otherEmails?: string[];
   /**
+     * Replaces the list of other names
+     * @maxItems 10
+     * @items.maxLength 100
+     */
+  otherNames?: string[];
+  /**
      * Their Slack account id
      * @nullable
      */

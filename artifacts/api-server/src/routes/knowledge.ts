@@ -96,6 +96,7 @@ const PersonUpdate = PersonCreate.partial()
     cadencePaused: z.boolean().optional(),
     otherEmails: z.array(z.string().trim().email("That email address does not look right").max(320)).max(20).optional(),
     slackUserId: z.string().trim().min(1).max(40).nullable().optional(),
+    otherNames: z.array(z.string().trim().min(1).max(100)).max(10).optional(),
     linkedinUrl: z.string().trim().max(300).nullable().optional(),
   })
   .strict();

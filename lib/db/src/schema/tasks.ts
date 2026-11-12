@@ -101,6 +101,8 @@ export const tasksTable = pgTable(
     dropReason: text("drop_reason"),
     /** Section 27: a Waiting on task is not flagged for a chase before this; null means three days after it started waiting */
     chaseAfter: timestamp("chase_after", { withTimezone: true }),
+    /** Section 28: a due date the reader guessed from the message ("this week", "before the board") when none was stated; offered with one tap, never applied by itself */
+    suggestedDue: date("suggested_due", { mode: "string" }),
     /** Section 27: the stuck-task coach's line on why this keeps slipping and what to try */
     stuckHint: jsonb("stuck_hint").$type<StuckHint | null>(),
     /** When the stuck-task coach last looked at it; null means not yet */
@@ -324,6 +326,8 @@ export interface StuckHint {
   suggestion: string;
   /** For first_step and split: the step to add to its checklist */
   step: string | null;
+  /** Section 28: what Ollie did with it: "used" (added the step or dropped it) or "not_stuck" */
+  outcome?: string;
 }
 
 /**

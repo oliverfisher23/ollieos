@@ -79,6 +79,47 @@ export function OtherEmails({ person }: { person: Person }) {
   );
 }
 
+/** "Also known as" (section 28): other names this person goes by, so a task that says "Volodymyr" finds "Vova". */
+export function OtherNames({ person }: { person: Person }) {
+  const write = useKnowledgeWrite();
+  const [adding, setAdding] = useState(false);
+  const [value, setValue] = useState('');
+  const list = person.otherNames ?? [];
+  const save = (otherNames: string[], done: string) => write(() => updatePerson(person.slug, { otherNames }), { done, fail: 'Could not save that' });
+  const add = async (e: FormEvent) => {
+    e.preventDefault();
+    const v = value.trim();
+    if (!v) return;
+    if (await save([...list, v], `${v} added`)) {
+      setValue('');
+      setAdding(false);
+    }
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }} data-testid="section-other-names">
+      {list.length === 0 && !adding && <span className="oo-muted">None</span>}
+      {list.map((n) => (
+        <span key={n} style={{ display: 'flex', flexWrap: 'wrap', columnGap: 6, alignItems: 'baseline', maxWidth: '100%' }} data-testid={`text-other-name-${n}`}>
+          <span style={{ overflowWrap: 'anywhere', minWidth: 0 }}>{n}</span>
+          <button type="button" className="oo-textbtn" style={{ fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }} aria-label={`Remove ${n}`}
+            onClick={() => save(list.filter((x) => x !== n), `${n} removed`)} data-testid={`button-remove-name-${n}`}>Remove</button>
+        </span>
+      ))}
+      {adding ? (
+        <form onSubmit={add} style={{ display: 'flex', gap: 6, flexWrap: 'wrap', width: '100%' }}>
+          <label htmlFor="other-name" className="oo-sr">Another name</label>
+          <input id="other-name" className="oo-input" autoFocus placeholder="A nickname or full first name" value={value} maxLength={100}
+            onChange={(e) => setValue(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setAdding(false)} style={{ flex: '1 1 160px', minWidth: 0 }} data-testid="input-other-name" />
+          <button type="submit" className="oo-btn oo-btn-ink oo-btn-sm" disabled={!value.trim()} data-testid="button-save-other-name">Add</button>
+          <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" onClick={() => setAdding(false)}>Cancel</button>
+        </form>
+      ) : (
+        <button type="button" className="oo-textbtn" onClick={() => setAdding(true)} data-testid="button-add-other-name">Add another name</button>
+      )}
+    </div>
+  );
+}
+
 /** "Slack": which Slack account is this person. Messages from it are matched to them. */
 export function SlackAccount({ person }: { person: Person }) {
   const write = useKnowledgeWrite();

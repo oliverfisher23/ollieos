@@ -157,6 +157,8 @@ export interface TaskOut {
   repeats: string | null;
   /** Its checklist, in order */
   steps: { title: string; done: boolean }[];
+  /** Section 28: why Ollie dropped it or sent it to Noise, when he said */
+  drop_reason: string | null;
 }
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
@@ -207,6 +209,7 @@ export async function toTaskOuts(scope: AiScope, rows: TaskRow[]): Promise<TaskO
       completed_at: iso(t.completedAt),
       repeats: t.repeat ? repeatLabel(t.repeat as RepeatRule) : null,
       steps: (t.steps ?? []).map((s) => ({ title: s.title, done: s.done })),
+      drop_reason: t.dropReason,
     };
   });
 }

@@ -1,5 +1,5 @@
 import { DropReasonChips, madeByReader } from '@/components/drop-reason';
-import { ProjectSuggestChips } from '@/components/task-nudges';
+import { DueChips, ProjectSuggestChips } from '@/components/task-nudges';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useListPeople, useListTasks, type Task, type TriageInputAction } from '@workspace/api-client-react';
@@ -212,6 +212,7 @@ export function TriageDialog({ onClose }: { onClose: () => void }) {
                     <span className="oo-tri-suggest" data-testid="text-triage-suggest">Suggested: <b>{current.suggestedAction}</b></span>
                   )}
                   <ProjectSuggestChips key={'proj' + current.id} task={current} />
+                  <DueChips key={'due' + current.id} task={current} />
                 </section>
                 <div className="oo-tri-actions" role="group" aria-label="Move this item to">
                   {BUTTONS.map((b) => (

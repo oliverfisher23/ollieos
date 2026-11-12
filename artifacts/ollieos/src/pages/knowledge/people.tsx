@@ -26,7 +26,7 @@ import {
   useUnlink,
 } from '@/components/knowledge/parts';
 import { RelationshipsSection } from '@/components/knowledge/relationships';
-import { OtherEmails, SamePersonAs, SlackAccount } from '@/components/knowledge/person-identity';
+import { OtherEmails, OtherNames, SamePersonAs, SlackAccount } from '@/components/knowledge/person-identity';
 import { copyText, firstName, isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
 import { CadencePill, CadenceSelect, CheckInDialog } from '@/components/cadence';
 import { ContactActionButtons, ContactNoteDialog, StrengthPill, TagEditor } from '@/components/contact-bits';
@@ -185,6 +185,8 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
             </dd>
             <dt>Email</dt>
             <dd><InlineText value={person.email} label="Email" placeholder="Add an email" testId="person-email" onSave={(v) => save({ email: v })} /></dd>
+            <dt>Also known as</dt>
+            <dd><OtherNames person={person} /></dd>
             <dt>Other emails</dt>
             <dd><OtherEmails person={person} /></dd>
             {/* Space above keeps its phone tap area clear of "Add another address". */}

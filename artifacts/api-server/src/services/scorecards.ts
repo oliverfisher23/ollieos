@@ -4,8 +4,8 @@
  * used: an Inbox item moved to Noise, a rejected card, a reopened task or a "Not done" on Looks done
  * all count against the agent that made it.
  */
-import { and, eq, gte, isNull, lt, sql, type SQL } from "drizzle-orm";
-import { db, factReviewsTable, readerLessonsTable, reviewItemsTable, suggestionsTable, taskEvidenceTable, taskPacksTable, tasksTable } from "@workspace/db";
+import { and, eq, gte, inArray, isNull, lt, sql, type SQL } from "drizzle-orm";
+import { db, factReviewsTable, readerLessonsTable, reviewItemsTable, suggestionsTable, taskDuplicatesTable, taskEvidenceTable, taskPacksTable, tasksTable } from "@workspace/db";
 import type { AgentKey } from "../lib/agents";
 import { DOCUMENT_PROPOSER } from "./documents/counts";
 import { PRODUCT_USER_ACTOR } from "./productUsers";
@@ -229,7 +229,36 @@ const workPacks: Spec["count"] = async (start, end) => {
   return { kept: n(r?.kept), undone: n(r?.undone), waiting: n(r?.waiting) };
 };
 
+/** Section 28, the duplicate check: pairs it said were the same that Ollie merged, against ones he said were not the same. */
+const duplicatePairs: Spec["count"] = async (start, end) => {
+  const [r] = await db
+    .select({
+      kept: sql<number>`count(*) filter (where ${taskDuplicatesTable.state} = 'merged')`,
+      undone: sql<number>`count(*) filter (where ${taskDuplicatesTable.state} = 'dismissed')`,
+      waiting: sql<number>`count(*) filter (where ${taskDuplicatesTable.state} = 'suggested')`,
+    })
+    .from(taskDuplicatesTable)
+    .where(and(inArray(taskDuplicatesTable.state, ["merged", "dismissed", "suggested"]), gte(taskDuplicatesTable.createdAt, start), lt(taskDuplicatesTable.createdAt, end)));
+  return { kept: n(r?.kept), undone: n(r?.undone), waiting: n(r?.waiting) };
+};
+
+/** Section 28, the stuck-task coach: suggestions Ollie used (added the step, or dropped the task) against "Not stuck". */
+const stuckSuggestions: Spec["count"] = async (start, end) => {
+  const o = sql`${tasksTable.stuckHint}->>'outcome'`;
+  const [r] = await db
+    .select({
+      kept: sql<number>`count(*) filter (where ${o} = 'used')`,
+      undone: sql<number>`count(*) filter (where ${o} = 'not_stuck')`,
+      waiting: sql<number>`count(*) filter (where ${o} is null and ${tasksTable.status} in ('now','backlog'))`,
+    })
+    .from(tasksTable)
+    .where(and(sql`${tasksTable.stuckHint} is not null`, gte(tasksTable.stuckCheckedAt, start), lt(tasksTable.stuckCheckedAt, end)));
+  return { kept: n(r?.kept), undone: n(r?.undone), waiting: n(r?.waiting) };
+};
+
 const SPECS: Spec[] = [
+  { key: "duplicate_pairs", agent: "duplicate_judge", label: "Duplicates you merged", count: duplicatePairs },
+  { key: "stuck_suggestions", agent: "stuck_coach", label: "Suggestions you used", count: stuckSuggestions },
   { key: "gmail_tasks", agent: "gmail_sorter", label: "Inbox items kept", count: tasksFrom("email") },
   { key: "gmail_cards", agent: "gmail_sorter", label: "Knowledge cards approved", count: cardsFrom("Gmail check") },
   { key: "gmail_closed", agent: "gmail_sorter", label: "Tasks it closed that stayed closed", count: autoClosed("email") },

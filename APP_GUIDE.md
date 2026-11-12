@@ -25,9 +25,11 @@ The full list by tab (Inbox, Now, Backlog, Waiting on, Done, Noise). Click a tas
 - **Could go to.** On a Now or Backlog task, OllieOS may suggest a colleague who could take it, with why. Message them opens the Slack box with a draft filled in; you still send it. Not this one removes the suggestion for good.
 - **Keep as a test case.** On an item OllieOS found that it got wrong (or right), this saves what the reader was given so a later change can be checked against it.
 - **Coming up.** A line above the list says when a day in the next week has too much due and little of it in Now, what is overdue and what is ready to chase. Show them lists just those tasks. Home has the same as a card.
-- **Select.** Select swaps the grips for tick boxes. Choose tasks, then move them to Now, Backlog, Waiting on, Done or Drop, or set their priority, project or due date in one go.
+- **Select.** Select swaps the grips for tick boxes. Choose tasks, then move them to Now, Backlog, Waiting on, Done or Drop, or set their priority, project or due date in one go. Undo on the message afterwards puts them all back.
 - **Groups.** Group the list by project or by person.
 - **People.** OllieOS links each task to the person it is with: who sent it, who a Waiting on task names ("Kevin to confirm…"), or a name in the title. A first name only counts when one person has it.
+- **Which Paul?** When a task's name fits more than one contact, the panel offers them under For or Waiting on. When it fits nobody, Add to Contacts makes the contact and links the task. When you link someone the title names differently, one tap remembers that name for them. A contact's other names are under Also known as on their page.
+- **Due?** A task with no due date offers Today, Tomorrow, Friday and Next week with one tap, in Triage and on the panel. When the message implied a date, that comes first, marked suggested.
 - **Project?** A task with no project offers up to three likely ones to set with one tap, in Triage and on the task panel.
 - **Why?** After you drop an item or send it to Noise, one tap says why: Not mine, Already done, Just FYI, Duplicate or Arranging a meeting. The Reader coach learns from it.
 - **Chase.** A Waiting on task shows Chase after three days. The panel offers Copy a chase line, or Not yet for three more days.
