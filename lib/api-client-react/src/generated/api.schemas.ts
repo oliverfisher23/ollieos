@@ -302,6 +302,11 @@ export interface TaskGoal {
 }
 
 export interface Task {
+  /**
+     * Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.
+     * @nullable
+     */
+  position: number | null;
   /** How it repeats, anchored on its due date. Null when it does not. */
   repeat: RepeatRule | null;
   /** Checklist steps, in order */
@@ -2349,6 +2354,17 @@ export interface ReplyDraftInput {
      * @maxLength 20000
      */
   body: string;
+}
+
+export interface TaskReorderInput {
+  /**
+     * Task ids in the new order, top first
+     * @minItems 1
+     * @maxItems 500
+     */
+  ids: number[];
+  /** Forget the dragged order for these tasks instead, so they go back to due-date order */
+  clear?: boolean;
 }
 
 export type TriageInputAction = typeof TriageInputAction[keyof typeof TriageInputAction];

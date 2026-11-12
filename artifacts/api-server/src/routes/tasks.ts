@@ -12,6 +12,7 @@ import {
   getTaskSummary,
   listTasks,
   quickAddTask,
+  reorderTasks,
   snoozeTask,
   updateTask,
 } from "../services/tasks";
@@ -57,6 +58,13 @@ const WriteReplyBody = z
   .strict();
 
 const QuickAddBody = z.object({ text: z.string().min(1).max(500) });
+
+const ReorderBody = z
+  .object({
+    ids: z.array(z.number().int().positive()).min(1).max(500),
+    clear: z.boolean().optional(),
+  })
+  .strict();
 
 const UpdateBody = z
   .object({
@@ -130,6 +138,15 @@ router.post(
   handle(async (req, res) => {
     const body = QuickAddBody.parse(req.body);
     res.status(201).json(await quickAddTask(body.text, ACTOR));
+  }),
+);
+
+router.post(
+  "/tasks/reorder",
+  handle(async (req, res) => {
+    const body = ReorderBody.parse(req.body);
+    await reorderTasks(body.ids, body.clear ?? false);
+    res.status(204).end();
   }),
 );
 

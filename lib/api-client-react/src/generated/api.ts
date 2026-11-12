@@ -242,6 +242,7 @@ import type {
   Task,
   TaskDetail,
   TaskEvidence,
+  TaskReorderInput,
   TaskSummary,
   TaskUpdate,
   TestCase,
@@ -1385,6 +1386,94 @@ export const useQuickAddTask = <TError = ErrorType<ErrorEnvelope | NotAuthorised
         TContext
       > => {
       return useMutation(getQuickAddTaskMutationOptions(options), queryClient);
+    }
+
+export const getReorderTasksUrl = () => {
+
+
+
+
+  return `/api/tasks/reorder`
+}
+
+/**
+ * @summary Put tasks in the order Ollie dragged them, or clear that order
+ */
+export const reorderTasks = async (taskReorderInput: TaskReorderInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getReorderTasksUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(taskReorderInput)
+  }
+);}
+
+
+
+
+
+export const getReorderTasksMutationKey = () => ['reorderTasks'] as const;
+
+export const getReorderTasksMutationOptions = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderTasks>>, TError,ReorderTasksMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reorderTasks>>, TError,ReorderTasksMutationVariables, TContext> => {
+
+const mutationKey = getReorderTasksMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reorderTasks>>, ReorderTasksMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  reorderTasks(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReorderTasksMutationResult = NonNullable<Awaited<ReturnType<typeof reorderTasks>>>
+    export type ReorderTasksMutationBody = BodyType<TaskReorderInput>
+    export type ReorderTasksMutationError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>
+    export type ReorderTasksMutationVariables = {data: BodyType<TaskReorderInput>}
+
+    /**
+ * @summary Put tasks in the order Ollie dragged them, or clear that order
+ */
+export const useReorderTasks = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderTasks>>, TError,ReorderTasksMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reorderTasks>>,
+        TError,
+        ReorderTasksMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReorderTasksMutationOptions(options), queryClient);
     }
 
 export const getGetTaskUrl = (id: number,) => {

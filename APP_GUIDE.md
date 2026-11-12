@@ -22,6 +22,8 @@ The full list by tab (Inbox, Now, Backlog, Waiting on, Done, Noise). Click a tas
 - **Reply drafts.** On email tasks, Draft a reply writes one in your style and your rules; Check lists any line that breaks a rule, Fix these rewrites only those lines, and Save to Gmail puts it in your drafts. You send it.
 - **Message on Slack.** To hand a task to a colleague or ask their view, choose who and write the message; after you confirm, OllieOS sends it to them as a Slack direct message from you, and the task moves to Waiting on them. Their reply shows on the task. Only colleagues with Slack, never anyone at an outside organisation.
 - **Keep as a test case.** On an item OllieOS found that it got wrong (or right), this saves what the reader was given so a later change can be checked against it.
+- **Sort.** Click a column heading to sort by it; click again to flip it, and a third time to go back. On a phone, use Sort by.
+- **Your own order.** On All open, Now, Backlog and Waiting on, drag a task by its grip (or press Space on the grip and use the arrow keys) to put it where you want. The order is kept. New tasks join below in due-date order, and Go back to due-date order forgets it.
 - **Export.** Tasks, Export downloads every task as a CSV file.
 
 ## Messages
