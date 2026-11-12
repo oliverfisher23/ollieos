@@ -2,12 +2,8 @@ import { SOURCE_LABELS, SOURCE_MARKS, STATUS_LABELS, PRIORITY_LABELS } from '@wo
 import type { Priority, TaskSource, TaskStatus } from '@workspace/api-client-react';
 import { initials, toneFor } from '@/lib/task-cache';
 
-export function Logo({ size = 30, radius = 9, font = 12 }: { size?: number; radius?: number; font?: number }) {
-  return (
-    <span aria-hidden="true" className="oo-logo" style={{ width: size, height: size, borderRadius: radius, fontSize: font }}>
-      OS
-    </span>
-  );
+export function Logo({ size = 30 }: { size?: number }) {
+  return <img src={`${import.meta.env.BASE_URL}ollieos-icon.svg`} alt="" aria-hidden="true" className="oo-logo" width={size} height={size} draggable={false} />;
 }
 
 export function Grain() {

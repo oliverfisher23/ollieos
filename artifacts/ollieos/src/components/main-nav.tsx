@@ -75,7 +75,7 @@ export function MainNav({ children }: { children: ReactNode }) {
       <div className="relative z-[1] flex gap-6 items-start px-4 sm:px-6 pb-[110px] sm:pb-0">
         <nav className="oo-rail oo-on-dark hidden sm:flex" aria-label="Main">
           <Link href="/" aria-label="OllieOS home" style={{ marginBottom: 8, width: 'auto', height: 'auto' }} data-testid="link-rail-logo">
-            <Logo size={32} radius={10} font={13} />
+            <Logo size={32} />
           </Link>
           {RAIL.map(({ href, label, Icon }) => (
             <Link key={href} href={href} aria-label={label} aria-current={cur(href)} {...preload(href)} data-testid={'link-rail-' + label.toLowerCase()}>
