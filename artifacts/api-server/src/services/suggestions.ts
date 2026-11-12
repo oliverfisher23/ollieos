@@ -73,6 +73,10 @@ export interface PersonPayload {
   organisation_id?: number | null;
   organisation_name?: string | null;
   relationship_summary?: string | null;
+  /** Section 25: the waiting New organisation card this person belongs to; approving the person approves it too */
+  organisation_suggestion_id?: number | null;
+  /** Section 25: their Slack account, for colleagues found on Slack */
+  slack_user_id?: string | null;
 }
 /**
  * Three shapes: a new document from a link; a new document whose text Claude saved (content, no
@@ -166,6 +170,8 @@ export interface OrganisationPayload {
   client_of_project_ids?: number[];
   /** Their names when proposed, for the card */
   client_of_project_names?: string[];
+  /** Section 25: email domains that belong to it, so people there are linked to it */
+  domains?: string[];
 }
 export interface ProjectPayload {
   name: string;
@@ -697,15 +703,16 @@ export async function applySuggestion(
         const [taken] = await tx.select({ id: peopleTable.id }).from(peopleTable).where(hasEmail(email));
         if (taken) email = null;
       }
-      let organisationId = p.organisation_id ?? null;
-      if (organisationId != null) {
-        const [org] = await tx.select({ id: organisationsTable.id }).from(organisationsTable).where(eq(organisationsTable.id, organisationId));
-        if (!org) organisationId = null;
+      const organisationId = await organisationForPerson(tx, p, now);
+      let slackUserId = str(p.slack_user_id);
+      if (slackUserId) {
+        const [taken] = await tx.select({ id: peopleTable.id }).from(peopleTable).where(eq(peopleTable.slackUserId, slackUserId));
+        if (taken) slackUserId = null;
       }
       const slug = await uniqueSlug(tx, "person", p.name);
       const [row] = await tx
         .insert(peopleTable)
-        .values({ name: p.name, slug, email, organisationId, role: str(p.role), relationshipSummary: str(p.relationship_summary) })
+        .values({ name: p.name, slug, email, slackUserId, organisationId, role: str(p.role), relationshipSummary: str(p.relationship_summary) })
         .returning({ id: peopleTable.id });
       await audit("create", "person", row.id, { name: p.name });
       return { type: "person", id: row.id };
@@ -715,7 +722,7 @@ export async function applySuggestion(
       const slug = await uniqueSlug(tx, "organisation", p.name);
       const [row] = await tx
         .insert(organisationsTable)
-        .values({ name: p.name, slug, type: str(p.type), summary: str(p.summary) })
+        .values({ name: p.name, slug, type: str(p.type), summary: str(p.summary), domains: cleanDomains(p.domains) })
         .returning({ id: organisationsTable.id });
       await audit("create", "organisation", row.id, { name: p.name });
       for (const projectId of p.client_of_project_ids ?? []) await linkClient(tx, projectId, row.id);
@@ -888,6 +895,54 @@ export async function applySuggestion(
 }
 
 /** For a decision proposed without a project: a project Ollie chose, a new one he named, or none. */
+const cleanDomains = (d: unknown): string[] =>
+  Array.isArray(d) ? [...new Set(d.map((x) => String(x).trim().toLowerCase().replace(/^@/, "")).filter((x) => /^[a-z0-9.-]+\.[a-z]{2,}$/.test(x)))].slice(0, 10) : [];
+
+/**
+ * Section 25: the organisation a new person goes under. Their organisation_id when it still exists;
+ * else the New organisation card they came with (approved now if still waiting); else an
+ * organisation with the same name; else a waiting card with that name (approved now); else a new
+ * organisation with just that name. Before this, a person approved with only an organisation name
+ * was left with no organisation.
+ */
+async function organisationForPerson(tx: DbOrTx, p: PersonPayload, now: Date): Promise<number | null> {
+  if (p.organisation_id != null) {
+    const [org] = await tx.select({ id: organisationsTable.id }).from(organisationsTable).where(eq(organisationsTable.id, p.organisation_id));
+    if (org) return org.id;
+  }
+  const approveCard = async (card: Suggestion): Promise<number | null> => {
+    if (card.status === "approved" || card.status === "merged") return card.resultType === "organisation" ? card.resultId : null;
+    if (card.status !== "pending") return null;
+    const r = await applySuggestion(tx, card, card.payload as Record<string, unknown>, now);
+    await tx.update(suggestionsTable).set({ status: "approved", decidedAt: now, resultType: r.type, resultId: r.id }).where(eq(suggestionsTable.id, card.id));
+    await writeAudit(tx, { actor: ACTOR, action: "approve", entityType: "suggestion", entityId: card.id, payload: { kind: card.kind, result: `${r.type}:${r.id}`, with: "person" } });
+    return r.id;
+  };
+  if (p.organisation_suggestion_id != null) {
+    const [card] = await tx.select().from(suggestionsTable).where(and(eq(suggestionsTable.id, p.organisation_suggestion_id), eq(suggestionsTable.kind, "organisation")));
+    if (card) {
+      const id = await approveCard(card);
+      if (id != null) return id;
+    }
+  }
+  const name = str(p.organisation_name);
+  if (!name) return null;
+  const [same] = await tx.select({ id: organisationsTable.id }).from(organisationsTable).where(sql`lower(${organisationsTable.name}) = ${name.toLowerCase()}`).limit(1);
+  if (same) return same.id;
+  const [card] = await tx
+    .select()
+    .from(suggestionsTable)
+    .where(and(eq(suggestionsTable.kind, "organisation"), eq(suggestionsTable.status, "pending"), eq(suggestionsTable.normalisedText, normalise(name))))
+    .limit(1);
+  if (card) {
+    const id = await approveCard(card);
+    if (id != null) return id;
+  }
+  const [created] = await tx.insert(organisationsTable).values({ name, slug: await uniqueSlug(tx, "organisation", name) }).returning({ id: organisationsTable.id });
+  await writeAudit(tx, { actor: ACTOR, action: "create", entityType: "organisation", entityId: created.id, payload: { name, with: "person" } });
+  return created.id;
+}
+
 export interface ApproveProject {
   projectId?: number;
   newProjectName?: string;
@@ -908,7 +963,7 @@ async function projectForDecision(tx: DbOrTx, choice: ApproveProject | undefined
   return p.id;
 }
 
-export async function approveSuggestion(id: number, edits?: Record<string, string>, now = new Date(), project?: ApproveProject) {
+export async function approveSuggestion(id: number, edits?: Record<string, string>, now = new Date(), project?: ApproveProject, actor = ACTOR) {
   return db.transaction(async (tx) => {
     let s = await loadPending(tx, id);
     if (await inPendingConflict(tx, id)) throw new ValidationError("This one disagrees with something already approved. Choose on the Conflicts tab.");
@@ -930,7 +985,7 @@ export async function approveSuggestion(id: number, edits?: Record<string, strin
       .returning({ id: suggestionsTable.id });
     if (!done.length) throw new ValidationError("That suggestion was already decided");
     await writeAudit(tx, {
-      actor: ACTOR,
+      actor,
       action: "approve",
       entityType: "suggestion",
       entityId: id,
@@ -938,6 +993,27 @@ export async function approveSuggestion(id: number, edits?: Record<string, strin
     });
     return { id, status: "approved" as const, result };
   });
+}
+
+/** Section 25: a New organisation card with the New person cards waiting on it, approved together. */
+export async function approveWithPeople(id: number, now = new Date()): Promise<{ organisation: { type: string; id: number }; people: number; skipped: { id: number; reason: string }[] }> {
+  const r = await approveSuggestion(id, undefined, now);
+  if (r.result.type !== "organisation") throw new ValidationError("Only a New organisation card brings its people with it");
+  const waiting = await db
+    .select({ id: suggestionsTable.id })
+    .from(suggestionsTable)
+    .where(and(eq(suggestionsTable.kind, "person"), eq(suggestionsTable.status, "pending"), sql`(${suggestionsTable.payload}->>'organisation_suggestion_id')::int = ${id}`));
+  let people = 0;
+  const skipped: { id: number; reason: string }[] = [];
+  for (const w of waiting) {
+    try {
+      await approveSuggestion(w.id, undefined, now);
+      people++;
+    } catch (err) {
+      skipped.push({ id: w.id, reason: err instanceof Error ? err.message : "Could not be approved" });
+    }
+  }
+  return { organisation: r.result, people, skipped };
 }
 
 export async function rejectSuggestion(id: number, now = new Date()) {

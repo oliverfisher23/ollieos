@@ -32,6 +32,9 @@ export const organisationsTable = pgTable(
     internal: boolean("internal").notNull().default(false),
     /** Part S: days without a meeting or email before a client shows Needs attention; null means 30 */
     pulseQuietDays: integer("pulse_quiet_days"),
+    /** Section 25: email domains that belong to it (acme.com), so new people there are linked to it */
+    domains: text("domains").array().notNull().default(sql`'{}'::text[]`),
+
     summary: text("summary"),
     confidential: boolean("confidential").notNull().default(false),
     aiAccess: boolean("ai_access").notNull().default(true),
@@ -100,6 +103,8 @@ export const peopleTable = pgTable(
     confidential: boolean("confidential").notNull().default(false),
     aiAccess: boolean("ai_access").notNull().default(true),
     lastContactAt: timestamp("last_contact_at", { withTimezone: true }),
+    /** Section 25: set when the contact finder added them without a card, so it can be undone */
+    autoAddedAt: timestamp("auto_added_at", { withTimezone: true }),
     /** Ollie's own record ("Your profile"). At most one row. */
     isSelf: boolean("is_self").notNull().default(false),
     /** How often Ollie wants to be in touch (feature 05); none keeps them off the People page */

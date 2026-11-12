@@ -137,7 +137,7 @@ export async function proposeWorksAt(personIds: number[], now = new Date()): Pro
 }
 
 /** The email domain used by two or more people at each outside organisation AI may see. */
-async function organisationDomains(): Promise<Map<string, { id: number; name: string }>> {
+export async function organisationDomains(): Promise<Map<string, { id: number; name: string }>> {
   const rows = await db
     .select({ orgId: organisationsTable.id, name: organisationsTable.name, email: peopleTable.email, otherEmails: peopleTable.otherEmails })
     .from(peopleTable)
@@ -163,7 +163,7 @@ async function organisationDomains(): Promise<Map<string, { id: number; name: st
   return out;
 }
 
-const FREE_MAIL = new Set(["gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "hotmail.co.uk", "live.com", "yahoo.com", "yahoo.co.uk", "icloud.com", "me.com", "aol.com", "proton.me", "protonmail.com"]);
+export const FREE_MAIL = new Set(["gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "hotmail.co.uk", "live.com", "yahoo.com", "yahoo.co.uk", "icloud.com", "me.com", "aol.com", "proton.me", "protonmail.com"]);
 
 /**
  * Details from an email signature for a known person: job title and company as attributed facts
@@ -287,6 +287,15 @@ async function runLookBack(state: RelationshipLookBack): Promise<void> {
       const people = emails.length ? await db.select({ id: peopleTable.id }).from(peopleTable).where(hasAnyEmail(emails)) : [];
       if (people.length > 1) {
         state.proposed += await recordTogether("email", id, msgs.find((m) => m.subject)?.subject ?? null, msgs[msgs.length - 1].at, people.map((p) => p.id));
+      }
+    }
+    // Section 25: people in the thread who are not in Contacts, for the contact finder.
+    if (msgs.length) {
+      try {
+        const { recordSightings, sightingsFromThread } = await import("./contactFinder");
+        await recordSightings(await sightingsFromThread(id, msgs));
+      } catch (err) {
+        logger.warn({ err, thread: id }, "Could not record contact sightings from the look back");
       }
     }
     if (state.done % 20 === 0) await saveLookBack(state);

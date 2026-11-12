@@ -30,6 +30,7 @@ import { HiddenFromAi, LockMark, PageProblem } from '@/components/knowledge/part
 import { CadencePill, CadenceSelect, CheckInDialog } from '@/components/cadence';
 import { PossibleDuplicates } from '@/components/knowledge/person-identity';
 import { LinkedInImportDialog } from '@/components/linkedin-import';
+import { AutoAddedMark } from '@/components/contact-finder';
 import { firstName, useKnowledgeWrite } from '@/lib/knowledge';
 
 type View = 'people' | 'organisations';
@@ -480,6 +481,7 @@ function PersonCell({ p }: { p: PersonListItem }) {
           <Link href={'/knowledge/people/' + p.slug} className="oo-krow-link" style={{ fontWeight: 500 }} data-testid={'link-contact-' + p.slug}>{p.name}</Link>
           {p.confidential ? <LockMark /> : !p.aiAccess && <HiddenFromAi confidential={false} />}
           {p.internal && <span className="oo-pill" data-tone="internal" data-testid={'pill-internal-' + p.slug}>Internal</span>}
+          <AutoAddedMark p={p} />
         </span>
         {(p.organisation || p.role) && <span className="oo-muted" style={{ fontSize: 13 }}>{[p.organisation?.name, p.role].filter(Boolean).join(' · ')}</span>}
       </span>
