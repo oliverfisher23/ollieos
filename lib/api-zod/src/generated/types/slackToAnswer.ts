@@ -9,6 +9,8 @@ import type { SlackToAnswerItem } from './slackToAnswerItem';
 import type { SlackToAnswerReadBy } from './slackToAnswerReadBy';
 
 export interface SlackToAnswer {
+  /** The conversations listed are being looked at again */
+  updating: boolean;
   items: SlackToAnswerItem[];
   /** Who reads Slack: only OllieOS's own Slack check fills this list */
   readBy: SlackToAnswerReadBy;

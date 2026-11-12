@@ -65,7 +65,8 @@ export interface SortedUnit {
   /**
    * Part P (section 19): for a Slack exchange whose newest message is not from Ollie, whether it
    * needs his reply, is for information, or needs nothing from him ("done": thanks, "ok", a sign-off),
-   * with one line on what is wanted. "none" otherwise, or when the AI gave no reading.
+   * with one line on what is wanted. For one whose newest message is from Ollie, "awaiting" when it
+   * asks for something and so expects an answer. "none" otherwise, or when the AI gave no reading.
    */
   reply?: SortedReply;
   /** Part U: what the exchange shows about its open items, as the AI gave it; cleaned against the items before use */
@@ -142,7 +143,7 @@ export function cleanIdeas(raw: unknown, u: WorkUnit): SpottedIdeaOut[] {
 }
 
 export interface SortedReply {
-  needs: "reply" | "info" | "done" | "none";
+  needs: "reply" | "info" | "done" | "awaiting" | "none";
   ask: string;
 }
 
@@ -230,7 +231,7 @@ const SCHEMA = {
           project: { type: "string" },
           items: { type: "array", items: ITEM_SCHEMA },
           knowledge: { type: "array", items: CLAIM_SCHEMA },
-          reply_needed: { type: "string", enum: ["reply", "info", "none"] },
+          reply_needed: { type: "string", enum: ["reply", "info", "awaiting", "none"] },
           reply_ask: { type: "string" },
           progress: { type: "array", items: PROGRESS_SCHEMA },
           signature_title: { type: "string" },
@@ -263,8 +264,9 @@ function knowledgeRules(known: KnownNames): string[] {
 function replyRules(): string[] {
   return [
     `Slack to answer:`,
-    `- "reply_needed" is only for exchanges with source="slack" whose newest message is NOT from Ollie. "reply" when it asks Ollie a question, asks him to do, decide, confirm, send, approve or book something, or plainly expects his answer. "info" when it tells him something worth knowing and asks nothing: an update, news, a decision, an announcement. "none" when it needs nothing from him at all: thanks, an acknowledgement or sign-off that closes the exchange ("perfect thank you!", "working now, thanks", "ok", "will do", an emoji), or anything that would read oddly to answer. For email exchanges, and Slack exchanges whose newest message is from Ollie, it is also "none".`,
-    `- "reply_ask" is under 12 words: when a reply is needed, what the sender wants ("Wants the pilot numbers by Friday"); when it is for information, what it is ("Update on the Ely rollout"). Use first names and refer to Ollie as "you". "" when "reply_needed" is "none".`,
+    `- "reply_needed" is only for exchanges with source="slack" whose newest message is NOT from Ollie. "reply" when it asks Ollie a question, asks him to do, decide, confirm, send, approve or book something, or plainly expects his answer. "info" when it tells him something worth knowing and asks nothing: an update, news, a decision, an announcement. "none" when it needs nothing from him at all: thanks, an acknowledgement or sign-off that closes the exchange ("perfect thank you!", "working now, thanks", "ok", "will do", an emoji), or anything that would read oddly to answer. For email exchanges it is also "none".`,
+    `- For a Slack exchange whose newest message IS from Ollie: "awaiting" when that message asks a question or asks someone to do, send, confirm or decide something, so Ollie is waiting for an answer; "none" when it only answers, thanks, agrees or informs.`,
+    `- "reply_ask" is under 12 words: when a reply is needed, what the sender wants ("Wants the pilot numbers by Friday"); when it is for information, what it is ("Update on the Ely rollout"); when it is "awaiting", what Ollie asked for, as a task title ("Sam to send the pilot numbers"). Use first names and refer to Ollie as "you". "" when "reply_needed" is "none".`,
   ];
 }
 
@@ -443,14 +445,17 @@ export function cleanClaims(claims: SortedClaim[], u: WorkUnit, known: KnownName
 /**
  * Part P: a reply reading only for a Slack exchange whose newest message is from someone else.
  * "none" from the AI for such an exchange means it needs nothing from Ollie ("done"); no answer or
- * anything else stays "none", which To answer treats as not read by AI.
+ * anything else stays "none", which To answer treats as not read by AI. When Ollie wrote last,
+ * "awaiting" is kept: he asked for something, for Waiting for a reply.
  */
 export function cleanReply(needed: unknown, ask: unknown, u: WorkUnit): SortedReply {
   const last = u.messages[u.messages.length - 1];
-  if (u.source !== "slack" || !last || last.fromMe) return { needs: "none", ask: "" };
+  const line = String(ask ?? "").replace(/\s+/g, " ").trim().slice(0, 140);
+  if (u.source !== "slack" || !last) return { needs: "none", ask: "" };
+  if (last.fromMe) return needed === "awaiting" ? { needs: "awaiting", ask: line } : { needs: "none", ask: "" };
   if (needed === "none") return { needs: "done", ask: "" };
   if (needed !== "reply" && needed !== "info") return { needs: "none", ask: "" };
-  return { needs: needed, ask: String(ask ?? "").replace(/\s+/g, " ").trim().slice(0, 140) };
+  return { needs: needed, ask: line };
 }
 
 /** Keeps items with a title, at most `max`, with a ref from the exchange and a well-formed due date. */

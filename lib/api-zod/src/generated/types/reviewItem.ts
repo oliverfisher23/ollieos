@@ -10,6 +10,7 @@ import type { Priority } from './priority';
 import type { ReviewItemKind } from './reviewItemKind';
 import type { ReviewItemState } from './reviewItemState';
 import type { ReviewItemSuggestedType } from './reviewItemSuggestedType';
+import type { ReviewItemVia } from './reviewItemVia';
 
 export interface ReviewItem {
   id: number;
@@ -17,6 +18,8 @@ export interface ReviewItem {
   kind: ReviewItemKind;
   /** answered means someone wrote back before Ollie decided */
   state: ReviewItemState;
+  /** Where it came from: a meeting's notes, an email Ollie sent, or a Slack message he sent */
+  via: ReviewItemVia;
   /** The action, or for an unanswered email the ask: who owes what */
   text: string;
   /**

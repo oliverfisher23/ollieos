@@ -9,22 +9,27 @@
  * email once and says whether it needs a reply or is for information, with a line on what is
  * wanted; emails from anyone AI may not see are not read.
  *
+ * Later hides an email until a day, or until a new message arrives. Emails one of Ollie's noise
+ * rules covers (a muted sender, say) are left out. People at client organisations, and people
+ * Ollie is overdue to be in touch with, are marked so the page can put them first.
+ *
  * An email only becomes a task when Ollie acts on it (Brief a reply, Reply, Save to Library), so
  * reading the inbox adds nothing to Tasks. Emails the Gmail check already made a task for are
  * linked to it.
  */
 import { eq, sql } from "drizzle-orm";
-import { appSettingsTable, db, tasksTable } from "@workspace/db";
-import { formatDayMonth, toRef } from "@workspace/shared";
+import { appSettingsTable, db, noiseRulesTable, tasksTable, type NoiseRule } from "@workspace/db";
+import { formatDayMonth, toRef, todayLondon } from "@workspace/shared";
 import { visibleRefs } from "../lib/ai-data/scope";
 import { writeAudit } from "../lib/audit";
 import { logger } from "../lib/logger";
-import { captureTask } from "./aiWrites";
+import { captureTask, matchNoiseRule } from "./aiWrites";
 import { askScope } from "./ask/ask";
 import { AUTOMATED, INVITE, gmailAccount, gmailThreadUrl, inPool, readGmailThread } from "./connectors/gmail";
 import { ConnectorError, proxyJson } from "./connectors/http";
 import { threadMeta, type MetaMessage } from "./connectors/noReply";
 import { haikuJson } from "./connectors/sorter";
+import { sendersFor } from "./messagePriority";
 import { NotFoundError, UpstreamError, ValidationError, updateTask } from "./tasks";
 import { aiMaySeeSenders } from "./threadSummary";
 
@@ -35,6 +40,7 @@ export const INBOX_MAX = 200;
 const DONE_KEY = "email_inbox_done";
 const SNAPSHOT_KEY = "email_inbox_snapshot";
 const ASKS_KEY = "email_inbox_asks";
+const LATER_KEY = "email_inbox_later";
 /** The last look at Gmail is shown as it is, and looked at again once it is older than this */
 const FRESH_MS = 45_000;
 /** Most emails Haiku reads in one go */
@@ -63,6 +69,13 @@ export interface InboxItem {
   needs: InboxNeeds;
   /** One line on what the sender wants */
   ask: string | null;
+  /** Later: the day it comes back, while it is hidden */
+  snoozedUntil: string | null;
+  /** The sender in People, when they are there */
+  personId: number | null;
+  personSlug: string | null;
+  /** Why it comes first ("Client", "Overdue to contact") */
+  priority: string | null;
 }
 
 export interface InboxView {
@@ -162,6 +175,16 @@ type DoneMap = Record<string, string>;
 
 const loadDone = async (): Promise<DoneMap> => (await loadSetting<DoneMap>(DONE_KEY)) ?? {};
 const saveDone = (v: DoneMap) => saveSetting(DONE_KEY, v);
+
+/* ---------- Later: hidden until a day, or until a new message arrives ---------- */
+
+type LaterMap = Record<string, { messageId: string; until: string }>;
+
+const loadLater = async (): Promise<LaterMap> => (await loadSetting<LaterMap>(LATER_KEY)) ?? {};
+
+/** True when one of Ollie's noise rules covers the email: a muted sender or domain, or words in the subject. */
+const muted = (rules: NoiseRule[], c: Pick<Candidate, "subject" | "fromEmail">) =>
+  !!matchNoiseRule(rules, { title: c.subject ?? "", source: "email", fromAddress: c.fromEmail, sourceSubject: c.subject });
 
 /* ---------- Tasks linked to inbox emails ---------- */
 
@@ -279,6 +302,9 @@ async function lookAtGmail(): Promise<void> {
   const done = await loadDone();
   const kept = Object.fromEntries(Object.entries(done).filter(([id]) => inInbox.has(id)));
   if (Object.keys(kept).length !== Object.keys(done).length) await saveDone(kept);
+  const later = await loadLater();
+  const stillLater = Object.fromEntries(Object.entries(later).filter(([id]) => inInbox.has(id)));
+  if (Object.keys(stillLater).length !== Object.keys(later).length) await saveSetting(LATER_KEY, stillLater);
 }
 
 /** Looks at Gmail again, once at a time. */
@@ -294,29 +320,58 @@ function refresh(): Promise<void> {
   return refreshing;
 }
 
-export async function listInbox(): Promise<InboxView> {
+async function loadSnapshot(): Promise<Snapshot | null> {
   if (!snapshotLoaded) {
     snapshotLoaded = true;
     snapshot = await loadSetting<Snapshot>(SNAPSHOT_KEY);
   }
-  if (!snapshot) await refresh().catch(gmailProblem);
-  else if (Date.now() - Date.parse(snapshot.checkedAt) > FRESH_MS) {
+  return snapshot;
+}
+
+/** The list; Gmail is looked at again in the background once the last look is older than `freshMs`. */
+export async function listInbox(freshMs = FRESH_MS): Promise<InboxView> {
+  if (!(await loadSnapshot())) await refresh().catch(gmailProblem);
+  else if (Date.now() - Date.parse(snapshot!.checkedAt) > freshMs) {
     refresh().catch((err) => logger.warn({ err }, "Looking at the Gmail inbox failed"));
   }
   return buildView(snapshot!);
 }
 
-async function buildView(snap: Snapshot): Promise<InboxView> {
-  const [done, linked, asks] = await Promise.all([loadDone(), linkedTasks(snap.candidates.map((c) => c.threadId)), loadAsks()]);
+/**
+ * The list as of the last look at Gmail, for counts on Home and the digest: Gmail is not looked
+ * at, nothing is read by AI and senders are not looked up, so it is one round of reads.
+ */
+export async function peekInbox(): Promise<InboxItem[]> {
+  const snap = await loadSnapshot();
+  return snap ? (await buildView(snap, false)).items : [];
+}
+
+/** Emails that count as Needs a reply on Messages: not for information and not hidden until later. */
+export const needsReply = (e: Pick<InboxItem, "needs" | "snoozedUntil">) => e.needs !== "info" && e.snoozedUntil == null;
+
+async function buildView(snap: Snapshot, read = true): Promise<InboxView> {
+  const [done, linked, asks, later, rules] = await Promise.all([
+    loadDone(),
+    linkedTasks(snap.candidates.map((c) => c.threadId)),
+    loadAsks(),
+    loadLater(),
+    db.select().from(noiseRulesTable).where(eq(noiseRulesTable.enabled, true)),
+  ]);
+  const today = todayLondon();
+  const candidates = snap.candidates.filter((c) => !muted(rules, c));
+  // Who each is from, for the page; counts do not need it.
+  const senders = read ? await sendersFor(candidates.map((c) => c.fromEmail), []) : null;
   const items: InboxItem[] = [];
   let toRead = false;
-  for (const c of snap.candidates) {
+  for (const c of candidates) {
     if (done[c.threadId] === c.messageId) continue;
     const at = new Date(c.at);
     const task = linked.get(c.threadId);
     // Closed in OllieOS after the newest message: dealt with.
     if (task && CLOSED.has(task.status) && task.updatedAt.getTime() >= at.getTime()) continue;
     const a = asks[c.threadId];
+    const l = later[c.threadId];
+    const sender = c.fromEmail ? senders?.byEmail.get(c.fromEmail.toLowerCase()) : undefined;
     const current = a && a.messageId === c.messageId ? a : null;
     if (!current || (current.why === "failed" && Date.now() - Date.parse(current.at) > RETRY_MS)) toRead = true;
     items.push({
@@ -326,13 +381,17 @@ async function buildView(snap: Snapshot): Promise<InboxView> {
       gmailUrl: gmailThreadUrl(snap.account, c.threadId),
       needs: !current ? "checking" : current.needs ?? "unknown",
       ask: current?.ask ?? null,
+      snoozedUntil: l && l.messageId === c.messageId && l.until > today ? l.until : null,
+      personId: sender?.personId ?? null,
+      personSlug: sender?.personSlug ?? null,
+      priority: sender?.priority ?? null,
     });
   }
-  if (toRead) startJudging();
+  if (toRead && read) startJudging();
   return {
     items,
     more: snap.more,
-    leftOut: snap.leftOut,
+    leftOut: snap.leftOut + (snap.candidates.length - candidates.length),
     checkedAt: new Date(snap.checkedAt),
     updating: !!refreshing || !!judging,
     problem,
@@ -376,9 +435,15 @@ function startJudging() {
 async function judgeNew(): Promise<void> {
   const snap = snapshot;
   if (!snap) return;
-  const [asks, done, linked] = await Promise.all([loadAsks(), loadDone(), linkedTasks(snap.candidates.map((c) => c.threadId))]);
+  const [asks, done, linked, rules] = await Promise.all([
+    loadAsks(),
+    loadDone(),
+    linkedTasks(snap.candidates.map((c) => c.threadId)),
+    db.select().from(noiseRulesTable).where(eq(noiseRulesTable.enabled, true)),
+  ]);
+  // Muted emails are not listed, so they are not read either.
   const todo = snap.candidates
-    .filter((c) => done[c.threadId] !== c.messageId)
+    .filter((c) => done[c.threadId] !== c.messageId && !muted(rules, c))
     .filter((c) => {
       const a = asks[c.threadId];
       return !a || a.messageId !== c.messageId || (a.why === "failed" && Date.now() - Date.parse(a.at) > RETRY_MS);
@@ -514,6 +579,44 @@ export async function undoInboxDone(threadId: string, taskId: number | null, pre
   delete done[threadId];
   await saveDone(done);
   if (taskId != null && previousStatus) await updateTask(taskId, { status: previousStatus as never }, actor);
+}
+
+/**
+ * Done on several at once (Mark all done): from the last look at Gmail, so Gmail is not asked about
+ * each one. Emails no longer on the list are skipped.
+ */
+export async function markInboxDoneMany(threadIds: string[], actor: string): Promise<{ threadId: string; taskId: number | null; previousStatus: string | null }[]> {
+  const snap = await loadSnapshot();
+  const byThread = new Map((snap?.candidates ?? []).map((c) => [c.threadId, c]));
+  const found = [...new Set(threadIds)].flatMap((id) => (byThread.has(id) ? [byThread.get(id)!] : []));
+  if (!found.length) return [];
+  const done = await loadDone();
+  for (const c of found) done[c.threadId] = c.messageId;
+  await saveDone(done);
+  const linked = await linkedTasks(found.map((c) => c.threadId));
+  const out: { threadId: string; taskId: number | null; previousStatus: string | null }[] = [];
+  for (const c of found) {
+    const task = linked.get(c.threadId);
+    const open = task && !CLOSED.has(task.status) ? task : null;
+    if (open) await updateTask(open.id, { status: "done" }, actor);
+    out.push({ threadId: c.threadId, taskId: open?.id ?? null, previousStatus: open?.status ?? null });
+  }
+  await writeAudit(db, { actor, action: "email_done", entityType: "task", entityId: null, payload: { threadIds: found.map((c) => c.threadId) } });
+  return out;
+}
+
+/** Later: hides an email until a day, or until a new message arrives. Null brings it back. */
+export async function snoozeInbox(threadId: string, until: string | null, actor: string): Promise<void> {
+  if (!isThreadId(threadId)) throw new ValidationError("That is not a Gmail thread");
+  if (until != null && until <= todayLondon()) throw new ValidationError("Pick a day after today");
+  const later = await loadLater();
+  if (until == null) delete later[threadId];
+  else {
+    const kept = (await loadSnapshot())?.candidates.find((c) => c.threadId === threadId);
+    later[threadId] = { messageId: kept?.messageId ?? (await freshWaiting(threadId)).last.id, until };
+  }
+  await saveSetting(LATER_KEY, later);
+  await writeAudit(db, { actor, action: until ? "email_later" : "email_back", entityType: "task", entityId: null, payload: { threadId, until } });
 }
 
 /** For tests: forget kept thread details and the last look at Gmail (without loading it again). */

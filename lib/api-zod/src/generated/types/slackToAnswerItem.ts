@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { SlackReplyDraft } from './slackReplyDraft';
 import type { SlackToAnswerItemNeeds } from './slackToAnswerItemNeeds';
 
 export interface SlackToAnswerItem {
@@ -38,4 +39,16 @@ export interface SlackToAnswerItem {
      * @nullable
      */
   taskId: number | null;
+  /** The reply drafted for it, when there is one: it is on Drafts, not To answer */
+  draft: SlackReplyDraft | null;
+  /**
+     * Later: the day it comes back, while it is hidden
+     * @nullable
+     */
+  snoozedUntil: Date | null;
+  /**
+     * Why it comes first: Client, or Overdue to contact
+     * @nullable
+     */
+  priority: string | null;
 }
