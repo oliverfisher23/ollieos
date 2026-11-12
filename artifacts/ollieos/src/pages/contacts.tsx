@@ -516,8 +516,8 @@ function PeopleView({
                   </th>
                   <th scope="col">Person</th>
                   <th scope="col">Strength</th>
-                  <th scope="col">Last contact</th>
-                  <th scope="col">Keep in touch</th>
+                  <th scope="col" style={{ whiteSpace: 'nowrap' }}>Last contact</th>
+                  <th scope="col" style={{ whiteSpace: 'nowrap' }}>Keep in touch</th>
                   <th scope="col">Status</th>
                   <th scope="col">Open</th>
                   <th scope="col"><span className="oo-sr">Actions</span></th>
@@ -525,13 +525,13 @@ function PeopleView({
               </thead>
               <tbody>
                 {shown.map((p) => (
-                  <tr key={p.id} className="oo-contact-row" onClick={(e) => !onControl(e) && onOpen(p)} data-testid={'row-contact-' + p.slug}>
+                  <tr key={p.id} className="oo-person-row" onClick={(e) => !onControl(e) && onOpen(p)} data-testid={'row-contact-' + p.slug}>
                     <td>
                       <input type="checkbox" className="oo-rv-select" checked={picked.has(p.id)} onChange={() => toggle(p.id)} aria-label={`Select ${p.name}`} data-testid={'checkbox-contact-' + p.slug} />
                     </td>
                     <td><PersonCell p={p} onOpen={() => onOpen(p)} /></td>
                     <td><StrengthPill strength={p.strength} testId={'pill-strength-' + p.slug} /></td>
-                    <td data-testid={'text-last-contact-' + p.slug}>{p.lastContactAt ? contactDate(p.lastContactAt) : <span className="oo-muted">None on file</span>}</td>
+                    <td style={{ whiteSpace: 'nowrap' }} data-testid={'text-last-contact-' + p.slug}>{p.lastContactAt ? contactDate(p.lastContactAt) : <span className="oo-muted">None on file</span>}</td>
                     <td><CadenceSelect personSlug={p.slug} name={p.name} value={p.cadence.cadence} label="Cadence" testId={'select-cadence-' + p.slug} /></td>
                     <td>{p.cadence.cadence === 'none' ? <span className="oo-muted">–</span> : <CadencePill c={p.cadence} testId={'pill-cadence-' + p.slug} />}</td>
                     <td><Owes p={p} /></td>
@@ -700,7 +700,7 @@ function PersonCell({ p, onOpen }: { p: PersonListItem; onOpen?: () => void }) {
       <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           {onOpen ? (
-            <button type="button" className="oo-contact-name oo-tap" onClick={onOpen} data-testid={'button-open-contact-' + p.slug}>{p.name}</button>
+            <button type="button" className="oo-person-name oo-tap" onClick={onOpen} data-testid={'button-open-contact-' + p.slug}>{p.name}</button>
           ) : (
             <Link href={'/knowledge/people/' + p.slug} className="oo-krow-link" style={{ fontWeight: 500 }} data-testid={'link-contact-' + p.slug}>{p.name}</Link>
           )}
