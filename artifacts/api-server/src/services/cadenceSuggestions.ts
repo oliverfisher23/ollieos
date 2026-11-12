@@ -102,7 +102,7 @@ async function saveDismissed(ids: number[]): Promise<void> {
 }
 
 /** Distinct London days in touch per person since the given time. */
-async function contactDays(since: Date, now: Date): Promise<Map<number, string[]>> {
+export async function contactDays(since: Date, now: Date): Promise<Map<number, string[]>> {
   const s = since.toISOString();
   const n = now.toISOString();
   const res = await db.execute(sql`
@@ -150,7 +150,7 @@ export async function suggestCadences(now = new Date()): Promise<CadenceSuggesti
       })
       .from(peopleTable)
       .leftJoin(organisationsTable, eq(organisationsTable.id, peopleTable.organisationId))
-      .where(sql`${peopleTable.cadence} = 'none' and not ${peopleTable.isSelf}`),
+      .where(sql`${peopleTable.cadence} = 'none' and not ${peopleTable.isSelf} and not ${peopleTable.archived}`),
   ]);
   const hidden = new Set(dismissed);
   const candidates = rows.filter((r) => !hidden.has(r.id));

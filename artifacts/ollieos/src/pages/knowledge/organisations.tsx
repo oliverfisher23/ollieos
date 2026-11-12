@@ -29,6 +29,7 @@ import {
   useUnlink,
 } from '@/components/knowledge/parts';
 import { RelationshipsSection, WhoDecides } from '@/components/knowledge/relationships';
+import { OrgChart, OrgDomains, SameOrganisationAs } from '@/components/knowledge/org-extras';
 import { isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
 import { PlaybooksSection } from '@/pages/knowledge/playbooks';
 import { ProductsSection } from '@/pages/knowledge/products';
@@ -82,7 +83,7 @@ export function OrganisationPage() {
       </KnowledgeLayout>
     );
   }
-  const { organisation: o, people, projects, playbooks, products, facts, timeline, research } = q.data;
+  const { organisation: o, people, projects, playbooks, products, facts, timeline, research, reportsTo } = q.data;
 
   return (
     <KnowledgeLayout testId="page-organisation">
@@ -106,6 +107,7 @@ export function OrganisationPage() {
           <div style={{ fontSize: 13 }}>
             <WhoDecides type="organisation" id={o.id} name={o.name} />
           </div>
+          <OrgDomains org={o} />
           <ContextPackButton type="organisation" id={o.id} />
         </div>
         <AccessPanel
@@ -147,6 +149,7 @@ export function OrganisationPage() {
         </section>
         <FactsSection entityType="organisation" entityId={o.id} facts={facts} />
       </div>
+      <OrgChart people={people} reportsTo={reportsTo} name={o.name} />
       <PlaybooksSection playbooks={playbooks} preset={{ organisationId: o.id }} empty={`No playbooks linked to ${o.name}.`} />
       <RelationshipsSection type="organisation" id={o.id} name={o.name} />
 
@@ -168,6 +171,7 @@ export function OrganisationPage() {
       </section>
 
       <AddNote entityType="organisation" entityId={o.id} placeholder={`Anything worth remembering about ${o.name}`} />
+      <SameOrganisationAs org={o} />
     </KnowledgeLayout>
   );
 }

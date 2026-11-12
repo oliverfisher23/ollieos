@@ -3608,6 +3608,151 @@ export interface SlackAccount {
   email: string | null;
 }
 
+/**
+ * How strong the relationship looks from how often and how recently Ollie is in touch
+ */
+export type Strength = typeof Strength[keyof typeof Strength];
+
+
+export const Strength = {
+  strong: 'strong',
+  warm: 'warm',
+  cooling: 'cooling',
+  cold: 'cold',
+} as const;
+
+export type IntroductionVia = {
+  id: number;
+  name: string;
+  slug: string;
+  /** @nullable */
+  role: string | null;
+  /** @nullable */
+  organisation: string | null;
+  strength: Strength;
+};
+
+export type IntroductionKind = typeof IntroductionKind[keyof typeof IntroductionKind];
+
+
+export const IntroductionKind = {
+  direct: 'direct',
+  organisation: 'organisation',
+  second: 'second',
+} as const;
+
+export interface Introduction {
+  via: IntroductionVia;
+  /** How they connect, read from the introducer: works with Anna Clarke */
+  how: string;
+  kind: IntroductionKind;
+}
+
+export type Cadence = typeof Cadence[keyof typeof Cadence];
+
+
+export const Cadence = {
+  none: 'none',
+  weekly: 'weekly',
+  fortnightly: 'fortnightly',
+  monthly: 'monthly',
+  two_monthly: 'two_monthly',
+  quarterly: 'quarterly',
+} as const;
+
+export interface BulkPeopleInput {
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  ids: number[];
+  cadence?: Cadence;
+  /** @maxLength 40 */
+  addTag?: string;
+  /** @maxLength 40 */
+  removeTag?: string;
+  /** @nullable */
+  organisationId?: number | null;
+  archived?: boolean;
+}
+
+export interface BulkPeopleResult {
+  updated: number;
+}
+
+export interface OrganisationDomainsInput {
+  /** @maxItems 20 */
+  domains: string[];
+}
+
+export type OrganisationDomainsResultPlacedItem = {
+  id: number;
+  name: string;
+  slug: string;
+};
+
+export interface OrganisationDomainsResult {
+  domains: string[];
+  /** People with no organisation who write from these domains, now placed here */
+  placed: OrganisationDomainsResultPlacedItem[];
+}
+
+export type MergeOrganisationResultKept = {
+  id: number;
+  name: string;
+  slug: string;
+};
+
+export type MergeOrganisationResultRemoved = {
+  id: number;
+  name: string;
+};
+
+export type MergeOrganisationResultMoved = {
+  people: number;
+  facts: number;
+  notes: number;
+  links: number;
+};
+
+export interface MergeOrganisationResult {
+  kept: MergeOrganisationResultKept;
+  removed: MergeOrganisationResultRemoved;
+  moved: MergeOrganisationResultMoved;
+}
+
+export type MissingContactOrganisation = {
+  id: number;
+  name: string;
+} | null;
+
+export interface MissingContact {
+  email: string;
+  name: string;
+  /** Work meetings in the calendar with them */
+  meetings: number;
+  /** @nullable */
+  lastMetAt: string | null;
+  /** @nullable */
+  nextMeetingAt: string | null;
+  titles: string[];
+  organisation: MissingContactOrganisation;
+}
+
+export interface MissingContacts {
+  people: MissingContact[];
+}
+
+export interface MissingContactAddInput {
+  email: string;
+  /** @maxLength 200 */
+  name?: string;
+}
+
+export interface MissingContactDismissInput {
+  email: string;
+}
+
 export interface MergePersonInput {
   /** The person to merge into this one and remove */
   otherId: number;
@@ -4220,18 +4365,6 @@ export const CadenceStatus = {
   none: 'none',
 } as const;
 
-export type Cadence = typeof Cadence[keyof typeof Cadence];
-
-
-export const Cadence = {
-  none: 'none',
-  weekly: 'weekly',
-  fortnightly: 'fortnightly',
-  monthly: 'monthly',
-  two_monthly: 'two_monthly',
-  quarterly: 'quarterly',
-} as const;
-
 export interface PersonCadence {
   status: CadenceStatus;
   /**
@@ -4278,6 +4411,20 @@ export interface PersonListItem {
      */
   autoAddedAt?: string | null;
   cadence: PersonCadence;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  phone: string | null;
+  /** @nullable */
+  linkedinUrl: string | null;
+  /** @nullable */
+  slackUserId: string | null;
+  tags: string[];
+  /** Moved out of the main Contacts list */
+  archived: boolean;
+  strength: Strength;
+  /** Not spoken to in a year, no cadence, no active project and nothing open */
+  archiveCandidate: boolean;
 }
 
 export interface Person {
@@ -4311,6 +4458,12 @@ export interface Person {
      * @nullable
      */
   linkedinUrl: string | null;
+  /** @nullable */
+  phone: string | null;
+  /** Groups Ollie defines */
+  tags: string[];
+  /** Moved out of the main Contacts list */
+  archived: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -4331,6 +4484,16 @@ export interface PersonInput {
   relationshipSummary?: string | null;
   confidential?: boolean;
   aiAccess?: boolean;
+  /**
+     * @maxLength 60
+     * @nullable
+     */
+  phone?: string | null;
+  /**
+     * @maxItems 20
+     * @items.maxLength 40
+     */
+  tags?: string[];
 }
 
 export interface PersonUpdate {
@@ -4368,10 +4531,26 @@ export interface PersonUpdate {
      * @nullable
      */
   linkedinUrl?: string | null;
+  /**
+     * @maxLength 60
+     * @nullable
+     */
+  phone?: string | null;
+  /**
+     * Replaces their tags
+     * @maxItems 20
+     * @items.maxLength 40
+     */
+  tags?: string[];
+  /** Out of the main Contacts list; archiving clears the cadence */
+  archived?: boolean;
 }
 
 export interface PersonDetail {
   person: Person;
+  strength: Strength;
+  /** People Ollie knows well who could introduce him; empty when he already knows this person well */
+  introductions: Introduction[];
   cadence: PersonCadence;
   iOwe: Task[];
   theyOwe: Task[];
@@ -4409,6 +4588,8 @@ export interface Organisation {
   internal: boolean;
   /** @nullable */
   summary: string | null;
+  /** Email domains that belong to it (acme.com); new people there are placed under it */
+  domains: string[];
   confidential: boolean;
   aiAccess: boolean;
   createdAt: string;
@@ -4445,7 +4626,14 @@ export interface OrganisationUpdate {
   aiAccess?: boolean;
 }
 
+export type OrganisationDetailReportsToItem = {
+  personId: number;
+  managerId: number;
+};
+
 export interface OrganisationDetail {
+  /** Who reports to whom among the people who work here */
+  reportsTo: OrganisationDetailReportsToItem[];
   playbooks: Playbook[];
   products: LinkedProduct[];
   research: CompanyResearch[];

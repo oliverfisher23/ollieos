@@ -104,6 +104,9 @@ const ROUTES: RouteCheck[] = [
   { pattern: "/knowledge/sessions", url: "/knowledge/sessions" },
   { pattern: "/knowledge/map", url: "/knowledge/map" },
   { pattern: "/meetings", url: "/meetings" },
+  // A meeting page shows its prep, so it is skipped with the brief pages.
+  { pattern: "/meetings/:eventId", url: (s) => (INCLUDE_BRIEFS && s.event ? "/meetings/" + s.event : null) },
+  { pattern: "/digest/friday", url: "/digest/friday" },
   { pattern: "/briefs/next", url: () => (INCLUDE_BRIEFS ? "/briefs/next" : null) },
   { pattern: "/briefs/:eventId", url: (s) => (INCLUDE_BRIEFS && s.event ? "/briefs/" + s.event : null) },
   { pattern: "/digest", url: "/digest" },

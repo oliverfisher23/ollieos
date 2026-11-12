@@ -160,6 +160,12 @@ export async function organisationDomains(): Promise<Map<string, { id: number; n
     const best = [...m.entries()].sort((x, y) => y[1].n - x[1].n)[0];
     if (best && best[1].n >= 2 && m.size === 1) out.set(d, { id: best[0], name: best[1].name });
   }
+  // A domain Ollie (or the contact finder) has given to an organisation wins over one worked out from its people.
+  const explicit = await db
+    .select({ id: organisationsTable.id, name: organisationsTable.name, domains: organisationsTable.domains })
+    .from(organisationsTable)
+    .where(and(eq(organisationsTable.confidential, false), eq(organisationsTable.aiAccess, true)));
+  for (const o of explicit) for (const d of o.domains) out.set(d, { id: o.id, name: o.name });
   return out;
 }
 
@@ -179,7 +185,7 @@ export async function proposeSignature(
   const [ok] = await countable([person.id]);
   if (ok == null) return 0;
   const [row] = await db
-    .select({ role: peopleTable.role, org: organisationsTable.name })
+    .select({ role: peopleTable.role, org: organisationsTable.name, phone: peopleTable.phone })
     .from(peopleTable)
     .leftJoin(organisationsTable, eq(organisationsTable.id, peopleTable.organisationId))
     .where(eq(peopleTable.id, person.id));
@@ -197,7 +203,21 @@ export async function proposeSignature(
   if (sig.title && !held(sig.title)) cards.push({ text: `${person.name} is ${sig.title}`, attribute: "job_title" });
   if (sig.company && !held(sig.company)) cards.push({ text: `${person.name} works at ${sig.company}`, attribute: "organisation" });
   const phone = sig.phone.replace(/[^\d+()\s-]/g, "").trim();
-  if (phone.replace(/\D/g, "").length >= 7 && !held(phone)) cards.push({ text: `${person.name}'s phone number is ${phone}`, attribute: null });
+  const digits = (v: string | null | undefined) => (v ?? "").replace(/\D/g, "");
+  if (digits(phone).length >= 7 && !held(phone) && digits(row?.phone) !== digits(phone)) {
+    if (!row?.phone) {
+      // Nothing on file: a change card that fills in the Phone field on their page.
+      try {
+        const r = await propose({ ...meta, sourceRef: `${source.ref}#phone` }, { kind: "summary_change", entityType: "person", entityId: person.id, payload: { fields: { phone }, before: { phone: null }, reason: "From their email signature." } }, now);
+        if (r.status === "suggested") made++;
+      } catch (err) {
+        logger.warn({ err, person: person.id }, "Could not propose a phone number from a signature");
+      }
+    } else {
+      // A different number from the one on file: a fact, so Ollie decides which is right.
+      cards.push({ text: `${person.name}'s phone number is ${phone}`, attribute: null });
+    }
+  }
   for (const [n, c] of cards.entries()) {
     try {
       const r = await propose({ ...meta, sourceRef: `${source.ref}#sig${n + 1}` }, { kind: "fact", entityType: "person", entityId: person.id, payload: { text: c.text, attribute: c.attribute, source: source.label } }, now);

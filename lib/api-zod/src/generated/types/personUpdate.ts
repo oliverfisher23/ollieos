@@ -42,4 +42,17 @@ export interface PersonUpdate {
      * @nullable
      */
   linkedinUrl?: string | null;
+  /**
+     * @maxLength 60
+     * @nullable
+     */
+  phone?: string | null;
+  /**
+     * Replaces their tags
+     * @maxItems 20
+     * @items.maxLength 40
+     */
+  tags?: string[];
+  /** Out of the main Contacts list; archiving clears the cadence */
+  archived?: boolean;
 }

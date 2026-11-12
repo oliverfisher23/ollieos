@@ -7,6 +7,7 @@
  */
 import type { EntitySummary } from './entitySummary';
 import type { PersonCadence } from './personCadence';
+import type { Strength } from './strength';
 
 export interface PersonListItem {
   id: number;
@@ -36,4 +37,18 @@ export interface PersonListItem {
      */
   autoAddedAt?: Date | null;
   cadence: PersonCadence;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  phone: string | null;
+  /** @nullable */
+  linkedinUrl: string | null;
+  /** @nullable */
+  slackUserId: string | null;
+  tags: string[];
+  /** Moved out of the main Contacts list */
+  archived: boolean;
+  strength: Strength;
+  /** Not spoken to in a year, no cadence, no active project and nothing open */
+  archiveCandidate: boolean;
 }

@@ -10,11 +10,19 @@ import {
   cadenceState,
   daysBetween,
   londonDate,
+  relationshipStrength,
   todayLondon,
+  type Strength,
   type Cadence,
   type CadenceState,
   type CadenceStatus,
 } from "@workspace/shared";
+
+/** Strong, warm, cooling or cold, from the last contact and the days in touch in the strength window. */
+export function strengthOf(lastContactAt: Date | null, contactDayCount: number, today = todayLondon()): Strength {
+  const daysSince = lastContactAt ? Math.max(0, daysBetween(londonDate(lastContactAt), today)) : null;
+  return relationshipStrength({ daysSince, contactDays: contactDayCount });
+}
 
 export const CADENCE_TABS = ["all", "overdue", "due_soon", "on_track"] as const;
 export type CadenceTab = (typeof CADENCE_TABS)[number];
@@ -145,7 +153,8 @@ export async function recordContact(conn: Pick<typeof db, "update">, personIds: 
   for (const id of personIds) {
     await conn
       .update(peopleTable)
-      .set({ lastContactAt: sql`greatest(coalesce(${peopleTable.lastContactAt}, ${at.toISOString()}::timestamptz), ${at.toISOString()}::timestamptz)` })
+      // New contact also brings an archived person back into Contacts.
+      .set({ lastContactAt: sql`greatest(coalesce(${peopleTable.lastContactAt}, ${at.toISOString()}::timestamptz), ${at.toISOString()}::timestamptz)`, archived: false })
       .where(eq(peopleTable.id, id));
   }
 }

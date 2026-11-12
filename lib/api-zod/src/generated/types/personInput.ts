@@ -22,4 +22,14 @@ export interface PersonInput {
   relationshipSummary?: string | null;
   confidential?: boolean;
   aiAccess?: boolean;
+  /**
+     * @maxLength 60
+     * @nullable
+     */
+  phone?: string | null;
+  /**
+     * @maxItems 20
+     * @items.maxLength 40
+     */
+  tags?: string[];
 }

@@ -3,7 +3,7 @@
  * from email domains, and details from email signatures.
  */
 import { describe, expect, it, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { appSettingsTable, db, meetingTonesTable, organisationsTable, peopleTable, suggestionsTable, tasksTable } from "@workspace/db";
 import { todayLondon } from "@workspace/shared";
 import type { GmailRead } from "../src/services/connectors/gmail";
@@ -131,7 +131,7 @@ describe("people signals", () => {
   it("proposes signature details OllieOS does not hold, from the Gmail check", async () => {
     const acme = await organisation("Acme");
     const sam = await at(acme, "Sam Lee", "sam@acme.com", { role: "Head of Partnerships" });
-    // Same title as on file: nothing. A phone number: a plain fact.
+    // Same title as on file: nothing. A phone number: a change card that fills the Phone field.
     expect(await proposeSignature({ id: sam.id, name: "Sam Lee" }, { title: "Head of Partnerships", company: "Acme", phone: "" }, { ref: "gmail:x", url: null, label: "Email", at: new Date() })).toBe(0);
 
     const msg = { ref: "gmail:m1", at: new Date(), fromMe: false, fromName: "Sam Lee", fromAddress: "sam@acme.com", text: "Thanks, Sam", url: "https://mail.google.com/mail/#all/t1" };
@@ -141,12 +141,9 @@ describe("people signals", () => {
     expect(r.body).toMatchObject({ ok: true });
     expect(r.body.counts.details).toBe(2);
     const facts = await db.select().from(suggestionsTable).where(eq(suggestionsTable.kind, "fact"));
-    expect(facts.map((f) => (f.payload as { text: string; attribute: string | null }))).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ text: "Sam Lee is Chief Partnerships Officer", attribute: "job_title" }),
-        expect.objectContaining({ text: "Sam Lee's phone number is +44 20 7946 0000", attribute: null }),
-      ]),
-    );
+    expect(facts.map((f) => (f.payload as { text: string; attribute: string | null }))).toEqual([expect.objectContaining({ text: "Sam Lee is Chief Partnerships Officer", attribute: "job_title" })]);
+    const [phone] = await db.select().from(suggestionsTable).where(and(eq(suggestionsTable.kind, "summary_change"), eq(suggestionsTable.entityId, sam.id)));
+    expect((phone.payload as { fields: Record<string, string> }).fields).toEqual({ phone: "+44 20 7946 0000" });
   });
 
   it("looks back over email headers for people on threads together", async () => {

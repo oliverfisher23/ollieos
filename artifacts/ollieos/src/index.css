@@ -1094,3 +1094,25 @@ button.oo-chip:hover { background: var(--oo-white-16); }
   .oo-detail { padding-top: calc(20px + env(safe-area-inset-top)); padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
   .oo-modal-scrim, .oo-tri-scrim { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
 }
+
+/* Contacts: relationship strength, tags, and the quick view (always over the list, which is too wide to share the row). */
+.oo-strength[data-strength="strong"] { background: var(--oo-pill-done-bg); color: var(--oo-pill-done-fg); }
+.oo-strength[data-strength="warm"] { background: var(--oo-banner-bg); color: var(--oo-banner-fg); }
+.oo-strength[data-strength="cooling"] { background: var(--oo-pill-backlog-bg); color: var(--oo-pill-backlog-fg); }
+.oo-strength[data-strength="cold"] { background: var(--oo-pill-noise-bg); color: var(--oo-pill-noise-fg); }
+.oo-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 8px; border-radius: var(--oo-r-pill); background: var(--oo-field); color: var(--oo-ink-soft); white-space: nowrap; }
+.oo-tag button { font: inherit; border: 0; background: transparent; color: var(--oo-ink-faint); cursor: pointer; padding: 0 2px; line-height: 1; position: relative; }
+.oo-tag button:hover { color: var(--oo-ink); }
+.oo-detail-scrim[data-over="true"] { display: block; position: fixed; inset: 0; background: var(--oo-scrim-light); z-index: 40; }
+.oo-detail[data-over="true"] { position: fixed; z-index: 41; top: 0; right: 0; bottom: 0; max-height: none; flex: none; width: min(520px, 100%); max-width: 100%; border-radius: 0; overflow-y: auto; }
+/* On phones the tab bar sits over the panel, so its last buttons need room to scroll clear of it. */
+@media (max-width: 639px) { .oo-detail[data-over="true"] { padding-bottom: calc(128px + env(safe-area-inset-bottom)); } }
+.oo-contact-row { cursor: pointer; }
+.oo-contact-row:hover td { background: var(--oo-row-hover); }
+.oo-contact-name { font: inherit; font-weight: 500; color: var(--oo-ink); background: transparent; border: 0; padding: 0; cursor: pointer; text-align: left; }
+.oo-contact-name:hover { text-decoration: underline; }
+.oo-bulk-bar { position: sticky; bottom: 12px; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; border-radius: var(--oo-r-card); background: var(--oo-panel); border: 1px solid var(--oo-control-border); box-shadow: var(--oo-shadow-card); }
+@media (max-width: 639px) { .oo-bulk-bar { bottom: 96px; } }
+.oo-orgchart, .oo-orgchart ul { list-style: none; margin: 0; padding: 0; }
+.oo-orgchart ul { margin-left: 15px; padding-left: 16px; border-left: 1px solid var(--oo-line); }
+.oo-orgchart li { padding: 4px 0; }

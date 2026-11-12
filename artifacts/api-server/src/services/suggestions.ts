@@ -293,6 +293,7 @@ export const FIELD_LABELS: Record<string, string> = {
   client: "Client",
   work_type: "Client or internal",
   linkedin_url: "LinkedIn",
+  phone: "Phone",
 };
 const EDITABLE: Record<Exclude<SuggestionKind, "summary_change">, string[]> = {
   fact: ["text"],
@@ -310,7 +311,7 @@ const EDITABLE: Record<Exclude<SuggestionKind, "summary_change">, string[]> = {
 const REQUIRED = new Set(["text", "name", "title", "applies_when", "rule", "when_to_use"]);
 /** Columns a summary change may set on each kind of record. */
 const CHANGEABLE: Record<EntityKind, string[]> = {
-  person: ["role", "email", "relationship_summary", "organisation", "linkedin_url"],
+  person: ["role", "email", "relationship_summary", "organisation", "linkedin_url", "phone"],
   project: ["area", "status", "summary", "function", "client"],
   organisation: ["type", "summary"],
   product: ["description", "summary", "primary_user"],
@@ -750,6 +751,7 @@ export async function applySuggestion(
         if (f.role !== undefined) set.role = f.role;
         if (f.relationship_summary !== undefined) set.relationshipSummary = f.relationship_summary;
         if (f.linkedin_url !== undefined) set.linkedinUrl = linkedinProfileUrl(f.linkedin_url) ?? f.linkedin_url;
+        if (f.phone !== undefined) set.phone = f.phone;
         if (f.email !== undefined) {
           const email = f.email.toLowerCase();
           const [taken] = await tx.select({ id: peopleTable.id }).from(peopleTable).where(hasEmail(email));

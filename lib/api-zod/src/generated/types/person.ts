@@ -39,6 +39,12 @@ export interface Person {
      * @nullable
      */
   linkedinUrl: string | null;
+  /** @nullable */
+  phone: string | null;
+  /** Groups Ollie defines */
+  tags: string[];
+  /** Moved out of the main Contacts list */
+  archived: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

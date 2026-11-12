@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, isNotNull, ne, or, sql } from "drizzle-orm
 import {
   db,
   goalsTable,
+  linksTable,
   organisationsTable,
   peopleTable,
   projectsTable,
@@ -12,7 +13,7 @@ import {
 } from "@workspace/db";
 import { hasEmail } from "../personMatch";
 import { domainsForOrganisation, researchViews, type ResearchView } from "../research";
-import { BUSINESS_FUNCTION_LABELS, CADENCE_LABELS, OPEN_STATUSES, linkedinProfileUrl, isBusinessFunction, isClientOrgType, type BusinessFunction, type Cadence, type CadenceState, type ProjectLifecycle, type TaskStatus, type WorkType } from "@workspace/shared";
+import { BUSINESS_FUNCTION_LABELS, CADENCE_LABELS, OPEN_STATUSES, STRENGTH_WINDOW_DAYS, cleanTags, daysBetween, linkedinProfileUrl, londonDate, todayLondon, type Strength, isBusinessFunction, isClientOrgType, type BusinessFunction, type Cadence, type CadenceState, type ProjectLifecycle, type TaskStatus, type WorkType } from "@workspace/shared";
 import { writeAudit } from "../../lib/audit";
 import { ConflictError, NotFoundError, ValidationError } from "../tasks";
 import { toTaskViews, type TaskView } from "../taskView";
@@ -21,7 +22,9 @@ import { factsFor, linkedIds, listDecisions, notesFor, type DecisionView, type F
 import { timelineFor, type TimelineItem } from "./timeline";
 import { assertGoal } from "../goals";
 import { listDocuments, rulesForProject, type DocumentView, type RuleView } from "../library";
-import { cadenceFor, pausedByProjects, projectsForPeople, stateFor } from "../cadence";
+import { cadenceFor, pausedByProjects, projectsForPeople, stateFor, strengthOf } from "../cadence";
+import { contactDays } from "../cadenceSuggestions";
+import { introductionsFor, type Introduction } from "../introductions";
 import { playbooksFor, type PlaybookView } from "../playbooks";
 import { productsLinkedTo, type LinkedSummary } from "../products";
 import { clientNamesSql, workTypeSql, ensureFunctions, projectsInFunction, type FunctionProject } from "./functions";
@@ -320,6 +323,28 @@ export interface PersonListItem extends EntitySummary {
   cadence: PersonCadence;
   /** Section 25: when the contact finder added them by itself, so Contacts can offer Undo */
   autoAddedAt: Date | null;
+  email: string | null;
+  phone: string | null;
+  linkedinUrl: string | null;
+  slackUserId: string | null;
+  tags: string[];
+  /** Moved out of the main list */
+  archived: boolean;
+  /** Strong, warm, cooling or cold, from how often and how recently Ollie is in touch */
+  strength: Strength;
+  /** Not spoken to in a year, no cadence, no active project and nothing open: worth archiving */
+  archiveCandidate: boolean;
+}
+
+/** Days without contact before someone is worth archiving; with no contact on file, the record's age counts instead. */
+export const ARCHIVE_AFTER_DAYS = 365;
+const ARCHIVE_NO_CONTACT_DAYS = 90;
+const DAY_MS = 86_400_000;
+
+/** Distinct days in touch in the strength window, per person. */
+async function contactDayCounts(now = new Date()): Promise<Map<number, number>> {
+  const days = await contactDays(new Date(now.getTime() - STRENGTH_WINDOW_DAYS * DAY_MS), now);
+  return new Map([...days].map(([id, d]) => [id, d.length]));
 }
 
 export async function listPeople(): Promise<PersonListItem[]> {
@@ -343,6 +368,13 @@ export async function listPeople(): Promise<PersonListItem[]> {
         cadence: peopleTable.cadence,
         cadencePaused: peopleTable.cadencePaused,
         autoAddedAt: peopleTable.autoAddedAt,
+        email: peopleTable.email,
+        phone: peopleTable.phone,
+        linkedinUrl: peopleTable.linkedinUrl,
+        slackUserId: peopleTable.slackUserId,
+        tags: peopleTable.tags,
+        archived: peopleTable.archived,
+        createdAt: peopleTable.createdAt,
       })
       .from(peopleTable)
       .leftJoin(organisationsTable, eq(organisationsTable.id, peopleTable.organisationId))
@@ -359,8 +391,24 @@ export async function listPeople(): Promise<PersonListItem[]> {
     else if (t.status !== "waiting" && t.personId) iOwe.set(t.personId, (iOwe.get(t.personId) ?? 0) + 1);
   }
   const ids = rows.map((r) => r.id);
-  const [last, projects] = await Promise.all([lastContactFor(ids), projectsForPeople(rows.filter((r) => r.cadence !== "none").map((r) => r.id))]);
-  return rows.map((r) => ({
+  const now = new Date();
+  const today = todayLondon();
+  const [last, projects, dayCounts] = await Promise.all([lastContactFor(ids), projectsForPeople(ids), contactDayCounts(now)]);
+  return rows.map((r) => {
+    const lastContactAt = r.lastContactAt ?? last.get(r.id) ?? null;
+    const iOweCount = iOwe.get(r.id) ?? 0;
+    const theyOweCount = theyOwe.get(r.id) ?? 0;
+    const quietDays = lastContactAt ? daysBetween(londonDate(lastContactAt), today) : null;
+    const archiveCandidate =
+      !r.isSelf &&
+      !r.archived &&
+      !r.orgInternal &&
+      r.cadence === "none" &&
+      !iOweCount &&
+      !theyOweCount &&
+      !(projects.get(r.id) ?? []).some((p) => p.lifecycle === "active") &&
+      (quietDays != null ? quietDays > ARCHIVE_AFTER_DAYS : now.getTime() - r.createdAt.getTime() > ARCHIVE_NO_CONTACT_DAYS * DAY_MS);
+    return {
     id: r.id,
     name: r.name,
     slug: r.slug,
@@ -371,9 +419,9 @@ export async function listPeople(): Promise<PersonListItem[]> {
     organisationType: r.orgType ?? null,
     internal: !!r.orgInternal,
     isSelf: r.isSelf,
-    lastContactAt: r.lastContactAt ?? last.get(r.id) ?? null,
-    iOweCount: iOwe.get(r.id) ?? 0,
-    theyOweCount: theyOwe.get(r.id) ?? 0,
+    lastContactAt,
+    iOweCount,
+    theyOweCount,
     // Same state as the cadence page and person page: from the recorded last contact only.
     cadence: {
       ...stateFor(r, projects.get(r.id)),
@@ -383,7 +431,16 @@ export async function listPeople(): Promise<PersonListItem[]> {
       pausedByProjects: !r.cadencePaused && pausedByProjects(projects.get(r.id)),
     },
     autoAddedAt: r.autoAddedAt ?? null,
-  }));
+    email: r.email,
+    phone: r.phone,
+    linkedinUrl: r.linkedinUrl,
+    slackUserId: r.slackUserId,
+    tags: r.tags,
+    archived: r.archived,
+    strength: strengthOf(lastContactAt, dayCounts.get(r.id) ?? 0, today),
+    archiveCandidate,
+    };
+  });
 }
 
 /** Until the sweep records contact directly, the latest captured email, Slack or meeting item linked to the person. */
@@ -403,6 +460,10 @@ export type PersonCadence = CadenceState & { cadence: Cadence; cadenceLabel: str
 
 export interface PersonDetail {
   person: PersonView;
+  /** Strong, warm, cooling or cold, as on Contacts */
+  strength: Strength;
+  /** People Ollie knows well who could introduce him; empty when he already knows this person well */
+  introductions: Introduction[];
   cadence: PersonCadence;
   iOwe: TaskView[];
   theyOwe: TaskView[];
@@ -449,8 +510,10 @@ export async function getPerson(slug: string): Promise<PersonDetail> {
     cadenceFor(row),
   ]);
   const projectIds = [...new Set([...linkedProjects, ...taskProjects.map((p) => p.id!)])];
-  const [projects, timeline] = await Promise.all([summaries(projectsTable, projectIds, new Set(linkedProjects)), timelineFor("person", id, notes)]);
-  return { person, cadence, iOwe, theyOwe, projects, facts, notes, timeline };
+  const [projects, timeline, dayCounts] = await Promise.all([summaries(projectsTable, projectIds, new Set(linkedProjects)), timelineFor("person", id, notes), contactDayCounts()]);
+  const strength = strengthOf(person.lastContactAt, dayCounts.get(id) ?? 0);
+  const introductions = row.isSelf ? [] : await introductionsFor(row, strength, dayCounts);
+  return { person, strength, introductions, cadence, iOwe, theyOwe, projects, facts, notes, timeline };
 }
 
 export interface PersonInput {
@@ -461,9 +524,13 @@ export interface PersonInput {
   relationshipSummary?: string | null;
   confidential?: boolean;
   aiAccess?: boolean;
+  phone?: string | null;
+  tags?: string[];
 }
 
 export type PersonUpdate = Partial<PersonInput> & {
+  /** Out of the main Contacts list; archiving clears the cadence */
+  archived?: boolean;
   cadence?: Cadence;
   cadencePaused?: boolean;
   /** Part N: the person's other addresses, replacing the list */
@@ -502,6 +569,14 @@ async function assertOrg(id: number | null | undefined) {
   if (!o) throw new NotFoundError("That organisation does not exist");
 }
 
+/** The organisation Ollie has given this address's email domain to, if any. */
+export async function organisationForEmail(email: string | null | undefined): Promise<number | null> {
+  const domain = email?.toLowerCase().split("@")[1];
+  if (!domain) return null;
+  const [o] = await db.select({ id: organisationsTable.id }).from(organisationsTable).where(sql`${domain} = any(${organisationsTable.domains})`).limit(1);
+  return o?.id ?? null;
+}
+
 async function assertEmailFree(email: string | null, exceptId?: number) {
   if (!email) return;
   const [p] = await db.select({ id: peopleTable.id, name: peopleTable.name }).from(peopleTable).where(hasEmail(email));
@@ -513,6 +588,8 @@ export async function createPerson(input: PersonInput): Promise<PersonView> {
   if (!name) throw new ValidationError("A person needs a name");
   const email = cleanText(input.email)?.toLowerCase() ?? null;
   await Promise.all([assertOrg(input.organisationId), assertEmailFree(email)]);
+  // No organisation given: the one whose email domain they write from, when Ollie has set one.
+  const organisationId = input.organisationId ?? (await organisationForEmail(email));
   const row = await db.transaction(async (tx) => {
     const slug = await uniqueSlug(tx, "person", name);
     const [created] = await tx
@@ -520,7 +597,9 @@ export async function createPerson(input: PersonInput): Promise<PersonView> {
       .values({
         name,
         slug,
-        organisationId: input.organisationId ?? null,
+        organisationId,
+        phone: cleanText(input.phone),
+        tags: cleanTags(input.tags ?? []),
         role: cleanText(input.role),
         email,
         relationshipSummary: cleanText(input.relationshipSummary),
@@ -570,9 +649,17 @@ export async function updatePerson(slug: string, input: PersonUpdate): Promise<P
     if (raw && !url) throw new ValidationError("That does not look like a LinkedIn profile link (linkedin.com/in/…)");
     set.linkedinUrl = url;
   }
+  if (input.phone !== undefined) set.phone = cleanText(input.phone);
+  if (input.tags !== undefined) set.tags = cleanTags(input.tags);
+  if (input.archived !== undefined && input.archived !== current.archived) {
+    if (current.isSelf && input.archived) throw new ValidationError("Your own record cannot be archived");
+    set.archived = input.archived;
+    // Out of the list means out of check-ins too.
+    if (input.archived) set.cadence = "none";
+  }
   if (input.confidential !== undefined) set.confidential = input.confidential;
   if (input.aiAccess !== undefined) set.aiAccess = input.aiAccess;
-  if (input.cadence !== undefined && input.cadence !== current.cadence) {
+  if (input.cadence !== undefined && input.cadence !== current.cadence && !set.archived) {
     if (current.isSelf && input.cadence !== "none") throw new ValidationError("Your own record has no cadence");
     set.cadence = input.cadence;
   }
@@ -636,6 +723,8 @@ export interface OrganisationDetail {
   timeline: TimelineItem[];
   /** What the research agent found, by the email domains of the organisation's people; none for your own company */
   research: ResearchView[];
+  /** Who reports to whom among the people who work here, for the org chart */
+  reportsTo: { personId: number; managerId: number }[];
 }
 
 async function loadOrg(slug: string): Promise<OrgRow> {
@@ -657,13 +746,19 @@ export async function getOrganisation(slug: string): Promise<OrganisationDetail>
     productsLinkedTo("organisation", id),
   ]);
   const memberIds = members.map((m) => m.id);
-  const [people, projects, timeline, research] = await Promise.all([
+  const [people, projects, timeline, research, reports] = await Promise.all([
     personChips([...new Set([...memberIds, ...linkedPeople])], new Set(linkedPeople)),
     summaries(projectsTable, linkedProjects, new Set(linkedProjects)),
     timelineFor("organisation", id, notes, memberIds),
     org.internal ? [] : domainsForOrganisation(id).then((d) => researchViews(d.slice(0, 3))),
+    memberIds.length
+      ? db
+          .select({ personId: linksTable.fromId, managerId: linksTable.toId })
+          .from(linksTable)
+          .where(and(eq(linksTable.relationship, "reports_to"), eq(linksTable.fromType, "person"), eq(linksTable.toType, "person"), inArray(linksTable.fromId, memberIds), inArray(linksTable.toId, memberIds)))
+      : [],
   ]);
-  return { organisation: stripSearch(org), people, projects, playbooks, products, facts, notes, timeline, research };
+  return { organisation: stripSearch(org), people, projects, playbooks, products, facts, notes, timeline, research, reportsTo: reports };
 }
 
 export interface OrganisationInput {

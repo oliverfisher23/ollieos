@@ -2341,6 +2341,78 @@ paths:
               schema: { $ref: "#/components/schemas/OkResult" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /people/bulk:
+    post:
+      operationId: bulkUpdatePeople
+      tags: [knowledge]
+      summary: One change to several people at once (a cadence, a tag, an organisation, or archive)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulkPeopleInput" }
+      responses:
+        "200":
+          description: How many changed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulkPeopleResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /contacts/missing:
+    get:
+      operationId: listMissingContacts
+      tags: [knowledge]
+      summary: People on two or more work meetings in the calendar who are not in Contacts
+      responses:
+        "200":
+          description: Missing people
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MissingContacts" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /contacts/missing/add:
+    post:
+      operationId: addMissingContact
+      tags: [knowledge]
+      summary: Add someone from the calendar to Contacts and link their meetings to them
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MissingContactAddInput" }
+      responses:
+        "201":
+          description: Added
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Person" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /contacts/missing/dismiss:
+    post:
+      operationId: dismissMissingContact
+      tags: [knowledge]
+      summary: Not now; stop listing this person as missing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MissingContactDismissInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /people/duplicates:
     get:
       operationId: listPossibleDuplicates
@@ -3432,6 +3504,50 @@ paths:
               schema: { $ref: "#/components/schemas/Organisation" }
         "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /organisations/{slug}/domains:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    put:
+      operationId: setOrganisationDomains
+      tags: [knowledge]
+      summary: Set the email domains that belong to an organisation; people with no organisation who write from them are placed under it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrganisationDomainsInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrganisationDomainsResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /organisations/{slug}/merge:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    post:
+      operationId: mergeOrganisation
+      tags: [knowledge]
+      summary: Merge another organisation into this one. Everything on it moves here and it is removed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MergePersonInput" }
+      responses:
+        "200":
+          description: Merged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MergeOrganisationResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
 
   /organisations/{slug}:
     parameters:
@@ -7950,6 +8066,135 @@ components:
         handle: { type: string }
         email: { type: [string, "null"] }
 
+    Strength:
+      type: string
+      enum: [strong, warm, cooling, cold]
+      description: How strong the relationship looks from how often and how recently Ollie is in touch
+
+    Introduction:
+      type: object
+      required: [via, how, kind]
+      properties:
+        via:
+          type: object
+          required: [id, name, slug, role, organisation, strength]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            slug: { type: string }
+            role: { type: [string, "null"] }
+            organisation: { type: [string, "null"] }
+            strength: { $ref: "#/components/schemas/Strength" }
+        how: { type: string, description: "How they connect, read from the introducer: works with Anna Clarke" }
+        kind: { type: string, enum: [direct, organisation, second] }
+
+    BulkPeopleInput:
+      type: object
+      required: [ids]
+      additionalProperties: false
+      properties:
+        ids: { type: array, minItems: 1, maxItems: 500, items: { type: integer } }
+        cadence: { $ref: "#/components/schemas/Cadence" }
+        addTag: { type: string, maxLength: 40 }
+        removeTag: { type: string, maxLength: 40 }
+        organisationId: { type: [integer, "null"] }
+        archived: { type: boolean }
+
+    BulkPeopleResult:
+      type: object
+      required: [updated]
+      properties:
+        updated: { type: integer }
+
+    OrganisationDomainsInput:
+      type: object
+      required: [domains]
+      additionalProperties: false
+      properties:
+        domains: { type: array, maxItems: 20, items: { type: string } }
+
+    OrganisationDomainsResult:
+      type: object
+      required: [domains, placed]
+      properties:
+        domains: { type: array, items: { type: string } }
+        placed:
+          type: array
+          description: People with no organisation who write from these domains, now placed here
+          items:
+            type: object
+            required: [id, name, slug]
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              slug: { type: string }
+
+    MergeOrganisationResult:
+      type: object
+      required: [kept, removed, moved]
+      properties:
+        kept:
+          type: object
+          required: [id, name, slug]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            slug: { type: string }
+        removed:
+          type: object
+          required: [id, name]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+        moved:
+          type: object
+          required: [people, facts, notes, links]
+          properties:
+            people: { type: integer }
+            facts: { type: integer }
+            notes: { type: integer }
+            links: { type: integer }
+
+    MissingContact:
+      type: object
+      required: [email, name, meetings, lastMetAt, nextMeetingAt, titles, organisation]
+      properties:
+        email: { type: string }
+        name: { type: string }
+        meetings: { type: integer, description: Work meetings in the calendar with them }
+        lastMetAt: { type: [string, "null"], format: date-time }
+        nextMeetingAt: { type: [string, "null"], format: date-time }
+        titles: { type: array, items: { type: string } }
+        organisation:
+          oneOf:
+            - type: object
+              required: [id, name]
+              properties:
+                id: { type: integer }
+                name: { type: string }
+            - type: "null"
+
+    MissingContacts:
+      type: object
+      required: [people]
+      properties:
+        people: { type: array, items: { $ref: "#/components/schemas/MissingContact" } }
+
+    MissingContactAddInput:
+      type: object
+      required: [email]
+      additionalProperties: false
+      properties:
+        email: { type: string }
+        name: { type: string, maxLength: 200 }
+
+    MissingContactDismissInput:
+      type: object
+      required: [email]
+      additionalProperties: false
+      properties:
+        email: { type: string }
+
     MergePersonInput:
       type: object
       required: [otherId]
@@ -8240,7 +8485,7 @@ components:
 
     PersonListItem:
       type: object
-      required: [id, name, slug, confidential, aiAccess, role, organisation, organisationType, internal, isSelf, lastContactAt, iOweCount, theyOweCount, cadence]
+      required: [id, name, slug, confidential, aiAccess, role, organisation, organisationType, internal, isSelf, lastContactAt, iOweCount, theyOweCount, cadence, email, phone, linkedinUrl, slackUserId, tags, archived, strength, archiveCandidate]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -8260,10 +8505,18 @@ components:
         theyOweCount: { type: integer }
         autoAddedAt: { type: [string, "null"], format: date-time, description: "Section 25: when the contact finder added them by itself; Contacts offers Undo" }
         cadence: { $ref: "#/components/schemas/PersonCadence" }
+        email: { type: [string, "null"] }
+        phone: { type: [string, "null"] }
+        linkedinUrl: { type: [string, "null"] }
+        slackUserId: { type: [string, "null"] }
+        tags: { type: array, items: { type: string } }
+        archived: { type: boolean, description: Moved out of the main Contacts list }
+        strength: { $ref: "#/components/schemas/Strength" }
+        archiveCandidate: { type: boolean, description: "Not spoken to in a year, no cadence, no active project and nothing open" }
 
     Person:
       type: object
-      required: [id, name, slug, role, email, relationshipSummary, confidential, aiAccess, lastContactAt, organisation, cadence, cadencePaused, isSelf, otherEmails, slackUserId, linkedinUrl, createdAt, updatedAt]
+      required: [id, name, slug, role, email, relationshipSummary, confidential, aiAccess, lastContactAt, organisation, cadence, cadencePaused, isSelf, otherEmails, slackUserId, linkedinUrl, phone, tags, archived, createdAt, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -8284,6 +8537,9 @@ components:
         otherEmails: { type: array, items: { type: string }, description: "Other addresses they use, in lower case" }
         slackUserId: { type: [string, "null"], description: Their Slack account }
         linkedinUrl: { type: [string, "null"], description: Their LinkedIn profile link }
+        phone: { type: [string, "null"] }
+        tags: { type: array, items: { type: string }, description: Groups Ollie defines }
+        archived: { type: boolean, description: Moved out of the main Contacts list }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
@@ -8298,6 +8554,8 @@ components:
         relationshipSummary: { type: [string, "null"] }
         confidential: { type: boolean }
         aiAccess: { type: boolean }
+        phone: { type: [string, "null"], maxLength: 60 }
+        tags: { type: array, maxItems: 20, items: { type: string, maxLength: 40 } }
 
     PersonUpdate:
       type: object
@@ -8314,12 +8572,17 @@ components:
         otherEmails: { type: array, maxItems: 20, items: { type: string, maxLength: 320 }, description: Replaces the list of other addresses }
         slackUserId: { type: [string, "null"], description: Their Slack account id, or null to unlink }
         linkedinUrl: { type: [string, "null"], maxLength: 300, description: Their LinkedIn profile link, or null to clear it }
+        phone: { type: [string, "null"], maxLength: 60 }
+        tags: { type: array, maxItems: 20, items: { type: string, maxLength: 40 }, description: Replaces their tags }
+        archived: { type: boolean, description: Out of the main Contacts list; archiving clears the cadence }
 
     PersonDetail:
       type: object
-      required: [person, cadence, iOwe, theyOwe, projects, facts, notes, timeline]
+      required: [person, strength, introductions, cadence, iOwe, theyOwe, projects, facts, notes, timeline]
       properties:
         person: { $ref: "#/components/schemas/Person" }
+        strength: { $ref: "#/components/schemas/Strength" }
+        introductions: { type: array, items: { $ref: "#/components/schemas/Introduction" }, description: People Ollie knows well who could introduce him; empty when he already knows this person well }
         cadence: { $ref: "#/components/schemas/PersonCadence" }
         iOwe: { type: array, items: { $ref: "#/components/schemas/Task" } }
         theyOwe: { type: array, items: { $ref: "#/components/schemas/Task" } }
@@ -8344,7 +8607,7 @@ components:
 
     Organisation:
       type: object
-      required: [id, name, slug, type, internal, summary, confidential, aiAccess, createdAt, updatedAt]
+      required: [id, name, slug, type, internal, summary, domains, confidential, aiAccess, createdAt, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -8352,6 +8615,7 @@ components:
         type: { type: [string, "null"] }
         internal: { type: boolean, description: Ollie's own company rather than a client, partner or supplier }
         summary: { type: [string, "null"] }
+        domains: { type: array, items: { type: string }, description: "Email domains that belong to it (acme.com); new people there are placed under it" }
         confidential: { type: boolean }
         aiAccess: { type: boolean }
         createdAt: { type: string, format: date-time }
@@ -8380,8 +8644,17 @@ components:
 
     OrganisationDetail:
       type: object
-      required: [organisation, people, projects, playbooks, products, facts, notes, timeline, research]
+      required: [organisation, people, projects, playbooks, products, facts, notes, timeline, research, reportsTo]
       properties:
+        reportsTo:
+          type: array
+          description: Who reports to whom among the people who work here
+          items:
+            type: object
+            required: [personId, managerId]
+            properties:
+              personId: { type: integer }
+              managerId: { type: integer }
         playbooks: { type: array, items: { $ref: "#/components/schemas/Playbook" } }
         products: { type: array, items: { $ref: "#/components/schemas/LinkedProduct" } }
         research: { type: array, items: { $ref: "#/components/schemas/CompanyResearch" } }
