@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { BriefTalkingPoints } from '@/components/talking-points';
-import { MeetingAgenda } from '@/components/meeting-agenda';
+import { LazyMeetingAgenda as MeetingAgenda } from '@/components/meeting-agenda-lazy';
 import { Thumbs } from '@/components/evals';
 import { CommercialLines } from '@/components/client-pulse';
 import { Link } from 'wouter';

@@ -1,6 +1,6 @@
 /**
  * Shaping a meeting's agenda from Ollie's thoughts. He types rough notes; the agenda writer turns
- * them into a timed agenda in the meeting's notes, which he can then edit by hand. Each message
+ * them into a timed agenda in the meeting's notes (Markdown, edited in a rich text editor). Each message
  * starts from the agenda as it stands, so his edits carry forward.
  *
  * AI sees only what default AI scope may see about the people, organisations and projects on the
@@ -14,7 +14,7 @@ import { recordReads, visibleRefs } from "../lib/ai-data/scope";
 import { writeAudit } from "../lib/audit";
 import { logger } from "../lib/logger";
 import { askScope } from "./ask/ask";
-import { writeAgendaFromThoughts, type AgendaItem } from "./ask/model";
+import { writeAgendaFromThoughts } from "./ask/model";
 import { contextRefs, loadMatchers, matchEvent } from "./briefs";
 import { getContext } from "../lib/ai-data/context";
 import { workEvent } from "./meetings";
@@ -30,13 +30,6 @@ const KEEP_TURNS = 40;
 const HISTORY_TURNS = 12;
 /** Attendees and projects read in full, as for a brief */
 const MAX_CONTEXT = 6;
-
-/** The agenda as text Ollie can edit: numbered items with minutes, and indented points. */
-export function agendaText(items: AgendaItem[]): string {
-  return items
-    .map((it, i) => [`${i + 1}. ${it.title}${it.minutes > 0 ? ` (${it.minutes} min)` : ""}`, ...it.points.map((p) => `   - ${p}`)].join("\n"))
-    .join("\n\n");
-}
 
 export interface AgendaResult {
   /** The agenda now saved as the meeting's notes */
@@ -85,7 +78,7 @@ export async function shapeAgenda(eventId: number, input: { message: string; age
 
   // Invite names: people hidden from AI are left out, everyone else as the invite has them.
   const attendees = match.attendees.filter((a) => a.personId == null || visible.has(toRef("person", a.personId))).map((a) => a.name);
-  let out: { reply: string; items: AgendaItem[] };
+  let out: { reply: string; agenda: string };
   try {
     out = await writeAgendaFromThoughts({
       meeting: {
@@ -105,9 +98,9 @@ export async function shapeAgenda(eventId: number, input: { message: string; age
     logger.error({ err, event: event.id }, "Agenda writer failed");
     throw new UpstreamError("The agenda could not be written just now. Your thoughts are still in the box; try again in a moment.");
   }
-  if (!out.items.length) throw new UpstreamError("The agenda came back empty. Try adding a little more about what you want from the meeting.");
+  if (!out.agenda) throw new UpstreamError("The agenda came back empty. Try adding a little more about what you want from the meeting.");
 
-  const agenda = agendaText(out.items).slice(0, MAX_AGENDA);
+  const agenda = out.agenda.slice(0, MAX_AGENDA);
   const at = now.toISOString();
   const chat: AgendaTurn[] = [
     ...event.agendaChat,

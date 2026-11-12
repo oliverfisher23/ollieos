@@ -16,11 +16,8 @@ vi.mock("../src/services/ask/model", async (orig) => ({
   writeAgendaFromThoughts: async (opts: (typeof calls)[number]) => {
     calls.push(opts);
     if (fail.on) throw new Error("model down");
-    const kept = opts.agenda.trim() ? [{ title: "Kept from before", minutes: 0, points: [] }] : [];
-    return {
-      reply: "Put hiring first.",
-      items: [...kept, { title: "Hiring plan", minutes: 15, points: ["Two roles", "Who signs off"] }, { title: "Budget", minutes: 10, points: [] }],
-    };
+    const md = "1. **Hiring plan** (15 min)\n   - Two roles\n   - Who signs off\n2. **Budget** (10 min)";
+    return { reply: "Put hiring first.", agenda: opts.agenda.trim() ? `${opts.agenda.trim()}\n\n${md}` : md };
   },
 }));
 
@@ -54,7 +51,7 @@ describe("Shaping an agenda", () => {
 
     const r = await api(`meetings/${ev.id}/agenda`, { method: "POST", body: { message: "hiring, then budget", agenda: "" } });
     expect(r.status).toBe(200);
-    expect(r.body.agenda).toBe("1. Hiring plan (15 min)\n   - Two roles\n   - Who signs off\n\n2. Budget (10 min)");
+    expect(r.body.agenda).toBe("1. **Hiring plan** (15 min)\n   - Two roles\n   - Who signs off\n2. **Budget** (10 min)");
     expect(r.body.previous).toBe("");
     expect(r.body.chat.map((t: { role: string; text: string }) => [t.role, t.text])).toEqual([
       ["ollie", "hiring, then budget"],
@@ -67,7 +64,7 @@ describe("Shaping an agenda", () => {
     expect(v.agendaChat).toHaveLength(2);
 
     // Ollie edits by hand, then asks for more: the writer gets his edited version and the conversation.
-    const edited = r.body.agenda + "\n\n3. My own item";
+    const edited = r.body.agenda + "\n\n- [ ] My own action";
     const r2 = await api(`meetings/${ev.id}/agenda`, { method: "POST", body: { message: "add a wrap-up", agenda: edited } });
     expect(calls[1].agenda).toBe(edited);
     expect(calls[1].history.map((t) => t.text)).toEqual(["hiring, then budget", "Put hiring first."]);

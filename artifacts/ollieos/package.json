@@ -78,6 +78,13 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@tiptap/core": "3.32.2",
+    "@tiptap/extension-list": "3.32.2",
+    "@tiptap/extensions": "3.32.2",
+    "@tiptap/markdown": "3.32.2",
+    "@tiptap/pm": "3.32.2",
+    "@tiptap/react": "3.32.2",
+    "@tiptap/starter-kit": "3.32.2",
     "d3-force": "^3.0.1"
   }
 }

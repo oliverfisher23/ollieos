@@ -11,6 +11,7 @@ import {
 } from '@workspace/api-client-react';
 import { errorMessage, notify } from '@/lib/notify';
 import { Skel } from '@/components/bits';
+import { AgendaEditorBox, replaceAgenda, useAgendaEditor } from '@/components/rich-agenda';
 
 const finePointer = () => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: fine)').matches;
 
@@ -45,6 +46,11 @@ function Agenda({ m }: { m: MeetingView }) {
   const [busy, setBusy] = useState(false);
   const [previous, setPrevious] = useState<string | null>(null);
   const log = useRef<HTMLDivElement>(null);
+  const editor = useAgendaEditor({ initial: m.notes ?? '', placeholder: 'Your agenda appears here. Edit it freely, or write your own.', onChange: setText });
+
+  useEffect(() => {
+    editor.setEditable(!busy);
+  }, [editor, busy]);
 
   const remember = (patch: Partial<MeetingView>) => qc.setQueryData(key, (old: MeetingView | undefined) => (old ? { ...old, ...patch } : old));
 
@@ -79,6 +85,7 @@ function Agenda({ m }: { m: MeetingView }) {
     try {
       const r = await shapeAgenda(m.id, { message, agenda: text });
       saved.current = r.agenda;
+      replaceAgenda(editor, r.agenda);
       setText(r.agenda);
       setPrevious(r.previous);
       setChat(r.chat);
@@ -113,6 +120,7 @@ function Agenda({ m }: { m: MeetingView }) {
 
   const undo = () => {
     if (previous == null) return;
+    replaceAgenda(editor, previous);
     setText(previous);
     setPrevious(null);
   };
@@ -184,23 +192,12 @@ function Agenda({ m }: { m: MeetingView }) {
 
         <div style={{ flex: '2 1 360px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-            <label htmlFor="meeting-notebox" className="oo-field-label">The agenda</label>
+            <span className="oo-field-label">The agenda</span>
             {previous != null && !busy && (
-              <button type="button" className="oo-mini" onClick={undo} data-testid="button-agenda-undo">Undo</button>
+              <button type="button" className="oo-mini" onClick={undo} data-testid="button-agenda-undo">Undo AI change</button>
             )}
           </div>
-          <textarea
-            id="meeting-notebox"
-            className="oo-input"
-            rows={14}
-            maxLength={20000}
-            value={text}
-            readOnly={busy}
-            onChange={(ev) => setText(ev.target.value)}
-            placeholder="Your agenda appears here. Edit it freely, or write your own."
-            style={{ flex: 1, resize: 'vertical', padding: '12px 14px', borderRadius: 'var(--oo-r-input-lg)', lineHeight: 1.6, opacity: busy ? 0.6 : 1 }}
-            data-testid="input-meeting-notes"
-          />
+          <AgendaEditorBox editor={editor} busy={busy} />
         </div>
       </div>
     </section>

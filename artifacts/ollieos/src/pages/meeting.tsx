@@ -11,7 +11,7 @@ import {
 import { formatLong, formatTime } from '@workspace/shared';
 import { Avatar } from '@/components/bits';
 import { IconLeft } from '@/components/icons';
-import { MeetingAgenda } from '@/components/meeting-agenda';
+import { LazyMeetingAgenda as MeetingAgenda } from '@/components/meeting-agenda-lazy';
 import { ScopePill } from '@/components/research';
 import { PageProblem, PageSkeleton } from '@/components/knowledge/parts';
 import { isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
