@@ -27,6 +27,8 @@ import { suggestDelegations } from "./delegation";
 import { draftWeeklyUpdateIfDue } from "./weeklyUpdate";
 import { learnLessonsIfDue } from "./readerLessons";
 import { findDuplicatesIfDue } from "./duplicates";
+import { linkPeopleToTasks } from "./taskPeople";
+import { coachStuckIfDue } from "./stuckCoach";
 import { clearOldSightings, findContacts } from "./contactFinder";
 
 /** OllieOS's own checks start at 07:00, so they wait for 07:40 (when the morning sweep ran) before building the digest. */
@@ -78,6 +80,8 @@ async function runScheduledWork(from: "sweep" | "connectors", now: Date): Promis
     const r = await onSweepFinished(now);
     return { rejected_cleared: r.cleared, fact_check: r.check };
   });
+  // Section 27: people linked to tasks nobody is on yet (no AI). Tests run it directly.
+  if (process.env.NODE_ENV !== "test") await part("task_people", () => linkPeopleToTasks());
   // Calls the model on real Inbox items, so tests run it directly with the model stood in.
   if (process.env.NODE_ENV !== "test") await part("noise", () => checkInboxNoise());
   // Part O: new cards checked against approved knowledge. Calls the model, so tests run it directly.
@@ -102,6 +106,8 @@ async function runScheduledWork(from: "sweep" | "connectors", now: Date): Promis
   if (process.env.NODE_ENV !== "test") await part("lessons", () => learnLessonsIfDue(now));
   // Section 26: pairs of open tasks that are the same work, for the Duplicates page.
   if (process.env.NODE_ENV !== "test") await part("duplicates", () => findDuplicatesIfDue(now));
+  // Section 27: tasks that keep slipping, with one thing to try on each.
+  if (process.env.NODE_ENV !== "test") await part("stuck", () => coachStuckIfDue(now));
   await part("cleared", async () => ({ digests: await clearOldDigests(now), calendar_events: await clearOldCalendar(now), roundups: await clearOldRoundups(now), ai_runs: await clearOldAiRuns(now), meeting_history: await clearOldHistory(now), ai_inputs: await clearOldInputs(now), noise: await clearOldNoise(now), contact_sightings: await clearOldSightings(now) }));
   return out;
 }

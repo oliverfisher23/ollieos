@@ -4,6 +4,7 @@ import { taskVisible } from "../lib/ai-data/visibility";
 import { noiseRuleLabel } from "./noiseRules";
 import { looksDoneFor } from "./taskEvidence";
 import type { DbOrTx } from "../lib/audit";
+import { CHASE_AFTER_DAYS } from "@workspace/shared";
 
 export interface EntitySummary {
   id: number;
@@ -12,7 +13,9 @@ export interface EntitySummary {
   confidential: boolean;
 }
 
-export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "waitingOnPersonId" | "noiseRuleId" | "sourceChannel" | "noiseHintKept" | "noiseCheckedAt" | "repeatNextId" | "delegateCheckedAt" | "delegateDismissedAt"> & {
+export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "waitingOnPersonId" | "noiseRuleId" | "sourceChannel" | "noiseHintKept" | "noiseCheckedAt" | "repeatNextId" | "delegateCheckedAt" | "delegateDismissedAt" | "personCheckedAt" | "stuckCheckedAt" | "stuckDismissedAt" | "chaseAfter"> & {
+  /** Section 27: a Waiting on task that has waited long enough for a chase */
+  chaseDue: boolean;
   project: EntitySummary | null;
   person: EntitySummary | null;
   waitingOn: EntitySummary | null;
@@ -108,7 +111,8 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
   };
 
   return rows.map((r) => {
-    const { search: _search, personId, projectId, waitingOnPersonId, noiseRuleId, sourceChannel: _channel, noiseHintKept, noiseCheckedAt: _checked, repeatNextId: _next, delegateCheckedAt: _dc, delegateDismissedAt, ...rest } = r;
+    const { search: _search, personId, projectId, waitingOnPersonId, noiseRuleId, sourceChannel: _channel, noiseHintKept, noiseCheckedAt: _checked, repeatNextId: _next, delegateCheckedAt: _dc, delegateDismissedAt, personCheckedAt: _pc, stuckCheckedAt: _sc, stuckDismissedAt, chaseAfter, ...rest } = r;
+    const chaseFrom = chaseAfter ?? new Date((r.waitingSince ?? r.createdAt).getTime() + CHASE_AFTER_DAYS * 86_400_000);
     return {
       ...rest,
       project: projectId ? (projectById.get(projectId) ?? null) : null,
@@ -125,6 +129,9 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
       alsoFrom: [...new Set(also.get(r.id) ?? [])].filter((s) => s !== r.source),
       // Section 23: who could take it, while it is still Ollie's to do and he has not said "Not this one".
       delegateHint: (r.status === "now" || r.status === "backlog") && !delegateDismissedAt ? r.delegateHint : null,
+      // Section 27: chase nudges and the stuck-task coach.
+      chaseDue: r.status === "waiting" && chaseFrom.getTime() <= now,
+      stuckHint: (r.status === "now" || r.status === "backlog") && !stuckDismissedAt ? r.stuckHint : null,
     };
   });
 }

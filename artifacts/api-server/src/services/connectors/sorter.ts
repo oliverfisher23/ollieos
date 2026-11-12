@@ -34,6 +34,10 @@ export interface SortedItem {
   confidential: boolean;
   /** Section 26: the open item (task:<id>) this is the same work as, or "" */
   same_as?: string;
+  /** Section 27: all Ollie has to do is answer the message in a line or two */
+  quick?: boolean;
+  /** Section 27: the parts of the ask, when one message asks for several things that are one piece of work */
+  steps?: string[];
 }
 
 export type ClaimAbout = "project" | "person" | "organisation" | "product";
@@ -173,7 +177,7 @@ export const CLAIMS_PER_UNIT = 2;
 export const ITEM_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["ref", "type", "title", "action", "priority", "due", "project", "person", "quote", "confidential", "same_as"],
+  required: ["ref", "type", "title", "action", "priority", "due", "project", "person", "quote", "confidential", "same_as", "quick", "steps"],
   properties: {
     ref: { type: "string" },
     type: { type: "string", enum: ["task", "promise", "waiting"] },
@@ -186,6 +190,8 @@ export const ITEM_SCHEMA = {
     quote: { type: "string" },
     confidential: { type: "boolean" },
     same_as: { type: "string" },
+    quick: { type: "boolean" },
+    steps: { type: "array", items: { type: "string" } },
   },
 } as const;
 
@@ -200,6 +206,8 @@ export function itemRules(projects: string[]): string[] {
     `- "quote" is the exact sentence the item comes from, under 300 characters.`,
     `- "project" is one of these project names, copied exactly, when the item is clearly about it, otherwise "": ${projects.length ? projects.map((p) => `"${p}"`).join(", ") : "(none)"}.`,
     `- "same_as": when the item is the same piece of work as one of the exchange's <open_items> (the same thing to do for the same person, even if worded differently or from another channel, or a new deadline or detail for it), that item's ref in square brackets, copied exactly. Still list the item: OllieOS adds it to that task instead of making a new one. "" when it is new work, and always "" when there are no open items.`,
+    `- "steps": when one message asks Ollie for several things that are one piece of work (the same person and purpose), add ONE item whose title covers the whole ask, and list each thing in "steps", in order, each starting with a verb and under 100 characters. Never add several items for the same person and purpose from one message. [] when the item is a single thing.`,
+    `- "quick" is true only when all Ollie has to do is answer the message in a line or two: a question he can answer from memory, a yes or no, a time to confirm, a quick approval. false when he has to make, find, send, check or do something first, or talk to someone else, and always false for promises, waiting items and anything from a meeting.`,
     `- Agreeing a time for a meeting or call ("can you do Tuesday at 4?", "sure, hold it", "see you then") is not an item: the calendar covers it. Only add one when Ollie must do something besides turn up, such as send the invite himself or prepare something for it.`,
     `- "confidential" is true when the item is about the sale of the company, buyers, investors, the board, salaries, bonuses, HR matters or anyone's health. Otherwise false.`,
   ];
@@ -457,6 +465,8 @@ export function cleanItems(items: SortedItem[], u: WorkUnit, max = 3): SortedIte
       title: String(it.title).trim(),
       due: /^\d{4}-\d{2}-\d{2}$/.test(it.due ?? "") ? it.due : "",
       same_as: String(it.same_as ?? "").trim(),
+      quick: it.quick === true,
+      steps: (Array.isArray(it.steps) ? it.steps : []).map((s) => String(s ?? "").replace(/\s+/g, " ").trim().slice(0, 200)).filter(Boolean).slice(0, 12),
     }));
 }
 

@@ -95,6 +95,18 @@ export const tasksTable = pgTable(
     delegateCheckedAt: timestamp("delegate_checked_at", { withTimezone: true }),
     /** Ollie said "Not this one", so it is not suggested again */
     delegateDismissedAt: timestamp("delegate_dismissed_at", { withTimezone: true }),
+    /** Section 27: when OllieOS looked for the person this task is with; null means not yet. Looked at once, so a link Ollie removes stays removed. */
+    personCheckedAt: timestamp("person_checked_at", { withTimezone: true }),
+    /** Section 27: why Ollie dropped it or sent it to Noise (not_mine, already_done, fyi, arranging, duplicate, not_needed); the Reader coach learns from it */
+    dropReason: text("drop_reason"),
+    /** Section 27: a Waiting on task is not flagged for a chase before this; null means three days after it started waiting */
+    chaseAfter: timestamp("chase_after", { withTimezone: true }),
+    /** Section 27: the stuck-task coach's line on why this keeps slipping and what to try */
+    stuckHint: jsonb("stuck_hint").$type<StuckHint | null>(),
+    /** When the stuck-task coach last looked at it; null means not yet */
+    stuckCheckedAt: timestamp("stuck_checked_at", { withTimezone: true }),
+    /** Ollie said "Not stuck", so it is not flagged again */
+    stuckDismissedAt: timestamp("stuck_dismissed_at", { withTimezone: true }),
     search: tsvector("search").generatedAlwaysAs(
       sql`to_tsvector('english', coalesce(title,'') || ' ' || coalesce(snippet,'') || ' ' || coalesce(notes,'') || ' ' || coalesce(source_quote,'') || ' ' || coalesce(from_name,''))`,
     ),
@@ -265,6 +277,18 @@ export const taskEvidenceTable = pgTable(
 );
 
 export type TaskEvidence = typeof taskEvidenceTable.$inferSelect;
+
+/** Section 27: what the stuck-task coach says about a task that keeps slipping. */
+export interface StuckHint {
+  /** Why it looks stuck, for example "Due date moved 3 times" */
+  why: string;
+  /** first_step, split, delegate or drop */
+  kind: string;
+  /** One line on what to try */
+  suggestion: string;
+  /** For first_step and split: the step to add to its checklist */
+  step: string | null;
+}
 
 /**
  * Section 26: pairs of open tasks that look like the same piece of work, found by matching words

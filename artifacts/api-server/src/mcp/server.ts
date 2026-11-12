@@ -1082,7 +1082,12 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
           )
           .max(SESSION_LIMITS.actions)
           .optional()
-          .describe("Follow-ups still to do after the session"),
+          .describe("Things Ollie (or someone) must now do after the session. Not questions or decisions still open: those go in open_questions"),
+        open_questions: z
+          .array(z.string().min(1).max(500))
+          .max(SESSION_LIMITS.questions)
+          .optional()
+          .describe("Questions or decisions the session left open, one line each (for example \"Whether micro-internships have fixed cohort dates\"). They are kept on the session for Ollie to look at, not put in his Inbox"),
         artifacts: z
           .array(
             z.object({
@@ -1127,6 +1132,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
           title: a.title,
           summary: a.summary,
           outcomes: a.outcomes ?? [],
+          openQuestions: a.open_questions ?? [],
           transcript: a.transcript ?? null,
           happenedAt: a.happened_at ? new Date(a.happened_at) : null,
           externalRef: a.session_id ?? null,
@@ -1142,6 +1148,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
           session: r.visible ? `session:${r.id}` : undefined,
           updated: r.updated,
           tasks: r.tasks.map((t) => ({ ...(t.id != null && r.visible ? { ref: `task:${t.id}` } : {}), outcome: t.outcome })),
+          ...(r.questions.length ? { open_questions_kept: r.questions.length } : {}),
           artifacts: r.artifacts.map((x) => proposalReply(x)),
           message: r.visible
             ? "Saved. OllieOS will read it for facts and decisions and put them in Ollie's Knowledge Inbox."

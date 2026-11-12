@@ -19,5 +19,9 @@ weekStart?: Date;
  * With weekStart on open tabs, also include tasks with no due date.
  */
 includeUndated?: boolean;
+/**
+ * Section 27: "overdue", or one day (YYYY-MM-DD), to list only tasks due then.
+ */
+due?: string;
 q?: string;
 };

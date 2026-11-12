@@ -200,6 +200,7 @@ export function runLine(key: string, r: ConnectorRun): string {
     c.closed ? `${plural(c.closed, 'task')} marked done from your replies` : '',
     c.looks_done ? `${plural(c.looks_done, 'task')} that looks done` : '',
     c.linked ? `${c.linked} added to tasks you already had` : '',
+    c.quick_replies ? `${plural(c.quick_replies, 'quick reply', 'quick replies')} left on Messages` : '',
     c.answered ? `${c.answered} answered, so off Email, Slack` : '',
   ].filter(Boolean);
   const more = c.more ? ' More is waiting; the next check carries on.' : '';
