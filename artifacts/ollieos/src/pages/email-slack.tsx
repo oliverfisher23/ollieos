@@ -17,7 +17,7 @@ import { reportApiError } from '@/lib/forbidden';
 import { copyText } from '@/lib/knowledge';
 import { errorMessage, notify, notifyUndo } from '@/lib/notify';
 
-/** Slack messages to answer, listed with emails on the Inbox page's To answer tab. In two groups: messages not read by AI count as needing a reply. */
+/** Slack messages to answer, listed with emails on the Messages page's To answer tab. In two groups: messages not read by AI count as needing a reply. */
 type Group = 'reply' | 'info';
 const GROUPS: { id: Group; label: string }[] = [
   { id: 'reply', label: 'Needs a reply' },

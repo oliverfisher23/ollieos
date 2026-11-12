@@ -68,7 +68,7 @@ function firstRecipient(to: string): string {
 }
 
 /** The address for a tab, an open item and, on To answer, a source filter. */
-function inboxHref(tab: Tab, key?: string | null, source: Source = 'all'): string {
+function messagesHref(tab: Tab, key?: string | null, source: Source = 'all'): string {
   const p = new URLSearchParams({ tab });
   if (tab === 'to-answer' && source !== 'all') p.set('from', source);
   if (key) {
@@ -76,16 +76,16 @@ function inboxHref(tab: Tab, key?: string | null, source: Source = 'all'): strin
     else if (key.startsWith('s:')) p.set('slack', key.slice(2));
     else p.set('thread', key.replace(/^t:/, ''));
   }
-  return '/inbox?' + p.toString();
+  return '/messages?' + p.toString();
 }
 
 /**
- * Inbox: everything waiting on Ollie, wherever it came from. To answer is the Gmail inbox, read or
+ * Messages: everything waiting on Ollie, wherever it came from. To answer is the Gmail inbox, read or
  * unread, where the last message is not from Ollie, and Slack messages where someone else wrote last,
  * in one list; then the replies OllieOS has drafted, and emails Ollie sent that nobody answered.
  * OllieOS never sends email or posts to Slack.
  */
-export default function InboxPage() {
+export default function MessagesPage() {
   const search = useSearch();
   const [, navigate] = useLocation();
   const params = new URLSearchParams(search);
@@ -142,7 +142,7 @@ export default function InboxPage() {
     if (openItem && openItem !== kept) setKept(openItem);
   }, [openItem, kept]);
 
-  const go = useCallback((next: Tab, key?: string | number | null, from: Source = source) => navigate(inboxHref(next, key == null ? null : String(key), from), { replace: true }), [navigate, source]);
+  const go = useCallback((next: Tab, key?: string | number | null, from: Source = source) => navigate(messagesHref(next, key == null ? null : String(key), from), { replace: true }), [navigate, source]);
   const pickAnswer = useCallback((key: string) => go('to-answer', key), [go]);
   const pickDraft = useCallback((id: string) => go('drafts', id), [go]);
 
@@ -170,18 +170,18 @@ export default function InboxPage() {
         : 'Nothing to answer. Every email in your Gmail inbox has a reply from you, and on Slack you wrote last.';
 
   return (
-    <main className="oo-panel oo-kmain oo-fade-in" data-testid="page-inbox">
+    <main className="oo-panel oo-kmain oo-fade-in" data-testid="page-messages">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
-        <h1 className="oo-h1">Inbox</h1>
+        <h1 className="oo-h1">Messages</h1>
         <p className="oo-muted" style={{ margin: 0, fontSize: 14, maxWidth: '64ch', lineHeight: 1.5 }}>
           Emails and Slack messages you have not replied to, the replies OllieOS has drafted, and emails you sent that are waiting for a reply. Nothing is ever sent for you.
         </p>
       </div>
 
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0" style={{ marginTop: -6 }}>
-        <div role="tablist" aria-label="Inbox views" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--oo-line)', minWidth: 'max-content' }}>
+        <div role="tablist" aria-label="Message views" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--oo-line)', minWidth: 'max-content' }}>
           {tabs.map((t) => (
-            <button key={t.id} type="button" role="tab" className="oo-tab" aria-selected={t.id === tab} onClick={() => go(t.id)} data-testid={'tab-inbox-' + t.id}>
+            <button key={t.id} type="button" role="tab" className="oo-tab" aria-selected={t.id === tab} onClick={() => go(t.id)} data-testid={'tab-messages-' + t.id}>
               {t.label} <span className="oo-count oo-num">{t.count ?? ''}</span>
             </button>
           ))}

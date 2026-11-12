@@ -29,7 +29,7 @@ export const IconSearch = (p: P) => <Base strokeWidth={2} {...p}><circle cx="11"
 export const IconArrowOut = (p: P) => <Base strokeWidth={2} {...p}><path d="M7 17 17 7M8 7h9v9" /></Base>;
 export const IconLock = (p: P) => <Base strokeWidth={2} {...p}><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></Base>;
 export const IconMail = (p: P) => <Base {...p}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3.5 6.5 8.5 6.5 8.5-6.5" /></Base>;
-export const IconInbox = (p: P) => <Base {...p}><path d="M3 13.5 5.6 5.8A2 2 0 0 1 7.5 4.5h9a2 2 0 0 1 1.9 1.3L21 13.5V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M3 13.5h5l1.5 2.5h5l1.5-2.5h5" /></Base>;
+export const IconMessages = (p: P) => <Base {...p}><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 4v-4h0A1.5 1.5 0 0 1 4 14.5z" /><path d="M8 8.5h8M8 11.5h5" /></Base>;
 export const IconLogout = (p: P) => <Base {...p}><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H3" /></Base>;
 export const IconCompass = (p: P) => <Base {...p}><circle cx="12" cy="12" r="9" /><path d="m15.5 8.5-2 5-5 2 2-5z" /></Base>;
 

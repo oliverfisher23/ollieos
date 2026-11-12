@@ -29,7 +29,7 @@ import MapPage from '@/pages/knowledge/map';
 import { BriefPage, NextBriefPage } from '@/pages/brief';
 import MeetingsPage from '@/pages/meetings';
 import ReviewPage from '@/pages/review';
-import InboxPage from '@/pages/inbox';
+import MessagesPage from '@/pages/messages';
 import DigestPage from '@/pages/digest';
 import RoundupPage from '@/pages/roundup';
 import OAuthConsentPage from '@/pages/oauth-consent';
@@ -50,10 +50,10 @@ const queryClient = new QueryClient({
   },
 });
 
-/** The Email page is now Inbox; old links keep their tab and the item they opened. */
+/** The Email page is now Messages; old links keep their tab and the item they opened. */
 function EmailRedirect() {
   const search = useSearch();
-  return <Redirect to={'/inbox' + (search ? '?' + search : '')} replace />;
+  return <Redirect to={'/messages' + (search ? '?' + search : '')} replace />;
 }
 
 function TriagePage() {
@@ -76,7 +76,7 @@ function Router() {
         <Route path="/tasks" component={TasksPage} />
         <Route path="/voice" component={VoicePage} />
         <Route path="/review" component={ReviewPage} />
-        <Route path="/inbox" component={InboxPage} />
+        <Route path="/messages" component={MessagesPage} />
         <Route path="/email" component={EmailRedirect} />
         <Route path="/ask" component={AskPage} />
         <Route path="/ask/:threadId" component={AskPage} />

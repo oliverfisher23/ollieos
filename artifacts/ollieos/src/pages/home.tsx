@@ -572,14 +572,14 @@ function SlackWaitingLink({ count, phone = false }: { count: number; phone?: boo
   const label = `${count === 1 ? '1 Slack message' : `${count} Slack messages`} to answer`;
   if (phone) {
     return (
-      <Link href="/inbox?tab=to-answer&from=slack" className="oo-dark-card oo-glass-quiet" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-slack-to-answer">
+      <Link href="/messages?tab=to-answer&from=slack" className="oo-dark-card oo-glass-quiet" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-slack-to-answer">
         <span className="oo-t2" style={{ fontSize: 13 }}>{label}, waiting over a working day</span>
         <IconArrowOut size={18} />
       </Link>
     );
   }
   return (
-    <Link href="/inbox?tab=to-answer&from=slack" className="oo-t2" style={{ fontSize: 13, color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-slack-to-answer">
+    <Link href="/messages?tab=to-answer&from=slack" className="oo-t2" style={{ fontSize: 13, color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-slack-to-answer">
       {label}
     </Link>
   );
