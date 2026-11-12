@@ -302,6 +302,11 @@ export interface TaskGoal {
 }
 
 export interface Task {
+  /**
+     * Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.
+     * @nullable
+     */
+  position: number | null;
   /** How it repeats, anchored on its due date. Null when it does not. */
   repeat: RepeatRule | null;
   /** Checklist steps, in order */
@@ -2099,6 +2104,61 @@ export interface VoiceSaveResult {
   facts: VoiceSaveResultFactsItem[];
 }
 
+export interface SlackDmPerson {
+  id: number;
+  name: string;
+  /** @nullable */
+  role: string | null;
+}
+
+export interface SlackDmOptions {
+  people: SlackDmPerson[];
+  /** @nullable */
+  suggestedPersonId: number | null;
+}
+
+export interface SlackDmInput {
+  personId: number;
+  /** @maxLength 3000 */
+  text: string;
+}
+
+export interface SlackDmResult {
+  personId: number;
+  personName: string;
+  channel: string;
+  ts: string;
+  url: string;
+}
+
+export type BulkDecideInputAction = typeof BulkDecideInputAction[keyof typeof BulkDecideInputAction];
+
+
+export const BulkDecideInputAction = {
+  approve: 'approve',
+  reject: 'reject',
+} as const;
+
+export interface BulkDecideInput {
+  action: BulkDecideInputAction;
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  ids: number[];
+}
+
+export type BulkDecideResultSkippedItem = {
+  id: number;
+  reason: string;
+};
+
+export interface BulkDecideResult {
+  approved: number;
+  rejected: number;
+  skipped: BulkDecideResultSkippedItem[];
+}
+
 export type TestCaseAvailabilityExpected = typeof TestCaseAvailabilityExpected[keyof typeof TestCaseAvailabilityExpected];
 
 
@@ -2413,6 +2473,17 @@ export interface ReplyDraftInput {
      * @maxLength 20000
      */
   body: string;
+}
+
+export interface TaskReorderInput {
+  /**
+     * Task ids in the new order, top first
+     * @minItems 1
+     * @maxItems 500
+     */
+  ids: number[];
+  /** Forget the dragged order for these tasks instead, so they go back to due-date order */
+  clear?: boolean;
 }
 
 export type TriageInputAction = typeof TriageInputAction[keyof typeof TriageInputAction];
@@ -3779,20 +3850,16 @@ export interface ProjectDetail {
   activity: TimelineItem[];
 }
 
-export interface PersonListItem {
-  id: number;
-  name: string;
-  slug: string;
-  confidential: boolean;
-  aiAccess: boolean;
-  /** @nullable */
-  role: string | null;
-  organisation: EntitySummary | null;
-  /** @nullable */
-  lastContactAt: string | null;
-  iOweCount: number;
-  theyOweCount: number;
-}
+export type CadenceStatus = typeof CadenceStatus[keyof typeof CadenceStatus];
+
+
+export const CadenceStatus = {
+  overdue: 'overdue',
+  due_soon: 'due_soon',
+  on_track: 'on_track',
+  paused: 'paused',
+  none: 'none',
+} as const;
 
 export type Cadence = typeof Cadence[keyof typeof Cadence];
 
@@ -3805,6 +3872,49 @@ export const Cadence = {
   two_monthly: 'two_monthly',
   quarterly: 'quarterly',
 } as const;
+
+export interface PersonCadence {
+  status: CadenceStatus;
+  /**
+     * Whole days since the last contact; null when there is none on file
+     * @nullable
+     */
+  daysSince: number | null;
+  /** @nullable */
+  daysOverdue: number | null;
+  /** @nullable */
+  daysLeft: number | null;
+  cadence: Cadence;
+  cadenceLabel: string;
+  cadencePaused: boolean;
+  /** True when every linked project is paused or complete */
+  pausedByProjects: boolean;
+}
+
+export interface PersonListItem {
+  id: number;
+  name: string;
+  slug: string;
+  confidential: boolean;
+  aiAccess: boolean;
+  /** @nullable */
+  role: string | null;
+  organisation: EntitySummary | null;
+  /**
+     * The organisation's type
+     * @nullable
+     */
+  organisationType: string | null;
+  /** They work at Ollie's own company */
+  internal: boolean;
+  /** Ollie's own record */
+  isSelf: boolean;
+  /** @nullable */
+  lastContactAt: string | null;
+  iOweCount: number;
+  theyOweCount: number;
+  cadence: PersonCadence;
+}
 
 export interface Person {
   id: number;
@@ -3832,6 +3942,11 @@ export interface Person {
      * @nullable
      */
   slackUserId: string | null;
+  /**
+     * Their LinkedIn profile link
+     * @nullable
+     */
+  linkedinUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -3883,35 +3998,12 @@ export interface PersonUpdate {
      * @nullable
      */
   slackUserId?: string | null;
-}
-
-export type CadenceStatus = typeof CadenceStatus[keyof typeof CadenceStatus];
-
-
-export const CadenceStatus = {
-  overdue: 'overdue',
-  due_soon: 'due_soon',
-  on_track: 'on_track',
-  paused: 'paused',
-  none: 'none',
-} as const;
-
-export interface PersonCadence {
-  status: CadenceStatus;
   /**
-     * Whole days since the last contact; null when there is none on file
+     * Their LinkedIn profile link
+     * @maxLength 300
      * @nullable
      */
-  daysSince: number | null;
-  /** @nullable */
-  daysOverdue: number | null;
-  /** @nullable */
-  daysLeft: number | null;
-  cadence: Cadence;
-  cadenceLabel: string;
-  cadencePaused: boolean;
-  /** True when every linked project is paused or complete */
-  pausedByProjects: boolean;
+  linkedinUrl?: string | null;
 }
 
 export interface PersonDetail {
@@ -3936,6 +4028,11 @@ export interface OrganisationListItem {
   /** Ollie's own company rather than a client */
   internal: boolean;
   peopleCount: number;
+  /**
+     * The latest contact with anyone who works there
+     * @nullable
+     */
+  lastContactAt: string | null;
 }
 
 export interface Organisation {
@@ -4713,6 +4810,73 @@ export const CadenceTab = {
   due_soon: 'due_soon',
   on_track: 'on_track',
 } as const;
+
+export interface LinkedInImportInput {
+  /** The text of Connections.csv from LinkedIn's data export */
+  csv: string;
+}
+
+export interface LinkedInImportResult {
+  at: string;
+  /** Rows in the file */
+  connections: number;
+  /** Connections matched to someone in OllieOS */
+  matched: number;
+  /** Matched */
+  upToDate: number;
+  /** Change cards made for missing or changed details */
+  changes: number;
+  /** Organisation facts made for companies OllieOS does not know */
+  facts: number;
+  /** Already waiting in the Knowledge Inbox */
+  alreadyProposed: number;
+  /** Names that fit more than one person */
+  ambiguous: number;
+  /** Matched people hidden from AI */
+  hidden: number;
+}
+
+export interface LinkedInImportStatus {
+  last: LinkedInImportResult | null;
+}
+
+export interface CadenceSuggestionPerson {
+  id: number;
+  name: string;
+  slug: string;
+  confidential: boolean;
+  /** @nullable */
+  role: string | null;
+  organisation: EntitySummary | null;
+  internal: boolean;
+}
+
+export interface CadenceSuggestion {
+  person: CadenceSuggestionPerson;
+  cadence: Cadence;
+  cadenceLabel: string;
+  /** One line on why this cadence */
+  reason: string;
+  /** Distinct days in touch in the last four months */
+  contactDays: number;
+  /**
+     * Typical gap in days between contacts
+     * @nullable
+     */
+  typicalGapDays: number | null;
+  /** @nullable */
+  lastContactAt: string | null;
+}
+
+export interface CadenceSuggestions {
+  suggestions: CadenceSuggestion[];
+  /** People hidden with Not now */
+  dismissed: number;
+}
+
+export interface DismissCadenceSuggestionInput {
+  personId: number;
+}
 
 export interface CadenceProject {
   id: number;

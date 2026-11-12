@@ -44,9 +44,12 @@ import type {
   BriefNotesInput,
   BriefTalkingPointInput,
   BriefView,
+  BulkDecideInput,
+  BulkDecideResult,
   BundleInput,
   BundleResult,
   CadencePage,
+  CadenceSuggestions,
   CheckInDraft,
   CheckReplyDraft200,
   ClearOut,
@@ -68,6 +71,7 @@ import type {
   DecisionUpdate,
   Digest,
   DigestListItem,
+  DismissCadenceSuggestionInput,
   DocumentInput,
   DocumentTextInput,
   DocumentUpdate,
@@ -123,6 +127,9 @@ import type {
   LibraryDocument,
   LinkInput,
   LinkResult,
+  LinkedInImportInput,
+  LinkedInImportResult,
+  LinkedInImportStatus,
   ListAiActivityParams,
   ListCadenceParams,
   ListDocumentsParams,
@@ -222,6 +229,9 @@ import type {
   SessionListItem,
   SessionUpdate,
   SlackAccount,
+  SlackDmInput,
+  SlackDmOptions,
+  SlackDmResult,
   SlackReplyDraft,
   SlackToAnswer,
   StrategyOrder,
@@ -240,6 +250,7 @@ import type {
   Task,
   TaskDetail,
   TaskEvidence,
+  TaskReorderInput,
   TaskSummary,
   TaskUpdate,
   TestCase,
@@ -1383,6 +1394,94 @@ export const useQuickAddTask = <TError = ErrorType<ErrorEnvelope | NotAuthorised
         TContext
       > => {
       return useMutation(getQuickAddTaskMutationOptions(options), queryClient);
+    }
+
+export const getReorderTasksUrl = () => {
+
+
+
+
+  return `/api/tasks/reorder`
+}
+
+/**
+ * @summary Put tasks in the order Ollie dragged them, or clear that order
+ */
+export const reorderTasks = async (taskReorderInput: TaskReorderInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getReorderTasksUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(taskReorderInput)
+  }
+);}
+
+
+
+
+
+export const getReorderTasksMutationKey = () => ['reorderTasks'] as const;
+
+export const getReorderTasksMutationOptions = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderTasks>>, TError,ReorderTasksMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reorderTasks>>, TError,ReorderTasksMutationVariables, TContext> => {
+
+const mutationKey = getReorderTasksMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reorderTasks>>, ReorderTasksMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  reorderTasks(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReorderTasksMutationResult = NonNullable<Awaited<ReturnType<typeof reorderTasks>>>
+    export type ReorderTasksMutationBody = BodyType<TaskReorderInput>
+    export type ReorderTasksMutationError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>
+    export type ReorderTasksMutationVariables = {data: BodyType<TaskReorderInput>}
+
+    /**
+ * @summary Put tasks in the order Ollie dragged them, or clear that order
+ */
+export const useReorderTasks = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderTasks>>, TError,ReorderTasksMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof reorderTasks>>,
+        TError,
+        ReorderTasksMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReorderTasksMutationOptions(options), queryClient);
     }
 
 export const getGetTaskUrl = (id: number,) => {
@@ -5175,6 +5274,196 @@ export function useExportTasksCsv<TData = Awaited<ReturnType<typeof exportTasksC
 
 
 
+
+export const getGetTaskSlackDmOptionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/slack-dm`
+}
+
+/**
+ * @summary Colleagues this task can be sent to on Slack, and who it is suggested for
+ */
+export const getTaskSlackDmOptions = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<SlackDmOptions> => {
+
+  return customFetch<SlackDmOptions>(getGetTaskSlackDmOptionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTaskSlackDmOptionsQueryKey = (id: number,) => {
+    return [
+    `/api/tasks/${id}/slack-dm`
+    ] as const;
+    }
+
+
+export const getGetTaskSlackDmOptionsQueryOptions = <TData = Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTaskSlackDmOptionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTaskSlackDmOptions>>> = ({ signal }) => getTaskSlackDmOptions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTaskSlackDmOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof getTaskSlackDmOptions>>>
+export type GetTaskSlackDmOptionsQueryError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+
+
+export function useGetTaskSlackDmOptions<TData = Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskSlackDmOptions>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskSlackDmOptions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskSlackDmOptions<TData = Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskSlackDmOptions>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskSlackDmOptions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskSlackDmOptions<TData = Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Colleagues this task can be sent to on Slack, and who it is suggested for
+ */
+
+export function useGetTaskSlackDmOptions<TData = Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTaskSlackDmOptionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSendTaskSlackDmUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/slack-dm`
+}
+
+/**
+ * @summary Send a colleague a Slack direct message as Ollie, then move the task to Waiting on them
+ */
+export const sendTaskSlackDm = async (id: number,
+    slackDmInput: SlackDmInput, options?: Parameters<typeof customFetch>[1]): Promise<SlackDmResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SlackDmResult>(getSendTaskSlackDmUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(slackDmInput)
+  }
+);}
+
+
+
+
+
+export const getSendTaskSlackDmMutationKey = () => ['sendTaskSlackDm'] as const;
+
+export const getSendTaskSlackDmMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTaskSlackDm>>, TError,SendTaskSlackDmMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendTaskSlackDm>>, TError,SendTaskSlackDmMutationVariables, TContext> => {
+
+const mutationKey = getSendTaskSlackDmMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendTaskSlackDm>>, SendTaskSlackDmMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  sendTaskSlackDm(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendTaskSlackDmMutationResult = NonNullable<Awaited<ReturnType<typeof sendTaskSlackDm>>>
+    export type SendTaskSlackDmMutationBody = BodyType<SlackDmInput>
+    export type SendTaskSlackDmMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SendTaskSlackDmMutationVariables = {id: number;data: BodyType<SlackDmInput>}
+
+    /**
+ * @summary Send a colleague a Slack direct message as Ollie, then move the task to Waiting on them
+ */
+export const useSendTaskSlackDm = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTaskSlackDm>>, TError,SendTaskSlackDmMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof sendTaskSlackDm>>,
+        TError,
+        SendTaskSlackDmMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendTaskSlackDmMutationOptions(options), queryClient);
+    }
 
 export const getSearchDriveUrl = (params: SearchDriveParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -9416,6 +9705,458 @@ export function useListCadence<TData = Awaited<ReturnType<typeof listCadence>>, 
 
 
 
+
+export const getGetLinkedInImportUrl = () => {
+
+
+
+
+  return `/api/contacts/linkedin-import`
+}
+
+/**
+ * @summary When the LinkedIn connections were last imported, and what came of it
+ */
+export const getLinkedInImport = async ( options?: Parameters<typeof customFetch>[1]): Promise<LinkedInImportStatus> => {
+
+  return customFetch<LinkedInImportStatus>(getGetLinkedInImportUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLinkedInImportQueryKey = () => {
+    return [
+    `/api/contacts/linkedin-import`
+    ] as const;
+    }
+
+
+export const getGetLinkedInImportQueryOptions = <TData = Awaited<ReturnType<typeof getLinkedInImport>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLinkedInImportQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLinkedInImport>>> = ({ signal }) => getLinkedInImport({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetLinkedInImportQueryResult = NonNullable<Awaited<ReturnType<typeof getLinkedInImport>>>
+export type GetLinkedInImportQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetLinkedInImport<TData = Awaited<ReturnType<typeof getLinkedInImport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLinkedInImport>>,
+          TError,
+          Awaited<ReturnType<typeof getLinkedInImport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLinkedInImport<TData = Awaited<ReturnType<typeof getLinkedInImport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLinkedInImport>>,
+          TError,
+          Awaited<ReturnType<typeof getLinkedInImport>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetLinkedInImport<TData = Awaited<ReturnType<typeof getLinkedInImport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary When the LinkedIn connections were last imported, and what came of it
+ */
+
+export function useGetLinkedInImport<TData = Awaited<ReturnType<typeof getLinkedInImport>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getLinkedInImport>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetLinkedInImportQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getImportLinkedInUrl = () => {
+
+
+
+
+  return `/api/contacts/linkedin-import`
+}
+
+/**
+ * @summary Match LinkedIn's Connections.csv to people in OllieOS and propose missing or changed details to the Knowledge Inbox
+ */
+export const importLinkedIn = async (linkedInImportInput: LinkedInImportInput, options?: Parameters<typeof customFetch>[1]): Promise<LinkedInImportResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<LinkedInImportResult>(getImportLinkedInUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(linkedInImportInput)
+  }
+);}
+
+
+
+
+
+export const getImportLinkedInMutationKey = () => ['importLinkedIn'] as const;
+
+export const getImportLinkedInMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importLinkedIn>>, TError,ImportLinkedInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importLinkedIn>>, TError,ImportLinkedInMutationVariables, TContext> => {
+
+const mutationKey = getImportLinkedInMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importLinkedIn>>, ImportLinkedInMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  importLinkedIn(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportLinkedInMutationResult = NonNullable<Awaited<ReturnType<typeof importLinkedIn>>>
+    export type ImportLinkedInMutationBody = BodyType<LinkedInImportInput>
+    export type ImportLinkedInMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type ImportLinkedInMutationVariables = {data: BodyType<LinkedInImportInput>}
+
+    /**
+ * @summary Match LinkedIn's Connections.csv to people in OllieOS and propose missing or changed details to the Knowledge Inbox
+ */
+export const useImportLinkedIn = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importLinkedIn>>, TError,ImportLinkedInMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importLinkedIn>>,
+        TError,
+        ImportLinkedInMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportLinkedInMutationOptions(options), queryClient);
+    }
+
+export const getListCadenceSuggestionsUrl = () => {
+
+
+
+
+  return `/api/people/cadence-suggestions`
+}
+
+/**
+ * @summary Suggested cadences for people with none, from how often Ollie has actually been in touch
+ */
+export const listCadenceSuggestions = async ( options?: Parameters<typeof customFetch>[1]): Promise<CadenceSuggestions> => {
+
+  return customFetch<CadenceSuggestions>(getListCadenceSuggestionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCadenceSuggestionsQueryKey = () => {
+    return [
+    `/api/people/cadence-suggestions`
+    ] as const;
+    }
+
+
+export const getListCadenceSuggestionsQueryOptions = <TData = Awaited<ReturnType<typeof listCadenceSuggestions>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCadenceSuggestionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCadenceSuggestions>>> = ({ signal }) => listCadenceSuggestions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCadenceSuggestionsQueryResult = NonNullable<Awaited<ReturnType<typeof listCadenceSuggestions>>>
+export type ListCadenceSuggestionsQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListCadenceSuggestions<TData = Awaited<ReturnType<typeof listCadenceSuggestions>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCadenceSuggestions>>,
+          TError,
+          Awaited<ReturnType<typeof listCadenceSuggestions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCadenceSuggestions<TData = Awaited<ReturnType<typeof listCadenceSuggestions>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCadenceSuggestions>>,
+          TError,
+          Awaited<ReturnType<typeof listCadenceSuggestions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCadenceSuggestions<TData = Awaited<ReturnType<typeof listCadenceSuggestions>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Suggested cadences for people with none, from how often Ollie has actually been in touch
+ */
+
+export function useListCadenceSuggestions<TData = Awaited<ReturnType<typeof listCadenceSuggestions>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCadenceSuggestionsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDismissCadenceSuggestionUrl = () => {
+
+
+
+
+  return `/api/people/cadence-suggestions/dismiss`
+}
+
+/**
+ * @summary Not now; stop suggesting a cadence for this person
+ */
+export const dismissCadenceSuggestion = async (dismissCadenceSuggestionInput: DismissCadenceSuggestionInput, options?: Parameters<typeof customFetch>[1]): Promise<OkResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OkResult>(getDismissCadenceSuggestionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dismissCadenceSuggestionInput)
+  }
+);}
+
+
+
+
+
+export const getDismissCadenceSuggestionMutationKey = () => ['dismissCadenceSuggestion'] as const;
+
+export const getDismissCadenceSuggestionMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissCadenceSuggestion>>, TError,DismissCadenceSuggestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissCadenceSuggestion>>, TError,DismissCadenceSuggestionMutationVariables, TContext> => {
+
+const mutationKey = getDismissCadenceSuggestionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissCadenceSuggestion>>, DismissCadenceSuggestionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  dismissCadenceSuggestion(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissCadenceSuggestionMutationResult = NonNullable<Awaited<ReturnType<typeof dismissCadenceSuggestion>>>
+    export type DismissCadenceSuggestionMutationBody = BodyType<DismissCadenceSuggestionInput>
+    export type DismissCadenceSuggestionMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type DismissCadenceSuggestionMutationVariables = {data: BodyType<DismissCadenceSuggestionInput>}
+
+    /**
+ * @summary Not now; stop suggesting a cadence for this person
+ */
+export const useDismissCadenceSuggestion = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissCadenceSuggestion>>, TError,DismissCadenceSuggestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof dismissCadenceSuggestion>>,
+        TError,
+        DismissCadenceSuggestionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDismissCadenceSuggestionMutationOptions(options), queryClient);
+    }
+
+export const getRestoreCadenceSuggestionsUrl = () => {
+
+
+
+
+  return `/api/people/cadence-suggestions/restore`
+}
+
+/**
+ * @summary Bring back everyone hidden from the suggestions with Not now
+ */
+export const restoreCadenceSuggestions = async ( options?: Parameters<typeof customFetch>[1]): Promise<OkResult> => {
+
+  return customFetch<OkResult>(getRestoreCadenceSuggestionsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRestoreCadenceSuggestionsMutationKey = () => ['restoreCadenceSuggestions'] as const;
+
+export const getRestoreCadenceSuggestionsMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreCadenceSuggestions>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreCadenceSuggestions>>, TError,void, TContext> => {
+
+const mutationKey = getRestoreCadenceSuggestionsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreCadenceSuggestions>>, void> = () => {
+
+
+          return  restoreCadenceSuggestions(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreCadenceSuggestionsMutationResult = NonNullable<Awaited<ReturnType<typeof restoreCadenceSuggestions>>>
+
+    export type RestoreCadenceSuggestionsMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Bring back everyone hidden from the suggestions with Not now
+ */
+export const useRestoreCadenceSuggestions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreCadenceSuggestions>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof restoreCadenceSuggestions>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRestoreCadenceSuggestionsMutationOptions(options), queryClient);
+    }
 
 export const getListPossibleDuplicatesUrl = () => {
 
@@ -16250,6 +16991,94 @@ export const useApproveSuggestion = <TError = ErrorType<ErrorResponse | NotAutho
         TContext
       > => {
       return useMutation(getApproveSuggestionMutationOptions(options), queryClient);
+    }
+
+export const getBulkDecideSuggestionsUrl = () => {
+
+
+
+
+  return `/api/suggestions/bulk`
+}
+
+/**
+ * @summary Approve or reject many Knowledge Inbox cards at once; cards that cannot be decided as they stand are skipped
+ */
+export const bulkDecideSuggestions = async (bulkDecideInput: BulkDecideInput, options?: Parameters<typeof customFetch>[1]): Promise<BulkDecideResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<BulkDecideResult>(getBulkDecideSuggestionsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bulkDecideInput)
+  }
+);}
+
+
+
+
+
+export const getBulkDecideSuggestionsMutationKey = () => ['bulkDecideSuggestions'] as const;
+
+export const getBulkDecideSuggestionsMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkDecideSuggestions>>, TError,BulkDecideSuggestionsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkDecideSuggestions>>, TError,BulkDecideSuggestionsMutationVariables, TContext> => {
+
+const mutationKey = getBulkDecideSuggestionsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkDecideSuggestions>>, BulkDecideSuggestionsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkDecideSuggestions(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkDecideSuggestionsMutationResult = NonNullable<Awaited<ReturnType<typeof bulkDecideSuggestions>>>
+    export type BulkDecideSuggestionsMutationBody = BodyType<BulkDecideInput>
+    export type BulkDecideSuggestionsMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type BulkDecideSuggestionsMutationVariables = {data: BodyType<BulkDecideInput>}
+
+    /**
+ * @summary Approve or reject many Knowledge Inbox cards at once; cards that cannot be decided as they stand are skipped
+ */
+export const useBulkDecideSuggestions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkDecideSuggestions>>, TError,BulkDecideSuggestionsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bulkDecideSuggestions>>,
+        TError,
+        BulkDecideSuggestionsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBulkDecideSuggestionsMutationOptions(options), queryClient);
     }
 
 export const getRejectSuggestionsFromSourceUrl = () => {

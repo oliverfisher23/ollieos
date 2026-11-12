@@ -31,6 +31,7 @@ import { enqueueDocument } from "./documents/enqueue";
 import { assertDecidesOn, existingRelationship, sameRelationship, setRelationship } from "./relationships";
 import { applyPlaybookUpdate, cleanSteps, insertPlaybook, loadPlaybook } from "./playbooks";
 import { insertProduct } from "./products";
+import { linkedinProfileUrl } from "@workspace/shared";
 
 export { FACT_ATTRIBUTES };
 export type FactAttribute = (typeof FACT_ATTRIBUTES)[number];
@@ -284,6 +285,7 @@ export const FIELD_LABELS: Record<string, string> = {
   primary_user: "Primary user",
   function: "Function",
   client: "Client",
+  linkedin_url: "LinkedIn",
 };
 const EDITABLE: Record<Exclude<SuggestionKind, "summary_change">, string[]> = {
   fact: ["text"],
@@ -301,7 +303,7 @@ const EDITABLE: Record<Exclude<SuggestionKind, "summary_change">, string[]> = {
 const REQUIRED = new Set(["text", "name", "title", "applies_when", "rule", "when_to_use"]);
 /** Columns a summary change may set on each kind of record. */
 const CHANGEABLE: Record<EntityKind, string[]> = {
-  person: ["role", "email", "relationship_summary", "organisation"],
+  person: ["role", "email", "relationship_summary", "organisation", "linkedin_url"],
   project: ["area", "status", "summary", "function", "client"],
   organisation: ["type", "summary"],
   product: ["description", "summary", "primary_user"],
@@ -736,6 +738,7 @@ export async function applySuggestion(
         const set: Partial<typeof peopleTable.$inferInsert> = {};
         if (f.role !== undefined) set.role = f.role;
         if (f.relationship_summary !== undefined) set.relationshipSummary = f.relationship_summary;
+        if (f.linkedin_url !== undefined) set.linkedinUrl = linkedinProfileUrl(f.linkedin_url) ?? f.linkedin_url;
         if (f.email !== undefined) {
           const email = f.email.toLowerCase();
           const [taken] = await tx.select({ id: peopleTable.id }).from(peopleTable).where(hasEmail(email));
@@ -940,6 +943,36 @@ export async function rejectSuggestion(id: number, now = new Date()) {
     await writeAudit(tx, { actor: ACTOR, action: "reject", entityType: "suggestion", entityId: id, payload: { kind: s.kind } });
     return { id, status: "rejected" as const, result: null };
   });
+}
+
+export interface BulkResult {
+  approved: number;
+  rejected: number;
+  /** Cards left waiting, with why: a conflict to decide, already decided, or a problem approving */
+  skipped: { id: number; reason: string }[];
+}
+
+/**
+ * Approves or rejects many cards at once, each in its own transaction, as if Ollie had pressed the
+ * button on each. Cards waiting on the Conflicts tab, already decided, or that cannot be approved
+ * as they stand are skipped and listed, never forced.
+ */
+export async function bulkDecide(action: "approve" | "reject", ids: number[], now = new Date()): Promise<BulkResult> {
+  const out: BulkResult = { approved: 0, rejected: 0, skipped: [] };
+  for (const id of [...new Set(ids)]) {
+    try {
+      if (action === "approve") {
+        await approveSuggestion(id, undefined, now);
+        out.approved++;
+      } else {
+        await rejectSuggestion(id, now);
+        out.rejected++;
+      }
+    } catch (err) {
+      out.skipped.push({ id, reason: err instanceof Error ? err.message : "Could not be decided" });
+    }
+  }
+  return out;
 }
 
 /**

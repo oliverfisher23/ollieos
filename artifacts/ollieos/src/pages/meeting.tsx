@@ -18,7 +18,7 @@ import { PageProblem, PageSkeleton } from '@/components/knowledge/parts';
 import { isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
 
 /**
- * A work meeting without a prep page: who is coming, a way to add them to People, and Ollie's
+ * A work meeting without a prep page: who is coming, a way to add them to Contacts, and Ollie's
  * agenda and notes. Once anyone on it is known the meeting gets a brief, and this page says so.
  */
 export default function MeetingPage({ eventId }: { eventId: string }) {
@@ -61,14 +61,14 @@ function Meeting({ m }: { m: MeetingView }) {
 
         {hasPrep ? (
           <div role="note" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 16px', borderRadius: 'var(--oo-r-card-sm)', background: 'var(--oo-banner-bg)', border: '1px solid var(--oo-banner-border)', color: 'var(--oo-banner-fg)', fontSize: 14 }} data-testid="banner-has-prep">
-            <span>Someone on this meeting is in People now, so it gets a brief.</span>
+            <span>Someone on this meeting is in Contacts now, so it gets a brief.</span>
             <Link href={'/briefs/' + m.id} className="oo-btn oo-btn-ink" data-testid="link-open-prep">Open the prep page</Link>
           </div>
         ) : (
           <p className="oo-soft" style={{ margin: 0, fontSize: 14, lineHeight: 1.5, maxWidth: '64ch' }} data-testid="text-no-prep">
             {m.attendees.length === 0
               ? 'Nobody else is on the invite, so there is no brief. Your agenda and notes are still kept here.'
-              : 'There is no brief yet because nobody on the invite is in People. Add the people you know and OllieOS will write one.'}
+              : 'There is no brief yet because nobody on the invite is in Contacts. Add the people you know and OllieOS will write one.'}
           </p>
         )}
 
@@ -114,7 +114,7 @@ function Attendee({ a, index, eventId }: { a: MeetingView['attendees'][number]; 
     const v = name.trim();
     if (!v || busy) return;
     setBusy(true);
-    const p = await write(() => createPerson({ name: v, email: a.email }), { done: v + ' added to People', fail: 'Could not add that person' });
+    const p = await write(() => createPerson({ name: v, email: a.email }), { done: v + ' added to Contacts', fail: 'Could not add that person' });
     setBusy(false);
     if (!p) return;
     setAdding(false);
@@ -136,7 +136,7 @@ function Attendee({ a, index, eventId }: { a: MeetingView['attendees'][number]; 
         {a.email && a.email !== a.name && <span className="oo-muted" style={{ fontSize: 12, overflowWrap: 'anywhere' }}>{a.email}</span>}
       </span>
       {a.person ? (
-        <span className="oo-pill" data-tone="done">In People</span>
+        <span className="oo-pill" data-tone="done">In Contacts</span>
       ) : adding ? (
         <form onSubmit={submit} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', flex: '1 1 280px' }}>
           <label htmlFor={'attendee-name-' + index} className="sr-only">Their name</label>
@@ -145,7 +145,7 @@ function Attendee({ a, index, eventId }: { a: MeetingView['attendees'][number]; 
           <button type="button" className="oo-btn oo-btn-outline" onClick={() => setAdding(false)} disabled={busy}>Cancel</button>
         </form>
       ) : (
-        <button type="button" className="oo-btn oo-btn-outline" onClick={() => setAdding(true)} data-testid={'button-attendee-add-' + index}>Add to People</button>
+        <button type="button" className="oo-btn oo-btn-outline" onClick={() => setAdding(true)} data-testid={'button-attendee-add-' + index}>Add to Contacts</button>
       )}
     </li>
   );

@@ -277,6 +277,29 @@ paths:
         "403":
           $ref: "#/components/responses/NotAuthorised"
 
+  /tasks/reorder:
+    post:
+      operationId: reorderTasks
+      tags: [tasks]
+      summary: Put tasks in the order Ollie dragged them, or clear that order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskReorderInput"
+      responses:
+        "204":
+          description: Saved
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
   /tasks/{id}:
     get:
       operationId: getTask
@@ -1252,6 +1275,41 @@ paths:
               schema: { type: string }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /tasks/{id}/slack-dm:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getTaskSlackDmOptions
+      tags: [tasks]
+      summary: "Colleagues this task can be sent to on Slack, and who it is suggested for"
+      responses:
+        "200":
+          description: Options
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackDmOptions" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    post:
+      operationId: sendTaskSlackDm
+      tags: [tasks]
+      summary: "Send a colleague a Slack direct message as Ollie, then move the task to Waiting on them"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SlackDmInput" }
+      responses:
+        "200":
+          description: Sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackDmResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
   /library/drive-search:
     get:
       operationId: searchDrive
@@ -2121,6 +2179,81 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/CadencePage" }
         "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /contacts/linkedin-import:
+    get:
+      operationId: getLinkedInImport
+      tags: [direction]
+      summary: When the LinkedIn connections were last imported, and what came of it
+      responses:
+        "200":
+          description: Last import
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LinkedInImportStatus" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: importLinkedIn
+      tags: [direction]
+      summary: Match LinkedIn's Connections.csv to people in OllieOS and propose missing or changed details to the Knowledge Inbox
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LinkedInImportInput" }
+      responses:
+        "200":
+          description: What the import found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LinkedInImportResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /people/cadence-suggestions:
+    get:
+      operationId: listCadenceSuggestions
+      tags: [direction]
+      summary: Suggested cadences for people with none, from how often Ollie has actually been in touch
+      responses:
+        "200":
+          description: Suggestions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CadenceSuggestions" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /people/cadence-suggestions/dismiss:
+    post:
+      operationId: dismissCadenceSuggestion
+      tags: [direction]
+      summary: Not now; stop suggesting a cadence for this person
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DismissCadenceSuggestionInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /people/cadence-suggestions/restore:
+    post:
+      operationId: restoreCadenceSuggestions
+      tags: [direction]
+      summary: Bring back everyone hidden from the suggestions with Not now
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkResult" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
   /people/duplicates:
@@ -3416,6 +3549,25 @@ paths:
         "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
+
+  /suggestions/bulk:
+    post:
+      operationId: bulkDecideSuggestions
+      tags: [knowledge]
+      summary: Approve or reject many Knowledge Inbox cards at once; cards that cannot be decided as they stand are skipped
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulkDecideInput" }
+      responses:
+        "200":
+          description: What was decided
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulkDecideResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
 
   /suggestions/reject-source:
     post:
@@ -4784,7 +4936,11 @@ components:
         - noiseHint
         - repeat
         - steps
+        - position
       properties:
+        position:
+          type: [integer, "null"]
+          description: Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.
         repeat:
           description: How it repeats, anchored on its due date. Null when it does not.
           oneOf:
@@ -6364,6 +6520,56 @@ components:
             properties:
               status: { type: string }
               suggestionId: { type: integer }
+    SlackDmPerson:
+      type: object
+      required: [id, name, role]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        role: { type: [string, "null"] }
+    SlackDmOptions:
+      type: object
+      required: [people, suggestedPersonId]
+      properties:
+        people: { type: array, items: { $ref: "#/components/schemas/SlackDmPerson" } }
+        suggestedPersonId: { type: [integer, "null"] }
+    SlackDmInput:
+      type: object
+      additionalProperties: false
+      required: [personId, text]
+      properties:
+        personId: { type: integer }
+        text: { type: string, maxLength: 3000 }
+    SlackDmResult:
+      type: object
+      required: [personId, personName, channel, ts, url]
+      properties:
+        personId: { type: integer }
+        personName: { type: string }
+        channel: { type: string }
+        ts: { type: string }
+        url: { type: string }
+    BulkDecideInput:
+      type: object
+      additionalProperties: false
+      required: [action, ids]
+      properties:
+        action: { type: string, enum: [approve, reject] }
+        ids: { type: array, minItems: 1, maxItems: 500, items: { type: integer } }
+    BulkDecideResult:
+      type: object
+      required: [approved, rejected, skipped]
+      properties:
+        approved: { type: integer }
+        rejected: { type: integer }
+        skipped:
+          type: array
+          items:
+            type: object
+            required: [id, reason]
+            properties:
+              id: { type: integer }
+              reason: { type: string }
     TestCaseAvailability:
       type: object
       required: [available, expected, caseId]
@@ -6605,6 +6811,21 @@ components:
         cc: { type: string, maxLength: 2000 }
         subject: { type: string, maxLength: 500 }
         body: { type: string, minLength: 1, maxLength: 20000 }
+
+    TaskReorderInput:
+      type: object
+      required: [ids]
+      additionalProperties: false
+      properties:
+        ids:
+          type: array
+          description: Task ids in the new order, top first
+          minItems: 1
+          maxItems: 500
+          items: { type: integer }
+        clear:
+          type: boolean
+          description: Forget the dragged order for these tasks instead, so they go back to due-date order
 
     TriageInput:
       type: object
@@ -7392,7 +7613,7 @@ components:
 
     PersonListItem:
       type: object
-      required: [id, name, slug, confidential, aiAccess, role, organisation, lastContactAt, iOweCount, theyOweCount]
+      required: [id, name, slug, confidential, aiAccess, role, organisation, organisationType, internal, isSelf, lastContactAt, iOweCount, theyOweCount, cadence]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -7404,13 +7625,17 @@ components:
           oneOf:
             - $ref: "#/components/schemas/EntitySummary"
             - type: "null"
+        organisationType: { type: [string, "null"], description: The organisation's type, such as client or partner }
+        internal: { type: boolean, description: They work at Ollie's own company }
+        isSelf: { type: boolean, description: Ollie's own record }
         lastContactAt: { type: [string, "null"], format: date-time }
         iOweCount: { type: integer }
         theyOweCount: { type: integer }
+        cadence: { $ref: "#/components/schemas/PersonCadence" }
 
     Person:
       type: object
-      required: [id, name, slug, role, email, relationshipSummary, confidential, aiAccess, lastContactAt, organisation, cadence, cadencePaused, isSelf, otherEmails, slackUserId, createdAt, updatedAt]
+      required: [id, name, slug, role, email, relationshipSummary, confidential, aiAccess, lastContactAt, organisation, cadence, cadencePaused, isSelf, otherEmails, slackUserId, linkedinUrl, createdAt, updatedAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -7430,6 +7655,7 @@ components:
         isSelf: { type: boolean, description: "Ollie's own record" }
         otherEmails: { type: array, items: { type: string }, description: "Other addresses they use, in lower case" }
         slackUserId: { type: [string, "null"], description: Their Slack account }
+        linkedinUrl: { type: [string, "null"], description: Their LinkedIn profile link }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
@@ -7459,6 +7685,7 @@ components:
         cadencePaused: { type: boolean }
         otherEmails: { type: array, maxItems: 20, items: { type: string, maxLength: 320 }, description: Replaces the list of other addresses }
         slackUserId: { type: [string, "null"], description: Their Slack account id, or null to unlink }
+        linkedinUrl: { type: [string, "null"], maxLength: 300, description: Their LinkedIn profile link, or null to clear it }
 
     PersonDetail:
       type: object
@@ -7475,7 +7702,7 @@ components:
 
     OrganisationListItem:
       type: object
-      required: [id, name, slug, confidential, aiAccess, type, internal, peopleCount]
+      required: [id, name, slug, confidential, aiAccess, type, internal, peopleCount, lastContactAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -7485,6 +7712,7 @@ components:
         type: { type: [string, "null"] }
         internal: { type: boolean, description: Ollie's own company rather than a client, partner or supplier }
         peopleCount: { type: integer }
+        lastContactAt: { type: [string, "null"], format: date-time, description: The latest contact with anyone who works there }
 
     Organisation:
       type: object
@@ -8111,6 +8339,77 @@ components:
         cadenceLabel: { type: string }
         cadencePaused: { type: boolean }
         pausedByProjects: { type: boolean, description: True when every linked project is paused or complete }
+
+    LinkedInImportInput:
+      type: object
+      required: [csv]
+      additionalProperties: false
+      properties:
+        csv: { type: string, description: The text of Connections.csv from LinkedIn's data export }
+
+    LinkedInImportResult:
+      type: object
+      required: [at, connections, matched, upToDate, changes, facts, alreadyProposed, ambiguous, hidden]
+      properties:
+        at: { type: string, format: date-time }
+        connections: { type: integer, description: Rows in the file }
+        matched: { type: integer, description: Connections matched to someone in OllieOS }
+        upToDate: { type: integer, description: Matched, with nothing new }
+        changes: { type: integer, description: Change cards made for missing or changed details }
+        facts: { type: integer, description: Organisation facts made for companies OllieOS does not know }
+        alreadyProposed: { type: integer, description: Already waiting in the Knowledge Inbox, or rejected lately }
+        ambiguous: { type: integer, description: Names that fit more than one person, left alone }
+        hidden: { type: integer, description: Matched people hidden from AI, left alone }
+
+    LinkedInImportStatus:
+      type: object
+      required: [last]
+      properties:
+        last:
+          oneOf:
+            - $ref: "#/components/schemas/LinkedInImportResult"
+            - type: "null"
+
+    CadenceSuggestionPerson:
+      type: object
+      required: [id, name, slug, confidential, role, organisation, internal]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        confidential: { type: boolean }
+        role: { type: [string, "null"] }
+        organisation:
+          oneOf:
+            - $ref: "#/components/schemas/EntitySummary"
+            - type: "null"
+        internal: { type: boolean }
+
+    CadenceSuggestion:
+      type: object
+      required: [person, cadence, cadenceLabel, reason, contactDays, typicalGapDays, lastContactAt]
+      properties:
+        person: { $ref: "#/components/schemas/CadenceSuggestionPerson" }
+        cadence: { $ref: "#/components/schemas/Cadence" }
+        cadenceLabel: { type: string }
+        reason: { type: string, description: One line on why this cadence }
+        contactDays: { type: integer, description: Distinct days in touch in the last four months }
+        typicalGapDays: { type: [integer, "null"], description: Typical gap in days between contacts }
+        lastContactAt: { type: [string, "null"], format: date-time }
+
+    CadenceSuggestions:
+      type: object
+      required: [suggestions, dismissed]
+      properties:
+        suggestions: { type: array, items: { $ref: "#/components/schemas/CadenceSuggestion" } }
+        dismissed: { type: integer, description: People hidden with Not now }
+
+    DismissCadenceSuggestionInput:
+      type: object
+      required: [personId]
+      additionalProperties: false
+      properties:
+        personId: { type: integer }
 
     CadenceProject:
       type: object

@@ -116,7 +116,7 @@ export async function listTasks(params: ListTasksParams): Promise<TaskView[]> {
         ? [desc(tasksTable.updatedAt), desc(tasksTable.id)]
         : tab === "inbox"
           ? [desc(tasksTable.capturedAt), desc(tasksTable.createdAt)]
-          : [sql`${tasksTable.dueDate} asc nulls last`, priorityRank, desc(tasksTable.createdAt)];
+          : [sql`${tasksTable.position} asc nulls last`, sql`${tasksTable.dueDate} asc nulls last`, priorityRank, desc(tasksTable.createdAt)];
 
   const rows = await db
     .select()
@@ -126,6 +126,50 @@ export async function listTasks(params: ListTasksParams): Promise<TaskView[]> {
     .limit(500);
 
   return toTaskViews(rows);
+}
+
+/** The tabs whose list Ollie can put in his own order by dragging. */
+export const REORDERABLE_TABS: TaskTab[] = ["open", "now", "backlog", "waiting"];
+
+/**
+ * Puts the given tasks in this order, as dragged in the task list.
+ *
+ * Positions are global, but a view only shows some tasks, so the listed tasks swap among the
+ * positions they already hold. That keeps their order against tasks outside this view. Tasks
+ * never placed by hand take fresh positions after every placed task, which is where they showed.
+ * `clear` instead forgets the hand order for these tasks, so they go back to due-date order.
+ * Neither counts as touching the task, so updatedAt (and the stale flag) is left alone.
+ */
+export async function reorderTasks(ids: number[], clear = false): Promise<void> {
+  const unique = [...new Set(ids)];
+  if (!unique.length) return;
+  const keepUpdatedAt = sql`${tasksTable.updatedAt}`;
+  if (clear) {
+    await db.update(tasksTable).set({ position: null, updatedAt: keepUpdatedAt }).where(inArray(tasksTable.id, unique));
+    return;
+  }
+  await db.transaction(async (tx) => {
+    // Serialise reorders so two never hand out the same fresh positions.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('tasks.reorder'))`);
+    const rows = await tx
+      .select({ id: tasksTable.id, position: tasksTable.position })
+      .from(tasksTable)
+      .where(inArray(tasksTable.id, unique));
+    const found = new Set(rows.map((r) => r.id));
+    const order = unique.filter((id) => found.has(id));
+    if (!order.length) return;
+    const slots = rows.map((r) => r.position).filter((p): p is number => p !== null).sort((a, b) => a - b);
+    if (slots.length < order.length) {
+      const [{ max }] = await tx.select({ max: sql<number | null>`max(${tasksTable.position})` }).from(tasksTable);
+      let next = (max ?? 0) + 1;
+      while (slots.length < order.length) slots.push(next++);
+    }
+    const cases = sql.join(order.map((id, i) => sql`when ${id} then ${slots[i]}::integer`), sql` `);
+    await tx
+      .update(tasksTable)
+      .set({ position: sql`case ${tasksTable.id} ${cases} end`, updatedAt: keepUpdatedAt })
+      .where(inArray(tasksTable.id, order));
+  });
 }
 
 export async function getTaskSummary(weekStartParam?: string) {

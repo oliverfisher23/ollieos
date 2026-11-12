@@ -162,6 +162,7 @@ export const GetHomeResponse = zod.object({
 }),
   "doNext": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -246,6 +247,7 @@ export const GetHomeResponse = zod.object({
 }),
   "waitingOn": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -322,6 +324,7 @@ export const GetHomeResponse = zod.object({
   "daysWaiting": zod.int().describe('Whole days since waitingSince (or updatedAt if unknown). Amber at 5 or more.')
 })),
   "promises": zod.array(zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -398,6 +401,7 @@ export const GetHomeResponse = zod.object({
   "doneThisWeek": zod.object({
   "count": zod.int(),
   "latest": zod.array(zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -544,6 +548,7 @@ export const ListTasksQueryParams = zod.object({
 })
 
 export const ListTasksResponseItem = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -660,6 +665,7 @@ export const QuickAddTaskBody = zod.object({
 
 export const QuickAddTaskResponse = zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -738,6 +744,21 @@ export const QuickAddTaskResponse = zod.object({
 
 
 /**
+ * @summary Put tasks in the order Ollie dragged them, or clear that order
+ */
+export const reorderTasksBodyIdsMax = 500;
+
+
+
+export const ReorderTasksBody = zod.object({
+  "ids": zod.array(zod.int()).min(1).max(reorderTasksBodyIdsMax).describe('Task ids in the new order, top first'),
+  "clear": zod.boolean().optional().describe('Forget the dragged order for these tasks instead, so they go back to due-date order')
+})
+
+export const ReorderTasksResponse = zod.void()
+
+
+/**
  * @summary Task with source card and history
  */
 export const GetTaskParams = zod.object({
@@ -746,6 +767,7 @@ export const GetTaskParams = zod.object({
 
 export const GetTaskResponse = zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -864,6 +886,7 @@ export const UpdateTaskBody = zod.object({
 })
 
 export const UpdateTaskResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -947,6 +970,7 @@ export const SnoozeTaskParams = zod.object({
 })
 
 export const SnoozeTaskResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1069,6 +1093,7 @@ export const TriageTaskBody = zod.object({
 
 export const TriageTaskResponse = zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1165,6 +1190,7 @@ export const UndoTaskParams = zod.object({
 })
 
 export const UndoTaskResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1248,6 +1274,7 @@ export const RestoreTaskParams = zod.object({
 })
 
 export const RestoreTaskResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1331,6 +1358,7 @@ export const ContinueRepeatParams = zod.object({
 })
 
 export const ContinueRepeatResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1418,6 +1446,7 @@ export const GetDayPlanResponse = zod.object({
   "made": zod.boolean().describe('True once Ollie has made today\'s plan'),
   "items": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1505,6 +1534,7 @@ export const GetDayPlanResponse = zod.object({
 })),
   "suggestions": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1603,6 +1633,7 @@ export const SaveDayPlanResponse = zod.object({
   "made": zod.boolean().describe('True once Ollie has made today\'s plan'),
   "items": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1690,6 +1721,7 @@ export const SaveDayPlanResponse = zod.object({
 })),
   "suggestions": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1781,6 +1813,7 @@ export const RefitDayPlanResponse = zod.object({
   "made": zod.boolean().describe('True once Ollie has made today\'s plan'),
   "items": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1868,6 +1901,7 @@ export const RefitDayPlanResponse = zod.object({
 })),
   "suggestions": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1977,6 +2011,7 @@ export const GetClearOutResponse = zod.object({
   "count": zod.int(),
   "show": zod.boolean(),
   "tasks": zod.array(zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -2070,6 +2105,7 @@ export const KeepInBacklogParams = zod.object({
 })
 
 export const KeepInBacklogResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -2153,6 +2189,7 @@ export const KeepTaskParams = zod.object({
 })
 
 export const KeepTaskResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -2899,6 +2936,48 @@ export const ExportTasksCsvResponse = zod.unknown()
 
 
 /**
+ * @summary Colleagues this task can be sent to on Slack, and who it is suggested for
+ */
+export const GetTaskSlackDmOptionsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetTaskSlackDmOptionsResponse = zod.object({
+  "people": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "role": zod.string().nullable()
+})),
+  "suggestedPersonId": zod.int().nullable()
+})
+
+
+/**
+ * @summary Send a colleague a Slack direct message as Ollie, then move the task to Waiting on them
+ */
+export const SendTaskSlackDmParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const sendTaskSlackDmBodyTextMax = 3000;
+
+
+
+export const SendTaskSlackDmBody = zod.object({
+  "personId": zod.int(),
+  "text": zod.string().max(sendTaskSlackDmBodyTextMax)
+})
+
+export const SendTaskSlackDmResponse = zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "channel": zod.string(),
+  "ts": zod.string(),
+  "url": zod.string()
+})
+
+
+/**
  * @summary Part L: search every Drive file Ollie can open, by name and text
  */
 export const searchDriveQueryQMax = 200;
@@ -3048,6 +3127,7 @@ export const GetWeekCheckResponse = zod.object({
   "overBy": zod.number(),
   "over": zod.boolean(),
   "movable": zod.array(zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -4003,6 +4083,7 @@ export const GetProjectResponse = zod.object({
   "replaced": zod.boolean().describe('Replaced by a newer claim; kept as history')
 })),
   "openTasks": zod.array(zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -4179,9 +4260,22 @@ export const ListPeopleResponseItem = zod.object({
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
+  "organisationType": zod.string().nullable().describe('The organisation\'s type'),
+  "internal": zod.boolean().describe('They work at Ollie\'s own company'),
+  "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "lastContactAt": zod.coerce.date().nullable(),
   "iOweCount": zod.int(),
-  "theyOweCount": zod.int()
+  "theyOweCount": zod.int(),
+  "cadence": zod.object({
+  "status": zod.enum(['overdue', 'due_soon', 'on_track', 'paused', 'none']),
+  "daysSince": zod.int().nullable().describe('Whole days since the last contact; null when there is none on file'),
+  "daysOverdue": zod.int().nullable(),
+  "daysLeft": zod.int().nullable(),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
+  "cadenceLabel": zod.string(),
+  "cadencePaused": zod.boolean(),
+  "pausedByProjects": zod.boolean().describe('True when every linked project is paused or complete')
+})
 })
 export const ListPeopleResponse = zod.array(ListPeopleResponseItem)
 
@@ -4224,6 +4318,7 @@ export const CreatePersonResponse = zod.object({
   "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
   "slackUserId": zod.string().nullable().describe('Their Slack account'),
+  "linkedinUrl": zod.string().nullable().describe('Their LinkedIn profile link'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4258,6 +4353,7 @@ export const GetPersonResponse = zod.object({
   "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
   "slackUserId": zod.string().nullable().describe('Their Slack account'),
+  "linkedinUrl": zod.string().nullable().describe('Their LinkedIn profile link'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }),
@@ -4272,6 +4368,7 @@ export const GetPersonResponse = zod.object({
   "pausedByProjects": zod.boolean().describe('True when every linked project is paused or complete')
 }),
   "iOwe": zod.array(zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -4346,6 +4443,7 @@ export const GetPersonResponse = zod.object({
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })),
   "theyOwe": zod.array(zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -4492,6 +4590,8 @@ export const updatePersonBodyOtherEmailsItemMax = 320;
 
 export const updatePersonBodyOtherEmailsMax = 20;
 
+export const updatePersonBodyLinkedinUrlMax = 300;
+
 
 
 export const UpdatePersonBody = zod.object({
@@ -4505,7 +4605,8 @@ export const UpdatePersonBody = zod.object({
   "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']).optional(),
   "cadencePaused": zod.boolean().optional(),
   "otherEmails": zod.array(zod.string().max(updatePersonBodyOtherEmailsItemMax)).max(updatePersonBodyOtherEmailsMax).optional().describe('Replaces the list of other addresses'),
-  "slackUserId": zod.string().nullish().describe('Their Slack account id')
+  "slackUserId": zod.string().nullish().describe('Their Slack account id'),
+  "linkedinUrl": zod.string().max(updatePersonBodyLinkedinUrlMax).nullish().describe('Their LinkedIn profile link')
 })
 
 export const UpdatePersonResponse = zod.object({
@@ -4529,6 +4630,7 @@ export const UpdatePersonResponse = zod.object({
   "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
   "slackUserId": zod.string().nullable().describe('Their Slack account'),
+  "linkedinUrl": zod.string().nullable().describe('Their LinkedIn profile link'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -4577,6 +4679,94 @@ export const ListCadenceResponse = zod.object({
 }),zod.null()]),
   "lastContactAt": zod.coerce.date().nullable()
 })))
+})
+
+
+/**
+ * @summary When the LinkedIn connections were last imported, and what came of it
+ */
+export const GetLinkedInImportResponse = zod.object({
+  "last": zod.union([zod.object({
+  "at": zod.coerce.date(),
+  "connections": zod.int().describe('Rows in the file'),
+  "matched": zod.int().describe('Connections matched to someone in OllieOS'),
+  "upToDate": zod.int().describe('Matched'),
+  "changes": zod.int().describe('Change cards made for missing or changed details'),
+  "facts": zod.int().describe('Organisation facts made for companies OllieOS does not know'),
+  "alreadyProposed": zod.int().describe('Already waiting in the Knowledge Inbox'),
+  "ambiguous": zod.int().describe('Names that fit more than one person'),
+  "hidden": zod.int().describe('Matched people hidden from AI')
+}),zod.null()])
+})
+
+
+/**
+ * @summary Match LinkedIn's Connections.csv to people in OllieOS and propose missing or changed details to the Knowledge Inbox
+ */
+export const ImportLinkedInBody = zod.object({
+  "csv": zod.string().describe('The text of Connections.csv from LinkedIn\'s data export')
+})
+
+export const ImportLinkedInResponse = zod.object({
+  "at": zod.coerce.date(),
+  "connections": zod.int().describe('Rows in the file'),
+  "matched": zod.int().describe('Connections matched to someone in OllieOS'),
+  "upToDate": zod.int().describe('Matched'),
+  "changes": zod.int().describe('Change cards made for missing or changed details'),
+  "facts": zod.int().describe('Organisation facts made for companies OllieOS does not know'),
+  "alreadyProposed": zod.int().describe('Already waiting in the Knowledge Inbox'),
+  "ambiguous": zod.int().describe('Names that fit more than one person'),
+  "hidden": zod.int().describe('Matched people hidden from AI')
+})
+
+
+/**
+ * @summary Suggested cadences for people with none, from how often Ollie has actually been in touch
+ */
+export const ListCadenceSuggestionsResponse = zod.object({
+  "suggestions": zod.array(zod.object({
+  "person": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "role": zod.string().nullable(),
+  "organisation": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "internal": zod.boolean()
+}),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
+  "cadenceLabel": zod.string(),
+  "reason": zod.string().describe('One line on why this cadence'),
+  "contactDays": zod.int().describe('Distinct days in touch in the last four months'),
+  "typicalGapDays": zod.int().nullable().describe('Typical gap in days between contacts'),
+  "lastContactAt": zod.coerce.date().nullable()
+})),
+  "dismissed": zod.int().describe('People hidden with Not now')
+})
+
+
+/**
+ * @summary Not now; stop suggesting a cadence for this person
+ */
+export const DismissCadenceSuggestionBody = zod.object({
+  "personId": zod.int()
+})
+
+export const DismissCadenceSuggestionResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Bring back everyone hidden from the suggestions with Not now
+ */
+export const RestoreCadenceSuggestionsResponse = zod.object({
+  "ok": zod.boolean()
 })
 
 
@@ -7878,7 +8068,8 @@ export const ListOrganisationsResponseItem = zod.object({
   "aiAccess": zod.boolean(),
   "type": zod.string().nullable(),
   "internal": zod.boolean().describe('Ollie\'s own company rather than a client'),
-  "peopleCount": zod.int()
+  "peopleCount": zod.int(),
+  "lastContactAt": zod.coerce.date().nullable().describe('The latest contact with anyone who works there')
 })
 export const ListOrganisationsResponse = zod.array(ListOrganisationsResponseItem)
 
@@ -8598,6 +8789,28 @@ export const ApproveSuggestionResponse = zod.object({
 
 
 /**
+ * @summary Approve or reject many Knowledge Inbox cards at once; cards that cannot be decided as they stand are skipped
+ */
+export const bulkDecideSuggestionsBodyIdsMax = 500;
+
+
+
+export const BulkDecideSuggestionsBody = zod.object({
+  "action": zod.enum(['approve', 'reject']),
+  "ids": zod.array(zod.int()).min(1).max(bulkDecideSuggestionsBodyIdsMax)
+})
+
+export const BulkDecideSuggestionsResponse = zod.object({
+  "approved": zod.int(),
+  "rejected": zod.int(),
+  "skipped": zod.array(zod.object({
+  "id": zod.int(),
+  "reason": zod.string()
+}))
+})
+
+
+/**
  * @summary Reject everything still waiting that came from one document or Dropbox file
  */
 export const rejectSuggestionsFromSourceBodySourceRefMax = 1200;
@@ -9157,6 +9370,7 @@ export const AskOllieOSResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -9295,6 +9509,7 @@ export const GetAskThreadResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -9433,6 +9648,7 @@ export const DraftAskReplyResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -9571,6 +9787,7 @@ export const AllowAskTurnResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -9718,6 +9935,7 @@ export const BundleAskTasksResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -9856,6 +10074,7 @@ export const UndoAskBundleResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),

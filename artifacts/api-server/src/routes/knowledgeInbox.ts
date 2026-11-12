@@ -4,7 +4,7 @@ import { z } from "zod";
 import { handle } from "../lib/handle";
 import { getKnowledgeSettings, resolveFactReview, runFactCheck, updateShelfLives } from "../services/factReviews";
 import { listInbox } from "../services/knowledgeInbox";
-import { approveSuggestion, rejectFromSource, rejectSuggestion } from "../services/suggestions";
+import { approveSuggestion, bulkDecide, rejectFromSource, rejectSuggestion } from "../services/suggestions";
 import { MERGE_ITEM_TYPES, mergeOptions, mergeSuggestion } from "../services/inboxMerge";
 
 const router: IRouter = Router();
@@ -53,6 +53,13 @@ router.post(
   handle(async (req, res) => {
     const b = ApproveBody.parse(req.body ?? {});
     res.json(await approveSuggestion(IdParams.parse(req.params).id, b.fields, new Date(), { projectId: b.projectId, newProjectName: b.newProjectName }));
+  }),
+);
+router.post(
+  "/suggestions/bulk",
+  handle(async (req, res) => {
+    const b = z.object({ action: z.enum(["approve", "reject"]), ids: z.array(z.number().int().positive()).min(1).max(500) }).strict().parse(req.body ?? {});
+    res.json(await bulkDecide(b.action, b.ids));
   }),
 );
 router.post(

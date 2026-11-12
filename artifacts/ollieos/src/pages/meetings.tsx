@@ -11,7 +11,7 @@ const PREP: Record<MeetingRow['prep'], { label: string; tone?: string }> = {
   not_much: { label: 'Brief written, little on file' },
   failed: { label: 'Brief failed, open to try again', tone: 'stale' },
   not_written: { label: 'Brief written when you open it', tone: 'inbox' },
-  none: { label: 'No brief: nobody here is in People yet' },
+  none: { label: 'No brief: nobody here is in Contacts yet' },
 };
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;

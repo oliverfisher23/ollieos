@@ -6,11 +6,13 @@
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "seed-tasks": "tsx ./src/seed-tasks.ts"
+    "seed-tasks": "tsx ./src/seed-tasks.ts",
+    "mobile-audit": "tsx ./src/mobile-audit.ts"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "tsx": "catalog:"
+    "tsx": "catalog:",
+    "playwright": "1.63.0"
   },
   "dependencies": {
     "@workspace/db": "workspace:*",

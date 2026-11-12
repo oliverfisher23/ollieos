@@ -115,8 +115,8 @@ export function DecisionPage() {
           <input
             id="decision-date"
             type="date"
-            className="oo-input"
-            style={{ width: 'auto', minHeight: 32, padding: '3px 8px' }}
+            className="oo-input oo-input-sm"
+            style={{ width: 'auto' }}
             value={d.decidedAt.slice(0, 10)}
             max={todayLondon()}
             onChange={(e) => e.target.value && save({ decidedAt: e.target.value })}
@@ -213,7 +213,7 @@ export function NotePage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: '1 1 320px' }}>
           <p className="oo-eyebrow">
             Note ·{' '}
-            {about ? <Link href={about} style={{ color: 'inherit' }} data-testid="link-note-about">{n.entity.name}</Link> : n.entity.name}
+            {about ? <Link href={about} className="oo-tap" style={{ color: 'inherit' }} data-testid="link-note-about">{n.entity.name}</Link> : n.entity.name}
           </p>
           <h1 className="oo-h1" style={{ fontSize: 28 }}>
             <InlineText value={n.title} label="Title" placeholder="Add a title" testId="note-title" onSave={(v) => save({ title: v })} />

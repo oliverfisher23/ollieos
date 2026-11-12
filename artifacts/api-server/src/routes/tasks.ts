@@ -1,3 +1,4 @@
+import { dmOptions, MAX_DM, sendSlackDm } from "../services/slackDm";
 import { Router, type IRouter } from "express";
 import { checkDraft, taskContextRefs } from "../services/draftLearning";
 import { handle } from "../lib/handle";
@@ -11,6 +12,7 @@ import {
   getTaskSummary,
   listTasks,
   quickAddTask,
+  reorderTasks,
   snoozeTask,
   updateTask,
 } from "../services/tasks";
@@ -56,6 +58,13 @@ const WriteReplyBody = z
   .strict();
 
 const QuickAddBody = z.object({ text: z.string().min(1).max(500) });
+
+const ReorderBody = z
+  .object({
+    ids: z.array(z.number().int().positive()).min(1).max(500),
+    clear: z.boolean().optional(),
+  })
+  .strict();
 
 const UpdateBody = z
   .object({
@@ -132,6 +141,15 @@ router.post(
   }),
 );
 
+router.post(
+  "/tasks/reorder",
+  handle(async (req, res) => {
+    const body = ReorderBody.parse(req.body);
+    await reorderTasks(body.ids, body.clear ?? false);
+    res.status(204).end();
+  }),
+);
+
 router.get(
   "/tasks/weekly-update",
   handle(async (req, res) => {
@@ -183,6 +201,18 @@ router.post(
 );
 
 // Part L: check a draft against the rules that apply to its task, and fix the lines that break one.
+router.get(
+  "/tasks/:id/slack-dm",
+  handle(async (req, res) => void res.json(await dmOptions(IdParams.parse(req.params).id))),
+);
+router.post(
+  "/tasks/:id/slack-dm",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    const b = z.object({ personId: z.number().int().positive(), text: z.string().min(1).max(MAX_DM) }).strict().parse(req.body ?? {});
+    res.json(await sendSlackDm(id, b, "ollie"));
+  }),
+);
 router.post(
   "/tasks/:id/reply-draft/check",
   handle(async (req, res) => {

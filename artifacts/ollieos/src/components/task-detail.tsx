@@ -24,6 +24,7 @@ import { ReplyDraftCard } from '@/components/reply-draft';
 import { TaskSteps } from '@/components/task-steps';
 import { TaskEvidencePanel } from '@/components/task-evidence';
 import { KeepTestCase } from '@/components/evals';
+import { SlackDm } from '@/components/slack-dm';
 import { goalOptions, personOptions, projectOptions } from '@/components/dropdown-options';
 
 const STATUSES: { value: TaskStatus; label: string }[] = [
@@ -168,6 +169,8 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
             )}
 
             <TaskEvidencePanel task={task} busy={acting} onMarkDone={() => setStatus('done')} />
+
+            {!['done', 'noise', 'dropped', 'archived'].includes(task.status) && <SlackDm task={task} />}
 
             <KeepTestCase task={task} />
 

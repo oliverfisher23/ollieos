@@ -1,8 +1,8 @@
 # OllieOS: how to use it
 
-OllieOS is where your work lives: tasks, the people and organisations you work with, projects, decisions and what you know about them. It reads Gmail, Slack, Google Calendar, Granola, Drive and Dropbox for you, and Claude, ChatGPT and Gemini can read and write it through its connector. Nothing it learns becomes knowledge until you approve it, and it never sends an email or a Slack message for you: it drafts, you send.
+OllieOS is where your work lives: tasks, the people and organisations you work with, projects, decisions and what you know about them. It reads Gmail, Slack, Google Calendar, Granola, Drive and Dropbox for you, and Claude, ChatGPT and Gemini can read and write it through its connector. Nothing it learns becomes knowledge until you approve it, and it never sends an email for you: it drafts, you send. The one exception is a Slack direct message to a colleague, which it sends only when you press Send on a task and confirm.
 
-This guide follows the app from left to right. On a phone the bar at the bottom has Home, Tasks, the yellow add button, People and Knowledge; everything else is reached from those pages.
+This guide follows the app from left to right. On a phone the bar at the bottom has Home, Tasks, the yellow add button, Contacts and Knowledge; everything else is reached from those pages.
 
 ## Home
 
@@ -20,19 +20,21 @@ The full list by tab (Inbox, Now, Backlog, Waiting on, Done, Noise). Click a tas
 
 - **Looks done.** When a later message, email or meeting says a task is finished, the task shows "Looks done" with Mark done and Not done. A task finished in its own conversation (you replied "done" in the same Slack thread) closes itself, and "What OllieOS has seen" lists why.
 - **Reply drafts.** On email tasks, Draft a reply writes one in your style and your rules; Check lists any line that breaks a rule, Fix these rewrites only those lines, and Save to Gmail puts it in your drafts. You send it.
+- **Message on Slack.** To hand a task to a colleague or ask their view, choose who and write the message; after you confirm, OllieOS sends it to them as a Slack direct message from you, and the task moves to Waiting on them. Their reply shows on the task. Only colleagues with Slack, never anyone at an outside organisation.
 - **Keep as a test case.** On an item OllieOS found that it got wrong (or right), this saves what the reader was given so a later change can be checked against it.
+- **Sort.** Click a column heading to sort by it; click again to flip it, and a third time to go back. On a phone, use Sort by.
+- **Your own order.** On All open, Now, Backlog and Waiting on, drag a task by its grip (or press Space on the grip and use the arrow keys) to put it where you want. The order is kept. New tasks join below in due-date order, and Go back to due-date order forgets it.
 - **Export.** Tasks, Export downloads every task as a CSV file.
 
-## Email
+## Messages
 
-- **To answer.** Inbox emails sorted into Needs a reply and For your information, with a line on what each wants.
-- **Slack.** Slack messages waiting for your reply.
+- **To answer.** Emails and Slack messages waiting on you, together, sorted into Needs a reply and For your information, with a line on what each wants. All, Email and Slack narrow the list.
 - **Waiting for a reply.** Emails you sent that asked for something and have had no answer.
 - **Drafts.** Every draft OllieOS has written: replies, chases, check-ins and meeting follow-ups.
 
 ## Meetings and briefs
 
-Meetings lists the next two weeks and the last two. Each work meeting has a prep page: why it matters, a suggested agenda (with your "Next time I see…" points at the top), questions, the people and what is open with them, the client's pulse and research on outside companies. Every work meeting opens, even one with nobody you know on it: that page shows who is coming, lets you add them to People (one is enough for a brief), and has Your agenda: drop your thoughts in any order and OllieOS shapes them into a timed agenda, then changes it as you add more ("put budget first"). The agenda is rich text (bold, headings, numbered and bullet lists, checklists) and stays yours to edit; the next message starts from your edited version, Undo puts back the version before the last change, and Start again clears the conversation. The same agenda shows on the prep page once the meeting has one. Once the meeting ends, From Granola shows its Granola note, the actions it sent to your Inbox and a link to open it in Granola, for every work meeting, brief or not. Until the note arrives it says it is waiting, with Check Granola now. If your thoughts name anyone or anything hidden from AI, nothing is sent and you edit by hand. After the meeting, the Granola notes add actions, decisions and, for external meetings, a follow-up email draft. Repeating meetings that have brought nothing lately are listed under "Worth a look".
+Meetings lists the next two weeks and the last two. Each work meeting has a prep page: why it matters, a suggested agenda (with your "Next time I see…" points at the top), questions, the people and what is open with them, the client's pulse and research on outside companies. Every work meeting opens, even one with nobody you know on it: that page shows who is coming, lets you add them to Contacts (one is enough for a brief), and has Your agenda: drop your thoughts in any order and OllieOS shapes them into a timed agenda, then changes it as you add more ("put budget first"). The agenda is rich text (bold, headings, numbered and bullet lists, checklists) and stays yours to edit; the next message starts from your edited version, Undo puts back the version before the last change, and Start again clears the conversation. The same agenda shows on the prep page once the meeting has one. Once the meeting ends, From Granola shows its Granola note, the actions it sent to your Inbox and a link to open it in Granola, for every work meeting, brief or not. Until the note arrives it says it is waiting, with Check Granola now. If your thoughts name anyone or anything hidden from AI, nothing is sent and you edit by hand. After the meeting, the Granola notes add actions, decisions and, for external meetings, a follow-up email draft. Repeating meetings that have brought nothing lately are listed under "Worth a look".
 
 ## Digest and round-up
 
@@ -49,9 +51,9 @@ Ask a question in plain words. Answers come only from what OllieOS holds, with a
 - **Library.** Documents (add from Drive by search or link, from Dropbox, or upload), rules (how you want things written or done; each shows how often it was used) and playbooks (how your team does things, step by step; Run makes the steps into tasks for a person, organisation or project).
 - **Decisions, Notes, Sessions, Map.** Decisions and notes as lists; Cowork sessions saved by Claude; the map shows how everything connects.
 
-## Goals, strategy and People
+## Goals, strategy and Contacts
 
-Goals link projects to what you want this quarter, with time spent against each. Strategy holds your direction and the ideas list. People shows who is due a catch-up on the cadence you set for each.
+Goals link projects to what you want this quarter, with time spent against each. Strategy holds your direction and the ideas list. Contacts is your contact list: everyone you work with, and their organisations, in one place. Search it, filter it (keep in touch, overdue, due soon, clients and partners, colleagues, no organisation) or switch to Organisations to open each one and see who works there. Colleagues carry an Internal tag. Set how often you want to be in touch on any row; Needs attention at the top lists who is overdue or due soon, with Draft a check-in, and clients whose pulse needs attention. Suggested cadences proposes a cadence for people you have none for, from how often you have actually been in touch over the last four months; Set takes it and Not now hides that person. Import from LinkedIn takes the Connections.csv from LinkedIn's data export (Settings, Data privacy, Get a copy of your data): connections that match someone already in Contacts become suggestions in the Knowledge Inbox for a missing or changed job title, organisation or LinkedIn link, and a move to a company OllieOS does not know becomes an organisation fact. Connections that match nobody are not kept, and people hidden from AI are left alone. Import again every few months to catch job changes. A person's LinkedIn link sits in their details.
 
 ## Settings
 
