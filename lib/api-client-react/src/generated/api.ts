@@ -212,6 +212,7 @@ import type {
   ProjectDetail,
   ProjectInput,
   ProjectListItem,
+  ProjectSuggestions,
   ProjectUpdate,
   QuickAddInput,
   QuickAddResult,
@@ -252,6 +253,7 @@ import type {
   SearchResult,
   SessionDetail,
   SessionListItem,
+  SessionQuestionInput,
   SessionUpdate,
   SlackAccount,
   SlackConversation,
@@ -277,7 +279,12 @@ import type {
   TalkingPointRaisedInput,
   TalkingPoints,
   Task,
+  TaskBulkInput,
+  TaskBulkResult,
   TaskDetail,
+  TaskDuplicateCheck,
+  TaskDuplicateList,
+  TaskDuplicateMergeInput,
   TaskEvidence,
   TaskReorderInput,
   TaskSummary,
@@ -1425,6 +1432,344 @@ export const useQuickAddTask = <TError = ErrorType<ErrorEnvelope | NotAuthorised
         TContext
       > => {
       return useMutation(getQuickAddTaskMutationOptions(options), queryClient);
+    }
+
+export const getListTaskDuplicatesUrl = () => {
+
+
+
+
+  return `/api/tasks/duplicates`
+}
+
+/**
+ * @summary Pairs of open tasks that look like the same work, waiting for Ollie
+ */
+export const listTaskDuplicates = async ( options?: Parameters<typeof customFetch>[1]): Promise<TaskDuplicateList> => {
+
+  return customFetch<TaskDuplicateList>(getListTaskDuplicatesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTaskDuplicatesQueryKey = () => {
+    return [
+    `/api/tasks/duplicates`
+    ] as const;
+    }
+
+
+export const getListTaskDuplicatesQueryOptions = <TData = Awaited<ReturnType<typeof listTaskDuplicates>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTaskDuplicates>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTaskDuplicatesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTaskDuplicates>>> = ({ signal }) => listTaskDuplicates({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTaskDuplicates>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListTaskDuplicatesQueryResult = NonNullable<Awaited<ReturnType<typeof listTaskDuplicates>>>
+export type ListTaskDuplicatesQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListTaskDuplicates<TData = Awaited<ReturnType<typeof listTaskDuplicates>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTaskDuplicates>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTaskDuplicates>>,
+          TError,
+          Awaited<ReturnType<typeof listTaskDuplicates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTaskDuplicates<TData = Awaited<ReturnType<typeof listTaskDuplicates>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTaskDuplicates>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTaskDuplicates>>,
+          TError,
+          Awaited<ReturnType<typeof listTaskDuplicates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListTaskDuplicates<TData = Awaited<ReturnType<typeof listTaskDuplicates>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTaskDuplicates>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Pairs of open tasks that look like the same work, waiting for Ollie
+ */
+
+export function useListTaskDuplicates<TData = Awaited<ReturnType<typeof listTaskDuplicates>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTaskDuplicates>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListTaskDuplicatesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCheckTaskDuplicatesUrl = () => {
+
+
+
+
+  return `/api/tasks/duplicates/check`
+}
+
+/**
+ * @summary Look for duplicate open tasks now instead of waiting for the daily check
+ */
+export const checkTaskDuplicates = async ( options?: Parameters<typeof customFetch>[1]): Promise<TaskDuplicateCheck> => {
+
+  return customFetch<TaskDuplicateCheck>(getCheckTaskDuplicatesUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckTaskDuplicatesMutationKey = () => ['checkTaskDuplicates'] as const;
+
+export const getCheckTaskDuplicatesMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkTaskDuplicates>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkTaskDuplicates>>, TError,void, TContext> => {
+
+const mutationKey = getCheckTaskDuplicatesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkTaskDuplicates>>, void> = () => {
+
+
+          return  checkTaskDuplicates(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckTaskDuplicatesMutationResult = NonNullable<Awaited<ReturnType<typeof checkTaskDuplicates>>>
+
+    export type CheckTaskDuplicatesMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Look for duplicate open tasks now instead of waiting for the daily check
+ */
+export const useCheckTaskDuplicates = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkTaskDuplicates>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof checkTaskDuplicates>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getCheckTaskDuplicatesMutationOptions(options), queryClient);
+    }
+
+export const getMergeTaskDuplicateUrl = (pairId: number,) => {
+
+
+
+
+  return `/api/tasks/duplicates/${pairId}/merge`
+}
+
+/**
+ * @summary Merge a pair into the task Ollie keeps; the other is dropped and shows on it as Also came up
+ */
+export const mergeTaskDuplicate = async (pairId: number,
+    taskDuplicateMergeInput: TaskDuplicateMergeInput, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Task>(getMergeTaskDuplicateUrl(pairId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(taskDuplicateMergeInput)
+  }
+);}
+
+
+
+
+
+export const getMergeTaskDuplicateMutationKey = () => ['mergeTaskDuplicate'] as const;
+
+export const getMergeTaskDuplicateMutationOptions = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeTaskDuplicate>>, TError,MergeTaskDuplicateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergeTaskDuplicate>>, TError,MergeTaskDuplicateMutationVariables, TContext> => {
+
+const mutationKey = getMergeTaskDuplicateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergeTaskDuplicate>>, MergeTaskDuplicateMutationVariables> = (props) => {
+          const {pairId,data} = props ?? {};
+
+          return  mergeTaskDuplicate(pairId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergeTaskDuplicateMutationResult = NonNullable<Awaited<ReturnType<typeof mergeTaskDuplicate>>>
+    export type MergeTaskDuplicateMutationBody = BodyType<TaskDuplicateMergeInput>
+    export type MergeTaskDuplicateMutationError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>
+    export type MergeTaskDuplicateMutationVariables = {pairId: number;data: BodyType<TaskDuplicateMergeInput>}
+
+    /**
+ * @summary Merge a pair into the task Ollie keeps; the other is dropped and shows on it as Also came up
+ */
+export const useMergeTaskDuplicate = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeTaskDuplicate>>, TError,MergeTaskDuplicateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof mergeTaskDuplicate>>,
+        TError,
+        MergeTaskDuplicateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMergeTaskDuplicateMutationOptions(options), queryClient);
+    }
+
+export const getDismissTaskDuplicateUrl = (pairId: number,) => {
+
+
+
+
+  return `/api/tasks/duplicates/${pairId}/dismiss`
+}
+
+/**
+ * @summary Not the same; the pair is never suggested again
+ */
+export const dismissTaskDuplicate = async (pairId: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDismissTaskDuplicateUrl(pairId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDismissTaskDuplicateMutationKey = () => ['dismissTaskDuplicate'] as const;
+
+export const getDismissTaskDuplicateMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissTaskDuplicate>>, TError,DismissTaskDuplicateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissTaskDuplicate>>, TError,DismissTaskDuplicateMutationVariables, TContext> => {
+
+const mutationKey = getDismissTaskDuplicateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissTaskDuplicate>>, DismissTaskDuplicateMutationVariables> = (props) => {
+          const {pairId} = props ?? {};
+
+          return  dismissTaskDuplicate(pairId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissTaskDuplicateMutationResult = NonNullable<Awaited<ReturnType<typeof dismissTaskDuplicate>>>
+
+    export type DismissTaskDuplicateMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+    export type DismissTaskDuplicateMutationVariables = {pairId: number}
+
+    /**
+ * @summary Not the same; the pair is never suggested again
+ */
+export const useDismissTaskDuplicate = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissTaskDuplicate>>, TError,DismissTaskDuplicateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof dismissTaskDuplicate>>,
+        TError,
+        DismissTaskDuplicateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDismissTaskDuplicateMutationOptions(options), queryClient);
     }
 
 export const getReorderTasksUrl = () => {
@@ -9618,6 +9963,343 @@ export const useUndoEmailInboxDone = <TError = ErrorType<ErrorEnvelope | NotAuth
       return useMutation(getUndoEmailInboxDoneMutationOptions(options), queryClient);
     }
 
+export const getBulkUpdateTasksUrl = () => {
+
+
+
+
+  return `/api/tasks/bulk`
+}
+
+/**
+ * @summary Make the same change to several tasks at once
+ */
+export const bulkUpdateTasks = async (taskBulkInput: TaskBulkInput, options?: Parameters<typeof customFetch>[1]): Promise<TaskBulkResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<TaskBulkResult>(getBulkUpdateTasksUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(taskBulkInput)
+  }
+);}
+
+
+
+
+
+export const getBulkUpdateTasksMutationKey = () => ['bulkUpdateTasks'] as const;
+
+export const getBulkUpdateTasksMutationOptions = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateTasks>>, TError,BulkUpdateTasksMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateTasks>>, TError,BulkUpdateTasksMutationVariables, TContext> => {
+
+const mutationKey = getBulkUpdateTasksMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkUpdateTasks>>, BulkUpdateTasksMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkUpdateTasks(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkUpdateTasksMutationResult = NonNullable<Awaited<ReturnType<typeof bulkUpdateTasks>>>
+    export type BulkUpdateTasksMutationBody = BodyType<TaskBulkInput>
+    export type BulkUpdateTasksMutationError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>
+    export type BulkUpdateTasksMutationVariables = {data: BodyType<TaskBulkInput>}
+
+    /**
+ * @summary Make the same change to several tasks at once
+ */
+export const useBulkUpdateTasks = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdateTasks>>, TError,BulkUpdateTasksMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bulkUpdateTasks>>,
+        TError,
+        BulkUpdateTasksMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBulkUpdateTasksMutationOptions(options), queryClient);
+    }
+
+export const getGetTaskProjectSuggestionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/project-suggestions`
+}
+
+/**
+ * @summary Up to three projects a task with no project probably belongs to
+ */
+export const getTaskProjectSuggestions = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ProjectSuggestions> => {
+
+  return customFetch<ProjectSuggestions>(getGetTaskProjectSuggestionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTaskProjectSuggestionsQueryKey = (id: number,) => {
+    return [
+    `/api/tasks/${id}/project-suggestions`
+    ] as const;
+    }
+
+
+export const getGetTaskProjectSuggestionsQueryOptions = <TData = Awaited<ReturnType<typeof getTaskProjectSuggestions>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskProjectSuggestions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTaskProjectSuggestionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTaskProjectSuggestions>>> = ({ signal }) => getTaskProjectSuggestions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTaskProjectSuggestions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTaskProjectSuggestionsQueryResult = NonNullable<Awaited<ReturnType<typeof getTaskProjectSuggestions>>>
+export type GetTaskProjectSuggestionsQueryError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+
+
+export function useGetTaskProjectSuggestions<TData = Awaited<ReturnType<typeof getTaskProjectSuggestions>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskProjectSuggestions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskProjectSuggestions>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskProjectSuggestions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskProjectSuggestions<TData = Awaited<ReturnType<typeof getTaskProjectSuggestions>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskProjectSuggestions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskProjectSuggestions>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskProjectSuggestions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskProjectSuggestions<TData = Awaited<ReturnType<typeof getTaskProjectSuggestions>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskProjectSuggestions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Up to three projects a task with no project probably belongs to
+ */
+
+export function useGetTaskProjectSuggestions<TData = Awaited<ReturnType<typeof getTaskProjectSuggestions>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskProjectSuggestions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTaskProjectSuggestionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getChaseTaskLaterUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/chase-later`
+}
+
+/**
+ * @summary Not yet, or just chased; do not flag this Waiting on task for a chase for another few days
+ */
+export const chaseTaskLater = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
+
+  return customFetch<Task>(getChaseTaskLaterUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getChaseTaskLaterMutationKey = () => ['chaseTaskLater'] as const;
+
+export const getChaseTaskLaterMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chaseTaskLater>>, TError,ChaseTaskLaterMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof chaseTaskLater>>, TError,ChaseTaskLaterMutationVariables, TContext> => {
+
+const mutationKey = getChaseTaskLaterMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof chaseTaskLater>>, ChaseTaskLaterMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  chaseTaskLater(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ChaseTaskLaterMutationResult = NonNullable<Awaited<ReturnType<typeof chaseTaskLater>>>
+
+    export type ChaseTaskLaterMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+    export type ChaseTaskLaterMutationVariables = {id: number}
+
+    /**
+ * @summary Not yet, or just chased; do not flag this Waiting on task for a chase for another few days
+ */
+export const useChaseTaskLater = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof chaseTaskLater>>, TError,ChaseTaskLaterMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof chaseTaskLater>>,
+        TError,
+        ChaseTaskLaterMutationVariables,
+        TContext
+      > => {
+      return useMutation(getChaseTaskLaterMutationOptions(options), queryClient);
+    }
+
+export const getDismissTaskStuckHintUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/stuck/dismiss`
+}
+
+/**
+ * @summary Not stuck; the stuck-task coach's line goes and the task is not flagged again
+ */
+export const dismissTaskStuckHint = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
+
+  return customFetch<Task>(getDismissTaskStuckHintUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getDismissTaskStuckHintMutationKey = () => ['dismissTaskStuckHint'] as const;
+
+export const getDismissTaskStuckHintMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissTaskStuckHint>>, TError,DismissTaskStuckHintMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissTaskStuckHint>>, TError,DismissTaskStuckHintMutationVariables, TContext> => {
+
+const mutationKey = getDismissTaskStuckHintMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissTaskStuckHint>>, DismissTaskStuckHintMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  dismissTaskStuckHint(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissTaskStuckHintMutationResult = NonNullable<Awaited<ReturnType<typeof dismissTaskStuckHint>>>
+
+    export type DismissTaskStuckHintMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+    export type DismissTaskStuckHintMutationVariables = {id: number}
+
+    /**
+ * @summary Not stuck; the stuck-task coach's line goes and the task is not flagged again
+ */
+export const useDismissTaskStuckHint = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissTaskStuckHint>>, TError,DismissTaskStuckHintMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof dismissTaskStuckHint>>,
+        TError,
+        DismissTaskStuckHintMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDismissTaskStuckHintMutationOptions(options), queryClient);
+    }
+
 export const getGetTaskChaseLineUrl = (id: number,) => {
 
 
@@ -14769,6 +15451,95 @@ export const useDeleteSession = <TError = ErrorType<NotAuthorisedResponse | Erro
         TContext
       > => {
       return useMutation(getDeleteSessionMutationOptions(options), queryClient);
+    }
+
+export const getDecideSessionQuestionUrl = (id: number,) => {
+
+
+
+
+  return `/api/sessions/${id}/questions`
+}
+
+/**
+ * @summary Put one of a session's open questions in the Inbox, or take it off the list
+ */
+export const decideSessionQuestion = async (id: number,
+    sessionQuestionInput: SessionQuestionInput, options?: Parameters<typeof customFetch>[1]): Promise<SessionDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SessionDetail>(getDecideSessionQuestionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(sessionQuestionInput)
+  }
+);}
+
+
+
+
+
+export const getDecideSessionQuestionMutationKey = () => ['decideSessionQuestion'] as const;
+
+export const getDecideSessionQuestionMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideSessionQuestion>>, TError,DecideSessionQuestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideSessionQuestion>>, TError,DecideSessionQuestionMutationVariables, TContext> => {
+
+const mutationKey = getDecideSessionQuestionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideSessionQuestion>>, DecideSessionQuestionMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  decideSessionQuestion(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideSessionQuestionMutationResult = NonNullable<Awaited<ReturnType<typeof decideSessionQuestion>>>
+    export type DecideSessionQuestionMutationBody = BodyType<SessionQuestionInput>
+    export type DecideSessionQuestionMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type DecideSessionQuestionMutationVariables = {id: number;data: BodyType<SessionQuestionInput>}
+
+    /**
+ * @summary Put one of a session's open questions in the Inbox, or take it off the list
+ */
+export const useDecideSessionQuestion = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideSessionQuestion>>, TError,DecideSessionQuestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof decideSessionQuestion>>,
+        TError,
+        DecideSessionQuestionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDecideSessionQuestionMutationOptions(options), queryClient);
     }
 
 export const getReadSessionKnowledgeUrl = (id: number,) => {

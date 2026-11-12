@@ -210,6 +210,12 @@ paths:
           description: With weekStart on open tabs, also include tasks with no due date.
           schema:
             type: boolean
+        - name: due
+          in: query
+          required: false
+          description: "Section 27: \"overdue\", or one day (YYYY-MM-DD), to list only tasks due then."
+          schema:
+            type: string
         - name: q
           in: query
           required: false
@@ -276,6 +282,90 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "403":
           $ref: "#/components/responses/NotAuthorised"
+
+  /tasks/duplicates:
+    get:
+      operationId: listTaskDuplicates
+      tags: [tasks]
+      summary: Pairs of open tasks that look like the same work, waiting for Ollie
+      responses:
+        "200":
+          description: Pairs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDuplicateList"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /tasks/duplicates/check:
+    post:
+      operationId: checkTaskDuplicates
+      tags: [tasks]
+      summary: Look for duplicate open tasks now instead of waiting for the daily check
+      responses:
+        "200":
+          description: What the check found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDuplicateCheck"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /tasks/duplicates/{pairId}/merge:
+    post:
+      operationId: mergeTaskDuplicate
+      tags: [tasks]
+      summary: Merge a pair into the task Ollie keeps; the other is dropped and shows on it as Also came up
+      parameters:
+        - $ref: "#/components/parameters/DuplicatePairId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskDuplicateMergeInput"
+      responses:
+        "200":
+          description: The kept task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          description: Invalid input, or the pair was already decided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/duplicates/{pairId}/dismiss:
+    post:
+      operationId: dismissTaskDuplicate
+      tags: [tasks]
+      summary: Not the same; the pair is never suggested again
+      parameters:
+        - $ref: "#/components/parameters/DuplicatePairId"
+      responses:
+        "204":
+          description: Kept apart
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
 
   /tasks/reorder:
     post:
@@ -2150,6 +2240,102 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /tasks/bulk:
+    post:
+      operationId: bulkUpdateTasks
+      tags: [tasks]
+      summary: Make the same change to several tasks at once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskBulkInput"
+      responses:
+        "200":
+          description: How many changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskBulkResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /tasks/{id}/project-suggestions:
+    get:
+      operationId: getTaskProjectSuggestions
+      tags: [tasks]
+      summary: Up to three projects a task with no project probably belongs to
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Suggestions, best first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectSuggestions"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/chase-later:
+    post:
+      operationId: chaseTaskLater
+      tags: [tasks]
+      summary: Not yet, or just chased; do not flag this Waiting on task for a chase for another few days
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/stuck/dismiss:
+    post:
+      operationId: dismissTaskStuckHint
+      tags: [tasks]
+      summary: Not stuck; the stuck-task coach's line goes and the task is not flagged again
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /tasks/{id}/chase-line:
     get:
       operationId: getTaskChaseLine
@@ -3174,6 +3360,28 @@ paths:
       responses:
         "204":
           description: Deleted
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /sessions/{id}/questions:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: decideSessionQuestion
+      tags: [knowledge]
+      summary: Put one of a session's open questions in the Inbox, or take it off the list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SessionQuestionInput" }
+      responses:
+        "200":
+          description: The session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionDetail" }
+        "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
@@ -5246,6 +5454,12 @@ components:
       required: true
       schema:
         type: integer
+    DuplicatePairId:
+      name: pairId
+      in: path
+      required: true
+      schema:
+        type: integer
     ThreadId:
       name: threadId
       in: path
@@ -5622,11 +5836,86 @@ components:
         looksDone:
           type: [string, "null"]
           description: "Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null"
+        alsoFrom:
+          type: array
+          items: { type: string }
+          description: "Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task's own"
         delegateHint:
           description: "Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog."
           oneOf:
             - $ref: "#/components/schemas/DelegateHint"
             - type: "null"
+        dropReason:
+          description: "Section 27: why Ollie dropped it or sent it to Noise"
+          oneOf:
+            - $ref: "#/components/schemas/DropReason"
+            - type: "null"
+        chaseDue:
+          type: boolean
+          description: "Section 27: a Waiting on task that has waited long enough for a chase"
+        stuckHint:
+          description: "Section 27: the stuck-task coach's line on a Now or Backlog task that keeps slipping. Null once dismissed."
+          oneOf:
+            - $ref: "#/components/schemas/StuckHint"
+            - type: "null"
+
+    DropReason:
+      type: string
+      enum: [not_mine, already_done, fyi, arranging, duplicate, not_needed]
+
+    StuckHint:
+      type: object
+      required: [why, kind, suggestion, step]
+      properties:
+        why: { type: string, description: "Why it looks stuck, for example Due date moved 3 times" }
+        kind: { type: string, description: "first_step, split, delegate or drop" }
+        suggestion: { type: string, description: One line on what to try }
+        step: { type: [string, "null"], description: "For first_step and split: the step to add to the checklist" }
+
+    TaskLoad:
+      type: object
+      required: [overdue, busiest, toChase]
+      properties:
+        overdue: { type: integer, description: Open tasks past their due date }
+        toChase: { type: integer, description: Waiting on tasks ready for a chase }
+        busiest:
+          description: The fullest day in the next seven with most of its tasks not yet in Now, or null
+          oneOf:
+            - type: object
+              required: [date, due, inNow]
+              properties:
+                date: { type: string, format: date }
+                due: { type: integer }
+                inNow: { type: integer }
+            - type: "null"
+
+    TaskBulkInput:
+      type: object
+      required: [ids]
+      additionalProperties: false
+      properties:
+        ids: { type: array, minItems: 1, maxItems: 200, items: { type: integer } }
+        status: { $ref: "#/components/schemas/TaskStatus" }
+        priority: { $ref: "#/components/schemas/Priority" }
+        dueDate: { type: [string, "null"], format: date }
+        projectId: { type: [integer, "null"] }
+        dropReason:
+          oneOf:
+            - $ref: "#/components/schemas/DropReason"
+            - type: "null"
+
+    TaskBulkResult:
+      type: object
+      required: [updated, failed]
+      properties:
+        updated: { type: integer }
+        failed: { type: integer }
+
+    ProjectSuggestions:
+      type: object
+      required: [projects]
+      properties:
+        projects: { type: array, items: { $ref: "#/components/schemas/EntitySummary" } }
 
     DelegateHint:
       type: object
@@ -5760,6 +6049,11 @@ components:
     TaskUpdate:
       type: object
       properties:
+        dropReason:
+          description: "Section 27: why it was dropped or sent to Noise; null clears it"
+          oneOf:
+            - $ref: "#/components/schemas/DropReason"
+            - type: "null"
         title:
           type: string
           minLength: 1
@@ -5828,8 +6122,9 @@ components:
 
     TaskSummary:
       type: object
-      required: [tabs, stats]
+      required: [tabs, stats, load]
       properties:
+        load: { $ref: "#/components/schemas/TaskLoad" }
         tabs:
           type: object
           required: [inbox, open, now, backlog, waiting, done, noise, dropped, archived]
@@ -7083,13 +7378,13 @@ components:
       required: [id, source, url, saidBy, saidAt, place, quote, shows, strength, applied, dismissed]
       properties:
         id: { type: integer }
-        source: { type: string, description: "slack, email or meeting" }
+        source: { type: string, description: "slack, email, meeting, or for the same work coming up again, session, manual and the other task sources" }
         url: { type: [string, "null"] }
         saidBy: { type: [string, "null"], description: "\"You\" for Ollie, otherwise the name as written" }
         saidAt: { type: string, format: date-time }
         place: { type: [string, "null"], description: The Slack conversation, email subject or meeting }
         quote: { type: string }
-        shows: { type: string, enum: [done, progress] }
+        shows: { type: string, enum: [done, progress, same], description: "same: section 26, the same work came up again here" }
         strength: { type: string, enum: [same, other], description: "same: from the task's own conversation; other: anywhere else" }
         applied: { type: boolean, description: This evidence closed the task }
         dismissed: { type: boolean, description: Ollie said Not done }
@@ -7625,6 +7920,39 @@ components:
         cc: { type: string, maxLength: 2000 }
         subject: { type: string, maxLength: 500 }
         body: { type: string, minLength: 1, maxLength: 20000 }
+
+    TaskDuplicatePair:
+      type: object
+      required: [id, reason, a, b]
+      properties:
+        id: { type: integer }
+        reason:
+          type: [string, "null"]
+          description: The duplicate check's line on what work they share
+        a: { $ref: "#/components/schemas/Task" }
+        b: { $ref: "#/components/schemas/Task" }
+
+    TaskDuplicateList:
+      type: object
+      required: [pairs]
+      properties:
+        pairs:
+          type: array
+          items: { $ref: "#/components/schemas/TaskDuplicatePair" }
+
+    TaskDuplicateCheck:
+      type: object
+      required: [checked, found]
+      properties:
+        checked: { type: integer, description: Pairs with similar titles the duplicate check looked at }
+        found: { type: integer, description: New pairs it says are the same work }
+
+    TaskDuplicateMergeInput:
+      type: object
+      required: [keep]
+      additionalProperties: false
+      properties:
+        keep: { type: integer, description: The id of the task to keep }
 
     TaskReorderInput:
       type: object
@@ -9742,12 +10070,13 @@ components:
 
     SessionListItem:
       type: object
-      required: [id, title, summary, outcomes, happenedAt, archived, confidential, hiddenFromAi, projects, people, taskCount, decisionCount, documentCount, waitingCount]
+      required: [id, title, summary, outcomes, openQuestions, happenedAt, archived, confidential, hiddenFromAi, projects, people, taskCount, decisionCount, documentCount, waitingCount]
       properties:
         id: { type: integer }
         title: { type: string }
         summary: { type: string }
         outcomes: { type: array, items: { type: string }, description: What was done }
+        openQuestions: { type: array, items: { type: string }, description: "Section 27: questions the session left open, kept here instead of the Inbox" }
         happenedAt: { type: string, format: date-time }
         archived: { type: boolean, description: Older than 90 days with nothing from it still open; left out of briefs }
         confidential: { type: [boolean, "null"], description: null means it follows the projects and people it touched }
@@ -9808,6 +10137,14 @@ components:
       type: object
       properties:
         confidential: { type: [boolean, "null"] }
+
+    SessionQuestionInput:
+      type: object
+      required: [question, action]
+      additionalProperties: false
+      properties:
+        question: { type: string, description: The open question, exactly as listed on the session }
+        action: { type: string, enum: [task, dismiss], description: "task: put it in the Inbox; dismiss: take it off the list" }
 
     DocumentUpdate:
       type: object

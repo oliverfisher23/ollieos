@@ -308,6 +308,32 @@ export interface DelegateHint {
   message: string;
 }
 
+export type DropReason = typeof DropReason[keyof typeof DropReason];
+
+
+export const DropReason = {
+  not_mine: 'not_mine',
+  already_done: 'already_done',
+  fyi: 'fyi',
+  arranging: 'arranging',
+  duplicate: 'duplicate',
+  not_needed: 'not_needed',
+} as const;
+
+export interface StuckHint {
+  /** Why it looks stuck, for example Due date moved 3 times */
+  why: string;
+  /** first_step, split, delegate or drop */
+  kind: string;
+  /** One line on what to try */
+  suggestion: string;
+  /**
+     * For first_step and split: the step to add to the checklist
+     * @nullable
+     */
+  step: string | null;
+}
+
 export interface Task {
   /**
      * Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.
@@ -390,8 +416,58 @@ export interface Task {
      * @nullable
      */
   looksDone?: string | null;
+  /** Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task's own */
+  alsoFrom?: string[];
   /** Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog. */
   delegateHint?: DelegateHint | null;
+  /** Section 27: why Ollie dropped it or sent it to Noise */
+  dropReason?: DropReason | null;
+  /** Section 27: a Waiting on task that has waited long enough for a chase */
+  chaseDue?: boolean;
+  /** Section 27: the stuck-task coach's line on a Now or Backlog task that keeps slipping. Null once dismissed. */
+  stuckHint?: StuckHint | null;
+}
+
+/**
+ * The fullest day in the next seven with most of its tasks not yet in Now, or null
+ */
+export type TaskLoadBusiest = {
+  date: string;
+  due: number;
+  inNow: number;
+} | null;
+
+export interface TaskLoad {
+  /** Open tasks past their due date */
+  overdue: number;
+  /** Waiting on tasks ready for a chase */
+  toChase: number;
+  /** The fullest day in the next seven with most of its tasks not yet in Now, or null */
+  busiest: TaskLoadBusiest;
+}
+
+export interface TaskBulkInput {
+  /**
+     * @minItems 1
+     * @maxItems 200
+     */
+  ids: number[];
+  status?: TaskStatus;
+  priority?: Priority;
+  /** @nullable */
+  dueDate?: string | null;
+  /** @nullable */
+  projectId?: number | null;
+  dropReason?: DropReason | null;
+}
+
+export interface TaskBulkResult {
+  updated: number;
+  failed: number;
+}
+
+export interface ProjectSuggestions {
+  projects: EntitySummary[];
 }
 
 export interface RepeatInput {
@@ -473,6 +549,8 @@ export interface ClearOut {
 }
 
 export interface TaskUpdate {
+  /** Section 27: why it was dropped or sent to Noise; null clears it */
+  dropReason?: DropReason | null;
   /** @minLength 1 */
   title?: string;
   kind?: TaskKind;
@@ -536,6 +614,7 @@ export type TaskSummaryStats = {
 };
 
 export interface TaskSummary {
+  load: TaskLoad;
   tabs: TaskSummaryTabs;
   stats: TaskSummaryStats;
 }
@@ -2025,12 +2104,16 @@ export interface TalkingPoints {
   raised: TalkingPoint[];
 }
 
+/**
+ * same: section 26, the same work came up again here
+ */
 export type TaskEvidenceShows = typeof TaskEvidenceShows[keyof typeof TaskEvidenceShows];
 
 
 export const TaskEvidenceShows = {
   done: 'done',
   progress: 'progress',
+  same: 'same',
 } as const;
 
 /**
@@ -2046,7 +2129,7 @@ export const TaskEvidenceStrength = {
 
 export interface TaskEvidence {
   id: number;
-  /** slack, email or meeting */
+  /** slack, email, meeting, or for the same work coming up again, session, manual and the other task sources */
   source: string;
   /** @nullable */
   url: string | null;
@@ -2062,6 +2145,7 @@ export interface TaskEvidence {
      */
   place: string | null;
   quote: string;
+  /** same: section 26, the same work came up again here */
   shows: TaskEvidenceShows;
   /** same: from the task's own conversation; other: anywhere else */
   strength: TaskEvidenceStrength;
@@ -2795,6 +2879,33 @@ export interface ReplyDraftInput {
      * @maxLength 20000
      */
   body: string;
+}
+
+export interface TaskDuplicatePair {
+  id: number;
+  /**
+     * The duplicate check's line on what work they share
+     * @nullable
+     */
+  reason: string | null;
+  a: Task;
+  b: Task;
+}
+
+export interface TaskDuplicateList {
+  pairs: TaskDuplicatePair[];
+}
+
+export interface TaskDuplicateCheck {
+  /** Pairs with similar titles the duplicate check looked at */
+  checked: number;
+  /** New pairs it says are the same work */
+  found: number;
+}
+
+export interface TaskDuplicateMergeInput {
+  /** The id of the task to keep */
+  keep: number;
 }
 
 export interface TaskReorderInput {
@@ -5783,6 +5894,8 @@ export interface SessionListItem {
   summary: string;
   /** What was done */
   outcomes: string[];
+  /** Section 27: questions the session left open, kept here instead of the Inbox */
+  openQuestions: string[];
   happenedAt: string;
   /** Older than 90 days with nothing from it still open; left out of briefs */
   archived: boolean;
@@ -5857,6 +5970,24 @@ export type SessionDetail = SessionListItem & ({
 export interface SessionUpdate {
   /** @nullable */
   confidential?: boolean | null;
+}
+
+/**
+ * task: put it in the Inbox; dismiss: take it off the list
+ */
+export type SessionQuestionInputAction = typeof SessionQuestionInputAction[keyof typeof SessionQuestionInputAction];
+
+
+export const SessionQuestionInputAction = {
+  task: 'task',
+  dismiss: 'dismiss',
+} as const;
+
+export interface SessionQuestionInput {
+  /** The open question */
+  question: string;
+  /** task: put it in the Inbox; dismiss: take it off the list */
+  action: SessionQuestionInputAction;
 }
 
 export interface DocumentUpdate {
@@ -6330,6 +6461,10 @@ weekStart?: string;
  * With weekStart on open tabs, also include tasks with no due date.
  */
 includeUndated?: boolean;
+/**
+ * Section 27: "overdue", or one day (YYYY-MM-DD), to list only tasks due then.
+ */
+due?: string;
 q?: string;
 };
 

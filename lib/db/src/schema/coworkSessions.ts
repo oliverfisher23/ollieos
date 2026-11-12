@@ -15,6 +15,8 @@ export const coworkSessionsTable = pgTable(
     summary: text("summary").notNull(),
     /** What was done, one line each */
     outcomes: jsonb("outcomes").$type<string[]>().notNull().default([]),
+    /** Section 27: questions the session left open ("Decide whether…"), kept here instead of becoming Inbox tasks */
+    openQuestions: jsonb("open_questions").$type<string[]>().notNull().default([]),
     /** The transcript or its key parts, as Claude sent it */
     transcript: text("transcript"),
     /** When the session happened (when it was saved, unless Claude says otherwise) */

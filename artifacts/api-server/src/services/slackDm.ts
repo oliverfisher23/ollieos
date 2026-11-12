@@ -102,6 +102,8 @@ export async function sendSlackDm(taskId: number, input: { personId: number; tex
         status: "waiting",
         waitingOnPersonId: colleague.id,
         waitingSince: new Date(),
+        // Section 27: just messaged, so the usual wait before a chase starts again.
+        chaseAfter: null,
         notes: task.notes?.trim() ? `${task.notes.trim()}\n\n${line}` : line,
       })
       .where(eq(tasksTable.id, taskId));

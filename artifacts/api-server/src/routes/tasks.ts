@@ -4,7 +4,9 @@ import { Router, type IRouter } from "express";
 import { checkDraft, taskContextRefs } from "../services/draftLearning";
 import { handle } from "../lib/handle";
 import { z } from "zod";
-import { REPEAT_EVERY, TASK_SOURCES, TASK_STATUSES, PRIORITIES, TASK_KINDS, isIsoDate } from "@workspace/shared";
+import { DROP_REASONS, REPEAT_EVERY, TASK_SOURCES, TASK_STATUSES, PRIORITIES, TASK_KINDS, isIsoDate } from "@workspace/shared";
+import { projectSuggestionsFor } from "../services/projectSuggest";
+import { dismissStuckHint } from "../services/stuckCoach";
 import {
   MAX_STEPS,
   buildDraftPrompt,
@@ -13,11 +15,14 @@ import {
   getTaskSummary,
   listTasks,
   quickAddTask,
+  bulkUpdate,
+  chaseLater,
   reorderTasks,
   snoozeTask,
   updateTask,
 } from "../services/tasks";
 import { getTaskHistory } from "../services/history";
+import { dismissDuplicate, findDuplicates, listDuplicates, mergeDuplicate } from "../services/duplicates";
 import { keepTask } from "../services/noiseCheck";
 import { dismissEvidence, listEvidence } from "../services/taskEvidence";
 import { getReplyDraft, saveReplyDraftToGmail, writeReplyDraft } from "../services/replyDraft";
@@ -46,6 +51,7 @@ const ListQuery = z.object({
     .optional()
     .transform((v) => v === "true"),
   q: z.string().max(200).optional(),
+  due: z.union([z.literal("overdue"), isoDate]).optional(),
 });
 
 const SummaryQuery = z.object({ weekStart: isoDate.optional() });
@@ -90,6 +96,18 @@ const UpdateBody = z
       .array(z.object({ id: z.string().max(40), title: z.string().max(300), done: z.boolean() }).strict())
       .max(MAX_STEPS)
       .optional(),
+    dropReason: z.enum(DROP_REASONS).nullable().optional(),
+  })
+  .strict();
+
+const BulkBody = z
+  .object({
+    ids: z.array(z.number().int().positive()).min(1).max(200),
+    status: z.enum(TASK_STATUSES).optional(),
+    priority: z.enum(PRIORITIES).optional(),
+    dueDate: isoDate.nullable().optional(),
+    projectId: z.number().int().positive().nullable().optional(),
+    dropReason: z.enum(DROP_REASONS).nullable().optional(),
   })
   .strict();
 
@@ -139,6 +157,51 @@ router.post(
   handle(async (req, res) => {
     const body = QuickAddBody.parse(req.body);
     res.status(201).json(await quickAddTask(body.text, ACTOR));
+  }),
+);
+
+const PairParams = z.object({ pairId: z.coerce.number().int().positive() });
+const MergeBody = z.object({ keep: z.number().int().positive() }).strict();
+
+// Section 26: the Duplicates page. Registered before /tasks/:id so "duplicates" is never read as an id.
+router.get(
+  "/tasks/duplicates",
+  handle(async (_req, res) => {
+    res.json({ pairs: await listDuplicates() });
+  }),
+);
+
+router.post(
+  "/tasks/duplicates/check",
+  handle(async (_req, res) => {
+    res.json(await findDuplicates());
+  }),
+);
+
+router.post(
+  "/tasks/duplicates/:pairId/merge",
+  handle(async (req, res) => {
+    const { pairId } = PairParams.parse(req.params);
+    const body = MergeBody.parse(req.body);
+    res.json(await mergeDuplicate(pairId, body.keep, ACTOR));
+  }),
+);
+
+router.post(
+  "/tasks/duplicates/:pairId/dismiss",
+  handle(async (req, res) => {
+    const { pairId } = PairParams.parse(req.params);
+    await dismissDuplicate(pairId);
+    res.status(204).end();
+  }),
+);
+
+// Section 27: the same change to several tasks.
+router.post(
+  "/tasks/bulk",
+  handle(async (req, res) => {
+    const { ids, ...patch } = BulkBody.parse(req.body);
+    res.json(await bulkUpdate(ids, patch, ACTOR));
   }),
 );
 
@@ -282,6 +345,31 @@ router.post(
   handle(async (req, res) => {
     const { id } = IdParams.parse(req.params);
     res.json(await continueRepeat(id, ACTOR));
+  }),
+);
+
+router.get(
+  "/tasks/:id/project-suggestions",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    res.json({ projects: await projectSuggestionsFor(id) });
+  }),
+);
+
+router.post(
+  "/tasks/:id/chase-later",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    res.json(await chaseLater(id));
+  }),
+);
+
+router.post(
+  "/tasks/:id/stuck/dismiss",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    await dismissStuckHint(id);
+    res.json(await getTask(id));
   }),
 );
 

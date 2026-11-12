@@ -20,7 +20,7 @@ import { logger } from "../../lib/logger";
 import { closeMatch, wordsOf } from "../similar";
 import { LOOK_BACK_PROPOSER, propose, type DecisionPayload } from "../suggestions";
 import { ValidationError } from "../tasks";
-import { loadPeople, projectChoices } from "./capture";
+import { loadPeople, personByName, projectChoices } from "./capture";
 import { meetingUnit, sortMeeting, toMeetingNote, wasInMeeting, type GranolaNote, type MeetingNote, type SortedMeeting } from "./granola";
 import { ConnectorError, proxyJson, proxyJsonOrNull } from "./http";
 
@@ -413,7 +413,7 @@ async function addActions(n: MeetingNote, sorted: SortedMeeting, s: Saved, ctx: 
       continue;
     }
     const hint = it.person.toLowerCase().trim();
-    const person = hint ? ((hint.includes("@") ? people.byEmail.get(hint) : people.byName.get(hint)) ?? null) : null;
+    const person = hint ? ((hint.includes("@") ? people.byEmail.get(hint) : (people.byName.get(hint) ?? personByName(people, hint))) ?? null) : null;
     const personName = person?.name ?? (it.person.trim() || null);
     const owner = it.type === "waiting" ? (personName ?? "Someone else") : "You";
     const inserted = await db
