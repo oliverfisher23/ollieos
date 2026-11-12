@@ -57,10 +57,9 @@ export interface CadenceRow extends CadenceState {
 export async function projectsForPeople(ids: number[]): Promise<Map<number, CadenceProject[]>> {
   const out = new Map<number, CadenceProject[]>();
   if (!ids.length) return out;
-  const list = sql.join(
-    ids.map((id) => sql`${id}`),
-    sql`, `,
-  );
+  // One array parameter, used four times: with thousands of contacts, four IN lists of every id
+  // passed Postgres's limit on query parameters and the Contacts page failed.
+  const list = sql`select unnest(${`{${ids.join(",")}}`}::int[])`;
   const res = await db.execute(sql`
     with pp as (
       select from_id as person_id, to_id as project_id from links where from_type = 'person' and to_type = 'project' and from_id in (${list})

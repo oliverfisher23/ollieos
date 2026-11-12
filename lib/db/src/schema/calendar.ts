@@ -85,7 +85,7 @@ export const calendarEventsTable = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (t) => [index("calendar_events_starts_idx").on(t.startsAt)],
+  (t) => [index("calendar_events_starts_idx").on(t.startsAt), index("calendar_events_people_idx").using("gin", t.personIds)],
 );
 
 /**

@@ -16,6 +16,7 @@ import {
   getSessionId,
   ISSUER_URL,
   SESSION_COOKIE,
+  setSessionCookie,
   SESSION_TTL,
   type SessionData,
 } from '../lib/auth';
@@ -32,15 +33,6 @@ function getOrigin(req: Request): string {
   return `${proto}://${host}`;
 }
 
-function setSessionCookie(res: Response, sid: string) {
-  res.cookie(SESSION_COOKIE, sid, {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: SESSION_TTL,
-  });
-}
 
 function setOidcCookie(res: Response, name: string, value: string) {
   res.cookie(name, value, {

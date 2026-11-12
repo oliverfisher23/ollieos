@@ -79,12 +79,27 @@ interface Candidate {
 }
 
 /** Inbox emails waiting on Ollie from these addresses, from the last look at Gmail (To answer). */
+/** The last look at the inbox and what was marked done, read once per list of pulses. */
+type InboxSnap = { candidates: Candidate[]; done: Record<string, string> };
+let snapCache: { at: number; value: Promise<InboxSnap> } | null = null;
+function inboxSnap(): Promise<InboxSnap> {
+  if (snapCache && Date.now() - snapCache.at < 5_000) return snapCache.value;
+  const value = (async () => {
+    const [[snap], [done]] = await Promise.all([
+      db.select().from(appSettingsTable).where(eq(appSettingsTable.key, "email_inbox_snapshot")),
+      db.select().from(appSettingsTable).where(eq(appSettingsTable.key, "email_inbox_done")),
+    ]);
+    return { candidates: (snap?.value as { candidates?: Candidate[] } | undefined)?.candidates ?? [], done: (done?.value ?? {}) as Record<string, string> };
+  })();
+  snapCache = { at: Date.now(), value };
+  value.catch(() => (snapCache = null));
+  return value;
+}
+
 async function waitingFrom(emails: Set<string>): Promise<Date[]> {
   if (!emails.size) return [];
-  const [snap] = await db.select().from(appSettingsTable).where(eq(appSettingsTable.key, "email_inbox_snapshot"));
-  const [done] = await db.select().from(appSettingsTable).where(eq(appSettingsTable.key, "email_inbox_done"));
-  const doneMap = (done?.value ?? {}) as Record<string, string>;
-  const cands = ((snap?.value as { candidates?: Candidate[] } | undefined)?.candidates ?? []).filter(
+  const { candidates, done: doneMap } = await inboxSnap();
+  const cands = candidates.filter(
     (c) => c.fromEmail && emails.has(c.fromEmail.toLowerCase()) && doneMap[c.threadId] !== c.messageId,
   );
   return cands.map((c) => new Date(c.at));
@@ -185,11 +200,25 @@ export async function pulseFor(orgId: number, now = new Date()): Promise<ClientP
   };
 }
 
+/**
+ * Runs `fn` over the items, at most `limit` at a time, keeping their order. Each pulse runs about ten
+ * queries; doing every client at once queued hundreds against the pool and made pages time out.
+ */
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    for (let i = next++; i < items.length; i = next++) out[i] = await fn(items[i]);
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
 /** Every client organisation's pulse, those needing attention first. */
 export async function listPulses(now = new Date()): Promise<ClientPulse[]> {
   const orgs = await db.select({ id: organisationsTable.id, type: organisationsTable.type }).from(organisationsTable).where(eq(organisationsTable.internal, false));
   const clients = orgs.filter((o) => isClientOrgType(o.type));
-  const out = await Promise.all(clients.map((o) => pulseFor(o.id, now)));
+  const out = await mapLimit(clients, 4, (o) => pulseFor(o.id, now));
   return out.sort((a, b) => Number(b.needsAttention) - Number(a.needsAttention) || a.name.localeCompare(b.name));
 }
 
@@ -197,7 +226,7 @@ export async function listPulses(now = new Date()): Promise<ClientPulse[]> {
 export async function pulsesFor(orgIds: number[], now = new Date()): Promise<ClientPulse[]> {
   if (!orgIds.length) return [];
   const orgs = await db.select({ id: organisationsTable.id, type: organisationsTable.type }).from(organisationsTable).where(inArray(organisationsTable.id, orgIds));
-  return Promise.all(orgs.filter((o) => isClientOrgType(o.type)).map((o) => pulseFor(o.id, now)));
+  return mapLimit(orgs.filter((o) => isClientOrgType(o.type)), 4, (o) => pulseFor(o.id, now));
 }
 
 export async function setQuietDays(orgId: number, days: number | null): Promise<void> {

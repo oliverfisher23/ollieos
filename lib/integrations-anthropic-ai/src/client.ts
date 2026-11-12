@@ -15,4 +15,8 @@ if (!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY) {
 export const anthropic = new Anthropic({
   apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+  // The SDK default is 10 minutes a try. A stuck call held background work (and its database
+  // connections) for up to half an hour; four minutes is ample for the longest writer or research.
+  timeout: 4 * 60 * 1000,
+  maxRetries: 2,
 });
