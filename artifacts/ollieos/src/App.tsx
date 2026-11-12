@@ -13,14 +13,14 @@ import HomePage from '@/pages/home';
 import TasksPage from '@/pages/tasks';
 import AskPage from '@/pages/ask';
 import { KnowledgeIndexPage, ProjectPage } from '@/pages/knowledge/projects';
-import { PeopleListPage, PersonPage } from '@/pages/knowledge/people';
-import { OrganisationPage, OrganisationsListPage } from '@/pages/knowledge/organisations';
+import { PersonPage } from '@/pages/knowledge/people';
+import { OrganisationPage } from '@/pages/knowledge/organisations';
 import { DecisionPage, DecisionsListPage, NotePage, NotesListPage } from '@/pages/knowledge/records';
 import KnowledgeInboxPage from '@/pages/knowledge/inbox';
 import SettingsPage from '@/pages/settings';
 import GoalsPage from '@/pages/goals';
 import StrategyPage from '@/pages/strategy';
-import PeopleCadencePage from '@/pages/people-cadence';
+import ContactsPage, { contactsPathFor } from '@/pages/contacts';
 import LibraryPage from '@/pages/knowledge/library';
 import { PlaybookPage } from '@/pages/knowledge/playbooks';
 import { ProductPage, ProductsListPage } from '@/pages/knowledge/products';
@@ -76,9 +76,9 @@ function Router() {
         <Route path="/knowledge/inbox" component={KnowledgeInboxPage} />
         <Route path="/knowledge" component={KnowledgeIndexPage} />
         <Route path="/knowledge/projects/:slug" component={ProjectPage} />
-        <Route path="/knowledge/people" component={PeopleListPage} />
+        <Route path="/knowledge/people" component={ToContacts} />
         <Route path="/knowledge/people/:slug" component={PersonPage} />
-        <Route path="/knowledge/organisations" component={OrganisationsListPage} />
+        <Route path="/knowledge/organisations" component={ToContacts} />
         <Route path="/knowledge/organisations/:slug" component={OrganisationPage} />
         <Route path="/knowledge/decisions" component={DecisionsListPage} />
         <Route path="/knowledge/decisions/:id" component={DecisionPage} />
@@ -98,7 +98,8 @@ function Router() {
         <Route path="/digest/:date">{(p) => <DigestPage key={p.date} date={p.date} />}</Route>
         <Route path="/goals" component={GoalsPage} />
         <Route path="/strategy" component={StrategyPage} />
-        <Route path="/people" component={PeopleCadencePage} />
+        <Route path="/contacts" component={ContactsPage} />
+        <Route path="/people" component={ToContacts} />
         <Route path="/people/:slug">{(p) => <Redirect to={'/knowledge/people/' + p.slug} replace />}</Route>
         <Route path="/settings">{() => <Redirect to="/settings/connectors" replace />}</Route>
         <Route path="/settings/:section" component={SettingsPage} />
@@ -107,6 +108,12 @@ function Router() {
       </Switch>
     </RoutedErrorBoundary>
   );
+}
+
+/** People, and the People and Organisations lists, are now Contacts; old links land on the matching view. */
+function ToContacts() {
+  const [location] = useLocation();
+  return <Redirect to={contactsPathFor(location, window.location.search)} replace />;
 }
 
 /** Over Home, like Triage. Started from the Backlog tab, closing goes back there. */

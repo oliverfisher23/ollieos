@@ -266,7 +266,7 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
   return {
     needs: quietNight ? null : section(needs, null),
     moved: quietNight ? null : section(moved, "/tasks?tab=done"),
-    quiet: quietNight ? null : section(quiet, "/people", QUIET_MAX),
+    quiet: quietNight ? null : section(quiet, "/contacts?filter=overdue", QUIET_MAX),
     changed: quietNight ? null : section(changed, "/knowledge/library"),
     today,
     quietNight,

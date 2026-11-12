@@ -2123,6 +2123,51 @@ paths:
         "400": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /people/cadence-suggestions:
+    get:
+      operationId: listCadenceSuggestions
+      tags: [direction]
+      summary: Suggested cadences for people with none, from how often Ollie has actually been in touch
+      responses:
+        "200":
+          description: Suggestions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CadenceSuggestions" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /people/cadence-suggestions/dismiss:
+    post:
+      operationId: dismissCadenceSuggestion
+      tags: [direction]
+      summary: Not now; stop suggesting a cadence for this person
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DismissCadenceSuggestionInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /people/cadence-suggestions/restore:
+    post:
+      operationId: restoreCadenceSuggestions
+      tags: [direction]
+      summary: Bring back everyone hidden from the suggestions with Not now
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OkResult" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /people/duplicates:
     get:
       operationId: listPossibleDuplicates
@@ -7235,7 +7280,7 @@ components:
 
     PersonListItem:
       type: object
-      required: [id, name, slug, confidential, aiAccess, role, organisation, lastContactAt, iOweCount, theyOweCount]
+      required: [id, name, slug, confidential, aiAccess, role, organisation, organisationType, internal, isSelf, lastContactAt, iOweCount, theyOweCount, cadence]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -7247,9 +7292,13 @@ components:
           oneOf:
             - $ref: "#/components/schemas/EntitySummary"
             - type: "null"
+        organisationType: { type: [string, "null"], description: The organisation's type, such as client or partner }
+        internal: { type: boolean, description: They work at Ollie's own company }
+        isSelf: { type: boolean, description: Ollie's own record }
         lastContactAt: { type: [string, "null"], format: date-time }
         iOweCount: { type: integer }
         theyOweCount: { type: integer }
+        cadence: { $ref: "#/components/schemas/PersonCadence" }
 
     Person:
       type: object
@@ -7318,7 +7367,7 @@ components:
 
     OrganisationListItem:
       type: object
-      required: [id, name, slug, confidential, aiAccess, type, internal, peopleCount]
+      required: [id, name, slug, confidential, aiAccess, type, internal, peopleCount, lastContactAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -7328,6 +7377,7 @@ components:
         type: { type: [string, "null"] }
         internal: { type: boolean, description: Ollie's own company rather than a client, partner or supplier }
         peopleCount: { type: integer }
+        lastContactAt: { type: [string, "null"], format: date-time, description: The latest contact with anyone who works there }
 
     Organisation:
       type: object
@@ -7954,6 +8004,47 @@ components:
         cadenceLabel: { type: string }
         cadencePaused: { type: boolean }
         pausedByProjects: { type: boolean, description: True when every linked project is paused or complete }
+
+    CadenceSuggestionPerson:
+      type: object
+      required: [id, name, slug, confidential, role, organisation, internal]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        confidential: { type: boolean }
+        role: { type: [string, "null"] }
+        organisation:
+          oneOf:
+            - $ref: "#/components/schemas/EntitySummary"
+            - type: "null"
+        internal: { type: boolean }
+
+    CadenceSuggestion:
+      type: object
+      required: [person, cadence, cadenceLabel, reason, contactDays, typicalGapDays, lastContactAt]
+      properties:
+        person: { $ref: "#/components/schemas/CadenceSuggestionPerson" }
+        cadence: { $ref: "#/components/schemas/Cadence" }
+        cadenceLabel: { type: string }
+        reason: { type: string, description: One line on why this cadence }
+        contactDays: { type: integer, description: Distinct days in touch in the last four months }
+        typicalGapDays: { type: [integer, "null"], description: Typical gap in days between contacts }
+        lastContactAt: { type: [string, "null"], format: date-time }
+
+    CadenceSuggestions:
+      type: object
+      required: [suggestions, dismissed]
+      properties:
+        suggestions: { type: array, items: { $ref: "#/components/schemas/CadenceSuggestion" } }
+        dismissed: { type: integer, description: People hidden with Not now }
+
+    DismissCadenceSuggestionInput:
+      type: object
+      required: [personId]
+      additionalProperties: false
+      properties:
+        personId: { type: integer }
 
     CadenceProject:
       type: object

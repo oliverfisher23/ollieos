@@ -5,24 +5,19 @@ import {
   updatePerson,
   useGetPerson,
   useListOrganisations,
-  useListPeople,
   type PersonDetail,
   type PersonUpdate,
 } from '@workspace/api-client-react';
-import { formatDayMonth, formatDayMonthShort, formatShort } from '@workspace/shared';
-import { Avatar, Skel } from '@/components/bits';
+import { formatDayMonth, formatShort } from '@workspace/shared';
 import { IconLeft } from '@/components/icons';
 import { InlineText } from '@/components/inline-text';
-import { KnowledgeLayout, ListHeader } from '@/components/knowledge/layout';
 import { Dropdown } from '@/components/dropdown';
 import { orgOptions } from '@/components/dropdown-options';
-import { CreateDialog } from '@/components/knowledge/create-dialog';
 import {
   AccessPanel,
   AddNote,
   EntityChipLink,
   FactsSection,
-  HiddenFromAi,
   LinkPicker,
   PageProblem,
   PageSkeleton,
@@ -30,56 +25,11 @@ import {
   useUnlink,
 } from '@/components/knowledge/parts';
 import { RelationshipsSection } from '@/components/knowledge/relationships';
-import { OtherEmails, PossibleDuplicates, SamePersonAs, SlackAccount } from '@/components/knowledge/person-identity';
+import { OtherEmails, SamePersonAs, SlackAccount } from '@/components/knowledge/person-identity';
 import { copyText, firstName, isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
-import { CadencePill, CadenceSelect, CheckInDialog } from '@/pages/people-cadence';
+import { CadencePill, CadenceSelect, CheckInDialog } from '@/components/cadence';
 import { notify } from '@/lib/notify';
 import { initials, toneFor } from '@/lib/task-cache';
-
-export function PeopleListPage() {
-  const people = useListPeople();
-  const [creating, setCreating] = useState(false);
-  return (
-    <KnowledgeLayout testId="page-people">
-      <ListHeader
-        title="People"
-        line="Everyone you work with, and what is open between you."
-        action={<button type="button" className="oo-btn oo-btn-ink" onClick={() => setCreating(true)} data-testid="button-new-person">New person</button>}
-      />
-      <PossibleDuplicates />
-      {people.isLoading ? (
-        <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{[0, 1, 2, 3].map((i) => <Skel key={i} h={40} />)}</div>
-      ) : people.error ? (
-        <PageProblem notFound={false} what="list" onRetry={() => people.refetch()} back={{ href: '/knowledge', label: 'Back to Knowledge' }} />
-      ) : !people.data?.length ? (
-        <p className="oo-muted" style={{ margin: 0 }} data-testid="state-people-empty">Nobody here yet. People are added when you link them to tasks, or with New person.</p>
-      ) : (
-        <div>
-          {people.data.map((p) => (
-            <Link key={p.id} href={'/knowledge/people/' + p.slug} className="oo-krow oo-krow-link" style={{ textDecoration: 'none' }} data-testid={'row-person-' + p.slug}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                <Avatar name={p.name} id={p.id} size={32} />
-                <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                  <span style={{ fontWeight: 500 }}>{p.name}</span>
-                  {(p.organisation || p.role) && (
-                    <span className="oo-muted" style={{ fontSize: 13 }}>{[p.organisation?.name, p.role].filter(Boolean).join(' · ')}</span>
-                  )}
-                </span>
-              </span>
-              <span style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', fontSize: 13 }} className="oo-muted">
-                {(p.confidential || !p.aiAccess) && <HiddenFromAi confidential={p.confidential} />}
-                {p.iOweCount > 0 && <span className="oo-pill" data-tone="waiting">I owe {p.iOweCount}</span>}
-                {p.theyOweCount > 0 && <span className="oo-pill">Owes me {p.theyOweCount}</span>}
-                {p.lastContactAt && <span>Last contact {formatDayMonthShort(p.lastContactAt)}</span>}
-              </span>
-            </Link>
-          ))}
-        </div>
-      )}
-      {creating && <CreateDialog kind="person" onClose={() => setCreating(false)} />}
-    </KnowledgeLayout>
-  );
-}
 
 export function PersonPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -87,12 +37,12 @@ export function PersonPage() {
 
   return (
     <div className="oo-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Link href="/knowledge/people" className="oo-back" data-testid="link-back-people"><IconLeft size={14} />People</Link>
+      <Link href="/contacts" className="oo-back" data-testid="link-back-people"><IconLeft size={14} />Contacts</Link>
       {q.isLoading ? (
         <main className="oo-panel oo-kmain" data-testid="page-person"><PageSkeleton /></main>
       ) : !q.data ? (
         <main className="oo-panel oo-kmain" data-testid="page-person">
-          <PageProblem notFound={isNotFound(q.error)} what="person" onRetry={() => q.refetch()} back={{ href: '/knowledge/people', label: 'All people' }} />
+          <PageProblem notFound={isNotFound(q.error)} what="person" onRetry={() => q.refetch()} back={{ href: '/contacts', label: 'All contacts' }} />
         </main>
       ) : (
         <PersonBody slug={slug} data={q.data} />

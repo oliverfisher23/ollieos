@@ -4179,9 +4179,22 @@ export const ListPeopleResponseItem = zod.object({
   "slug": zod.string(),
   "confidential": zod.boolean()
 }),zod.null()]),
+  "organisationType": zod.string().nullable().describe('The organisation\'s type'),
+  "internal": zod.boolean().describe('They work at Ollie\'s own company'),
+  "isSelf": zod.boolean().describe('Ollie\'s own record'),
   "lastContactAt": zod.coerce.date().nullable(),
   "iOweCount": zod.int(),
-  "theyOweCount": zod.int()
+  "theyOweCount": zod.int(),
+  "cadence": zod.object({
+  "status": zod.enum(['overdue', 'due_soon', 'on_track', 'paused', 'none']),
+  "daysSince": zod.int().nullable().describe('Whole days since the last contact; null when there is none on file'),
+  "daysOverdue": zod.int().nullable(),
+  "daysLeft": zod.int().nullable(),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
+  "cadenceLabel": zod.string(),
+  "cadencePaused": zod.boolean(),
+  "pausedByProjects": zod.boolean().describe('True when every linked project is paused or complete')
+})
 })
 export const ListPeopleResponse = zod.array(ListPeopleResponseItem)
 
@@ -4577,6 +4590,56 @@ export const ListCadenceResponse = zod.object({
 }),zod.null()]),
   "lastContactAt": zod.coerce.date().nullable()
 })))
+})
+
+
+/**
+ * @summary Suggested cadences for people with none, from how often Ollie has actually been in touch
+ */
+export const ListCadenceSuggestionsResponse = zod.object({
+  "suggestions": zod.array(zod.object({
+  "person": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean(),
+  "role": zod.string().nullable(),
+  "organisation": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "internal": zod.boolean()
+}),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
+  "cadenceLabel": zod.string(),
+  "reason": zod.string().describe('One line on why this cadence'),
+  "contactDays": zod.int().describe('Distinct days in touch in the last four months'),
+  "typicalGapDays": zod.int().nullable().describe('Typical gap in days between contacts'),
+  "lastContactAt": zod.coerce.date().nullable()
+})),
+  "dismissed": zod.int().describe('People hidden with Not now')
+})
+
+
+/**
+ * @summary Not now; stop suggesting a cadence for this person
+ */
+export const DismissCadenceSuggestionBody = zod.object({
+  "personId": zod.int()
+})
+
+export const DismissCadenceSuggestionResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary Bring back everyone hidden from the suggestions with Not now
+ */
+export const RestoreCadenceSuggestionsResponse = zod.object({
+  "ok": zod.boolean()
 })
 
 
@@ -7769,7 +7832,8 @@ export const ListOrganisationsResponseItem = zod.object({
   "aiAccess": zod.boolean(),
   "type": zod.string().nullable(),
   "internal": zod.boolean().describe('Ollie\'s own company rather than a client'),
-  "peopleCount": zod.int()
+  "peopleCount": zod.int(),
+  "lastContactAt": zod.coerce.date().nullable().describe('The latest contact with anyone who works there')
 })
 export const ListOrganisationsResponse = zod.array(ListOrganisationsResponseItem)
 

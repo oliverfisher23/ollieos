@@ -45,6 +45,7 @@ import type {
   BundleInput,
   BundleResult,
   CadencePage,
+  CadenceSuggestions,
   CheckInDraft,
   CheckReplyDraft200,
   ClearOut,
@@ -66,6 +67,7 @@ import type {
   DecisionUpdate,
   Digest,
   DigestListItem,
+  DismissCadenceSuggestionInput,
   DocumentInput,
   DocumentTextInput,
   DocumentUpdate,
@@ -9413,6 +9415,269 @@ export function useListCadence<TData = Awaited<ReturnType<typeof listCadence>>, 
 
 
 
+
+export const getListCadenceSuggestionsUrl = () => {
+
+
+
+
+  return `/api/people/cadence-suggestions`
+}
+
+/**
+ * @summary Suggested cadences for people with none, from how often Ollie has actually been in touch
+ */
+export const listCadenceSuggestions = async ( options?: Parameters<typeof customFetch>[1]): Promise<CadenceSuggestions> => {
+
+  return customFetch<CadenceSuggestions>(getListCadenceSuggestionsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCadenceSuggestionsQueryKey = () => {
+    return [
+    `/api/people/cadence-suggestions`
+    ] as const;
+    }
+
+
+export const getListCadenceSuggestionsQueryOptions = <TData = Awaited<ReturnType<typeof listCadenceSuggestions>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCadenceSuggestionsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCadenceSuggestions>>> = ({ signal }) => listCadenceSuggestions({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCadenceSuggestionsQueryResult = NonNullable<Awaited<ReturnType<typeof listCadenceSuggestions>>>
+export type ListCadenceSuggestionsQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListCadenceSuggestions<TData = Awaited<ReturnType<typeof listCadenceSuggestions>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCadenceSuggestions>>,
+          TError,
+          Awaited<ReturnType<typeof listCadenceSuggestions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCadenceSuggestions<TData = Awaited<ReturnType<typeof listCadenceSuggestions>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCadenceSuggestions>>,
+          TError,
+          Awaited<ReturnType<typeof listCadenceSuggestions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCadenceSuggestions<TData = Awaited<ReturnType<typeof listCadenceSuggestions>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Suggested cadences for people with none, from how often Ollie has actually been in touch
+ */
+
+export function useListCadenceSuggestions<TData = Awaited<ReturnType<typeof listCadenceSuggestions>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCadenceSuggestions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCadenceSuggestionsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDismissCadenceSuggestionUrl = () => {
+
+
+
+
+  return `/api/people/cadence-suggestions/dismiss`
+}
+
+/**
+ * @summary Not now; stop suggesting a cadence for this person
+ */
+export const dismissCadenceSuggestion = async (dismissCadenceSuggestionInput: DismissCadenceSuggestionInput, options?: Parameters<typeof customFetch>[1]): Promise<OkResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OkResult>(getDismissCadenceSuggestionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(dismissCadenceSuggestionInput)
+  }
+);}
+
+
+
+
+
+export const getDismissCadenceSuggestionMutationKey = () => ['dismissCadenceSuggestion'] as const;
+
+export const getDismissCadenceSuggestionMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissCadenceSuggestion>>, TError,DismissCadenceSuggestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissCadenceSuggestion>>, TError,DismissCadenceSuggestionMutationVariables, TContext> => {
+
+const mutationKey = getDismissCadenceSuggestionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissCadenceSuggestion>>, DismissCadenceSuggestionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  dismissCadenceSuggestion(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissCadenceSuggestionMutationResult = NonNullable<Awaited<ReturnType<typeof dismissCadenceSuggestion>>>
+    export type DismissCadenceSuggestionMutationBody = BodyType<DismissCadenceSuggestionInput>
+    export type DismissCadenceSuggestionMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type DismissCadenceSuggestionMutationVariables = {data: BodyType<DismissCadenceSuggestionInput>}
+
+    /**
+ * @summary Not now; stop suggesting a cadence for this person
+ */
+export const useDismissCadenceSuggestion = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissCadenceSuggestion>>, TError,DismissCadenceSuggestionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof dismissCadenceSuggestion>>,
+        TError,
+        DismissCadenceSuggestionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDismissCadenceSuggestionMutationOptions(options), queryClient);
+    }
+
+export const getRestoreCadenceSuggestionsUrl = () => {
+
+
+
+
+  return `/api/people/cadence-suggestions/restore`
+}
+
+/**
+ * @summary Bring back everyone hidden from the suggestions with Not now
+ */
+export const restoreCadenceSuggestions = async ( options?: Parameters<typeof customFetch>[1]): Promise<OkResult> => {
+
+  return customFetch<OkResult>(getRestoreCadenceSuggestionsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRestoreCadenceSuggestionsMutationKey = () => ['restoreCadenceSuggestions'] as const;
+
+export const getRestoreCadenceSuggestionsMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreCadenceSuggestions>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof restoreCadenceSuggestions>>, TError,void, TContext> => {
+
+const mutationKey = getRestoreCadenceSuggestionsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof restoreCadenceSuggestions>>, void> = () => {
+
+
+          return  restoreCadenceSuggestions(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RestoreCadenceSuggestionsMutationResult = NonNullable<Awaited<ReturnType<typeof restoreCadenceSuggestions>>>
+
+    export type RestoreCadenceSuggestionsMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Bring back everyone hidden from the suggestions with Not now
+ */
+export const useRestoreCadenceSuggestions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof restoreCadenceSuggestions>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof restoreCadenceSuggestions>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRestoreCadenceSuggestionsMutationOptions(options), queryClient);
+    }
 
 export const getListPossibleDuplicatesUrl = () => {
 
