@@ -987,6 +987,7 @@ Goal: OllieOS does more of the work around email, meetings and knowledge, and ke
 - **Chase** makes a Waiting on task (source email, the chase line as the next step, linked to the thread, waiting on the person, who can be changed) with its own ref (`#chase`), so it never clashes with a task the regular Gmail check made from the same email. "Write a chase email" then drafts a follow-up straight away on the Review page with the Part A draft feature: when Ollie wrote last in a thread, the draft is a short nudge rather than a reply. Now and Backlog are refused for these items. Bulk select works for Chase, Already handled and Dropped.
 - **Email page (added 10th November 2026, at Ollie's request):** one page at `/email` (in the desktop menu after Tasks; on phones a link by the Tasks heading) with three tabs. **To answer**: open email tasks still with Ollie (Inbox, Now, Backlog), newest first, with Draft reply or Edit draft in place, Done and Open task. **Drafts**: every reply and chase draft not yet gone (`GET /email/drafts`), with Edit, Open in Gmail, Done (takes it off the list, the draft stays on the task) and Open task. A draft leaves the list when its task closes, when Ollie marks it done, or when a Gmail check sees an email sent in its thread after the draft was written or last saved (`reply_drafts.sent_at`; writing a new draft puts it back). **No reply yet** moved here from Review unchanged. Review is now only actions from the Granola look back; `/review?tab=no-reply` redirects. Tasks stay the record; the page is a view of them. Nothing is sent.
 - **Email page renamed Messages (12th November 2026, at Ollie's request):** the page is now `/messages` (Messages in the menu, with a message icon); not Inbox, which already names the task triage list and the Knowledge Inbox. `/email` redirects and keeps its query. The Slack tab is gone: To answer lists emails and Slack messages together (Needs a reply then For your information, newest first in each, the two mixed), with All, Email and Slack chips to narrow it (`?from=email|slack`). Each row says where it came from (an Email pill, or Slack and the kind). Open items are `?thread=` for an email and `?slack=` for a Slack message; old `?tab=slack&id=` links open To answer on Slack with that message. The To answer count is emails plus Slack messages needing a reply. Drafts and Waiting for a reply are unchanged. Home's Slack link and the digest now point at `/messages?tab=to-answer&from=slack`.
+- **Slack acknowledgements and Done (12th November 2026, at Ollie's request):** a newest Slack message that needs nothing from Ollie no longer waits as Needs a reply. The sorter's "none" for someone else's Slack message now means needs nothing (`cleanReply` gives "done"; the prompt names thanks, acknowledgements, "ok" and emoji), and the Slack check closes the row instead of listing it; before, "none" was stored as "unknown", which counts as Needs a reply. Without AI, `isAcknowledgement` in `services/slackToAnswer.ts` catches a short thanks or acknowledgement with no question mark and at most one other word ("perfect thank you!", "working now thanks Ollie", a thumbs up); it closes rows at the check and leaves older ones off the list and out of the overdue count. Done on a Slack message now moves straight to the next message, as on an email, with Undo on the note.
 - **Email page as a light email client (10th November 2026, at Ollie's request):** To answer and Drafts show a list of emails (sender or recipient, subject, first line, date, Now/Backlog/Draft labels) beside a reading pane; on phones the list and the email are shown one at a time. The pane reads the Gmail thread behind the task (`GET /tasks/{id}/thread`, read only, older messages folded) and shows what OllieOS made of it (the task, its next step). Actions: Reply (opens the draft below the thread), Done (then the next email), **Noise** (moves it to Noise; the pane then offers the usual "ignore emails like this" rules and Undo; Gmail itself cannot be marked as spam because OllieOS has no permission to change mail), Open in Gmail. Drafting takes Ollie's steer: "What should it say?" before the first draft, and "Ask for changes" afterwards, which revises the current wording rather than starting again (`instructions` and `current` on the write call).
 
 ### Part E: Knowledge from documents
@@ -1563,7 +1564,59 @@ Ollie asked which agents could learn from the knowledge base or improve how task
 
 - **Client work or internal (12th November 2026).** Every project now has a kind of work: client work or internal (`projects.work_type`). Ollie sets it on the project page ("Kind of work"); when it is not set, a project linked to a customer, client or partner organisation counts as client work, a function's own record counts as internal, and anything else is "not sorted yet". The function and client suggester (now "Sort projects: client or internal, function" in the Knowledge sidebar) also judges client work or internal for projects not sorted yet and sends a card for each it is sure of; a waiting client card already counts as client work. Where it shows: the Knowledge sidebar lists Clients (grouped by client), Internal (grouped by function) and Not sorted yet; Tasks has a Client work / Internal / No sorted project filter; Where your time went has a Client or internal split and the weekly round-up line says how many meeting hours went on client work; in the digest, items about client work come first in each section; in briefs, client projects are listed first.
 
-## 25. One task across channels (asked for 12th November 2026)
+## 25. New people and organisations from email, Slack and meetings (asked for 12th November 2026)
+
+Ollie asked for an agent that adds people and organisations by itself. The readers only ever linked people already in Contacts, and everyone else they saw was forgotten. Only Claude's `upsert_person` proposed new people. Agreed: build both proposals and adding automatically, with **Add automatically when sure off until Ollie turns it on**, because the connector's rule is that new people and organisations are suggestions until he approves them. He turns it on once the contact finder's scorecard shows he keeps nearly all of its cards.
+
+| Part | What | Size |
+|---|---|---|
+| Z8 | Approving a new person links or creates their organisation; an organisation card is approved with its people | Small |
+| Z9 | Sightings: unknown people the readers see, with who wrote | Medium |
+| Z10 | The contact finder (Haiku): candidates, organisations by domain, cards or adding them | Medium to large |
+
+### Part Z8: a new person and their organisation
+
+- **The gap.** A New person card with only an organisation *name* (Claude's `upsert_person` and others) was approved with no organisation.
+- **Now.** The organisation, in this order: the organisation id on the card if it still exists; the New organisation card the person came with (approved now if still waiting); an organisation with the same name; a waiting New organisation card with that name (approved now); else a new organisation with just that name.
+- A New organisation card with people waiting on it shows **Approve with N people**, which approves it and then each of them. **Approve on its own** still approves just the organisation.
+- Organisations gain `domains` (acme.com), set from a card's domains. New person cards can carry a Slack account.
+
+### Part Z9: sightings
+
+- **What is recorded.** Everyone in an email thread or Slack conversation the Gmail or Slack reader reads who matches no email or Slack account in Contacts. Everyone at a Granola meeting the same. Each row says whether Ollie wrote and whether they wrote, plus the subject and their signature title and company when the reader found one.
+- **What is left out.** Exchanges with anyone hidden from AI, automatic confirmations, automated senders (no-reply, notifications) and shared inboxes (info@, accounts@, team@ and similar).
+- **The relationship look back** on Settings, Knowledge also records them for the last six months of email (up to 600 threads). Ollie's own messages are recognised by Gmail's SENT label. A thread with anyone hidden from AI is skipped.
+- `contact_sightings`, one row per person and thread, meeting or conversation. No AI. Kept a year.
+
+### Part Z10: the contact finder
+
+- **Candidates, in code.** Real two-way contact: a meeting; a Slack conversation both wrote in; email threads where both wrote (and seen in two or more places); or Ollie wrote to them in two or more threads. Someone who only ever wrote to Ollie is never a candidate. Up to 40 a pass, strongest first.
+- **Organisations, in code.** A domain an organisation lists, or inferred from two or more of its people (Part S), links them to it. Ollie's own domain is Springpod (the internal organisation). Slack colleagues go under Springpod too. Free email (gmail.com and similar) never implies an organisation. A new company domain becomes one New organisation card with its people under it.
+- **Haiku** gets the address, the names shown, where and how often they were seen, up to five subjects and their signature. For each person it gives its reasoning, then a yes or no on whether this is one real human; then their name in normal form, their role (only from a signature, never guessed) and a line on how Ollie knows them. For a new domain it gives a yes or no on whether it is one company, then its name, type (client, partner, supplier, school, college, university, employer, investor or other) and a line about it.
+- **Cards.** New organisation, New person (under it, or under the organisation already in Contacts), with "Seen in 3 email threads and 1 meeting, you both wrote in 3; latest 11th November" as the source. Someone with the same name as a person who has no email becomes an "add this email" change card instead. Each person and domain is looked at once. A card Ollie rejects is never proposed again. Someone added to Contacts another way since is left alone.
+- **Add automatically when sure** (Settings, Knowledge, off by default). Only someone at an organisation already in Contacts (or a Slack colleague), with two-way contact in two or more places, or a meeting and two-way email. They are approved straight away, marked "Added by OllieOS" with **Undo** on Contacts, and the digest says "Added to Contacts by OllieOS". Undo removes them and the address is never suggested again. It refuses once anything has been linked to them (a task, fact, note, link or waiting card). New organisations are never added without a card.
+- **When.** After each check, and with **Look for new people now**.
+- **Scorecard.** "People and organisations kept": cards approved or merged against rejected. Auto-added people Ollie undoes count as rejected.
+
+### Built and checked
+
+- `contact_sightings` and `contact_finder_seen` (`lib/db/src/schema/accounts.ts`); `organisations.domains`; `people.auto_added_at`.
+- `services/contactFinder.ts`; `organisationForPerson` and `approveWithPeople` in `services/suggestions.ts`.
+- `POST /suggestions/:id/approve-with-people`; `GET` and `PUT /settings/contact-finder`; `POST /contacts/find`; `POST /contacts/:id/undo-auto-add`. People in the Contacts list carry `autoAddedAt`, and organisation cards carry `peopleWaiting`.
+- `test/section-25.test.ts` (7 tests) covers:
+  - organisation linking, all four ways;
+  - approve with people;
+  - sightings: known, automated, shared and hidden left out; two-way; signature;
+  - the look back's SENT label and hidden threads;
+  - who qualifies;
+  - cards under new and known organisations, free email, not a person, and the same-name email card;
+  - nothing proposed twice, and a rejected card stays rejected;
+  - adding automatically only when sure and only when turned on;
+  - Undo refused when linked, and working otherwise.
+- The full suite passes: 428 tests. Checked in a browser: Settings, Contacts with "Added by OllieOS" and Undo, and Approve with 2 people.
+- Not built: sightings from calendar invites (only Granola meetings count), and LinkedIn connections that match nobody.
+
+## 26. One task across channels (asked for 12th November 2026)
 
 Ollie asked for a way to stop the same piece of work turning into several tasks: a meeting note, the email follow-up, a Slack message and a Cowork session about the same thing made four similar tasks, because a task was only a duplicate when the same message made it twice. Three parts, built together.
 

@@ -25,7 +25,7 @@ import { similarOpenTasks } from "./duplicates";
 const PEOPLE_ITEMS = 15;
 /** Most recently touched open tasks offered for a signing confirmation (question 63) */
 const CONFIRMATION_ITEMS = 20;
-/** Section 25: most open tasks offered because their title words appear in the exchange */
+/** Section 26: most open tasks offered because their title words appear in the exchange */
 const SIMILAR_ITEMS = 8;
 const OPEN = [...OPEN_STATUSES];
 
@@ -99,7 +99,7 @@ export async function openItemsFor(units: WorkUnit[], personIds: number[][]): Pr
     }
     const sameIds = new Set(sameRows.map((r) => r.id));
     const rows = [...sameRows.map((r) => ({ r, same: true })), ...otherRows.filter((r) => !sameIds.has(r.id)).slice(0, u.confirmation ? CONFIRMATION_ITEMS : PEOPLE_ITEMS).map((r) => ({ r, same: false }))];
-    // Section 25: tasks about the same work from another channel, whoever they are with.
+    // Section 26: tasks about the same work from another channel, whoever they are with.
     if (!u.confirmation) {
       const text = [u.subject ?? "", ...u.messages.map((m) => m.text.slice(0, 1500))].join("\n");
       const similar = await similarOpenTasks(text, { exclude: rows.map(({ r }) => r.id), limit: SIMILAR_ITEMS });

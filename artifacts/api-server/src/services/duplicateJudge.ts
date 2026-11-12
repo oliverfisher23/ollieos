@@ -1,5 +1,5 @@
 /**
- * Section 25: asks Claude Haiku whether pairs of open tasks are the same piece of work. Kept apart
+ * Section 26: asks Claude Haiku whether pairs of open tasks are the same piece of work. Kept apart
  * from the rest so tests can stand in for the model.
  */
 import { haikuJson } from "./connectors/sorter";

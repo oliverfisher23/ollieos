@@ -25,7 +25,7 @@ export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "wait
   goal: { id: number; name: string; inherited: boolean } | null;
   /** Part U: one line of evidence from elsewhere that this open task is done, or null */
   looksDone: string | null;
-  /** Section 25: the other sources the same work came up in (slack, email, meeting, session...) */
+  /** Section 26: the other sources the same work came up in (slack, email, meeting, session...) */
   alsoFrom: string[];
 };
 
@@ -75,7 +75,7 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
   ]);
   const hiddenSet = new Set(hidden.map((h) => h.id));
   const looks = await looksDoneFor(rows.filter((r) => OPEN_FOR_EVIDENCE.has(r.status)).map((r) => r.id));
-  // Section 25: where else the same work came up.
+  // Section 26: where else the same work came up.
   const alsoRows = taskIds.length
     ? await conn
         .selectDistinct({ taskId: taskEvidenceTable.taskId, source: taskEvidenceTable.source })

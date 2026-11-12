@@ -390,7 +390,7 @@ export interface Task {
      * @nullable
      */
   looksDone?: string | null;
-  /** Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task's own */
+  /** Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task's own */
   alsoFrom?: string[];
   /** Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog. */
   delegateHint?: DelegateHint | null;
@@ -1912,7 +1912,7 @@ export interface TalkingPoints {
 }
 
 /**
- * same: section 25, the same work came up again here
+ * same: section 26, the same work came up again here
  */
 export type TaskEvidenceShows = typeof TaskEvidenceShows[keyof typeof TaskEvidenceShows];
 
@@ -1952,7 +1952,7 @@ export interface TaskEvidence {
      */
   place: string | null;
   quote: string;
-  /** same: section 25, the same work came up again here */
+  /** same: section 26, the same work came up again here */
   shows: TaskEvidenceShows;
   /** same: from the task's own conversation; other: anywhere else */
   strength: TaskEvidenceStrength;
@@ -3359,6 +3359,8 @@ export interface KnowledgeInboxItem {
   saidAt: string | null;
   /** Contradiction and out-of-date cards: the approved items the new card disagrees with */
   contradicts?: KnowledgeInboxContradicted[];
+  /** Section 25: on a New organisation card, how many New person cards are waiting on it */
+  peopleWaiting?: number;
   /** Suggested cards: the pre-sorter's hint (section 23); null when it gave none or has not looked */
   presort?: PresortHint | null;
   /** Stale facts: what the stale fact checker found (section 23); null until it has looked */
@@ -3520,6 +3522,42 @@ export type LearnLessonsResultResultsItem = {
 export interface LearnLessonsResult {
   failed: boolean;
   results: LearnLessonsResultResultsItem[];
+}
+
+export interface ContactFinderSettings {
+  /** Add the clearest people straight to Contacts instead of as cards */
+  autoAdd: boolean;
+}
+
+export interface ContactFinderResult {
+  looked: number;
+  /** New person cards */
+  people: number;
+  /** New organisation cards */
+  organisations: number;
+  /** Cards adding an email to someone with the same name */
+  emails: number;
+  /** Added to Contacts without a card */
+  added: number;
+  /** Not a person */
+  ignored: number;
+  failed: boolean;
+}
+
+export type ApproveWithPeopleResultOrganisation = {
+  type: string;
+  id: number;
+};
+
+export type ApproveWithPeopleResultSkippedItem = {
+  id: number;
+  reason: string;
+};
+
+export interface ApproveWithPeopleResult {
+  organisation: ApproveWithPeopleResultOrganisation;
+  people: number;
+  skipped: ApproveWithPeopleResultSkippedItem[];
 }
 
 export interface PresortResult {
@@ -4268,6 +4306,11 @@ export interface PersonListItem {
   lastContactAt: string | null;
   iOweCount: number;
   theyOweCount: number;
+  /**
+     * Section 25: when the contact finder added them by itself; Contacts offers Undo
+     * @nullable
+     */
+  autoAddedAt?: string | null;
   cadence: PersonCadence;
 }
 
@@ -6188,6 +6231,10 @@ export type GetFridayUpdateParams = {
  * The Friday the week ends on, YYYY-MM-DD
  */
 week?: string;
+};
+
+export type UndoAutoAddedContact200 = {
+  id: number;
 };
 
 export type ConfirmFoundStillTrue200 = {

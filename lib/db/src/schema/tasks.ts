@@ -251,7 +251,7 @@ export const taskEvidenceTable = pgTable(
     /** Where it was said: the Slack conversation, email subject or meeting title */
     place: text("place"),
     quote: text("quote").notNull(),
-    /** done, progress, or same (section 25: the same work came up again here) */
+    /** done, progress, or same (section 26: the same work came up again here) */
     shows: text("shows").notNull(),
     /** same: from the task's own conversation; other: anywhere else */
     strength: text("strength").notNull(),
@@ -267,7 +267,7 @@ export const taskEvidenceTable = pgTable(
 export type TaskEvidence = typeof taskEvidenceTable.$inferSelect;
 
 /**
- * Section 25: pairs of open tasks that look like the same piece of work, found by matching words
+ * Section 26: pairs of open tasks that look like the same piece of work, found by matching words
  * and confirmed by the duplicate judge. Ollie merges them or says they are not the same; either
  * way the pair is never suggested again. task_a is always the lower id.
  */

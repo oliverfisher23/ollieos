@@ -26,7 +26,7 @@ export interface TaskEvidence {
      */
   place: string | null;
   quote: string;
-  /** same: section 25, the same work came up again here */
+  /** same: section 26, the same work came up again here */
   shows: TaskEvidenceShows;
   /** same: from the task's own conversation; other: anywhere else */
   strength: TaskEvidenceStrength;

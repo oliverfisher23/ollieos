@@ -174,7 +174,7 @@ export default function TasksPage() {
 
   const review = useListReview();
   const reviewCount = review.data?.actions ?? 0;
-  // Section 25: pairs of open tasks that look like the same work.
+  // Section 26: pairs of open tasks that look like the same work.
   const duplicates = useListTaskDuplicates();
   const duplicateCount = duplicates.data?.pairs.length ?? 0;
 

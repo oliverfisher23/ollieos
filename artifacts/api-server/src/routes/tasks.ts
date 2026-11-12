@@ -146,7 +146,7 @@ router.post(
 const PairParams = z.object({ pairId: z.coerce.number().int().positive() });
 const MergeBody = z.object({ keep: z.number().int().positive() }).strict();
 
-// Section 25: the Duplicates page. Registered before /tasks/:id so "duplicates" is never read as an id.
+// Section 26: the Duplicates page. Registered before /tasks/:id so "duplicates" is never read as an id.
 router.get(
   "/tasks/duplicates",
   handle(async (_req, res) => {

@@ -17,6 +17,7 @@ import { writeFollowUp } from "../meetingFollowUp";
 import { captureSorted, emptyCounts, loadPeople, mayReadForKnowledge, peopleIdsIn, projectChoices, type CaptureCounts } from "./capture";
 import { addSpottedIdea } from "../strategy";
 import { lessonsFor } from "../readerLessons";
+import { recordSightings, sightingsFromMeeting } from "../contactFinder";
 import { meetingUnit, sortMeeting, type MeetingNote } from "./granola";
 
 export const MEETING_PROPOSER = "OllieOS";
@@ -90,6 +91,15 @@ export async function captureMeetings(
         ctx.now,
       );
       if (r.status === "suggested" || r.status === "conflict") counts.decisions++;
+    }
+
+    // Section 25, the contact finder: people at the meeting who are not in Contacts, never from a meeting with anyone hidden from AI.
+    if (mayReadForKnowledge(unit, loaded)) {
+      try {
+        counts.sightings = (counts.sightings ?? 0) + (await recordSightings(sightingsFromMeeting(n, loaded)));
+      } catch (err) {
+        logger.warn({ err, note: n.noteId }, "Could not record contact sightings");
+      }
     }
 
     // Section 23, the idea spotter: never from a meeting with anyone hidden from AI. A problem never stops the check.

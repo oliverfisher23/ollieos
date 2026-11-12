@@ -76,7 +76,7 @@ export interface SaveSessionResult {
   updated: boolean;
   /** False when the session is hidden from AI, so it is not read for knowledge */
   visible: boolean;
-  /** linked: section 25, added to an open task with nearly the same title instead of a new one */
+  /** linked: section 26, added to an open task with nearly the same title instead of a new one */
   tasks: { id: number | null; outcome: "created" | "duplicate" | "noise" | "linked" }[];
   artifacts: ProposeResult[];
 }
@@ -140,7 +140,7 @@ export async function saveSession(writer: Writer, input: SaveSessionInput, now =
   const tasks: SaveSessionResult["tasks"] = [];
   for (const [i, a] of input.actions.slice(0, SESSION_LIMITS.actions).entries()) {
     const sourceRef = `${sessionKey(id)}#${i + 1}`;
-    // Section 25: an open task with nearly the same title (and visible to AI) gets this as Also came up.
+    // Section 26: an open task with nearly the same title (and visible to AI) gets this as Also came up.
     if (!(await alreadyCaptured("session", sourceRef))) {
       const close = await closeOpenTasks(a.title);
       const visible = await visibleRefs(defaultScope(), close.map((c) => toRef("task", c.id)));

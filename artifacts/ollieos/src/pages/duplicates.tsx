@@ -18,7 +18,7 @@ import { useInvalidateTasks } from '@/lib/task-cache';
 const plural = (n: number, one: string) => `${n} ${n === 1 ? one : one + 's'}`;
 
 /**
- * Section 25: pairs of open tasks that look like the same piece of work. Keep one and the other is
+ * Section 26: pairs of open tasks that look like the same piece of work. Keep one and the other is
  * dropped, with where it came from added to the kept task; or say they are not the same.
  */
 export default function DuplicatesPage() {

@@ -67,6 +67,8 @@ export interface KnowledgeInboxItem {
   saidAt: Date | null;
   /** Contradiction and out-of-date cards: the approved items the new card disagrees with */
   contradicts?: KnowledgeInboxContradicted[];
+  /** Section 25: on a New organisation card, how many New person cards are waiting on it */
+  peopleWaiting?: number;
   /** Suggested cards: the pre-sorter's hint (section 23); null when it gave none or has not looked */
   presort?: PresortHint | null;
   /** Stale facts: what the stale fact checker found (section 23); null until it has looked */

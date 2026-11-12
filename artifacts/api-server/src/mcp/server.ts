@@ -387,7 +387,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     },
     async (a) =>
       guard(async () => {
-        // Section 25: the same work as an open task is added to it, not made twice.
+        // Section 26: the same work as an open task is added to it, not made twice.
         if (a.same_as) {
           const id = await visibleTaskId(scope, a.same_as);
           if (id == null) return NOT_FOUND("task");

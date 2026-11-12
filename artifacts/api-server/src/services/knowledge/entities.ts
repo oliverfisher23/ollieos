@@ -318,6 +318,8 @@ export interface PersonListItem extends EntitySummary {
   theyOweCount: number;
   /** Their check-in cadence and where they stand against it, as on the person page */
   cadence: PersonCadence;
+  /** Section 25: when the contact finder added them by itself, so Contacts can offer Undo */
+  autoAddedAt: Date | null;
 }
 
 export async function listPeople(): Promise<PersonListItem[]> {
@@ -340,6 +342,7 @@ export async function listPeople(): Promise<PersonListItem[]> {
         isSelf: peopleTable.isSelf,
         cadence: peopleTable.cadence,
         cadencePaused: peopleTable.cadencePaused,
+        autoAddedAt: peopleTable.autoAddedAt,
       })
       .from(peopleTable)
       .leftJoin(organisationsTable, eq(organisationsTable.id, peopleTable.organisationId))
@@ -379,6 +382,7 @@ export async function listPeople(): Promise<PersonListItem[]> {
       cadencePaused: r.cadencePaused,
       pausedByProjects: !r.cadencePaused && pausedByProjects(projects.get(r.id)),
     },
+    autoAddedAt: r.autoAddedAt ?? null,
   }));
 }
 

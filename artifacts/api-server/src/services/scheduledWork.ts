@@ -27,6 +27,7 @@ import { suggestDelegations } from "./delegation";
 import { draftWeeklyUpdateIfDue } from "./weeklyUpdate";
 import { learnLessonsIfDue } from "./readerLessons";
 import { findDuplicatesIfDue } from "./duplicates";
+import { clearOldSightings, findContacts } from "./contactFinder";
 
 /** OllieOS's own checks start at 07:00, so they wait for 07:40 (when the morning sweep ran) before building the digest. */
 export const DIGEST_NOT_BEFORE = { hour: 7, minute: 40 };
@@ -85,6 +86,8 @@ async function runScheduledWork(from: "sweep" | "connectors", now: Date): Promis
   if (process.env.NODE_ENV !== "test") await part("presort", () => presortCards(now));
   if (process.env.NODE_ENV !== "test") await part("stale_evidence", () => checkStaleFacts(now));
   if (process.env.NODE_ENV !== "test") await part("delegation", () => suggestDelegations(now));
+  // Section 25: people in real two-way contact who are not in Contacts yet. Calls the model, so tests run it directly.
+  if (process.env.NODE_ENV !== "test") await part("contacts", () => findContacts(now));
   await part("briefs", () => buildUpcomingBriefs(now));
   // Searches the web and calls the model on real companies, so tests run it directly with the model stood in.
   if (process.env.NODE_ENV !== "test") await part("research", () => researchUpcoming(now));
@@ -97,8 +100,8 @@ async function runScheduledWork(from: "sweep" | "connectors", now: Date): Promis
   if (process.env.NODE_ENV !== "test") await part("writer_grades", () => gradeIfDue(now));
   // Section 24: the reader coach and card coach, weekly (the card coach sooner while the backlog is being cleared).
   if (process.env.NODE_ENV !== "test") await part("lessons", () => learnLessonsIfDue(now));
-  // Section 25: pairs of open tasks that are the same work, for the Duplicates page.
+  // Section 26: pairs of open tasks that are the same work, for the Duplicates page.
   if (process.env.NODE_ENV !== "test") await part("duplicates", () => findDuplicatesIfDue(now));
-  await part("cleared", async () => ({ digests: await clearOldDigests(now), calendar_events: await clearOldCalendar(now), roundups: await clearOldRoundups(now), ai_runs: await clearOldAiRuns(now), meeting_history: await clearOldHistory(now), ai_inputs: await clearOldInputs(now), noise: await clearOldNoise(now) }));
+  await part("cleared", async () => ({ digests: await clearOldDigests(now), calendar_events: await clearOldCalendar(now), roundups: await clearOldRoundups(now), ai_runs: await clearOldAiRuns(now), meeting_history: await clearOldHistory(now), ai_inputs: await clearOldInputs(now), noise: await clearOldNoise(now), contact_sightings: await clearOldSightings(now) }));
   return out;
 }

@@ -7,7 +7,7 @@
  */
 
 /**
- * same: section 25, the same work came up again here
+ * same: section 26, the same work came up again here
  */
 export type TaskEvidenceShows = typeof TaskEvidenceShows[keyof typeof TaskEvidenceShows];
 

@@ -22,6 +22,7 @@ import { recordMention } from "../duplicates";
 import { proposeSignature, proposeWorksAt, recordTogether } from "../peopleSignals";
 import { addSpottedIdea } from "../strategy";
 import { lessonsFor } from "../readerLessons";
+import { recordSightings, sightingsFromUnits } from "../contactFinder";
 import type { WorkMessage, WorkUnit } from "./messages";
 import type { AgentKey } from "../../lib/agents";
 import { sortUnits, type KnownNames, type SortedClaim, type SortedUnit } from "./sorter";
@@ -46,8 +47,10 @@ export interface CaptureCounts {
   details?: number;
   /** Section 23: ideas the idea spotter added from Slack */
   ideas?: number;
-  /** Section 25: items added to a task Ollie already had, instead of a new task */
+  /** Section 26: items added to a task Ollie already had, instead of a new task */
   linked?: number;
+  /** Section 25: people seen who are not in Contacts */
+  sightings?: number;
 }
 
 /** True when one of Ollie's noise rules covers every message in the exchange from someone else. */
@@ -348,6 +351,13 @@ export async function sortAndCapture(
     const claims = readable[i] ? (sorted[i].knowledge ?? []) : [];
     if (claims.length) counts.knowledge += await proposeClaims(u, claims, known, before, selfName);
   }
+  // Section 25, the contact finder: people in these exchanges who are not in Contacts. A problem never stops the check.
+  try {
+    counts.sightings = await recordSightings(sightingsFromUnits(keep, sorted, readable, before));
+  } catch (err) {
+    logger.warn({ err }, "Could not record contact sightings");
+  }
+
   // Section 23, the idea spotter: ideas from Slack exchanges that may be read by AI. A problem never stops the check.
   const projectIdByName = new Map(choices.map((p) => [p.name.toLowerCase(), p.id]));
   for (const [i, u] of keep.entries()) {
@@ -388,7 +398,7 @@ export async function captureSorted(
     applyNoise: boolean;
     counts: CaptureCounts;
     projectFor?: (i: number) => number | null;
-    /** Section 25: the open items each exchange was offered, so "same_as" can add to one */
+    /** Section 26: the open items each exchange was offered, so "same_as" can add to one */
     open?: OpenItem[][];
   },
 ): Promise<number[][]> {
@@ -420,7 +430,7 @@ export async function captureSorted(
       const n = (perMessage.get(msg.ref) ?? 0) + 1;
       perMessage.set(msg.ref, n);
       const sourceRef = n === 1 ? msg.ref : `${msg.ref}#${n}`;
-      // Section 25: the same work as an open task, so it is added to that task instead.
+      // Section 26: the same work as an open task, so it is added to that task instead.
       const same = it.same_as ? opts.open?.[i]?.find((o) => o.ref === it.same_as) : undefined;
       if (same) {
         const added = await recordMention(same.taskId, {

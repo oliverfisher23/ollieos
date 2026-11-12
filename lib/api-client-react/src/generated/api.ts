@@ -35,6 +35,7 @@ import type {
   AiClient,
   AiClientRow,
   ApproveAccessInput,
+  ApproveWithPeopleResult,
   AskInput,
   AskResult,
   AskThread,
@@ -64,6 +65,8 @@ import type {
   ConnectorReadByInput,
   ConnectorScheduleInput,
   Connectors,
+  ContactFinderResult,
+  ContactFinderSettings,
   ContextPack,
   DayPlan,
   DecideOAuthConsent200,
@@ -280,6 +283,7 @@ import type {
   TimeReport,
   TriageInput,
   TriageResult,
+  UndoAutoAddedContact200,
   UsageView,
   VoiceParse,
   VoiceParseInput,
@@ -18385,6 +18389,417 @@ export const useRedraftFridayUpdateSection = <TError = ErrorType<ErrorResponse |
         TContext
       > => {
       return useMutation(getRedraftFridayUpdateSectionMutationOptions(options), queryClient);
+    }
+
+export const getApproveSuggestionWithPeopleUrl = (id: number,) => {
+
+
+
+
+  return `/api/suggestions/${id}/approve-with-people`
+}
+
+/**
+ * @summary Approve a New organisation card and the New person cards waiting on it (section 25)
+ */
+export const approveSuggestionWithPeople = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ApproveWithPeopleResult> => {
+
+  return customFetch<ApproveWithPeopleResult>(getApproveSuggestionWithPeopleUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApproveSuggestionWithPeopleMutationKey = () => ['approveSuggestionWithPeople'] as const;
+
+export const getApproveSuggestionWithPeopleMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveSuggestionWithPeople>>, TError,ApproveSuggestionWithPeopleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveSuggestionWithPeople>>, TError,ApproveSuggestionWithPeopleMutationVariables, TContext> => {
+
+const mutationKey = getApproveSuggestionWithPeopleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveSuggestionWithPeople>>, ApproveSuggestionWithPeopleMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  approveSuggestionWithPeople(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveSuggestionWithPeopleMutationResult = NonNullable<Awaited<ReturnType<typeof approveSuggestionWithPeople>>>
+
+    export type ApproveSuggestionWithPeopleMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type ApproveSuggestionWithPeopleMutationVariables = {id: number}
+
+    /**
+ * @summary Approve a New organisation card and the New person cards waiting on it (section 25)
+ */
+export const useApproveSuggestionWithPeople = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveSuggestionWithPeople>>, TError,ApproveSuggestionWithPeopleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof approveSuggestionWithPeople>>,
+        TError,
+        ApproveSuggestionWithPeopleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveSuggestionWithPeopleMutationOptions(options), queryClient);
+    }
+
+export const getGetContactFinderSettingsUrl = () => {
+
+
+
+
+  return `/api/settings/contact-finder`
+}
+
+/**
+ * @summary The contact finder's setting (section 25)
+ */
+export const getContactFinderSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<ContactFinderSettings> => {
+
+  return customFetch<ContactFinderSettings>(getGetContactFinderSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetContactFinderSettingsQueryKey = () => {
+    return [
+    `/api/settings/contact-finder`
+    ] as const;
+    }
+
+
+export const getGetContactFinderSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getContactFinderSettings>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContactFinderSettings>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetContactFinderSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getContactFinderSettings>>> = ({ signal }) => getContactFinderSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getContactFinderSettings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetContactFinderSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getContactFinderSettings>>>
+export type GetContactFinderSettingsQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetContactFinderSettings<TData = Awaited<ReturnType<typeof getContactFinderSettings>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContactFinderSettings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getContactFinderSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getContactFinderSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetContactFinderSettings<TData = Awaited<ReturnType<typeof getContactFinderSettings>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContactFinderSettings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getContactFinderSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getContactFinderSettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetContactFinderSettings<TData = Awaited<ReturnType<typeof getContactFinderSettings>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContactFinderSettings>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The contact finder's setting (section 25)
+ */
+
+export function useGetContactFinderSettings<TData = Awaited<ReturnType<typeof getContactFinderSettings>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getContactFinderSettings>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetContactFinderSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetContactFinderSettingsUrl = () => {
+
+
+
+
+  return `/api/settings/contact-finder`
+}
+
+/**
+ * @summary Turn adding the clearest people automatically on or off
+ */
+export const setContactFinderSettings = async (contactFinderSettings: ContactFinderSettings, options?: Parameters<typeof customFetch>[1]): Promise<ContactFinderSettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ContactFinderSettings>(getSetContactFinderSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(contactFinderSettings)
+  }
+);}
+
+
+
+
+
+export const getSetContactFinderSettingsMutationKey = () => ['setContactFinderSettings'] as const;
+
+export const getSetContactFinderSettingsMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setContactFinderSettings>>, TError,SetContactFinderSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setContactFinderSettings>>, TError,SetContactFinderSettingsMutationVariables, TContext> => {
+
+const mutationKey = getSetContactFinderSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setContactFinderSettings>>, SetContactFinderSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setContactFinderSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetContactFinderSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof setContactFinderSettings>>>
+    export type SetContactFinderSettingsMutationBody = BodyType<ContactFinderSettings>
+    export type SetContactFinderSettingsMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SetContactFinderSettingsMutationVariables = {data: BodyType<ContactFinderSettings>}
+
+    /**
+ * @summary Turn adding the clearest people automatically on or off
+ */
+export const useSetContactFinderSettings = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setContactFinderSettings>>, TError,SetContactFinderSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setContactFinderSettings>>,
+        TError,
+        SetContactFinderSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetContactFinderSettingsMutationOptions(options), queryClient);
+    }
+
+export const getFindContactsUrl = () => {
+
+
+
+
+  return `/api/contacts/find`
+}
+
+/**
+ * @summary Run the contact finder now (section 25)
+ */
+export const findContacts = async ( options?: Parameters<typeof customFetch>[1]): Promise<ContactFinderResult> => {
+
+  return customFetch<ContactFinderResult>(getFindContactsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getFindContactsMutationKey = () => ['findContacts'] as const;
+
+export const getFindContactsMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof findContacts>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof findContacts>>, TError,void, TContext> => {
+
+const mutationKey = getFindContactsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof findContacts>>, void> = () => {
+
+
+          return  findContacts(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FindContactsMutationResult = NonNullable<Awaited<ReturnType<typeof findContacts>>>
+
+    export type FindContactsMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Run the contact finder now (section 25)
+ */
+export const useFindContacts = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof findContacts>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof findContacts>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getFindContactsMutationOptions(options), queryClient);
+    }
+
+export const getUndoAutoAddedContactUrl = (id: number,) => {
+
+
+
+
+  return `/api/contacts/${id}/undo-auto-add`
+}
+
+/**
+ * @summary Undo someone the contact finder added by itself; refused once anything is linked to them
+ */
+export const undoAutoAddedContact = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<UndoAutoAddedContact200> => {
+
+  return customFetch<UndoAutoAddedContact200>(getUndoAutoAddedContactUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getUndoAutoAddedContactMutationKey = () => ['undoAutoAddedContact'] as const;
+
+export const getUndoAutoAddedContactMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoAutoAddedContact>>, TError,UndoAutoAddedContactMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof undoAutoAddedContact>>, TError,UndoAutoAddedContactMutationVariables, TContext> => {
+
+const mutationKey = getUndoAutoAddedContactMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof undoAutoAddedContact>>, UndoAutoAddedContactMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  undoAutoAddedContact(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UndoAutoAddedContactMutationResult = NonNullable<Awaited<ReturnType<typeof undoAutoAddedContact>>>
+
+    export type UndoAutoAddedContactMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type UndoAutoAddedContactMutationVariables = {id: number}
+
+    /**
+ * @summary Undo someone the contact finder added by itself; refused once anything is linked to them
+ */
+export const useUndoAutoAddedContact = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoAutoAddedContact>>, TError,UndoAutoAddedContactMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof undoAutoAddedContact>>,
+        TError,
+        UndoAutoAddedContactMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUndoAutoAddedContactMutationOptions(options), queryClient);
     }
 
 export const getPresortSuggestionsUrl = () => {

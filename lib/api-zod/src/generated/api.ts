@@ -237,7 +237,7 @@ export const GetHomeResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -329,7 +329,7 @@ export const GetHomeResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -413,7 +413,7 @@ export const GetHomeResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -497,7 +497,7 @@ export const GetHomeResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -651,7 +651,7 @@ export const ListTasksResponseItem = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -775,7 +775,7 @@ export const QuickAddTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -868,7 +868,7 @@ export const ListTaskDuplicatesResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -950,7 +950,7 @@ export const ListTaskDuplicatesResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -1056,7 +1056,7 @@ export const MergeTaskDuplicateResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -1173,7 +1173,7 @@ export const GetTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -1299,7 +1299,7 @@ export const UpdateTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -1390,7 +1390,7 @@ export const SnoozeTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -1520,7 +1520,7 @@ export const TriageTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -1624,7 +1624,7 @@ export const UndoTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -1715,7 +1715,7 @@ export const RestoreTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -1806,7 +1806,7 @@ export const ContinueRepeatResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -1901,7 +1901,7 @@ export const GetDayPlanResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -1996,7 +1996,7 @@ export const GetDayPlanResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -2102,7 +2102,7 @@ export const SaveDayPlanResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -2197,7 +2197,7 @@ export const SaveDayPlanResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -2296,7 +2296,7 @@ export const RefitDayPlanResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -2391,7 +2391,7 @@ export const RefitDayPlanResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -2508,7 +2508,7 @@ export const GetClearOutResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -2609,7 +2609,7 @@ export const KeepInBacklogResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -2700,7 +2700,7 @@ export const KeepTaskResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -3773,7 +3773,7 @@ export const GetWeekCheckResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -4135,7 +4135,7 @@ export const ListTaskEvidenceResponseItem = zod.object({
   "saidAt": zod.coerce.date(),
   "place": zod.string().nullable().describe('The Slack conversation'),
   "quote": zod.string(),
-  "shows": zod.enum(['done', 'progress', 'same']).describe('same: section 25, the same work came up again here'),
+  "shows": zod.enum(['done', 'progress', 'same']).describe('same: section 26, the same work came up again here'),
   "strength": zod.enum(['same', 'other']).describe('same: from the task\'s own conversation; other: anywhere else'),
   "applied": zod.boolean().describe('This evidence closed the task'),
   "dismissed": zod.boolean().describe('Ollie said Not done')
@@ -4159,7 +4159,7 @@ export const DismissTaskEvidenceResponseItem = zod.object({
   "saidAt": zod.coerce.date(),
   "place": zod.string().nullable().describe('The Slack conversation'),
   "quote": zod.string(),
-  "shows": zod.enum(['done', 'progress', 'same']).describe('same: section 25, the same work came up again here'),
+  "shows": zod.enum(['done', 'progress', 'same']).describe('same: section 26, the same work came up again here'),
   "strength": zod.enum(['same', 'other']).describe('same: from the task\'s own conversation; other: anywhere else'),
   "applied": zod.boolean().describe('This evidence closed the task'),
   "dismissed": zod.boolean().describe('Ollie said Not done')
@@ -4740,7 +4740,7 @@ export const GetProjectResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -4859,6 +4859,7 @@ export const ListPeopleResponseItem = zod.object({
   "lastContactAt": zod.coerce.date().nullable(),
   "iOweCount": zod.int(),
   "theyOweCount": zod.int(),
+  "autoAddedAt": zod.coerce.date().nullish().describe('Section 25: when the contact finder added them by itself; Contacts offers Undo'),
   "cadence": zod.object({
   "status": zod.enum(['overdue', 'due_soon', 'on_track', 'paused', 'none']),
   "daysSince": zod.int().nullable().describe('Whole days since the last contact; null when there is none on file'),
@@ -5034,7 +5035,7 @@ export const GetPersonResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -5116,7 +5117,7 @@ export const GetPersonResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -9481,6 +9482,7 @@ export const ListKnowledgeInboxResponse = zod.object({
   "stronger": zod.enum(['new', 'old', 'even']),
   "weighing": zod.string().describe('One line on which side looks stronger')
 })).optional().describe('Contradiction and out-of-date cards: the approved items the new card disagrees with'),
+  "peopleWaiting": zod.int().optional().describe('Section 25: on a New organisation card, how many New person cards are waiting on it'),
   "presort": zod.union([zod.object({
   "verdict": zod.enum(['keep', 'reject', 'same', 'duplicate']),
   "why": zod.string(),
@@ -9687,6 +9689,72 @@ export const RedraftFridayUpdateSectionResponse = zod.object({
 }),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Approve a New organisation card and the New person cards waiting on it (section 25)
+ */
+export const ApproveSuggestionWithPeopleParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ApproveSuggestionWithPeopleResponse = zod.object({
+  "organisation": zod.object({
+  "type": zod.string(),
+  "id": zod.int()
+}),
+  "people": zod.int(),
+  "skipped": zod.array(zod.object({
+  "id": zod.int(),
+  "reason": zod.string()
+}))
+})
+
+
+/**
+ * @summary The contact finder's setting (section 25)
+ */
+export const GetContactFinderSettingsResponse = zod.object({
+  "autoAdd": zod.boolean().describe('Add the clearest people straight to Contacts instead of as cards')
+})
+
+
+/**
+ * @summary Turn adding the clearest people automatically on or off
+ */
+export const SetContactFinderSettingsBody = zod.object({
+  "autoAdd": zod.boolean().describe('Add the clearest people straight to Contacts instead of as cards')
+})
+
+export const SetContactFinderSettingsResponse = zod.object({
+  "autoAdd": zod.boolean().describe('Add the clearest people straight to Contacts instead of as cards')
+})
+
+
+/**
+ * @summary Run the contact finder now (section 25)
+ */
+export const FindContactsResponse = zod.object({
+  "looked": zod.int(),
+  "people": zod.int().describe('New person cards'),
+  "organisations": zod.int().describe('New organisation cards'),
+  "emails": zod.int().describe('Cards adding an email to someone with the same name'),
+  "added": zod.int().describe('Added to Contacts without a card'),
+  "ignored": zod.int().describe('Not a person'),
+  "failed": zod.boolean()
+})
+
+
+/**
+ * @summary Undo someone the contact finder added by itself; refused once anything is linked to them
+ */
+export const UndoAutoAddedContactParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UndoAutoAddedContactResponse = zod.object({
+  "id": zod.int()
 })
 
 
@@ -10356,7 +10424,7 @@ export const AskOllieOSResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -10502,7 +10570,7 @@ export const GetAskThreadResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -10648,7 +10716,7 @@ export const DraftAskReplyResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -10794,7 +10862,7 @@ export const AllowAskTurnResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -10949,7 +11017,7 @@ export const BundleAskTasksResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),
@@ -11095,7 +11163,7 @@ export const UndoAskBundleResponse = zod.object({
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
   "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
   "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
-  "alsoFrom": zod.array(zod.string()).optional().describe('Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
   "delegateHint": zod.union([zod.object({
   "personId": zod.int(),
   "personName": zod.string(),

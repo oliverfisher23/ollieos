@@ -1,5 +1,5 @@
 /**
- * One task across channels (build plan section 25).
+ * One task across channels (build plan section 26).
  *
  * The same piece of work can come in from a meeting, an email follow-up, a Slack message and a
  * Cowork session. Three things stop it becoming four tasks:

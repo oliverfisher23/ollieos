@@ -1,4 +1,4 @@
-/** Section 25: one task across channels. */
+/** Section 26: one task across channels. */
 import { describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { captureLogTable, db, taskDuplicatesTable, taskEvidenceTable, tasksTable } from "@workspace/db";

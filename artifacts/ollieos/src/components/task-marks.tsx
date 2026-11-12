@@ -4,7 +4,7 @@ import { IconRepeat } from '@/components/icons';
 
 /**
  * The small marks after a task title on lists: how it repeats, how far through its checklist it is,
- * and (section 25) where else the same work came up.
+ * and (section 26) where else the same work came up.
  */
 export function TaskMarks({ task }: { task: Pick<Task, 'id' | 'repeat' | 'steps' | 'alsoFrom'> }) {
   const steps = task.steps ?? [];
