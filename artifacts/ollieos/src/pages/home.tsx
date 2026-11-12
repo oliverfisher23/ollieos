@@ -98,7 +98,7 @@ function AccessStatus({ access }: { access: HomeSummary['access'] }) {
 }
 
 function daysLabel(d: number) {
-  return d <= 0 ? 'today' : d === 1 ? '1 day' : d + ' days';
+  return d <= 0 ? 'Asked today' : d === 1 ? 'Waiting 1 day' : `Waiting ${d} days`;
 }
 
 export default function HomePage() {
@@ -247,22 +247,12 @@ export default function HomePage() {
         <WeekCheckCard />
         <BusyDayCard />
         <ClearOutCard />
-        <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, alignItems: 'stretch' }}>
+        <div className="oo-home-grid">
           <DoNextCard items={d.doNext} />
-          <section aria-labelledby="h-inbox" className="oo-dark-card oo-glass" data-testid="card-inbox">
-            <h2 id="h-inbox" className="oo-label">Inbox</h2>
-            <p className="oo-serif-roman" style={{ margin: 0, fontSize: 48, lineHeight: 1 }} data-testid="text-inbox-count">{d.inbox.count}</p>
-            <p className="oo-t2" style={{ margin: 0, fontSize: 13 }} data-testid="text-inbox-breakdown">{breakdown(d)}</p>
-            {d.slackToAnswer + d.emailToAnswer > 0 && <MessagesWaitingLink emails={d.emailToAnswer} slack={d.slackToAnswer} />}
-            <div style={{ marginTop: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {d.inbox.count ? (
-                <Link href="/triage" className="oo-btn oo-btn-white" data-testid="link-triage">Triage {d.inbox.count}</Link>
-              ) : (
-                <Link href="/tasks?tab=inbox" className="oo-btn oo-btn-white" data-testid="link-inbox">Open Inbox</Link>
-              )}
-            </div>
-          </section>
-          <WaitingCard items={d.waitingOn} />
+          <div className="oo-home-stack">
+            <InboxCard home={d} />
+            <WaitingCard items={d.waitingOn} />
+          </div>
         </div>
         <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
           <PromisesCard home={d} />
@@ -316,17 +306,76 @@ function DoNextCard({ items, phone = false }: { items: DoNextItem[]; phone?: boo
         <h2 id="h-next" className="oo-label" style={{ fontSize: phone ? 12 : 13 }}>Do next</h2>
         <span className="oo-muted oo-num" style={{ fontSize: 12 }} data-testid="text-next-position">1 of {items.length}</span>
       </div>
-      <p style={{ margin: 0, fontSize: phone ? 17 : 19, fontWeight: 500, lineHeight: 1.35, letterSpacing: '-0.005em' }} data-testid="text-next-title">{t.title}</p>
+      <p style={{ margin: 0, fontSize: phone ? 17 : 21, fontWeight: 500, lineHeight: 1.3, letterSpacing: '-0.01em' }}>
+        <Link href={'/tasks?task=' + t.id} className="oo-next-title" data-testid="text-next-title">{t.title}</Link>
+      </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         <PriorityPill priority={t.priority} />
         {t.dueDate && <span className="oo-pill">Due {formatShort(t.dueDate)}</span>}
         {t.project && <span className="oo-pill">{t.project.name}</span>}
       </div>
       <p className="oo-muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }} data-testid="text-next-reason">{top.reason}</p>
-      <div style={phone ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 } : { display: 'flex', gap: 8, marginTop: 'auto', flexWrap: 'wrap' }}>
+      <div style={phone ? { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 } : { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
         <button type="button" className="oo-btn oo-btn-ink" onClick={done} disabled={busy} data-testid="button-next-done">Done</button>
         <button type="button" className="oo-btn oo-btn-outline" onClick={later} disabled={busy} data-testid="button-next-snooze">{phone ? 'Snooze' : 'Snooze to tomorrow'}</button>
       </div>
+      <AfterThat items={items.slice(1)} phone={phone} />
+    </section>
+  );
+}
+
+/** The rest of the Do next queue under the top task, so the card shows what is coming without leaving Home. */
+function AfterThat({ items, phone }: { items: DoNextItem[]; phone: boolean }) {
+  if (!items.length) return null;
+  const shown = items.slice(0, phone ? 2 : 5);
+  const more = items.length - shown.length;
+  return (
+    <div className="oo-next-after" style={phone ? { paddingTop: 10 } : undefined} data-testid="list-next-after">
+      <div className="oo-next-after-head">
+        <h3>After that</h3>
+        <Link href="/tasks?tab=open" className="oo-tap" data-testid="link-next-all">{more > 0 ? `${more} more in Tasks` : 'All open tasks'}</Link>
+      </div>
+      <ol className="oo-next-list">
+        {shown.map(({ task }, i) => (
+          <li key={task.id}>
+            <Link href={'/tasks?task=' + task.id} className="oo-next-row" data-testid={'link-next-after-' + task.id}>
+              <span className="oo-next-pos oo-num" aria-hidden="true">{i + 2}</span>
+              <span className="oo-next-name">{task.title}</span>
+              {task.dueDate ? (
+                <span className="oo-next-meta oo-num" data-high={task.priority === 'high'}>{formatShort(task.dueDate)}</span>
+              ) : task.priority === 'high' ? (
+                <span className="oo-next-meta" data-high="true">High</span>
+              ) : null}
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function InboxCard({ home: d }: { home: HomeSummary }) {
+  const clear = d.inbox.count === 0;
+  return (
+    <section aria-labelledby="h-inbox" className="oo-dark-card oo-glass" data-testid="card-inbox">
+      <div className="oo-inbox-card">
+        <span style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+          <span className="oo-serif-roman oo-inbox-count oo-num" data-clear={clear} data-testid="text-inbox-count">{d.inbox.count}</span>
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+            <h2 id="h-inbox" className="oo-label">Inbox</h2>
+            <span className="oo-t2" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }} data-testid="text-inbox-breakdown">
+              {clear && <IconCheck size={14} className="oo-tick" />}
+              {breakdown(d)}
+            </span>
+          </span>
+        </span>
+        {clear ? (
+          <Link href="/tasks?tab=inbox" className="oo-btn oo-btn-ghost" data-testid="link-inbox">Open Inbox</Link>
+        ) : (
+          <Link href="/triage" className="oo-btn oo-btn-white" data-testid="link-triage">Triage {d.inbox.count}</Link>
+        )}
+      </div>
+      {d.slackToAnswer + d.emailToAnswer > 0 && <MessagesWaitingLink emails={d.emailToAnswer} slack={d.slackToAnswer} />}
     </section>
   );
 }
@@ -459,27 +508,56 @@ function TodayPhone({ events }: { events: CalendarEvent[] }) {
   );
 }
 
+/** Rows shown before "See all": the rest are one tap away on the Waiting on tab. */
+const WAITING_SHOWN = 6;
+
+/**
+ * Who the task waits on. A task captured from Ollie's own message carries fromName "You", which is the
+ * asker, not the person who owes the reply, so it is left out rather than shown as "You".
+ */
+function waitingWho(task: WaitingItem['task']): string | null {
+  if (task.waitingOn?.name) return task.waitingOn.name;
+  const from = task.fromName?.trim();
+  return from && from !== 'You' ? from : null;
+}
+
 function WaitingCard({ items, phone = false }: { items: WaitingItem[]; phone?: boolean }) {
+  // Longest wait first, so the ones worth chasing sit at the top.
+  const sorted = [...items].sort((a, b) => b.daysWaiting - a.daysWaiting);
+  const shown = sorted.slice(0, WAITING_SHOWN);
   return (
-    <section aria-labelledby="h-wait" className={'oo-dark-card ' + (phone ? 'oo-glass-quiet' : 'oo-glass')} style={phone ? { padding: 16, gap: 10 } : undefined} data-testid="card-waiting">
-      <h2 id="h-wait" className="oo-label" style={{ fontSize: phone ? 12 : 13 }}>Waiting on</h2>
-      {items.length === 0 && <p className="oo-t2" style={{ margin: 0, fontSize: 13 }}>Nobody owes you anything right now.</p>}
-      {items.map(({ task, daysWaiting }) => {
-        const who = task.waitingOn?.name ?? task.fromName ?? 'Someone';
-        const amber = daysWaiting >= WAITING_AMBER_DAYS;
-        return (
-          <div key={task.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }} data-testid={'row-waiting-' + task.id}>
-            {!phone && <Avatar name={who} id={task.waitingOn?.id ?? who} />}
-            <div style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: phone ? 14 : 13, fontWeight: 500 }}>
-                {who} <span className={amber ? 'oo-amber' : 'oo-t3'} style={{ fontWeight: amber ? 600 : 400 }} data-testid={'text-waiting-days-' + task.id}>· {daysLabel(daysWaiting)}</span>
-              </span>
-              <span className="oo-t3" style={{ fontSize: 12 }}>{task.title}</span>
-            </div>
-            <ChaseButton task={task} who={who} />
-          </div>
-        );
-      })}
+    <section aria-labelledby="h-wait" className={'oo-dark-card ' + (phone ? 'oo-glass-quiet' : 'oo-glass')} style={{ flex: '1 1 auto', ...(phone ? { padding: 16, gap: 10 } : {}) }} data-testid="card-waiting">
+      <div className="oo-card-head">
+        <h2 id="h-wait" className="oo-label" style={{ fontSize: phone ? 12 : 13 }}>
+          Waiting on{items.length > 0 && <span className="oo-t4 oo-num" style={{ marginLeft: 8, fontWeight: 400 }}>{items.length}</span>}
+        </h2>
+        {items.length > shown.length && (
+          <Link href="/tasks?tab=waiting" className="oo-tap" data-testid="link-waiting-all">See all {items.length}</Link>
+        )}
+      </div>
+      {items.length === 0 ? (
+        <p className="oo-t2" style={{ margin: 0, fontSize: 13 }}>Nobody owes you anything right now.</p>
+      ) : (
+        <ul className="oo-wait-list">
+          {shown.map(({ task, daysWaiting }) => {
+            const who = waitingWho(task);
+            const amber = daysWaiting >= WAITING_AMBER_DAYS;
+            return (
+              <li key={task.id} className="oo-wait-row" data-testid={'row-waiting-' + task.id}>
+                {who ? <Avatar name={who} id={task.waitingOn?.id ?? who} /> : <span aria-hidden="true" className="oo-wait-mark" />}
+                <span className="oo-wait-body">
+                  <Link href={'/tasks?task=' + task.id} className="oo-wait-title oo-tap">{task.title}</Link>
+                  <span className="oo-wait-meta">
+                    {who && <>{who} · </>}
+                    <span className={amber ? 'oo-amber' : undefined} data-testid={'text-waiting-days-' + task.id}>{daysLabel(daysWaiting)}</span>
+                  </span>
+                </span>
+                <ChaseButton task={task} who={who ?? task.title} />
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </section>
   );
 }

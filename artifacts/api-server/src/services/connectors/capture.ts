@@ -142,7 +142,19 @@ export async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promi
   const [a, b, named] = await Promise.all([
     emails.size || slackIds.size ? db.select(cols).from(peopleTable).where(or(hasAnyEmail([...emails]), hasAnySlackId([...slackIds]))) : none,
     names.size ? db.select(cols).from(peopleTable).where(inArray(sql`lower(${peopleTable.name})`, [...names])) : none,
-    firsts.size ? db.select(cols).from(peopleTable).where(inArray(sql`split_part(lower(${peopleTable.name}), ' ', 1)`, [...firsts])).limit(400) : none,
+    firsts.size
+      ? db
+          .select(cols)
+          .from(peopleTable)
+          .where(
+            or(
+              inArray(sql`split_part(lower(${peopleTable.name}), ' ', 1)`, [...firsts]),
+              // The first part of an address is often the full first name: "Volodymyr" for Vova (volodymyr.t@).
+              inArray(sql`split_part(split_part(lower(${peopleTable.email}), '@', 1), '.', 1)`, [...firsts]),
+            ),
+          )
+          .limit(400)
+      : none,
   ]);
   const byEmail = new Map<string, PersonRow>();
   const bySlack = new Map<string, PersonRow>();
@@ -151,6 +163,37 @@ export async function loadPeople(units: WorkUnit[], sorted: SortedUnit[]): Promi
     if (p.slackUserId) bySlack.set(p.slackUserId, p);
   }
   return { byEmail, bySlack, byName: new Map(b.map((p) => [p.name.toLowerCase(), p])), named };
+}
+
+/** The one other person in a one-to-one exchange (a Slack DM, or a meeting or thread with one other person), if they are in People. */
+function onlyOtherPerson(u: WorkUnit, people: LoadedPeople): PersonRow | null {
+  const rowOf = (p: WorkUnit["people"][0]) => personIn(people, p) ?? (p.name ? people.byName.get(p.name.toLowerCase()) : undefined) ?? null;
+  const others = u.people.filter((p) => !rowOf(p)?.isSelf);
+  if (others.length !== 1) return null;
+  const row = rowOf(others[0]);
+  return row && !row.isSelf ? row : null;
+}
+
+/**
+ * Who a captured item is with: the asker, the person promised to, or the person Ollie waits on. Never Ollie.
+ * The sorter's name comes first (an email, a full name, or a name `personByName` fits to one person). A
+ * name that fits nobody links nobody, rather than someone else; a task then falls back to the sender. With
+ * no name, a task is with the sender, and a waiting item waits on the sender when someone else wrote it,
+ * or on the other person in a one-to-one exchange when Ollie did.
+ */
+export function itemPerson(people: LoadedPeople, u: WorkUnit, it: { type: string; person: string }, msg: WorkMessage): PersonRow | null {
+  const notSelf = (p: PersonRow | null | undefined): PersonRow | null => (p && !p.isSelf ? p : null);
+  const sender = notSelf(msg.fromMe ? null : senderOf(people, msg));
+  const hint = it.person.trim();
+  if (hint) {
+    const h = hint.toLowerCase();
+    const p = notSelf(h.includes("@") ? people.byEmail.get(h) : (people.byName.get(h) ?? personByName(people, hint)));
+    if (p) return p;
+    return it.type === "task" ? sender : null;
+  }
+  if (it.type === "task") return sender;
+  if (it.type === "waiting") return sender ?? onlyOtherPerson(u, people);
+  return null;
 }
 
 /** Active projects the AI may link items to. Confidential projects are never sent to it. */
@@ -426,11 +469,6 @@ export async function captureSorted(
   const projects = new Map(opts.choices.map((p) => [p.name.toLowerCase(), p.id]));
   const people = await loadPeople(keep, sorted);
   const taskIds: number[][] = keep.map(() => []);
-  const personFor = (hint: string): PersonRow | null => {
-    const h = hint.toLowerCase().trim();
-    if (!h) return null;
-    return (h.includes("@") ? people.byEmail.get(h) : (people.byName.get(h) ?? personByName(people, hint))) ?? null;
-  };
   const projectFor = (name: string): number | null => projects.get(name.toLowerCase().trim()) ?? null;
 
   for (const [i, u] of keep.entries()) {
@@ -473,8 +511,7 @@ export async function captureSorted(
         taskIds[i].push(same.taskId);
         continue;
       }
-      const sender = msg.fromMe ? null : senderOf(people, msg);
-      const person = personFor(it.person) ?? (it.type === "task" ? sender : null);
+      const person = itemPerson(people, u, it, msg);
       const projectId = projectFor(it.project) ?? unitProject;
       if (projectId) linkedProjects.add(projectId);
       const r = await captureTask(

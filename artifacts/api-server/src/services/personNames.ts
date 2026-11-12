@@ -8,7 +8,12 @@ export interface Named {
   id: number;
   name: string;
   isSelf?: boolean;
+  /** Main email: its first part is often the full first name, "volodymyr" for Vova (volodymyr.t@) */
+  email?: string | null;
 }
+
+/** The first part of an address, up to the first dot or underscore: "volodymyr.t@x.com" is "volodymyr". */
+const emailFirstKey = (email: string | null | undefined): string => (email ?? "").toLowerCase().split("@")[0].split(/[._]/)[0] ?? "";
 
 /** Lower case, without brackets, dots, underscores or punctuation. */
 export const nameKey = (s: string | null | undefined): string =>
@@ -48,6 +53,8 @@ export function matchName<T extends Named>(hint: string | null | undefined, peop
     const pl = pt[pt.length - 1];
     return pt.length > 1 && (pl === last || (last.length === 1 && pl.startsWith(last)));
   });
+  // A first name nobody goes by in People, but that starts someone's email: "Volodymyr" for Vova.
+  if (!found.length && ht.length === 1) return pick(pool.filter((p) => emailFirstKey(p.email) === ht[0]), opts.prefer);
   return pick(found, opts.prefer);
 }
 

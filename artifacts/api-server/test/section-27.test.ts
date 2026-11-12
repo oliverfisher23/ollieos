@@ -87,8 +87,12 @@ describe("Names", () => {
       { id: 3, name: "Paul Buxton" },
       { id: 4, name: "Paul Clarke" },
       { id: 5, name: "Ollie Fisher", isSelf: true },
+      { id: 6, name: "Vova Tatsakovych", email: "volodymyr.tatsakovych@example.com" },
     ];
     expect(matchName("Sam", people)?.id).toBe(1);
+    // A first name nobody goes by in People, but that starts someone's email.
+    expect(matchName("Volodymyr", people)?.id).toBe(6);
+    expect(matchName("Vova", people)?.id).toBe(6);
     expect(matchName("sam.hyams", people)?.id).toBe(1);
     expect(matchName("Sam Hyams (he/him)", people)?.id).toBe(1);
     expect(matchName("Sam H", people)?.id).toBe(1);
