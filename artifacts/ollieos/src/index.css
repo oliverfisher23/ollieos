@@ -385,7 +385,7 @@ body { font-family: var(--oo-font-sans); margin: 0; overflow-x: hidden; }
 .oo-mark[data-src="manual"] { background: var(--oo-src-manual-bg); color: var(--oo-src-manual-fg); }
 
 /* Logo mark */
-.oo-logo { display: inline-flex; align-items: center; justify-content: center; background: var(--oo-accent); color: var(--oo-ink); font-weight: 600; flex: none; }
+.oo-logo { display: block; flex: none; }
 
 /* Icon rail */
 .oo-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px; background: var(--oo-glass-rail); border: 1px solid var(--oo-glass-border); border-radius: 18px; backdrop-filter: blur(18px); position: sticky; top: 32px; margin-top: 32px; z-index: 10; }
