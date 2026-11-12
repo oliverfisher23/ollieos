@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { WeekCheckCard } from '@/components/time-and-meetings';
+import { BusyDayCard, WeekCheckCard } from '@/components/time-and-meetings';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -202,6 +202,7 @@ export default function HomePage() {
         <DoNextCard items={d.doNext} phone />
         <DayPlanCard phone />
         <WeekCheckCard phone />
+        <BusyDayCard phone />
         <Link href={d.inbox.count ? '/triage' : '/tasks?tab=inbox'} className="oo-dark-card oo-glass" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-inbox-phone">
           <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span className="oo-label" style={{ fontSize: 12 }}>Inbox</span>
@@ -235,6 +236,7 @@ export default function HomePage() {
         <TodayStrip events={d.today} />
         <DayPlanCard />
         <WeekCheckCard />
+        <BusyDayCard />
         <ClearOutCard />
         <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, alignItems: 'stretch' }}>
           <DoNextCard items={d.doNext} />

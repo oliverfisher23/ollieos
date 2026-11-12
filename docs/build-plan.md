@@ -1628,3 +1628,32 @@ Ollie asked for a way to stop the same piece of work turning into several tasks:
 - **Built:** `task_duplicates` (`lib/db/src/schema/tasks.ts`); `services/duplicates.ts`, `services/duplicateJudge.ts`; `GET /tasks/duplicates`, `POST /tasks/duplicates/check`, `POST /tasks/duplicates/:pairId/merge`, `POST /tasks/duplicates/:pairId/dismiss`; `alsoFrom` on tasks; `pages/duplicates.tsx`.
 - **Checked by** `test/duplicates.test.ts` (9 tests).
 - **Not included:** linking across items the same reader finds in one batch, the Claude sweep's `/ingest` routes, and a scorecard for the Duplicate check.
+
+## 27. Tasks that fit how Ollie works (asked for 12th November 2026)
+
+Ollie asked for a review of tasks. Three days of real use (109 tasks, 10th to 12th November) showed: no task was linked to a person, and no Waiting on task said who it waited on; 84 had no project; about half the finished tasks were done within 30 minutes of arriving, mostly quick Slack replies; 8 of 14 Cowork tasks were dropped, nearly all "Decide whether…" questions; one email became three tasks; and 8 tasks were due on one Friday with one of them in Now. He asked for all eleven changes below.
+
+### What exists, improved
+
+- **People on tasks.** Names now match the way messages write them: a first name ("Sam"), an initial ("Sam H"), a Slack-style name ("sam.hyams", "Sam Hyams (he/him)"). A first name alone only counts when one person has it, or one of them is in the exchange; Ollie himself is never matched. Slack gives no email for most people and few have a Slack id saved, so a Slack sender is now matched by name as a fallback (`services/personNames.ts`, `personByName` and `senderOf` in `connectors/capture.ts`). A no-AI pass, `linkPeopleToTasks` (`services/taskPeople.ts`), runs with the scheduled checks and looks at each task once (`tasks.person_checked_at`): the sender by email or name; for a Waiting on task, who its title names ("Volodymyr to set up…"); otherwise a person named in the title. It does not change `updated_at`, and a link Ollie removes is not put back.
+- **Quick Slack replies stay on Messages.** Every reader item has `quick`: all Ollie has to do is answer in a line or two. A quick Slack task whose conversation is already on Messages, To answer (`reply.needs` is "reply") makes no task as well. Connector lines say "N quick replies left on Messages".
+- **One message, one task with a checklist.** Every reader item has `steps`. A message that asks for several things that are one piece of work becomes one item whose steps are the parts, saved as the task's checklist.
+- **Cowork open questions.** `save_session` takes `open_questions`, and an action that is really a question ("Decide whether…", "Confirm if…", or ending in a question mark; `isOpenQuestion`) is moved there too. They are kept on the session (`cowork_sessions.open_questions`) and shown on its page with **Add to Inbox** and **Dismiss** (`POST /sessions/:id/questions`), instead of going to the Inbox.
+- **Project suggestions.** `GET /tasks/:id/project-suggestions` gives up to three projects for a task with none, without AI: other tasks from the same thread, Slack conversation, meeting or session; the session's projects; what the person is usually about (their other tasks and links); and a project named in the task's words. Shown as one-tap chips in Triage and under Project on the task panel.
+- **Overloaded days.** The task summary has `load`: overdue open tasks, the fullest day in the next seven (4 or more due, 3 or more of them not in Now), and Waiting on tasks ready for a chase. Tasks shows it as one line with **Show them** (the list takes `due=overdue` or a day), and Home has a **Coming up** card.
+
+### New
+
+- **Why you dropped it.** `tasks.drop_reason`: Not mine, Already done, Just FYI, Arranging a meeting, Duplicate, Not needed. Offered as one-tap chips on the Undo toast, in Triage after Drop or Noise, and on a dropped task's panel, for items a reader or AI made. The Reader coach's corrections now carry the reason. Going back to an open status forgets it.
+- **Chase nudges.** A Waiting on task has `chaseDue` three days after it started waiting (`CHASE_AFTER_DAYS`). Rows show a Chase pill; the panel asks "Time to chase Kevin?" with **Copy a chase line** and **Not yet** (`POST /tasks/:id/chase-later`), each of which waits three more days. Messaging on Slack or moving it back to Waiting restarts the wait.
+- **Group by project or person** on Tasks (`group=project|person`), with the unlinked group last. Dragging still works inside a group.
+- **Bulk changes.** **Select** on Tasks swaps grips for tick boxes and shows a bar: move to Now, Backlog, Waiting on, Done or Drop; set priority, project or due date (`POST /tasks/bulk`, up to 200, each through `updateTask` so history is kept).
+- **Stuck-task coach.** A new agent (Haiku), once a day. Without AI it finds Now and Backlog tasks whose due date moved twice or more, were snoozed twice or more, are five or more days overdue, or have sat in Now seven or more days untouched. Up to ten go to the model, which suggests one thing: a first step, splitting it, handing it to the colleague the delegation suggester named, or dropping it. The panel shows it with **Add as first step** (adds to the checklist), **Drop it** and **Not stuck**; rows show a Stuck pill. Tasks hidden from AI are never sent, and looking does not change `updated_at`.
+
+### Built
+
+- Schema: `tasks.person_checked_at`, `drop_reason`, `chase_after`, `stuck_hint`, `stuck_checked_at`, `stuck_dismissed_at`; `cowork_sessions.open_questions`.
+- `services/personNames.ts`, `taskPeople.ts`, `projectSuggest.ts`, `stuckCoach.ts`, `stuckJudge.ts`; `taskLoad`, `chaseLater` and `bulkUpdate` in `services/tasks.ts`.
+- App: `components/drop-reason.tsx`, `components/task-nudges.tsx` (project chips, chase card, stuck card), `LoadLine`, `BulkBar` and grouping in `pages/tasks.tsx`, `BusyDayCard` on Home, open questions on the session page.
+- **Checked by** `test/section-27.test.ts` (13 tests).
+- **Not included:** saving a Slack id on a person matched by name; a hold on Slack items to see whether Ollie replies first; undo for a bulk change; a scorecard for the stuck-task coach.

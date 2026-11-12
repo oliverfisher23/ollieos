@@ -23,6 +23,15 @@ The full list by tab (Inbox, Now, Backlog, Waiting on, Done, Noise). Click a tas
 - **Message on Slack.** To hand a task to a colleague or ask their view, choose who and write the message; after you confirm, OllieOS sends it to them as a Slack direct message from you, and the task moves to Waiting on them. Their reply shows on the task. Only colleagues with Slack, never anyone at an outside organisation.
 - **Could go to.** On a Now or Backlog task, OllieOS may suggest a colleague who could take it, with why. Message them opens the Slack box with a draft filled in; you still send it. Not this one removes the suggestion for good.
 - **Keep as a test case.** On an item OllieOS found that it got wrong (or right), this saves what the reader was given so a later change can be checked against it.
+- **Coming up.** A line above the list says when a day in the next week has too much due and little of it in Now, what is overdue and what is ready to chase. Show them lists just those tasks. Home has the same as a card.
+- **Select.** Select swaps the grips for tick boxes. Choose tasks, then move them to Now, Backlog, Waiting on, Done or Drop, or set their priority, project or due date in one go.
+- **Groups.** Group the list by project or by person.
+- **People.** OllieOS links each task to the person it is with: who sent it, who a Waiting on task names ("Kevin to confirm…"), or a name in the title. A first name only counts when one person has it.
+- **Project?** A task with no project offers up to three likely ones to set with one tap, in Triage and on the task panel.
+- **Why?** After you drop an item or send it to Noise, one tap says why: Not mine, Already done, Just FYI, Duplicate or Arranging a meeting. The Reader coach learns from it.
+- **Chase.** A Waiting on task shows Chase after three days. The panel offers Copy a chase line, or Not yet for three more days.
+- **Stuck.** Once a day OllieOS looks for tasks that keep slipping (due date moved, snoozed, long overdue, untouched in Now) and suggests one thing to try. Add as first step puts it on the checklist; Not stuck ends it.
+- **Quick replies and checklists.** A Slack message that only needs a line in reply stays on Messages instead of also becoming a task. A message that asks for several things becomes one task with a checklist.
 - **One task across channels.** When an email, Slack message, meeting or Cowork session is about a task you already have, it is added to that task as "Also came up" instead of making a new one. Task rows say "Also in Email, Meeting", and the task panel lists each one.
 - **Duplicates.** Tasks, Duplicates shows pairs of open tasks that look like the same work (checked once a day, or Check now). Keep this one merges them: the other goes to Dropped and where it came from shows on the one you keep. Not the same keeps both for good.
 - **Sort.** Click a column heading to sort by it; click again to flip it, and a third time to go back. On a phone, use Sort by.
@@ -60,7 +69,7 @@ Ask a question in plain words. Answers come only from what OllieOS holds, with a
 - **Clients and Internal.** Projects are listed as Clients (grouped by client) and Internal (grouped by function). A project linked to a client counts as client work; set "Kind of work" on a project to say otherwise, or use "Sort projects" in the sidebar to have the rest suggested as cards. Tasks can be filtered to client work or internal, and Where your time went shows the split.
 - **Projects, People, Organisations, Products.** Each page holds its facts, decisions, notes, documents, tasks and links. Organisations show their pulse (meetings, emails, what is owed, tone of the last meeting) and, for clients, renewal date, contract value and account health when known. People show "Next time I see…" points.
 - **Library.** Documents (add from Drive by search or link, from Dropbox, or upload), rules (how you want things written or done; each shows how often it was used) and playbooks (how your team does things, step by step; Run makes the steps into tasks for a person, organisation or project).
-- **Decisions, Notes, Sessions, Map.** Decisions and notes as lists; Cowork sessions saved by Claude; the map shows how everything connects.
+- **Decisions, Notes, Sessions, Map.** Decisions and notes as lists; Cowork sessions saved by Claude; the map shows how everything connects. A session's open questions ("Decide whether…") are kept on the session with Add to Inbox, not put in your Inbox.
 
 ## Goals, strategy and Contacts
 
