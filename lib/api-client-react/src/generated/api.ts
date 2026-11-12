@@ -136,6 +136,7 @@ import type {
   KnowledgeInbox,
   KnowledgeSettings,
   KnowledgeSettingsUpdate,
+  LaterInput,
   LearnLessonsResult,
   LibraryDocument,
   LinkInput,
@@ -167,8 +168,13 @@ import type {
   MergePersonInput,
   MergePersonResult,
   MergeSuggestionInput,
+  MessageCounts,
+  MessagesDone,
+  MessagesDoneInput,
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
+  MuteInput,
+  MuteResult,
   NoReplyScan,
   NoiseRule,
   NoiseRuleOption,
@@ -213,6 +219,7 @@ import type {
   ReaderLesson,
   ReaderLessonList,
   ReaderLessonStatusInput,
+  RefreshSlackToAnswer200,
   RejectSourceInput,
   RejectSuggestionsFromSource200,
   RelationshipInput,
@@ -247,9 +254,12 @@ import type {
   SessionListItem,
   SessionUpdate,
   SlackAccount,
+  SlackConversation,
   SlackDmInput,
   SlackDmOptions,
   SlackDmResult,
+  SlackDraftInput,
+  SlackDraftText,
   SlackReplyDraft,
   SlackToAnswer,
   StaleCheckResult,
@@ -7949,6 +7959,636 @@ export const useDismissTaskEvidence = <TError = ErrorType<NotAuthorisedResponse 
       return useMutation(getDismissTaskEvidenceMutationOptions(options), queryClient);
     }
 
+export const getGetMessageCountsUrl = () => {
+
+
+
+
+  return `/api/email/counts`
+}
+
+/**
+ * @summary Messages: how many emails and Slack messages need a reply, and how many of those have waited over a working day. For the menu.
+ */
+export const getMessageCounts = async ( options?: Parameters<typeof customFetch>[1]): Promise<MessageCounts> => {
+
+  return customFetch<MessageCounts>(getGetMessageCountsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMessageCountsQueryKey = () => {
+    return [
+    `/api/email/counts`
+    ] as const;
+    }
+
+
+export const getGetMessageCountsQueryOptions = <TData = Awaited<ReturnType<typeof getMessageCounts>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMessageCounts>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMessageCountsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMessageCounts>>> = ({ signal }) => getMessageCounts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMessageCounts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetMessageCountsQueryResult = NonNullable<Awaited<ReturnType<typeof getMessageCounts>>>
+export type GetMessageCountsQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetMessageCounts<TData = Awaited<ReturnType<typeof getMessageCounts>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMessageCounts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMessageCounts>>,
+          TError,
+          Awaited<ReturnType<typeof getMessageCounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMessageCounts<TData = Awaited<ReturnType<typeof getMessageCounts>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMessageCounts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getMessageCounts>>,
+          TError,
+          Awaited<ReturnType<typeof getMessageCounts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetMessageCounts<TData = Awaited<ReturnType<typeof getMessageCounts>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMessageCounts>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Messages: how many emails and Slack messages need a reply, and how many of those have waited over a working day. For the menu.
+ */
+
+export function useGetMessageCounts<TData = Awaited<ReturnType<typeof getMessageCounts>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMessageCounts>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetMessageCountsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMarkMessagesDoneUrl = () => {
+
+
+
+
+  return `/api/email/done-many`
+}
+
+/**
+ * @summary Mark all done: takes several emails and Slack messages off To answer at once
+ */
+export const markMessagesDone = async (messagesDoneInput: MessagesDoneInput, options?: Parameters<typeof customFetch>[1]): Promise<MessagesDone> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MessagesDone>(getMarkMessagesDoneUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(messagesDoneInput)
+  }
+);}
+
+
+
+
+
+export const getMarkMessagesDoneMutationKey = () => ['markMessagesDone'] as const;
+
+export const getMarkMessagesDoneMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markMessagesDone>>, TError,MarkMessagesDoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markMessagesDone>>, TError,MarkMessagesDoneMutationVariables, TContext> => {
+
+const mutationKey = getMarkMessagesDoneMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markMessagesDone>>, MarkMessagesDoneMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  markMessagesDone(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkMessagesDoneMutationResult = NonNullable<Awaited<ReturnType<typeof markMessagesDone>>>
+    export type MarkMessagesDoneMutationBody = BodyType<MessagesDoneInput>
+    export type MarkMessagesDoneMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type MarkMessagesDoneMutationVariables = {data: BodyType<MessagesDoneInput>}
+
+    /**
+ * @summary Mark all done: takes several emails and Slack messages off To answer at once
+ */
+export const useMarkMessagesDone = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markMessagesDone>>, TError,MarkMessagesDoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof markMessagesDone>>,
+        TError,
+        MarkMessagesDoneMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkMessagesDoneMutationOptions(options), queryClient);
+    }
+
+export const getUndoMessagesDoneUrl = () => {
+
+
+
+
+  return `/api/email/undo-done-many`
+}
+
+/**
+ * @summary Puts them back on To answer and their tasks back where they were
+ */
+export const undoMessagesDone = async (messagesDone: MessagesDone, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getUndoMessagesDoneUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(messagesDone)
+  }
+);}
+
+
+
+
+
+export const getUndoMessagesDoneMutationKey = () => ['undoMessagesDone'] as const;
+
+export const getUndoMessagesDoneMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoMessagesDone>>, TError,UndoMessagesDoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof undoMessagesDone>>, TError,UndoMessagesDoneMutationVariables, TContext> => {
+
+const mutationKey = getUndoMessagesDoneMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof undoMessagesDone>>, UndoMessagesDoneMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  undoMessagesDone(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UndoMessagesDoneMutationResult = NonNullable<Awaited<ReturnType<typeof undoMessagesDone>>>
+    export type UndoMessagesDoneMutationBody = BodyType<MessagesDone>
+    export type UndoMessagesDoneMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type UndoMessagesDoneMutationVariables = {data: BodyType<MessagesDone>}
+
+    /**
+ * @summary Puts them back on To answer and their tasks back where they were
+ */
+export const useUndoMessagesDone = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoMessagesDone>>, TError,UndoMessagesDoneMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof undoMessagesDone>>,
+        TError,
+        UndoMessagesDoneMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUndoMessagesDoneMutationOptions(options), queryClient);
+    }
+
+export const getSnoozeEmailInboxUrl = (threadId: string,) => {
+
+
+
+
+  return `/api/email/inbox/${threadId}/later`
+}
+
+/**
+ * @summary Later: hides an inbox email until a day, or until a new message arrives. A null day brings it back.
+ */
+export const snoozeEmailInbox = async (threadId: string,
+    laterInput: LaterInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getSnoozeEmailInboxUrl(threadId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(laterInput)
+  }
+);}
+
+
+
+
+
+export const getSnoozeEmailInboxMutationKey = () => ['snoozeEmailInbox'] as const;
+
+export const getSnoozeEmailInboxMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof snoozeEmailInbox>>, TError,SnoozeEmailInboxMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof snoozeEmailInbox>>, TError,SnoozeEmailInboxMutationVariables, TContext> => {
+
+const mutationKey = getSnoozeEmailInboxMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof snoozeEmailInbox>>, SnoozeEmailInboxMutationVariables> = (props) => {
+          const {threadId,data} = props ?? {};
+
+          return  snoozeEmailInbox(threadId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SnoozeEmailInboxMutationResult = NonNullable<Awaited<ReturnType<typeof snoozeEmailInbox>>>
+    export type SnoozeEmailInboxMutationBody = BodyType<LaterInput>
+    export type SnoozeEmailInboxMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SnoozeEmailInboxMutationVariables = {threadId: string;data: BodyType<LaterInput>}
+
+    /**
+ * @summary Later: hides an inbox email until a day, or until a new message arrives. A null day brings it back.
+ */
+export const useSnoozeEmailInbox = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof snoozeEmailInbox>>, TError,SnoozeEmailInboxMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof snoozeEmailInbox>>,
+        TError,
+        SnoozeEmailInboxMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSnoozeEmailInboxMutationOptions(options), queryClient);
+    }
+
+export const getRefreshSlackToAnswerUrl = () => {
+
+
+
+
+  return `/api/email/slack/refresh`
+}
+
+/**
+ * @summary Check now: looks at the listed Slack conversations again and closes those Ollie has answered
+ */
+export const refreshSlackToAnswer = async ( options?: Parameters<typeof customFetch>[1]): Promise<RefreshSlackToAnswer200> => {
+
+  return customFetch<RefreshSlackToAnswer200>(getRefreshSlackToAnswerUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRefreshSlackToAnswerMutationKey = () => ['refreshSlackToAnswer'] as const;
+
+export const getRefreshSlackToAnswerMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshSlackToAnswer>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshSlackToAnswer>>, TError,void, TContext> => {
+
+const mutationKey = getRefreshSlackToAnswerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshSlackToAnswer>>, void> = () => {
+
+
+          return  refreshSlackToAnswer(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshSlackToAnswerMutationResult = NonNullable<Awaited<ReturnType<typeof refreshSlackToAnswer>>>
+
+    export type RefreshSlackToAnswerMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Check now: looks at the listed Slack conversations again and closes those Ollie has answered
+ */
+export const useRefreshSlackToAnswer = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshSlackToAnswer>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof refreshSlackToAnswer>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRefreshSlackToAnswerMutationOptions(options), queryClient);
+    }
+
+export const getGetSlackConversationUrl = (id: number,) => {
+
+
+
+
+  return `/api/email/slack/${id}/messages`
+}
+
+/**
+ * @summary The last few messages of the conversation, oldest first, for reading on Messages. Read only.
+ */
+export const getSlackConversation = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<SlackConversation> => {
+
+  return customFetch<SlackConversation>(getGetSlackConversationUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSlackConversationQueryKey = (id: number,) => {
+    return [
+    `/api/email/slack/${id}/messages`
+    ] as const;
+    }
+
+
+export const getGetSlackConversationQueryOptions = <TData = Awaited<ReturnType<typeof getSlackConversation>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSlackConversation>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSlackConversationQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSlackConversation>>> = ({ signal }) => getSlackConversation(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSlackConversation>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetSlackConversationQueryResult = NonNullable<Awaited<ReturnType<typeof getSlackConversation>>>
+export type GetSlackConversationQueryError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+
+
+export function useGetSlackConversation<TData = Awaited<ReturnType<typeof getSlackConversation>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSlackConversation>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSlackConversation>>,
+          TError,
+          Awaited<ReturnType<typeof getSlackConversation>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSlackConversation<TData = Awaited<ReturnType<typeof getSlackConversation>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSlackConversation>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSlackConversation>>,
+          TError,
+          Awaited<ReturnType<typeof getSlackConversation>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetSlackConversation<TData = Awaited<ReturnType<typeof getSlackConversation>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSlackConversation>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary The last few messages of the conversation, oldest first, for reading on Messages. Read only.
+ */
+
+export function useGetSlackConversation<TData = Awaited<ReturnType<typeof getSlackConversation>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getSlackConversation>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetSlackConversationQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSnoozeSlackToAnswerUrl = (id: number,) => {
+
+
+
+
+  return `/api/email/slack/${id}/later`
+}
+
+/**
+ * @summary Later: hides a Slack message until a day, or until a newer message arrives. A null day brings it back.
+ */
+export const snoozeSlackToAnswer = async (id: number,
+    laterInput: LaterInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getSnoozeSlackToAnswerUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(laterInput)
+  }
+);}
+
+
+
+
+
+export const getSnoozeSlackToAnswerMutationKey = () => ['snoozeSlackToAnswer'] as const;
+
+export const getSnoozeSlackToAnswerMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof snoozeSlackToAnswer>>, TError,SnoozeSlackToAnswerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof snoozeSlackToAnswer>>, TError,SnoozeSlackToAnswerMutationVariables, TContext> => {
+
+const mutationKey = getSnoozeSlackToAnswerMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof snoozeSlackToAnswer>>, SnoozeSlackToAnswerMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  snoozeSlackToAnswer(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SnoozeSlackToAnswerMutationResult = NonNullable<Awaited<ReturnType<typeof snoozeSlackToAnswer>>>
+    export type SnoozeSlackToAnswerMutationBody = BodyType<LaterInput>
+    export type SnoozeSlackToAnswerMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SnoozeSlackToAnswerMutationVariables = {id: number;data: BodyType<LaterInput>}
+
+    /**
+ * @summary Later: hides a Slack message until a day, or until a newer message arrives. A null day brings it back.
+ */
+export const useSnoozeSlackToAnswer = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof snoozeSlackToAnswer>>, TError,SnoozeSlackToAnswerMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof snoozeSlackToAnswer>>,
+        TError,
+        SnoozeSlackToAnswerMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSnoozeSlackToAnswerMutationOptions(options), queryClient);
+    }
+
 export const getListSlackToAnswerUrl = () => {
 
 
@@ -8296,16 +8936,31 @@ export const getDraftSlackToAnswerReplyUrl = (id: number,) => {
 }
 
 /**
- * @summary Drafts a short Slack reply in Ollie's style for him to copy. Nothing is posted.
+ * @summary Drafts a short Slack reply in Ollie's style for him to copy, and keeps it so it shows on Drafts. A brief says what it should say; a change asks for the draft it has to be changed. Nothing is posted.
  */
-export const draftSlackToAnswerReply = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<SlackReplyDraft> => {
+export const draftSlackToAnswerReply = async (id: number,
+    slackDraftInput?: SlackDraftInput, options?: Parameters<typeof customFetch>[1]): Promise<SlackReplyDraft> => {
 
-  return customFetch<SlackReplyDraft>(getDraftSlackToAnswerReplyUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SlackReplyDraft>(getDraftSlackToAnswerReplyUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(slackDraftInput)
   }
 );}
 
@@ -8330,9 +8985,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof draftSlackToAnswerReply>>, DraftSlackToAnswerReplyMutationVariables> = (props) => {
-          const {id} = props ?? {};
+          const {id,data} = props ?? {};
 
-          return  draftSlackToAnswerReply(id,requestOptions)
+          return  draftSlackToAnswerReply(id,data,requestOptions)
         }
 
 
@@ -8343,12 +8998,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type DraftSlackToAnswerReplyMutationResult = NonNullable<Awaited<ReturnType<typeof draftSlackToAnswerReply>>>
-
+    export type DraftSlackToAnswerReplyMutationBody = BodyType<SlackDraftInput> | undefined
     export type DraftSlackToAnswerReplyMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
-    export type DraftSlackToAnswerReplyMutationVariables = {id: number}
+    export type DraftSlackToAnswerReplyMutationVariables = {id: number;data?: BodyType<SlackDraftInput>}
 
     /**
- * @summary Drafts a short Slack reply in Ollie's style for him to copy. Nothing is posted.
+ * @summary Drafts a short Slack reply in Ollie's style for him to copy, and keeps it so it shows on Drafts. A brief says what it should say; a change asks for the draft it has to be changed. Nothing is posted.
  */
 export const useDraftSlackToAnswerReply = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftSlackToAnswerReply>>, TError,DraftSlackToAnswerReplyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -8359,6 +9014,169 @@ export const useDraftSlackToAnswerReply = <TError = ErrorType<NotAuthorisedRespo
         TContext
       > => {
       return useMutation(getDraftSlackToAnswerReplyMutationOptions(options), queryClient);
+    }
+
+export const getSaveSlackToAnswerDraftUrl = (id: number,) => {
+
+
+
+
+  return `/api/email/slack/${id}/draft`
+}
+
+/**
+ * @summary Saves Ollie's own edits to the draft, or a reply he wrote himself
+ */
+export const saveSlackToAnswerDraft = async (id: number,
+    slackDraftText: SlackDraftText, options?: Parameters<typeof customFetch>[1]): Promise<SlackReplyDraft> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SlackReplyDraft>(getSaveSlackToAnswerDraftUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(slackDraftText)
+  }
+);}
+
+
+
+
+
+export const getSaveSlackToAnswerDraftMutationKey = () => ['saveSlackToAnswerDraft'] as const;
+
+export const getSaveSlackToAnswerDraftMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSlackToAnswerDraft>>, TError,SaveSlackToAnswerDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveSlackToAnswerDraft>>, TError,SaveSlackToAnswerDraftMutationVariables, TContext> => {
+
+const mutationKey = getSaveSlackToAnswerDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveSlackToAnswerDraft>>, SaveSlackToAnswerDraftMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  saveSlackToAnswerDraft(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveSlackToAnswerDraftMutationResult = NonNullable<Awaited<ReturnType<typeof saveSlackToAnswerDraft>>>
+    export type SaveSlackToAnswerDraftMutationBody = BodyType<SlackDraftText>
+    export type SaveSlackToAnswerDraftMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type SaveSlackToAnswerDraftMutationVariables = {id: number;data: BodyType<SlackDraftText>}
+
+    /**
+ * @summary Saves Ollie's own edits to the draft, or a reply he wrote himself
+ */
+export const useSaveSlackToAnswerDraft = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSlackToAnswerDraft>>, TError,SaveSlackToAnswerDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveSlackToAnswerDraft>>,
+        TError,
+        SaveSlackToAnswerDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveSlackToAnswerDraftMutationOptions(options), queryClient);
+    }
+
+export const getRemoveSlackToAnswerDraftUrl = (id: number,) => {
+
+
+
+
+  return `/api/email/slack/${id}/draft`
+}
+
+/**
+ * @summary Takes the draft off Drafts; the message goes back on To answer
+ */
+export const removeSlackToAnswerDraft = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getRemoveSlackToAnswerDraftUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveSlackToAnswerDraftMutationKey = () => ['removeSlackToAnswerDraft'] as const;
+
+export const getRemoveSlackToAnswerDraftMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeSlackToAnswerDraft>>, TError,RemoveSlackToAnswerDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeSlackToAnswerDraft>>, TError,RemoveSlackToAnswerDraftMutationVariables, TContext> => {
+
+const mutationKey = getRemoveSlackToAnswerDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeSlackToAnswerDraft>>, RemoveSlackToAnswerDraftMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  removeSlackToAnswerDraft(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveSlackToAnswerDraftMutationResult = NonNullable<Awaited<ReturnType<typeof removeSlackToAnswerDraft>>>
+
+    export type RemoveSlackToAnswerDraftMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type RemoveSlackToAnswerDraftMutationVariables = {id: number}
+
+    /**
+ * @summary Takes the draft off Drafts; the message goes back on To answer
+ */
+export const useRemoveSlackToAnswerDraft = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeSlackToAnswerDraft>>, TError,RemoveSlackToAnswerDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeSlackToAnswerDraft>>,
+        TError,
+        RemoveSlackToAnswerDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRemoveSlackToAnswerDraftMutationOptions(options), queryClient);
     }
 
 export const getGetEmailThreadUrl = (threadId: string,) => {
@@ -9102,6 +9920,94 @@ export function useListNoiseRules<TData = Awaited<ReturnType<typeof listNoiseRul
 
 
 
+
+export const getMuteFromMessagesUrl = () => {
+
+
+
+
+  return `/api/noise-rules`
+}
+
+/**
+ * @summary Mute from Messages: stop showing a sender's email or a Slack channel's mentions. Makes the rule, or turns the existing one back on.
+ */
+export const muteFromMessages = async (muteInput: MuteInput, options?: Parameters<typeof customFetch>[1]): Promise<MuteResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MuteResult>(getMuteFromMessagesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(muteInput)
+  }
+);}
+
+
+
+
+
+export const getMuteFromMessagesMutationKey = () => ['muteFromMessages'] as const;
+
+export const getMuteFromMessagesMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof muteFromMessages>>, TError,MuteFromMessagesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof muteFromMessages>>, TError,MuteFromMessagesMutationVariables, TContext> => {
+
+const mutationKey = getMuteFromMessagesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof muteFromMessages>>, MuteFromMessagesMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  muteFromMessages(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MuteFromMessagesMutationResult = NonNullable<Awaited<ReturnType<typeof muteFromMessages>>>
+    export type MuteFromMessagesMutationBody = BodyType<MuteInput>
+    export type MuteFromMessagesMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type MuteFromMessagesMutationVariables = {data: BodyType<MuteInput>}
+
+    /**
+ * @summary Mute from Messages: stop showing a sender's email or a Slack channel's mentions. Makes the rule, or turns the existing one back on.
+ */
+export const useMuteFromMessages = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof muteFromMessages>>, TError,MuteFromMessagesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof muteFromMessages>>,
+        TError,
+        MuteFromMessagesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMuteFromMessagesMutationOptions(options), queryClient);
+    }
 
 export const getUpdateNoiseRuleUrl = (id: number,) => {
 

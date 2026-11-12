@@ -1766,6 +1766,124 @@ paths:
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
+  /email/counts:
+    get:
+      operationId: getMessageCounts
+      tags: [email]
+      summary: "Messages: how many emails and Slack messages need a reply, and how many of those have waited over a working day. For the menu."
+      responses:
+        "200":
+          description: The counts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessageCounts" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /email/done-many:
+    post:
+      operationId: markMessagesDone
+      tags: [email]
+      summary: "Mark all done: takes several emails and Slack messages off To answer at once"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MessagesDoneInput" }
+      responses:
+        "200":
+          description: What was changed, for Undo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MessagesDone" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /email/undo-done-many:
+    post:
+      operationId: undoMessagesDone
+      tags: [email]
+      summary: Puts them back on To answer and their tasks back where they were
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MessagesDone" }
+      responses:
+        "204":
+          description: Back on To answer
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /email/inbox/{threadId}/later:
+    post:
+      operationId: snoozeEmailInbox
+      tags: [email]
+      summary: "Later: hides an inbox email until a day, or until a new message arrives. A null day brings it back."
+      parameters:
+        - $ref: "#/components/parameters/ThreadId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LaterInput" }
+      responses:
+        "204":
+          description: Saved
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /email/slack/refresh:
+    post:
+      operationId: refreshSlackToAnswer
+      tags: [email]
+      summary: "Check now: looks at the listed Slack conversations again and closes those Ollie has answered"
+      responses:
+        "200":
+          description: How many were closed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [closed]
+                properties:
+                  closed: { type: integer }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /email/slack/{id}/messages:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      operationId: getSlackConversation
+      tags: [email]
+      summary: The last few messages of the conversation, oldest first, for reading on Messages. Read only.
+      responses:
+        "200":
+          description: The conversation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackConversation" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /email/slack/{id}/later:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: snoozeSlackToAnswer
+      tags: [email]
+      summary: "Later: hides a Slack message until a day, or until a newer message arrives. A null day brings it back."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LaterInput" }
+      responses:
+        "204":
+          description: Saved
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /email/slack:
     get:
       operationId: listSlackToAnswer
@@ -1836,7 +1954,12 @@ paths:
     post:
       operationId: draftSlackToAnswerReply
       tags: [email]
-      summary: Drafts a short Slack reply in Ollie's style for him to copy. Nothing is posted.
+      summary: "Drafts a short Slack reply in Ollie's style for him to copy, and keeps it so it shows on Drafts. A brief says what it should say; a change asks for the draft it has to be changed. Nothing is posted."
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SlackDraftInput" }
       responses:
         "200":
           description: Draft
@@ -1847,6 +1970,32 @@ paths:
         "404": { $ref: "#/components/responses/Error" }
         "409": { $ref: "#/components/responses/Error" }
         "502": { $ref: "#/components/responses/Error" }
+    put:
+      operationId: saveSlackToAnswerDraft
+      tags: [email]
+      summary: Saves Ollie's own edits to the draft, or a reply he wrote himself
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SlackDraftText" }
+      responses:
+        "200":
+          description: The draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackReplyDraft" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: removeSlackToAnswerDraft
+      tags: [email]
+      summary: Takes the draft off Drafts; the message goes back on To answer
+      responses:
+        "204":
+          description: Removed
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
 
   /email/threads/{threadId}:
     get:
@@ -2065,6 +2214,29 @@ paths:
                   $ref: "#/components/schemas/NoiseRule"
         "403":
           $ref: "#/components/responses/NotAuthorised"
+
+    post:
+      operationId: muteFromMessages
+      tags: [noise]
+      summary: "Mute from Messages: stop showing a sender's email or a Slack channel's mentions. Makes the rule, or turns the existing one back on."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MuteInput" }
+      responses:
+        "200":
+          description: The rule was already on
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MuteResult" }
+        "201":
+          description: The rule, now on
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MuteResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
 
   /noise-rules/{id}:
     patch:
@@ -5764,7 +5936,7 @@ components:
 
     HomeSummary:
       type: object
-      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access, knowledgeInbox, digestDate, ideasDue, slackToAnswer, connectorWarnings]
+      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access, knowledgeInbox, digestDate, ideasDue, slackToAnswer, emailToAnswer, connectorWarnings]
       properties:
         connectorWarnings:
           type: array
@@ -5776,6 +5948,7 @@ components:
               key: { type: string }
               text: { type: string }
         slackToAnswer: { type: integer, description: "Slack messages that need a reply and have waited over a working day (Part P)" }
+        emailToAnswer: { type: integer, description: "Emails that need a reply and have waited over a working day, as of the last look at Gmail" }
         ideasDue:
           type: array
           description: Ideas set to come back to on or before today
@@ -6657,7 +6830,7 @@ components:
         attachments: { type: array, items: { $ref: "#/components/schemas/EmailAttachment" } }
     EmailInboxItem:
       type: object
-      required: [threadId, messageId, subject, fromName, fromEmail, at, snippet, unread, messages, taskId, gmailUrl, needs, ask]
+      required: [threadId, messageId, subject, fromName, fromEmail, at, snippet, unread, messages, taskId, gmailUrl, needs, ask, snoozedUntil, personId, personSlug, priority]
       properties:
         threadId: { type: string }
         messageId: { type: string, description: The newest message }
@@ -6675,6 +6848,10 @@ components:
           enum: [reply, info, checking, unknown]
           description: "Needs a reply, for information, not read yet, or not read by AI (hidden from it, or reading failed)"
         ask: { type: [string, "null"], description: One line on what the sender wants }
+        snoozedUntil: { type: [string, "null"], format: date, description: "Later: the day it comes back, while it is hidden" }
+        personId: { type: [integer, "null"], description: "The sender in People, when they are there" }
+        personSlug: { type: [string, "null"] }
+        priority: { type: [string, "null"], description: "Why it comes first: Client, or Overdue to contact" }
     EmailInbox:
       type: object
       required: [items, more, leftOut, checkedAt, updating, problem]
@@ -7231,8 +7408,9 @@ components:
             pending: { type: integer }
     SlackToAnswer:
       type: object
-      required: [items, readBy, checkedAt]
+      required: [items, updating, readBy, checkedAt]
       properties:
+        updating: { type: boolean, description: The conversations listed are being looked at again }
         items:
           type: array
           items:
@@ -7241,7 +7419,7 @@ components:
         checkedAt: { type: [string, "null"], format: date-time, description: When the last good Slack check finished }
     SlackToAnswerItem:
       type: object
-      required: [id, kind, place, fromName, personId, personSlug, text, at, url, needs, ask, hidden, taskId]
+      required: [id, kind, place, fromName, personId, personSlug, text, at, url, needs, ask, hidden, taskId, draft, snoozedUntil, priority]
       properties:
         id: { type: integer }
         kind: { type: string, description: "im, mpim or channel" }
@@ -7249,18 +7427,113 @@ components:
         fromName: { type: [string, "null"] }
         personId: { type: [integer, "null"] }
         personSlug: { type: [string, "null"] }
-        text: { type: string, description: The message, first 300 characters }
+        text: { type: string, description: The message, first 800 characters }
         at: { type: string, format: date-time }
         url: { type: string, description: The message in Slack }
         needs: { type: string, enum: [reply, info, unknown], description: "Needs a reply, for information, or not read by AI" }
         ask: { type: [string, "null"], description: One line on what they want }
         hidden: { type: boolean, description: "Someone in it is hidden from AI, so it was not read and cannot be drafted" }
         taskId: { type: [integer, "null"], description: "The open task for it, when there is one" }
+        draft:
+          description: "The reply drafted for it, when there is one: it is on Drafts, not To answer"
+          oneOf:
+            - $ref: "#/components/schemas/SlackReplyDraft"
+            - type: "null"
+        snoozedUntil: { type: [string, "null"], format: date, description: "Later: the day it comes back, while it is hidden" }
+        priority: { type: [string, "null"], description: "Why it comes first: Client, or Overdue to contact" }
     SlackReplyDraft:
       type: object
-      required: [text]
+      required: [text, brief, updatedAt]
       properties:
         text: { type: string }
+        brief: { type: [string, "null"], description: What Ollie asked it to say }
+        updatedAt: { type: string, format: date-time }
+    SlackDraftInput:
+      type: object
+      additionalProperties: false
+      properties:
+        brief: { type: [string, "null"], maxLength: 500, description: What the reply should say }
+        change: { type: [string, "null"], maxLength: 500, description: "What to change about the draft it has: shorter, warmer" }
+    SlackConversation:
+      type: object
+      required: [fromSlack, messages]
+      properties:
+        fromSlack: { type: boolean, description: "False when Slack could not be read, so only the saved message is given" }
+        messages:
+          type: array
+          items:
+            type: object
+            required: [fromName, fromOllie, at, text]
+            properties:
+              fromName: { type: string }
+              fromOllie: { type: boolean }
+              at: { type: string, format: date-time }
+              text: { type: string }
+    LaterInput:
+      type: object
+      additionalProperties: false
+      required: [until]
+      properties:
+        until: { type: [string, "null"], format: date, description: "The day it comes back, after today; null brings it back now" }
+    MessageCounts:
+      type: object
+      required: [needsReply, overdue, emailsOverdue, slackOverdue]
+      properties:
+        needsReply: { type: integer, description: Emails and Slack messages under Needs a reply on To answer }
+        overdue: { type: integer, description: Those that have waited over one working day }
+        emailsOverdue: { type: integer }
+        slackOverdue: { type: integer }
+    MessagesDoneInput:
+      type: object
+      additionalProperties: false
+      required: [threadIds, slackIds]
+      properties:
+        threadIds: { type: array, items: { type: string } }
+        slackIds: { type: array, items: { type: integer } }
+    MessagesDone:
+      type: object
+      additionalProperties: false
+      required: [emails, slack]
+      properties:
+        emails:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [threadId, taskId, previousStatus]
+            properties:
+              threadId: { type: string }
+              taskId: { type: [integer, "null"] }
+              previousStatus: { type: [string, "null"], enum: [inbox, now, backlog, waiting, null] }
+        slack:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, taskId, previousStatus]
+            properties:
+              id: { type: integer }
+              taskId: { type: [integer, "null"] }
+              previousStatus: { type: [string, "null"], enum: [inbox, now, backlog, waiting, null] }
+    SlackDraftText:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text: { type: string, maxLength: 4000 }
+    MuteInput:
+      type: object
+      additionalProperties: false
+      required: [matchType, matchValue]
+      properties:
+        matchType: { type: string, enum: [from_address_equals, slack_channel_equals] }
+        matchValue: { type: string, maxLength: 200 }
+    MuteResult:
+      type: object
+      required: [rule, created]
+      properties:
+        rule: { $ref: "#/components/schemas/NoiseRule" }
+        created: { type: boolean, description: "False when the rule was already on" }
     EmailInboxTask:
       type: object
       required: [taskId]
@@ -7642,11 +7915,12 @@ components:
 
     ReviewItem:
       type: object
-      required: [id, kind, state, text, action, quote, meetingTitle, meetingAt, sourceUrl, email, reason, expectedBy, due, suggestedType, owner, person, project, dueDate, priority, confidential, taskId, createdAt, decidedAt]
+      required: [id, kind, state, via, text, action, quote, meetingTitle, meetingAt, sourceUrl, email, reason, expectedBy, due, suggestedType, owner, person, project, dueDate, priority, confidential, taskId, createdAt, decidedAt]
       properties:
         id: { type: integer }
         kind: { type: string, enum: [action, no_reply], description: "action: from a Granola look back; no_reply: an email Ollie sent that nobody answered" }
         state: { type: string, enum: [pending, accepted, done, dropped, answered], description: answered means someone wrote back before Ollie decided }
+        via: { type: string, enum: [meeting, email, slack], description: "Where it came from: a meeting's notes, an email Ollie sent, or a Slack message he sent" }
         text: { type: string, description: "The action, or for an unanswered email the ask: who owes what" }
         action: { type: [string, "null"], description: "The next step (or chase line), in one sentence" }
         quote: { type: [string, "null"], description: The line in the notes or email it came from }
