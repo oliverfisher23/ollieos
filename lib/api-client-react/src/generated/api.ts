@@ -129,6 +129,7 @@ import type {
   KnowledgeInbox,
   KnowledgeSettings,
   KnowledgeSettingsUpdate,
+  LearnLessonsResult,
   LibraryDocument,
   LinkInput,
   LinkResult,
@@ -200,6 +201,9 @@ import type {
   QuickAddInput,
   QuickAddResult,
   QuietDaysInput,
+  ReaderLesson,
+  ReaderLessonList,
+  ReaderLessonStatusInput,
   RejectSourceInput,
   RejectSuggestionsFromSource200,
   RelationshipInput,
@@ -4246,6 +4250,344 @@ export function useListEmailInbox<TData = Awaited<ReturnType<typeof listEmailInb
 
 
 
+
+export const getListReaderLessonsUrl = () => {
+
+
+
+
+  return `/api/lessons`
+}
+
+/**
+ * @summary Lessons for the readers, learned from Ollie's corrections (section 24)
+ */
+export const listReaderLessons = async ( options?: Parameters<typeof customFetch>[1]): Promise<ReaderLessonList> => {
+
+  return customFetch<ReaderLessonList>(getListReaderLessonsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReaderLessonsQueryKey = () => {
+    return [
+    `/api/lessons`
+    ] as const;
+    }
+
+
+export const getListReaderLessonsQueryOptions = <TData = Awaited<ReturnType<typeof listReaderLessons>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReaderLessons>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReaderLessonsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReaderLessons>>> = ({ signal }) => listReaderLessons({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReaderLessons>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListReaderLessonsQueryResult = NonNullable<Awaited<ReturnType<typeof listReaderLessons>>>
+export type ListReaderLessonsQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListReaderLessons<TData = Awaited<ReturnType<typeof listReaderLessons>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReaderLessons>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReaderLessons>>,
+          TError,
+          Awaited<ReturnType<typeof listReaderLessons>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReaderLessons<TData = Awaited<ReturnType<typeof listReaderLessons>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReaderLessons>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listReaderLessons>>,
+          TError,
+          Awaited<ReturnType<typeof listReaderLessons>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListReaderLessons<TData = Awaited<ReturnType<typeof listReaderLessons>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReaderLessons>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Lessons for the readers, learned from Ollie's corrections (section 24)
+ */
+
+export function useListReaderLessons<TData = Awaited<ReturnType<typeof listReaderLessons>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listReaderLessons>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListReaderLessonsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getLearnReaderLessonsUrl = () => {
+
+
+
+
+  return `/api/lessons/learn`
+}
+
+/**
+ * @summary Run the reader coach and card coach now
+ */
+export const learnReaderLessons = async ( options?: Parameters<typeof customFetch>[1]): Promise<LearnLessonsResult> => {
+
+  return customFetch<LearnLessonsResult>(getLearnReaderLessonsUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getLearnReaderLessonsMutationKey = () => ['learnReaderLessons'] as const;
+
+export const getLearnReaderLessonsMutationOptions = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof learnReaderLessons>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof learnReaderLessons>>, TError,void, TContext> => {
+
+const mutationKey = getLearnReaderLessonsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof learnReaderLessons>>, void> = () => {
+
+
+          return  learnReaderLessons(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LearnReaderLessonsMutationResult = NonNullable<Awaited<ReturnType<typeof learnReaderLessons>>>
+
+    export type LearnReaderLessonsMutationError = ErrorType<NotAuthorisedResponse>
+
+
+    /**
+ * @summary Run the reader coach and card coach now
+ */
+export const useLearnReaderLessons = <TError = ErrorType<NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof learnReaderLessons>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof learnReaderLessons>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getLearnReaderLessonsMutationOptions(options), queryClient);
+    }
+
+export const getSetReaderLessonStatusUrl = (id: number,) => {
+
+
+
+
+  return `/api/lessons/${id}`
+}
+
+/**
+ * @summary Turn a lesson on or off, or say no to a proposed one
+ */
+export const setReaderLessonStatus = async (id: number,
+    readerLessonStatusInput: ReaderLessonStatusInput, options?: Parameters<typeof customFetch>[1]): Promise<ReaderLesson> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReaderLesson>(getSetReaderLessonStatusUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(readerLessonStatusInput)
+  }
+);}
+
+
+
+
+
+export const getSetReaderLessonStatusMutationKey = () => ['setReaderLessonStatus'] as const;
+
+export const getSetReaderLessonStatusMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setReaderLessonStatus>>, TError,SetReaderLessonStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setReaderLessonStatus>>, TError,SetReaderLessonStatusMutationVariables, TContext> => {
+
+const mutationKey = getSetReaderLessonStatusMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setReaderLessonStatus>>, SetReaderLessonStatusMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setReaderLessonStatus(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetReaderLessonStatusMutationResult = NonNullable<Awaited<ReturnType<typeof setReaderLessonStatus>>>
+    export type SetReaderLessonStatusMutationBody = BodyType<ReaderLessonStatusInput>
+    export type SetReaderLessonStatusMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SetReaderLessonStatusMutationVariables = {id: number;data: BodyType<ReaderLessonStatusInput>}
+
+    /**
+ * @summary Turn a lesson on or off, or say no to a proposed one
+ */
+export const useSetReaderLessonStatus = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setReaderLessonStatus>>, TError,SetReaderLessonStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setReaderLessonStatus>>,
+        TError,
+        SetReaderLessonStatusMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetReaderLessonStatusMutationOptions(options), queryClient);
+    }
+
+export const getTryReaderLessonUrl = (id: number,) => {
+
+
+
+
+  return `/api/lessons/${id}/try`
+}
+
+/**
+ * @summary Try a lesson against its reader's test cases, with and without it; nothing is recorded on the cases
+ */
+export const tryReaderLesson = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<ReaderLesson> => {
+
+  return customFetch<ReaderLesson>(getTryReaderLessonUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTryReaderLessonMutationKey = () => ['tryReaderLesson'] as const;
+
+export const getTryReaderLessonMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tryReaderLesson>>, TError,TryReaderLessonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof tryReaderLesson>>, TError,TryReaderLessonMutationVariables, TContext> => {
+
+const mutationKey = getTryReaderLessonMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof tryReaderLesson>>, TryReaderLessonMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  tryReaderLesson(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TryReaderLessonMutationResult = NonNullable<Awaited<ReturnType<typeof tryReaderLesson>>>
+
+    export type TryReaderLessonMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type TryReaderLessonMutationVariables = {id: number}
+
+    /**
+ * @summary Try a lesson against its reader's test cases, with and without it; nothing is recorded on the cases
+ */
+export const useTryReaderLesson = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof tryReaderLesson>>, TError,TryReaderLessonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof tryReaderLesson>>,
+        TError,
+        TryReaderLessonMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTryReaderLessonMutationOptions(options), queryClient);
+    }
 
 export const getListAgentsUrl = () => {
 

@@ -1098,6 +1098,71 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
 
+  /lessons:
+    get:
+      operationId: listReaderLessons
+      tags: [agents]
+      summary: "Lessons for the readers, learned from Ollie's corrections (section 24)"
+      responses:
+        "200":
+          description: Lessons
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReaderLessonList" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /lessons/learn:
+    post:
+      operationId: learnReaderLessons
+      tags: [agents]
+      summary: Run the reader coach and card coach now
+      responses:
+        "200":
+          description: What each coach did
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LearnLessonsResult" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /lessons/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    patch:
+      operationId: setReaderLessonStatus
+      tags: [agents]
+      summary: Turn a lesson on or off, or say no to a proposed one
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReaderLessonStatusInput" }
+      responses:
+        "200":
+          description: The lesson
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReaderLesson" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /lessons/{id}/try:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: tryReaderLesson
+      tags: [agents]
+      summary: "Try a lesson against its reader's test cases, with and without it; nothing is recorded on the cases"
+      responses:
+        "200":
+          description: The lesson with its last try
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReaderLesson" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /agents:
     get:
       operationId: listAgents
@@ -7322,6 +7387,70 @@ components:
             hidden: { type: integer, description: Items left out because they are hidden from AI }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+
+    ReaderLesson:
+      type: object
+      required: [id, reader, readerName, about, text, why, examples, evidence, learnedBy, learnedByName, status, createdAt, decidedAt, lastTry]
+      properties:
+        id: { type: integer }
+        reader: { type: string, enum: [gmail_sorter, slack_sorter, granola_reader] }
+        readerName: { type: string }
+        about: { type: string, enum: [tasks, knowledge] }
+        text: { type: string }
+        why: { type: string }
+        examples: { type: array, items: { type: string } }
+        evidence: { type: integer, description: How many corrections back it }
+        learnedBy: { type: string }
+        learnedByName: { type: string }
+        status: { type: string, enum: [proposed, on, off, rejected] }
+        createdAt: { type: string, format: date-time }
+        decidedAt: { type: [string, "null"], format: date-time }
+        lastTry:
+          oneOf:
+            - type: object
+              required: [at, passed, total, without]
+              properties:
+                at: { type: string }
+                passed: { type: integer }
+                total: { type: integer }
+                without: { type: [integer, "null"], description: Cases passed without the lesson; null when it was already on }
+            - type: "null"
+
+    ReaderLessonList:
+      type: object
+      required: [lessons, maxOn, lastRun]
+      properties:
+        lessons: { type: array, items: { $ref: "#/components/schemas/ReaderLesson" } }
+        maxOn: { type: integer }
+        lastRun:
+          type: object
+          required: [tasks, knowledge]
+          properties:
+            tasks: { type: [string, "null"], format: date-time }
+            knowledge: { type: [string, "null"], format: date-time }
+
+    ReaderLessonStatusInput:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [on, off, rejected] }
+
+    LearnLessonsResult:
+      type: object
+      required: [results, failed]
+      properties:
+        failed: { type: boolean }
+        results:
+          type: array
+          items:
+            type: object
+            required: [reader, corrections, proposed]
+            properties:
+              reader: { type: string }
+              corrections: { type: integer }
+              proposed: { type: integer }
+              skipped: { type: string }
 
     PresortHint:
       type: object

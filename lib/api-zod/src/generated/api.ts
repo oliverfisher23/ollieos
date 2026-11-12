@@ -2758,6 +2758,117 @@ export const ListEmailInboxResponse = zod.object({
 
 
 /**
+ * @summary Lessons for the readers, learned from Ollie's corrections (section 24)
+ */
+export const ListReaderLessonsResponse = zod.object({
+  "lessons": zod.array(zod.object({
+  "id": zod.int(),
+  "reader": zod.enum(['gmail_sorter', 'slack_sorter', 'granola_reader']),
+  "readerName": zod.string(),
+  "about": zod.enum(['tasks', 'knowledge']),
+  "text": zod.string(),
+  "why": zod.string(),
+  "examples": zod.array(zod.string()),
+  "evidence": zod.int().describe('How many corrections back it'),
+  "learnedBy": zod.string(),
+  "learnedByName": zod.string(),
+  "status": zod.enum(['proposed', 'on', 'off', 'rejected']),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "lastTry": zod.union([zod.object({
+  "at": zod.string(),
+  "passed": zod.int(),
+  "total": zod.int(),
+  "without": zod.int().nullable().describe('Cases passed without the lesson; null when it was already on')
+}),zod.null()])
+})),
+  "maxOn": zod.int(),
+  "lastRun": zod.object({
+  "tasks": zod.coerce.date().nullable(),
+  "knowledge": zod.coerce.date().nullable()
+})
+})
+
+
+/**
+ * @summary Run the reader coach and card coach now
+ */
+export const LearnReaderLessonsResponse = zod.object({
+  "failed": zod.boolean(),
+  "results": zod.array(zod.object({
+  "reader": zod.string(),
+  "corrections": zod.int(),
+  "proposed": zod.int(),
+  "skipped": zod.string().optional()
+}))
+})
+
+
+/**
+ * @summary Turn a lesson on or off, or say no to a proposed one
+ */
+export const SetReaderLessonStatusParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const SetReaderLessonStatusBody = zod.object({
+  "status": zod.enum(['on', 'off', 'rejected'])
+})
+
+export const SetReaderLessonStatusResponse = zod.object({
+  "id": zod.int(),
+  "reader": zod.enum(['gmail_sorter', 'slack_sorter', 'granola_reader']),
+  "readerName": zod.string(),
+  "about": zod.enum(['tasks', 'knowledge']),
+  "text": zod.string(),
+  "why": zod.string(),
+  "examples": zod.array(zod.string()),
+  "evidence": zod.int().describe('How many corrections back it'),
+  "learnedBy": zod.string(),
+  "learnedByName": zod.string(),
+  "status": zod.enum(['proposed', 'on', 'off', 'rejected']),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "lastTry": zod.union([zod.object({
+  "at": zod.string(),
+  "passed": zod.int(),
+  "total": zod.int(),
+  "without": zod.int().nullable().describe('Cases passed without the lesson; null when it was already on')
+}),zod.null()])
+})
+
+
+/**
+ * @summary Try a lesson against its reader's test cases, with and without it; nothing is recorded on the cases
+ */
+export const TryReaderLessonParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const TryReaderLessonResponse = zod.object({
+  "id": zod.int(),
+  "reader": zod.enum(['gmail_sorter', 'slack_sorter', 'granola_reader']),
+  "readerName": zod.string(),
+  "about": zod.enum(['tasks', 'knowledge']),
+  "text": zod.string(),
+  "why": zod.string(),
+  "examples": zod.array(zod.string()),
+  "evidence": zod.int().describe('How many corrections back it'),
+  "learnedBy": zod.string(),
+  "learnedByName": zod.string(),
+  "status": zod.enum(['proposed', 'on', 'off', 'rejected']),
+  "createdAt": zod.coerce.date(),
+  "decidedAt": zod.coerce.date().nullable(),
+  "lastTry": zod.union([zod.object({
+  "at": zod.string(),
+  "passed": zod.int(),
+  "total": zod.int(),
+  "without": zod.int().nullable().describe('Cases passed without the lesson; null when it was already on')
+}),zod.null()])
+})
+
+
+/**
  * @summary Every AI agent in OllieOS with its runs, estimated cost, speed and errors over the last 7 days, and every connected AI (Part V)
  */
 export const ListAgentsResponse = zod.object({

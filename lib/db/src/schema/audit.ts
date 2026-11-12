@@ -173,5 +173,43 @@ export const writerScoresTable = pgTable(
   (t) => [uniqueIndex("writer_scores_subject_kind_idx").on(t.subject, t.kind), index("writer_scores_agent_at_idx").on(t.agent, t.at)],
 );
 
+/**
+ * Section 24: lessons for the readers. A short instruction the Gmail, Slack or Granola reader
+ * follows, learned from Ollie's corrections by the reader coach (tasks) or the card coach
+ * (Knowledge Inbox cards). Proposed lessons do nothing until Ollie turns them on.
+ */
+export const LESSON_READERS = ["gmail_sorter", "slack_sorter", "granola_reader"] as const;
+export type LessonReader = (typeof LESSON_READERS)[number];
+export type LessonStatus = "proposed" | "on" | "off" | "rejected";
+
+export const readerLessonsTable = pgTable(
+  "reader_lessons",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    reader: text("reader").$type<LessonReader>().notNull(),
+    /** tasks: what to make Inbox items of and how; knowledge: what to propose as cards */
+    about: text("about").$type<"tasks" | "knowledge">().notNull(),
+    /** The instruction itself, as the reader is given it */
+    text: text("text").notNull(),
+    /** Lower-case, single-spaced text, so the same lesson is not proposed twice */
+    normalisedText: text("normalised_text").notNull(),
+    /** One line on what it was learned from */
+    why: text("why").notNull(),
+    /** Up to three of the corrections behind it, as shown to Ollie */
+    examples: jsonb("examples").$type<string[]>().notNull().default([]),
+    /** How many corrections back it */
+    evidence: integer("evidence").notNull(),
+    /** reader_coach or card_coach */
+    learnedBy: text("learned_by").notNull(),
+    status: text("status").$type<LessonStatus>().notNull().default("proposed"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    /** The last time it was tried against the reader's test cases: with it, and as things stood without it */
+    lastTry: jsonb("last_try").$type<{ at: string; passed: number; total: number; without: number | null } | null>(),
+  },
+  (t) => [index("reader_lessons_reader_idx").on(t.reader, t.status)],
+);
+
+export type ReaderLesson = typeof readerLessonsTable.$inferSelect;
 export type EvalCase = typeof evalCasesTable.$inferSelect;
 export type WriterScore = typeof writerScoresTable.$inferSelect;

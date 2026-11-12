@@ -5,7 +5,7 @@
  * all count against the agent that made it.
  */
 import { and, eq, gte, isNull, lt, sql, type SQL } from "drizzle-orm";
-import { db, factReviewsTable, reviewItemsTable, suggestionsTable, taskEvidenceTable, tasksTable } from "@workspace/db";
+import { db, factReviewsTable, readerLessonsTable, reviewItemsTable, suggestionsTable, taskEvidenceTable, tasksTable } from "@workspace/db";
 import type { AgentKey } from "../lib/agents";
 import { DOCUMENT_PROPOSER } from "./documents/counts";
 import { PRODUCT_USER_ACTOR } from "./productUsers";
@@ -197,6 +197,21 @@ const delegations: Spec["count"] = async (start, end) => {
   return { kept: n(r?.kept), undone: n(r?.undone), waiting: n(r?.waiting) };
 };
 
+/** Section 24: a coach's lessons; kept when Ollie turned one on and left it on, undone when he said no or turned it off. */
+function lessonsBy(learnedBy: "reader_coach" | "card_coach"): Spec["count"] {
+  return async (start, end) => {
+    const [r] = await db
+      .select({
+        kept: sql<number>`count(*) filter (where ${readerLessonsTable.status} = 'on')`,
+        undone: sql<number>`count(*) filter (where ${readerLessonsTable.status} in ('rejected','off'))`,
+        waiting: sql<number>`count(*) filter (where ${readerLessonsTable.status} = 'proposed')`,
+      })
+      .from(readerLessonsTable)
+      .where(and(eq(readerLessonsTable.learnedBy, learnedBy), gte(readerLessonsTable.createdAt, start), lt(readerLessonsTable.createdAt, end)));
+    return { kept: n(r?.kept), undone: n(r?.undone), waiting: n(r?.waiting) };
+  };
+}
+
 const SPECS: Spec[] = [
   { key: "gmail_tasks", agent: "gmail_sorter", label: "Inbox items kept", count: tasksFrom("email") },
   { key: "gmail_cards", agent: "gmail_sorter", label: "Knowledge cards approved", count: cardsFrom("Gmail check") },
@@ -220,6 +235,8 @@ const SPECS: Spec[] = [
   { key: "presort", agent: "presorter", label: "Hints you agreed with", count: presortHints },
   { key: "stale_evidence", agent: "stale_checker", label: "Findings you agreed with", count: staleFindings },
   { key: "delegation", agent: "delegation", label: "Suggestions you sent", count: delegations },
+  { key: "reader_lessons", agent: "reader_coach", label: "Lessons you turned on", count: lessonsBy("reader_coach") },
+  { key: "card_lessons", agent: "card_coach", label: "Lessons you turned on", count: lessonsBy("card_coach") },
 ];
 
 /** Every measure for the week to `now`, with last week's rate beside it. */

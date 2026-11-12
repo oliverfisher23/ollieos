@@ -20,6 +20,7 @@ import { propose, type Proposal } from "../suggestions";
 import { applyProgress, cleanProgress, openItemsFor, openItemsBlock, type ProgressCounts } from "../taskEvidence";
 import { proposeSignature, proposeWorksAt, recordTogether } from "../peopleSignals";
 import { addSpottedIdea } from "../strategy";
+import { lessonsFor } from "../readerLessons";
 import type { WorkMessage, WorkUnit } from "./messages";
 import type { AgentKey } from "../../lib/agents";
 import { sortUnits, type KnownNames, type SortedClaim, type SortedUnit } from "./sorter";
@@ -306,6 +307,8 @@ export async function sortAndCapture(
     readKnowledge: (i) => readable[i],
     agent: ctx.agent,
     openItems: (i) => blocks[i] ?? null,
+    // Section 24: the lessons Ollie turned on for this reader.
+    lessons: await lessonsFor(ctx.agent),
   });
   await captureSorted(keep, sorted, { choices, rules, applyNoise: true, counts });
   const progress: ProgressCounts = { closed: 0, looks_done: 0, progress: 0 };

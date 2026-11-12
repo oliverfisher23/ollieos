@@ -16,6 +16,7 @@ import { markCovered, openPointsFor, pointsBlock } from "../talkingPoints";
 import { writeFollowUp } from "../meetingFollowUp";
 import { captureSorted, emptyCounts, loadPeople, mayReadForKnowledge, peopleIdsIn, projectChoices, type CaptureCounts } from "./capture";
 import { addSpottedIdea } from "../strategy";
+import { lessonsFor } from "../readerLessons";
 import { meetingUnit, sortMeeting, type MeetingNote } from "./granola";
 
 export const MEETING_PROPOSER = "OllieOS";
@@ -32,6 +33,8 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
   const counts: MeetingCounts = { ...emptyCounts(), decisions: 0, attached: 0 };
   if (!notes.length) return counts;
   const choices = await projectChoices();
+  // Section 24: the lessons Ollie turned on for the Granola reader.
+  const lessons = await lessonsFor("granola_reader");
   const projectIdByName = new Map(choices.map((p) => [p.name.toLowerCase(), p.id]));
 
   for (const n of notes) {
@@ -43,7 +46,7 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
     const [open] = await openItemsFor([unit], [personIds]);
     // Part K: points Ollie wanted to raise with the people in the meeting.
     const points = await openPointsFor([...new Set([...personIds, ...(event?.personIds ?? [])])]);
-    const sorted = await sortMeeting(n, { me: ctx.me, projects: choices.map((p) => p.name), now: ctx.now, openItems: openItemsBlock(open), talkingPoints: pointsBlock(points) });
+    const sorted = await sortMeeting(n, { me: ctx.me, projects: choices.map((p) => p.name), now: ctx.now, openItems: openItemsBlock(open), talkingPoints: pointsBlock(points), lessons });
     // Part S: the tone of the meeting, for the client pulse.
     await db
       .insert(meetingTonesTable)

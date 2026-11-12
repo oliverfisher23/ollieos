@@ -3222,6 +3222,101 @@ export interface FridayUpdateWeek {
   update: FridayUpdate | null;
 }
 
+export type ReaderLessonReader = typeof ReaderLessonReader[keyof typeof ReaderLessonReader];
+
+
+export const ReaderLessonReader = {
+  gmail_sorter: 'gmail_sorter',
+  slack_sorter: 'slack_sorter',
+  granola_reader: 'granola_reader',
+} as const;
+
+export type ReaderLessonAbout = typeof ReaderLessonAbout[keyof typeof ReaderLessonAbout];
+
+
+export const ReaderLessonAbout = {
+  tasks: 'tasks',
+  knowledge: 'knowledge',
+} as const;
+
+export type ReaderLessonStatus = typeof ReaderLessonStatus[keyof typeof ReaderLessonStatus];
+
+
+export const ReaderLessonStatus = {
+  proposed: 'proposed',
+  on: 'on',
+  off: 'off',
+  rejected: 'rejected',
+} as const;
+
+export type ReaderLessonLastTry = {
+  at: string;
+  passed: number;
+  total: number;
+  /**
+     * Cases passed without the lesson; null when it was already on
+     * @nullable
+     */
+  without: number | null;
+} | null;
+
+export interface ReaderLesson {
+  id: number;
+  reader: ReaderLessonReader;
+  readerName: string;
+  about: ReaderLessonAbout;
+  text: string;
+  why: string;
+  examples: string[];
+  /** How many corrections back it */
+  evidence: number;
+  learnedBy: string;
+  learnedByName: string;
+  status: ReaderLessonStatus;
+  createdAt: string;
+  /** @nullable */
+  decidedAt: string | null;
+  lastTry: ReaderLessonLastTry;
+}
+
+export type ReaderLessonListLastRun = {
+  /** @nullable */
+  tasks: string | null;
+  /** @nullable */
+  knowledge: string | null;
+};
+
+export interface ReaderLessonList {
+  lessons: ReaderLesson[];
+  maxOn: number;
+  lastRun: ReaderLessonListLastRun;
+}
+
+export type ReaderLessonStatusInputStatus = typeof ReaderLessonStatusInputStatus[keyof typeof ReaderLessonStatusInputStatus];
+
+
+export const ReaderLessonStatusInputStatus = {
+  on: 'on',
+  off: 'off',
+  rejected: 'rejected',
+} as const;
+
+export interface ReaderLessonStatusInput {
+  status: ReaderLessonStatusInputStatus;
+}
+
+export type LearnLessonsResultResultsItem = {
+  reader: string;
+  corrections: number;
+  proposed: number;
+  skipped?: string;
+};
+
+export interface LearnLessonsResult {
+  failed: boolean;
+  results: LearnLessonsResultResultsItem[];
+}
+
 export interface PresortResult {
   looked: number;
   repeats: number;

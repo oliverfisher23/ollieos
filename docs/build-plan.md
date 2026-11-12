@@ -1524,3 +1524,39 @@ Ollie asked which agents OllieOS could add. Of the eight suggested, he asked for
 
 - `test/section-23.test.ts` (11 tests) stands the model in at `recordedCreate`, so the real prompts are built and the real answers parsed. It covers hints and repeats; hidden cards never sent; the hint filter and counts; bulk merge; stale evidence (changed, nothing seen with no call, hidden, and a verdict that names nothing it was given); confirming all; delegation, with hidden colleagues and tasks left out, never back to the sender, and Not this one; the Friday update's week, template, hidden items, one-section redraft and edits; and ideas from Granola and Slack, once only, none from email or meetings with hidden people. The full suite passes: 396 tests.
 - In a browser against a seeded copy of the database: the Knowledge Inbox (hints, filter, bulk merge, stale findings), the task panel suggestion filling in the Slack box, the Friday update page, and a spotted idea on Strategy. Checked at desktop width and at phone width, with no sideways scroll.
+
+## 24. Readers that learn from corrections (asked for 12th November 2026)
+
+Ollie asked which agents could learn from the knowledge base or improve how tasks are managed, then asked for the two recommended first. Not built yet: the gap finder, the knowledge tidy-up, priority and due-date calibration, the stuck-task coach, time estimates in Plan my day, and one task across channels. OllieOS cannot retrain Claude itself, because fine-tuning the model is not available here. What it does instead is turn Ollie's own corrections into short **lessons** that go into a reader's instructions. The scorecards and test-case replays then show whether each lesson helped.
+
+| Part | Agent | Learns from | Model | Size |
+|---|---|---|---|---|
+| Z6 | Reader coach | Inbox items a reader made that Ollie sent to Noise, dropped, renamed or reprioritised | Sonnet, weekly | Medium |
+| Z7 | Card coach | Knowledge Inbox cards from a reader that Ollie rejected | Sonnet, weekly, sooner while the backlog is cleared | Medium |
+
+### How lessons work
+
+- **Readers.** The Gmail reader, the Slack reader and the Granola reader. The Granola look back uses the Granola reader's lessons. Each lesson is about either Inbox items or knowledge cards. A reader gets its knowledge lessons only when it reads for knowledge.
+- **Proposed, then on.** A coach only proposes a lesson. It reaches a reader only once Ollie turns it on in **Lessons for the readers**, on Settings, Agents. He can turn it off again later, and **Not this one** means it is never proposed again. A reader has at most 12 lessons on at once, so its instructions stay short.
+- **Try it first.** **Try against test cases** runs the reader's saved test cases twice, once as things stand and once with the lesson added. It says how many pass each way. A try changes no case's last result and adds no replay row. Once a lesson is on, ordinary replays include it, and the prompt version changes, so the Agents page shows when the readers' instructions changed.
+- **The rules, enforced in code.** A lesson needs at least three corrections behind it, named by the model and checked against what it was given. Items kept as made are shown as a counterweight but never count as evidence. A lesson that says much the same as one the reader already has, or one Ollie said no to, is not proposed. At most five new lessons per reader per run. No em dashes.
+- **Hidden from AI.** The coaches read only tasks and cards AI may see. Nothing hidden can end up in a lesson, which every exchange the reader reads would carry.
+
+### Part Z6: Reader coach
+
+- **Reads,** per reader, from the last 8 weeks: items it made that Ollie sent to Noise or dropped (up to 60). Items whose title, priority, due date, kind or project he changed by hand, from the audit log (up to 40). A sample of 15 he kept as made. And the reader's existing lessons. Items caught by a noise rule are left out. With fewer than three corrections, no model is called.
+- **When.** Once a week after the scheduled checks, or with **Learn from my corrections now**.
+- **Scorecard.** "Lessons you turned on": kept while on; undone when he said no or turned it off.
+
+### Part Z7: Card coach
+
+- **Reads,** per reader, cards decided in the last 8 weeks (in practice 30, since rejected cards are cleared after 30 days): those rejected (up to 80), a sample of 20 approved or merged, and the existing lessons. Cards from the Gmail check, the Slack check, and Granola meetings and look backs.
+- **When.** Once a week, or sooner once 50 cards have been decided since it last ran, so working through the Knowledge Inbox backlog teaches it quickly. Also with **Learn from my corrections now**.
+- **Scorecard.** As for the reader coach.
+
+### Built
+
+- `reader_lessons` table (`lib/db/src/schema/audit.ts`); `services/readerLessons.ts` (corrections, both coaches, `lessonsFor`, `learnLessonsIfDue`, `tryLesson`).
+- The Gmail and Slack sorter and the Granola reader take `lessons`. `replay` takes `extraLessonIds` and `keep: false`.
+- `GET /lessons`, `POST /lessons/learn`, `PATCH /lessons/:id`, `POST /lessons/:id/try`. The panel is `components/reader-lessons.tsx` on Settings, Agents.
+- **Checked by** `test/section-24.test.ts` (5 tests): lessons proposed only with three real corrections; hidden items never read; nothing applied until turned on; on and off reach the reader's instructions; the cap of 12; a try with and without the lesson leaves the cases untouched; a lesson Ollie said no to is not proposed again; the weekly and 50-decision triggers. The full suite passes: 413 tests. Also checked in a browser at desktop and phone width.

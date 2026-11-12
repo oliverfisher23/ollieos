@@ -67,6 +67,7 @@ Goals link projects to what you want this quarter, with time spent against each.
 - **Connectors.** Which sources OllieOS reads, when each was last checked, and any that are failing.
 - **AI access.** Which AIs are connected, what each may see, and the read log. Anything marked confidential or hidden from AI is never sent to any model.
 - **Agents.** Every AI job inside OllieOS: what it reads, its runs, cost and errors this week, how often you kept what it did, the writers' checks and grades, and the readers' test cases with Replay.
+- **Lessons for the readers.** On Agents, the reader coach and card coach propose lessons for the Gmail, Slack and Granola readers from what you keep correcting the same way (items sent to Noise, dropped, renamed or reprioritised, and cards you rejected). Nothing changes until you turn a lesson on. Try against test cases shows whether it helps first; Not this one stops it being proposed again.
 - **Email, Knowledge, Planning, Look back, Dropbox, Sweep.** Settings for each of those.
 
 ## Voice capture
