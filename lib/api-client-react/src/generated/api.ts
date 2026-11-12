@@ -221,6 +221,9 @@ import type {
   SessionListItem,
   SessionUpdate,
   SlackAccount,
+  SlackDmInput,
+  SlackDmOptions,
+  SlackDmResult,
   SlackReplyDraft,
   SlackToAnswer,
   StrategyOrder,
@@ -5174,6 +5177,196 @@ export function useExportTasksCsv<TData = Awaited<ReturnType<typeof exportTasksC
 
 
 
+
+export const getGetTaskSlackDmOptionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/slack-dm`
+}
+
+/**
+ * @summary Colleagues this task can be sent to on Slack, and who it is suggested for
+ */
+export const getTaskSlackDmOptions = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<SlackDmOptions> => {
+
+  return customFetch<SlackDmOptions>(getGetTaskSlackDmOptionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTaskSlackDmOptionsQueryKey = (id: number,) => {
+    return [
+    `/api/tasks/${id}/slack-dm`
+    ] as const;
+    }
+
+
+export const getGetTaskSlackDmOptionsQueryOptions = <TData = Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTaskSlackDmOptionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTaskSlackDmOptions>>> = ({ signal }) => getTaskSlackDmOptions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTaskSlackDmOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof getTaskSlackDmOptions>>>
+export type GetTaskSlackDmOptionsQueryError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+
+
+export function useGetTaskSlackDmOptions<TData = Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskSlackDmOptions>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskSlackDmOptions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskSlackDmOptions<TData = Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskSlackDmOptions>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskSlackDmOptions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskSlackDmOptions<TData = Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Colleagues this task can be sent to on Slack, and who it is suggested for
+ */
+
+export function useGetTaskSlackDmOptions<TData = Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError = ErrorType<NotAuthorisedResponse | ErrorResponse>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskSlackDmOptions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTaskSlackDmOptionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSendTaskSlackDmUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/slack-dm`
+}
+
+/**
+ * @summary Send a colleague a Slack direct message as Ollie, then move the task to Waiting on them
+ */
+export const sendTaskSlackDm = async (id: number,
+    slackDmInput: SlackDmInput, options?: Parameters<typeof customFetch>[1]): Promise<SlackDmResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<SlackDmResult>(getSendTaskSlackDmUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(slackDmInput)
+  }
+);}
+
+
+
+
+
+export const getSendTaskSlackDmMutationKey = () => ['sendTaskSlackDm'] as const;
+
+export const getSendTaskSlackDmMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTaskSlackDm>>, TError,SendTaskSlackDmMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendTaskSlackDm>>, TError,SendTaskSlackDmMutationVariables, TContext> => {
+
+const mutationKey = getSendTaskSlackDmMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendTaskSlackDm>>, SendTaskSlackDmMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  sendTaskSlackDm(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendTaskSlackDmMutationResult = NonNullable<Awaited<ReturnType<typeof sendTaskSlackDm>>>
+    export type SendTaskSlackDmMutationBody = BodyType<SlackDmInput>
+    export type SendTaskSlackDmMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SendTaskSlackDmMutationVariables = {id: number;data: BodyType<SlackDmInput>}
+
+    /**
+ * @summary Send a colleague a Slack direct message as Ollie, then move the task to Waiting on them
+ */
+export const useSendTaskSlackDm = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendTaskSlackDm>>, TError,SendTaskSlackDmMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof sendTaskSlackDm>>,
+        TError,
+        SendTaskSlackDmMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendTaskSlackDmMutationOptions(options), queryClient);
+    }
 
 export const getSearchDriveUrl = (params: SearchDriveParams,) => {
   const normalizedParams = new URLSearchParams();

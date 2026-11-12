@@ -2899,6 +2899,48 @@ export const ExportTasksCsvResponse = zod.unknown()
 
 
 /**
+ * @summary Colleagues this task can be sent to on Slack, and who it is suggested for
+ */
+export const GetTaskSlackDmOptionsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetTaskSlackDmOptionsResponse = zod.object({
+  "people": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "role": zod.string().nullable()
+})),
+  "suggestedPersonId": zod.int().nullable()
+})
+
+
+/**
+ * @summary Send a colleague a Slack direct message as Ollie, then move the task to Waiting on them
+ */
+export const SendTaskSlackDmParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const sendTaskSlackDmBodyTextMax = 3000;
+
+
+
+export const SendTaskSlackDmBody = zod.object({
+  "personId": zod.int(),
+  "text": zod.string().max(sendTaskSlackDmBodyTextMax)
+})
+
+export const SendTaskSlackDmResponse = zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "channel": zod.string(),
+  "ts": zod.string(),
+  "url": zod.string()
+})
+
+
+/**
  * @summary Part L: search every Drive file Ollie can open, by name and text
  */
 export const searchDriveQueryQMax = 200;

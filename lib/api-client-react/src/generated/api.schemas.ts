@@ -1980,6 +1980,33 @@ export interface VoiceSaveResult {
   facts: VoiceSaveResultFactsItem[];
 }
 
+export interface SlackDmPerson {
+  id: number;
+  name: string;
+  /** @nullable */
+  role: string | null;
+}
+
+export interface SlackDmOptions {
+  people: SlackDmPerson[];
+  /** @nullable */
+  suggestedPersonId: number | null;
+}
+
+export interface SlackDmInput {
+  personId: number;
+  /** @maxLength 3000 */
+  text: string;
+}
+
+export interface SlackDmResult {
+  personId: number;
+  personName: string;
+  channel: string;
+  ts: string;
+  url: string;
+}
+
 export type BulkDecideInputAction = typeof BulkDecideInputAction[keyof typeof BulkDecideInputAction];
 
 

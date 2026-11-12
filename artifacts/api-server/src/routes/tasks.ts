@@ -1,3 +1,4 @@
+import { dmOptions, MAX_DM, sendSlackDm } from "../services/slackDm";
 import { Router, type IRouter } from "express";
 import { checkDraft, taskContextRefs } from "../services/draftLearning";
 import { handle } from "../lib/handle";
@@ -183,6 +184,18 @@ router.post(
 );
 
 // Part L: check a draft against the rules that apply to its task, and fix the lines that break one.
+router.get(
+  "/tasks/:id/slack-dm",
+  handle(async (req, res) => void res.json(await dmOptions(IdParams.parse(req.params).id))),
+);
+router.post(
+  "/tasks/:id/slack-dm",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    const b = z.object({ personId: z.number().int().positive(), text: z.string().min(1).max(MAX_DM) }).strict().parse(req.body ?? {});
+    res.json(await sendSlackDm(id, b, "ollie"));
+  }),
+);
 router.post(
   "/tasks/:id/reply-draft/check",
   handle(async (req, res) => {

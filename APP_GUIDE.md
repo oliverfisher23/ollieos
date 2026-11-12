@@ -1,6 +1,6 @@
 # OllieOS: how to use it
 
-OllieOS is where your work lives: tasks, the people and organisations you work with, projects, decisions and what you know about them. It reads Gmail, Slack, Google Calendar, Granola, Drive and Dropbox for you, and Claude, ChatGPT and Gemini can read and write it through its connector. Nothing it learns becomes knowledge until you approve it, and it never sends an email or a Slack message for you: it drafts, you send.
+OllieOS is where your work lives: tasks, the people and organisations you work with, projects, decisions and what you know about them. It reads Gmail, Slack, Google Calendar, Granola, Drive and Dropbox for you, and Claude, ChatGPT and Gemini can read and write it through its connector. Nothing it learns becomes knowledge until you approve it, and it never sends an email for you: it drafts, you send. The one exception is a Slack direct message to a colleague, which it sends only when you press Send on a task and confirm.
 
 This guide follows the app from left to right. On a phone the bar at the bottom has Home, Tasks, the yellow add button, People and Knowledge; everything else is reached from those pages.
 
@@ -20,6 +20,7 @@ The full list by tab (Inbox, Now, Backlog, Waiting on, Done, Noise). Click a tas
 
 - **Looks done.** When a later message, email or meeting says a task is finished, the task shows "Looks done" with Mark done and Not done. A task finished in its own conversation (you replied "done" in the same Slack thread) closes itself, and "What OllieOS has seen" lists why.
 - **Reply drafts.** On email tasks, Draft a reply writes one in your style and your rules; Check lists any line that breaks a rule, Fix these rewrites only those lines, and Save to Gmail puts it in your drafts. You send it.
+- **Message on Slack.** To hand a task to a colleague or ask their view, choose who and write the message; after you confirm, OllieOS sends it to them as a Slack direct message from you, and the task moves to Waiting on them. Their reply shows on the task. Only colleagues with Slack, never anyone at an outside organisation.
 - **Keep as a test case.** On an item OllieOS found that it got wrong (or right), this saves what the reader was given so a later change can be checked against it.
 - **Export.** Tasks, Export downloads every task as a CSV file.
 

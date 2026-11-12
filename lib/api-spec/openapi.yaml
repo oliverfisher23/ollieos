@@ -1252,6 +1252,41 @@ paths:
               schema: { type: string }
         "403": { $ref: "#/components/responses/NotAuthorised" }
 
+  /tasks/{id}/slack-dm:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getTaskSlackDmOptions
+      tags: [tasks]
+      summary: "Colleagues this task can be sent to on Slack, and who it is suggested for"
+      responses:
+        "200":
+          description: Options
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackDmOptions" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    post:
+      operationId: sendTaskSlackDm
+      tags: [tasks]
+      summary: "Send a colleague a Slack direct message as Ollie, then move the task to Waiting on them"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SlackDmInput" }
+      responses:
+        "200":
+          description: Sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackDmResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
   /library/drive-search:
     get:
       operationId: searchDrive
@@ -6226,6 +6261,35 @@ components:
             properties:
               status: { type: string }
               suggestionId: { type: integer }
+    SlackDmPerson:
+      type: object
+      required: [id, name, role]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        role: { type: [string, "null"] }
+    SlackDmOptions:
+      type: object
+      required: [people, suggestedPersonId]
+      properties:
+        people: { type: array, items: { $ref: "#/components/schemas/SlackDmPerson" } }
+        suggestedPersonId: { type: [integer, "null"] }
+    SlackDmInput:
+      type: object
+      additionalProperties: false
+      required: [personId, text]
+      properties:
+        personId: { type: integer }
+        text: { type: string, maxLength: 3000 }
+    SlackDmResult:
+      type: object
+      required: [personId, personName, channel, ts, url]
+      properties:
+        personId: { type: integer }
+        personName: { type: string }
+        channel: { type: string }
+        ts: { type: string }
+        url: { type: string }
     BulkDecideInput:
       type: object
       additionalProperties: false
