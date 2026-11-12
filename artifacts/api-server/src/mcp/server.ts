@@ -38,6 +38,7 @@ import {
 } from "../services/aiWrites";
 import { NotFoundError, updateTask, ValidationError, type TaskUpdateInput } from "../services/tasks";
 import { alreadyCaptured, closeOpenTasks, recordMention } from "../services/duplicates";
+import { taskReview } from "../services/taskReview";
 import { AttendeeSchema, syncCalendarFeed } from "../services/calendarSync";
 import { briefForAi, resolveEventForAi } from "../services/briefs";
 import { saveSession, SESSION_LIMITS, type SessionAction } from "../services/sessions";
@@ -247,6 +248,17 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
       inputSchema: {},
     },
     async () => ok(await goalsForAi(scope)),
+  );
+
+  server.registerTool(
+    "get_task_review",
+    {
+      description: describe(
+        "Counts for a review of how Ollie's tasks are working over the last few days: tasks made by source and what became of them, why items were dropped, quick Slack replies left on Messages, items added to tasks he already had, how many open tasks have a person, project and due date, and how the duplicate check and stuck-task coach did. Counts only, no titles.",
+      ),
+      inputSchema: { days: z.number().int().min(1).max(60).optional().describe("Default 7") },
+    },
+    async (a) => ok(await taskReview(a.days ?? 7)),
   );
 
   server.registerTool(

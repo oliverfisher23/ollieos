@@ -8,6 +8,47 @@ export interface Named {
   id: number;
   name: string;
   isSelf?: boolean;
+  /** Section 28: other names they go by */
+  otherNames?: string[] | null;
+}
+
+/**
+ * Every way a person can be named, as keys: their name, each other name, and each other name with
+ * their surname ("Volodymyr" on Vova Tatsakovych also answers to "Volodymyr Tatsakovych").
+ */
+export function nameKeysOf(p: Named): string[] {
+  const main = nameKey(p.name);
+  const parts = main.split(" ");
+  const surname = parts.length > 1 ? parts[parts.length - 1] : null;
+  const out = [main];
+  for (const o of p.otherNames ?? []) {
+    const k = nameKey(o);
+    if (!k) continue;
+    out.push(k);
+    if (surname && !k.includes(" ")) out.push(`${k} ${surname}`);
+  }
+  return [...new Set(out.filter(Boolean))];
+}
+
+/** Everyone a name could mean: an exact match on any of their names, else the same first name (and surname or initial, when given). */
+export function nameCandidates<T extends Named>(hint: string | null | undefined, people: readonly T[], opts: { fullOnly?: boolean } = {}): T[] {
+  const h = nameKey(hint);
+  if (!h) return [];
+  const pool = people.filter((p) => !p.isSelf);
+  const exact = pool.filter((p) => nameKeysOf(p).includes(h));
+  if (exact.length) return exact;
+  const ht = h.split(" ");
+  if (ht.length === 1 && opts.fullOnly) return [];
+  const last = ht[ht.length - 1];
+  return pool.filter((p) =>
+    nameKeysOf(p).some((k) => {
+      const pt = k.split(" ");
+      if (pt[0] !== ht[0]) return false;
+      if (ht.length === 1) return true;
+      const pl = pt[pt.length - 1];
+      return pt.length > 1 && (pl === last || (last.length === 1 && pl.startsWith(last)));
+    }),
+  );
 }
 
 /** Lower case, without brackets, dots, underscores or punctuation. */
@@ -33,22 +74,8 @@ function pick<T extends Named>(found: T[], prefer?: ReadonlySet<number>): T | nu
  * known to be in the exchange; they break a tie. `fullOnly` needs more than a first name.
  */
 export function matchName<T extends Named>(hint: string | null | undefined, people: readonly T[], opts: { prefer?: ReadonlySet<number>; fullOnly?: boolean } = {}): T | null {
-  const h = nameKey(hint);
-  if (!h) return null;
-  const pool = people.filter((p) => !p.isSelf);
-  const exact = pool.filter((p) => nameKey(p.name) === h);
-  if (exact.length) return pick(exact, opts.prefer);
-  const ht = h.split(" ");
-  if (ht.length === 1 && opts.fullOnly) return null;
-  const last = ht[ht.length - 1];
-  const found = pool.filter((p) => {
-    const pt = nameKey(p.name).split(" ");
-    if (pt[0] !== ht[0]) return false;
-    if (ht.length === 1) return true;
-    const pl = pt[pt.length - 1];
-    return pt.length > 1 && (pl === last || (last.length === 1 && pl.startsWith(last)));
-  });
-  return pick(found, opts.prefer);
+  const found = nameCandidates(hint, people, opts);
+  return found.length ? pick(found, opts.prefer) : null;
 }
 
 /** Words in a task title that could be a person: capitalised runs of one or two words, in order. */

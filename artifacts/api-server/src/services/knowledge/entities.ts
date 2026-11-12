@@ -470,6 +470,8 @@ export type PersonUpdate = Partial<PersonInput> & {
   otherEmails?: string[];
   /** Part N: their Slack user id, or null to unlink */
   slackUserId?: string | null;
+  /** Section 28: other names they go by, replacing the list */
+  otherNames?: string[];
   /** Their LinkedIn profile link, or null to clear it */
   linkedinUrl?: string | null;
 };
@@ -557,6 +559,14 @@ export async function updatePerson(slug: string, input: PersonUpdate): Promise<P
   } else if (set.email && current.otherEmails.includes(set.email)) {
     // Making one of the other addresses the main one takes it off the other list.
     set.otherEmails = current.otherEmails.filter((e) => e !== set.email);
+  }
+  if (input.otherNames !== undefined) {
+    const main = (set.name ?? current.name).trim().toLowerCase();
+    const seen = new Set<string>();
+    set.otherNames = input.otherNames
+      .map((n) => n.replace(/\s+/g, " ").trim().slice(0, 100))
+      .filter((n) => n && n.toLowerCase() !== main && !seen.has(n.toLowerCase()) && !!seen.add(n.toLowerCase()))
+      .slice(0, 10);
   }
   if (input.slackUserId !== undefined) {
     const id = cleanText(input.slackUserId);

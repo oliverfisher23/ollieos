@@ -132,6 +132,8 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
       // Section 27: chase nudges and the stuck-task coach.
       chaseDue: r.status === "waiting" && chaseFrom.getTime() <= now,
       stuckHint: (r.status === "now" || r.status === "backlog") && !stuckDismissedAt ? r.stuckHint : null,
+      // Section 28: the reader's guess at a date, while the task has none and is still open.
+      suggestedDue: !r.dueDate && OPEN_FOR_EVIDENCE.has(r.status) ? r.suggestedDue : null,
     };
   });
 }

@@ -63,6 +63,8 @@ export interface CaptureInput {
   capturedAt?: Date | null;
   /** Checklist steps, in order */
   steps?: string[];
+  /** Section 28: a due date guessed from the message, offered with one tap */
+  suggestedDue?: string | null;
 }
 
 export interface CaptureResult {
@@ -162,6 +164,7 @@ export async function captureTask(w: CaptureWriter, item: CaptureInput, opts: { 
         confidential: item.confidential ?? null,
         capturedAt: item.capturedAt ?? now,
         createdBy: w.actor,
+        suggestedDue: item.dueDate ? null : (item.suggestedDue ?? null),
         steps: (item.steps ?? [])
           .map((t) => cleanText(t)?.slice(0, 300))
           .filter((t): t is string => !!t)

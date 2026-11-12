@@ -15,7 +15,9 @@
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db, peopleTable, tasksTable } from "@workspace/db";
 import { emailsOf } from "./personMatch";
-import { matchName, namesInTitle, waitingOnInTitle } from "./personNames";
+import { matchName, nameCandidates, nameKey, namesInTitle, waitingOnInTitle } from "./personNames";
+import { loadTask } from "./tasks";
+import type { EntitySummary } from "./taskView";
 
 const BATCH = 500;
 
@@ -43,7 +45,7 @@ export async function linkPeopleToTasks(): Promise<LinkPeopleCounts> {
   if (!tasks.length) return { checked: 0, linked: 0 };
 
   const people = await db
-    .select({ id: peopleTable.id, name: peopleTable.name, email: peopleTable.email, otherEmails: peopleTable.otherEmails, isSelf: peopleTable.isSelf })
+    .select({ id: peopleTable.id, name: peopleTable.name, email: peopleTable.email, otherEmails: peopleTable.otherEmails, isSelf: peopleTable.isSelf, otherNames: peopleTable.otherNames })
     .from(peopleTable)
     .limit(5000);
   const byEmail = new Map<string, number>();
@@ -83,4 +85,62 @@ export async function linkPeopleToTasks(): Promise<LinkPeopleCounts> {
     if (set.personId != null || set.waitingOnPersonId != null) linked++;
   }
   return { checked: tasks.length, linked };
+}
+
+export interface PersonSuggestions {
+  /** Which link the suggestion is for, or null when there is nothing to suggest */
+  slot: "person" | "waitingOn" | null;
+  /** The name the task uses ("Paul", "Kevin") */
+  name: string | null;
+  /** Contacts the name could mean, when it fits more than one (or one added since the task was looked at) */
+  people: EntitySummary[];
+  /** Nobody in Contacts has this name, so it can be added from here */
+  canAdd: boolean;
+  /** The task names its Waiting on person in a way their contact does not know ("Volodymyr" for Vova) */
+  remember: { person: EntitySummary; name: string; otherNames: string[] } | null;
+}
+
+const NOTHING: PersonSuggestions = { slot: null, name: null, people: [], canAdd: false, remember: null };
+
+/**
+ * Section 28: closing the gaps the automatic pass leaves. "Which Paul?" when a name fits several
+ * contacts; "Add Kevin to Contacts" when it fits none; and "Remember Volodymyr as another name
+ * for Vova" when Ollie has linked someone the title names differently. No AI.
+ */
+export async function personSuggestionsFor(taskId: number): Promise<PersonSuggestions> {
+  const t = await loadTask(taskId);
+  if (!["inbox", "now", "backlog", "waiting"].includes(t.status)) return NOTHING;
+  const people = await db
+    .select({ id: peopleTable.id, name: peopleTable.name, slug: peopleTable.slug, confidential: peopleTable.confidential, isSelf: peopleTable.isSelf, otherNames: peopleTable.otherNames })
+    .from(peopleTable)
+    .limit(5000);
+  const summary = (p: (typeof people)[number]): EntitySummary => ({ id: p.id, name: p.name, slug: p.slug, confidential: p.confidential });
+
+  if (t.status === "waiting") {
+    const hint = waitingOnInTitle(t.title);
+    if (!hint) return NOTHING;
+    if (t.waitingOnPersonId != null) {
+      const linked = people.find((p) => p.id === t.waitingOnPersonId);
+      // Only when the name means nobody yet: it must not be someone else's name.
+      if (linked && !linked.isSelf && !nameCandidates(hint, people).length) {
+        return { ...NOTHING, remember: { person: summary(linked), name: hint, otherNames: linked.otherNames } };
+      }
+      return NOTHING;
+    }
+    const found = nameCandidates(hint, people).slice(0, 5);
+    return { slot: "waitingOn", name: hint, people: found.map(summary), canAdd: !found.length, remember: null };
+  }
+
+  if (t.personId != null) return NOTHING;
+  const sender = t.fromName && !/^(you|ollie)$/i.test(t.fromName.trim()) ? t.fromName.trim() : null;
+  for (const hint of [sender, ...namesInTitle(t.title)]) {
+    if (!hint) continue;
+    const found = nameCandidates(hint, people).slice(0, 5);
+    if (found.length) return { slot: "person", name: hint, people: found.map(summary), canAdd: false, remember: null };
+  }
+  // A sender with a full name who is not in Contacts can be added; a word in a title is too weak for that.
+  if (sender && nameKey(sender).split(" ").length >= 2 && (t.source === "email" || t.source === "slack")) {
+    return { slot: "person", name: sender, people: [], canAdd: true, remember: null };
+  }
+  return NOTHING;
 }

@@ -7,6 +7,8 @@ import { z } from "zod";
 import { DROP_REASONS, REPEAT_EVERY, TASK_SOURCES, TASK_STATUSES, PRIORITIES, TASK_KINDS, isIsoDate } from "@workspace/shared";
 import { projectSuggestionsFor } from "../services/projectSuggest";
 import { dismissStuckHint } from "../services/stuckCoach";
+import { personSuggestionsFor } from "../services/taskPeople";
+import { taskReview } from "../services/taskReview";
 import {
   MAX_STEPS,
   buildDraftPrompt,
@@ -196,6 +198,15 @@ router.post(
   }),
 );
 
+// Section 28: the numbers for a review of how tasks are working. Before /tasks/:id.
+router.get(
+  "/tasks/review",
+  handle(async (req, res) => {
+    const { days } = z.object({ days: z.coerce.number().int().min(1).max(60).optional() }).parse(req.query);
+    res.json(await taskReview(days ?? 7));
+  }),
+);
+
 // Section 27: the same change to several tasks.
 router.post(
   "/tasks/bulk",
@@ -356,6 +367,14 @@ router.get(
   }),
 );
 
+router.get(
+  "/tasks/:id/person-suggestions",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    res.json(await personSuggestionsFor(id));
+  }),
+);
+
 router.post(
   "/tasks/:id/chase-later",
   handle(async (req, res) => {
@@ -368,7 +387,8 @@ router.post(
   "/tasks/:id/stuck/dismiss",
   handle(async (req, res) => {
     const { id } = IdParams.parse(req.params);
-    await dismissStuckHint(id);
+    const { used } = z.object({ used: z.boolean().optional() }).strict().parse(req.body ?? {});
+    await dismissStuckHint(id, used ?? false);
     res.json(await getTask(id));
   }),
 );

@@ -332,6 +332,8 @@ export interface StuckHint {
      * @nullable
      */
   step: string | null;
+  /** Section 28: used or not_stuck, once Ollie has dealt with it */
+  outcome?: string;
 }
 
 export interface Task {
@@ -422,11 +424,66 @@ export interface Task {
   delegateHint?: DelegateHint | null;
   /** Section 27: why Ollie dropped it or sent it to Noise */
   dropReason?: DropReason | null;
+  /**
+     * Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed
+     * @nullable
+     */
+  suggestedDue?: string | null;
   /** Section 27: a Waiting on task that has waited long enough for a chase */
   chaseDue?: boolean;
   /** Section 27: the stuck-task coach's line on a Now or Backlog task that keeps slipping. Null once dismissed. */
   stuckHint?: StuckHint | null;
 }
+
+export interface StuckDismissInput {
+  /** true when the suggestion was used (the step added, or the task dropped); false or missing for Not stuck */
+  used?: boolean;
+}
+
+/**
+ * Which link the suggestion is for
+ * @nullable
+ */
+export type PersonSuggestionsSlot = typeof PersonSuggestionsSlot[keyof typeof PersonSuggestionsSlot] | null;
+
+
+export const PersonSuggestionsSlot = {
+  person: 'person',
+  waitingOn: 'waitingOn',
+} as const;
+
+/**
+ * The task names its Waiting on person in a way their contact does not know
+ */
+export type PersonSuggestionsRemember = {
+  person: EntitySummary;
+  name: string;
+  otherNames: string[];
+} | null;
+
+export interface PersonSuggestions {
+  /**
+     * Which link the suggestion is for
+     * @nullable
+     */
+  slot: PersonSuggestionsSlot;
+  /**
+     * The name the task uses
+     * @nullable
+     */
+  name: string | null;
+  /** Contacts the name could mean */
+  people: EntitySummary[];
+  /** Nobody in Contacts has this name */
+  canAdd: boolean;
+  /** The task names its Waiting on person in a way their contact does not know */
+  remember: PersonSuggestionsRemember;
+}
+
+/**
+ * Section 28: counts for a review of how tasks are working
+ */
+export interface TaskReview { [key: string]: unknown }
 
 /**
  * The fullest day in the next seven with most of its tasks not yet in Now, or null
@@ -4684,6 +4741,8 @@ export interface Person {
   isSelf: boolean;
   /** Other addresses they use, in lower case */
   otherEmails: string[];
+  /** Section 28: other names they go by, so a task that says Volodymyr finds Vova */
+  otherNames: string[];
   /**
      * Their Slack account
      * @nullable
@@ -4740,6 +4799,12 @@ export interface PersonUpdate {
      * @items.maxLength 320
      */
   otherEmails?: string[];
+  /**
+     * Replaces the list of other names
+     * @maxItems 10
+     * @items.maxLength 100
+     */
+  otherNames?: string[];
   /**
      * Their Slack account id
      * @nullable
@@ -6516,6 +6581,14 @@ export type CheckReplyDraft200 = {
 
 export type RefreshSlackToAnswer200 = {
   closed: number;
+};
+
+export type GetTaskReviewParams = {
+/**
+ * @minimum 1
+ * @maximum 60
+ */
+days?: number;
 };
 
 export type ListProjectsParams = {

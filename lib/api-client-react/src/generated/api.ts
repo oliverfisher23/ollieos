@@ -115,6 +115,7 @@ import type {
   GetFridayUpdateParams,
   GetOAuthConsentParams,
   GetRoundupsParams,
+  GetTaskReviewParams,
   GetTaskSummaryParams,
   GetWeeklyUpdateParams,
   Goal,
@@ -196,6 +197,7 @@ import type {
   PersonDetail,
   PersonInput,
   PersonListItem,
+  PersonSuggestions,
   PersonUpdate,
   PlanInput,
   Playbook,
@@ -269,6 +271,7 @@ import type {
   StrategySection,
   StrategySectionInput,
   StrategySectionUpdate,
+  StuckDismissInput,
   SuggestProductUsersResult,
   SuggestProjectFunctionsResult,
   SuggestionApprove,
@@ -287,6 +290,7 @@ import type {
   TaskDuplicateMergeInput,
   TaskEvidence,
   TaskReorderInput,
+  TaskReview,
   TaskSummary,
   TaskUpdate,
   TestCase,
@@ -9963,6 +9967,114 @@ export const useUndoEmailInboxDone = <TError = ErrorType<ErrorEnvelope | NotAuth
       return useMutation(getUndoEmailInboxDoneMutationOptions(options), queryClient);
     }
 
+export const getGetTaskReviewUrl = (params?: GetTaskReviewParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tasks/review?${stringifiedParams}` : `/api/tasks/review`
+}
+
+/**
+ * @summary Counts for a review of how tasks are working over the last few days
+ */
+export const getTaskReview = async (params?: GetTaskReviewParams, options?: Parameters<typeof customFetch>[1]): Promise<TaskReview> => {
+
+  return customFetch<TaskReview>(getGetTaskReviewUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTaskReviewQueryKey = (params?: GetTaskReviewParams,) => {
+    return [
+    `/api/tasks/review`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTaskReviewQueryOptions = <TData = Awaited<ReturnType<typeof getTaskReview>>, TError = ErrorType<NotAuthorisedResponse>>(params?: GetTaskReviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskReview>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTaskReviewQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTaskReview>>> = ({ signal }) => getTaskReview(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTaskReview>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTaskReviewQueryResult = NonNullable<Awaited<ReturnType<typeof getTaskReview>>>
+export type GetTaskReviewQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useGetTaskReview<TData = Awaited<ReturnType<typeof getTaskReview>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params: undefined |  GetTaskReviewParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskReview>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskReview>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskReview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskReview<TData = Awaited<ReturnType<typeof getTaskReview>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params?: GetTaskReviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskReview>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskReview>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskReview>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskReview<TData = Awaited<ReturnType<typeof getTaskReview>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params?: GetTaskReviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskReview>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Counts for a review of how tasks are working over the last few days
+ */
+
+export function useGetTaskReview<TData = Awaited<ReturnType<typeof getTaskReview>>, TError = ErrorType<NotAuthorisedResponse>>(
+ params?: GetTaskReviewParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskReview>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTaskReviewQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getBulkUpdateTasksUrl = () => {
 
 
@@ -10152,6 +10264,107 @@ export function useGetTaskProjectSuggestions<TData = Awaited<ReturnType<typeof g
 
 
 
+export const getGetTaskPersonSuggestionsUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/person-suggestions`
+}
+
+/**
+ * @summary Who a task's name could mean, whether to add them to Contacts, or a name to remember
+ */
+export const getTaskPersonSuggestions = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<PersonSuggestions> => {
+
+  return customFetch<PersonSuggestions>(getGetTaskPersonSuggestionsUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTaskPersonSuggestionsQueryKey = (id: number,) => {
+    return [
+    `/api/tasks/${id}/person-suggestions`
+    ] as const;
+    }
+
+
+export const getGetTaskPersonSuggestionsQueryOptions = <TData = Awaited<ReturnType<typeof getTaskPersonSuggestions>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskPersonSuggestions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTaskPersonSuggestionsQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTaskPersonSuggestions>>> = ({ signal }) => getTaskPersonSuggestions(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTaskPersonSuggestions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTaskPersonSuggestionsQueryResult = NonNullable<Awaited<ReturnType<typeof getTaskPersonSuggestions>>>
+export type GetTaskPersonSuggestionsQueryError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+
+
+export function useGetTaskPersonSuggestions<TData = Awaited<ReturnType<typeof getTaskPersonSuggestions>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskPersonSuggestions>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskPersonSuggestions>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskPersonSuggestions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskPersonSuggestions<TData = Awaited<ReturnType<typeof getTaskPersonSuggestions>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskPersonSuggestions>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTaskPersonSuggestions>>,
+          TError,
+          Awaited<ReturnType<typeof getTaskPersonSuggestions>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTaskPersonSuggestions<TData = Awaited<ReturnType<typeof getTaskPersonSuggestions>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskPersonSuggestions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Who a task's name could mean, whether to add them to Contacts, or a name to remember
+ */
+
+export function useGetTaskPersonSuggestions<TData = Awaited<ReturnType<typeof getTaskPersonSuggestions>>, TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>>(
+ id: number, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTaskPersonSuggestions>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetTaskPersonSuggestionsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getChaseTaskLaterUrl = (id: number,) => {
 
 
@@ -10235,16 +10448,31 @@ export const getDismissTaskStuckHintUrl = (id: number,) => {
 }
 
 /**
- * @summary Not stuck; the stuck-task coach's line goes and the task is not flagged again
+ * @summary Not stuck, or the suggestion was used; the stuck-task coach's line goes and the task is not flagged again
  */
-export const dismissTaskStuckHint = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
+export const dismissTaskStuckHint = async (id: number,
+    stuckDismissInput?: StuckDismissInput, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
 
-  return customFetch<Task>(getDismissTaskStuckHintUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Task>(getDismissTaskStuckHintUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(stuckDismissInput)
   }
 );}
 
@@ -10269,9 +10497,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissTaskStuckHint>>, DismissTaskStuckHintMutationVariables> = (props) => {
-          const {id} = props ?? {};
+          const {id,data} = props ?? {};
 
-          return  dismissTaskStuckHint(id,requestOptions)
+          return  dismissTaskStuckHint(id,data,requestOptions)
         }
 
 
@@ -10282,12 +10510,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type DismissTaskStuckHintMutationResult = NonNullable<Awaited<ReturnType<typeof dismissTaskStuckHint>>>
-
+    export type DismissTaskStuckHintMutationBody = BodyType<StuckDismissInput> | undefined
     export type DismissTaskStuckHintMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
-    export type DismissTaskStuckHintMutationVariables = {id: number}
+    export type DismissTaskStuckHintMutationVariables = {id: number;data?: BodyType<StuckDismissInput>}
 
     /**
- * @summary Not stuck; the stuck-task coach's line goes and the task is not flagged again
+ * @summary Not stuck, or the suggestion was used; the stuck-task coach's line goes and the task is not flagged again
  */
 export const useDismissTaskStuckHint = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissTaskStuckHint>>, TError,DismissTaskStuckHintMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

@@ -106,6 +106,11 @@ export interface Task {
   delegateHint?: DelegateHint | null;
   /** Section 27: why Ollie dropped it or sent it to Noise */
   dropReason?: DropReason | null;
+  /**
+     * Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed
+     * @nullable
+     */
+  suggestedDue?: Date | null;
   /** Section 27: a Waiting on task that has waited long enough for a chase */
   chaseDue?: boolean;
   /** Section 27: the stuck-task coach's line on a Now or Backlog task that keeps slipping. Null once dismissed. */

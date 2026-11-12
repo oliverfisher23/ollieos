@@ -154,11 +154,18 @@ export async function coachStuckIfDue(now = new Date()): Promise<StuckResult & {
   return { ran: true, ...r };
 }
 
-/** "Not stuck": the hint goes and the task is not flagged again. */
-export async function dismissStuckHint(taskId: number, now = new Date()): Promise<{ id: number }> {
+/**
+ * "Not stuck", or the suggestion was used (the step added, or the task dropped): the hint goes and
+ * the task is not flagged again. Which it was is kept on the hint, for the coach's scorecard.
+ */
+export async function dismissStuckHint(taskId: number, used = false, now = new Date()): Promise<{ id: number }> {
   const [row] = await db
     .update(tasksTable)
-    .set({ stuckDismissedAt: now, updatedAt: sql`${tasksTable.updatedAt}` })
+    .set({
+      stuckDismissedAt: now,
+      stuckHint: sql`case when ${tasksTable.stuckHint} is null then null else ${tasksTable.stuckHint} || ${JSON.stringify({ outcome: used ? "used" : "not_stuck" })}::jsonb end`,
+      updatedAt: sql`${tasksTable.updatedAt}`,
+    })
     .where(eq(tasksTable.id, taskId))
     .returning({ id: tasksTable.id });
   if (!row) throw new NotFoundError("Task not found");
