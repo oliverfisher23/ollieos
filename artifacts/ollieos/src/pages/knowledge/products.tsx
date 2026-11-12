@@ -238,7 +238,7 @@ export function ProductPage() {
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: '1 1 320px' }}>
           <p className="oo-eyebrow" style={{ margin: 0 }}>
-            <Link href="/knowledge/products" style={{ color: 'inherit' }} data-testid="link-all-products">Product</Link>
+            <Link href="/knowledge/products" className="oo-tap" style={{ color: 'inherit' }} data-testid="link-all-products">Product</Link>
           </p>
           <h1 className="oo-h1">
             <InlineText value={p.name} label="Product name" required maxLength={200} testId="product-name" onSave={(v) => save({ name: v ?? p.name })} />

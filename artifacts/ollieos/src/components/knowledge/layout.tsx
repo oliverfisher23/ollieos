@@ -4,7 +4,8 @@ import { suggestProjectFunctions, useListKnowledgeInbox, useListProjects, useSea
 import { BUSINESS_FUNCTIONS, BUSINESS_FUNCTION_LABELS } from '@workspace/shared';
 import { notify } from '@/lib/notify';
 import { Skel } from '@/components/bits';
-import { IconSearch } from '@/components/icons';
+import { IconLeft, IconSearch } from '@/components/icons';
+import { PHONE_QUERY, useMedia } from '@/lib/use-media';
 import { HiddenFromAi } from '@/components/knowledge/parts';
 import { CreateDialog } from '@/components/knowledge/create-dialog';
 import { TYPE_LABELS, entityPath, useKnowledgeWrite } from '@/lib/knowledge';
@@ -22,6 +23,29 @@ const LIBRARY = [
 ];
 
 export function KnowledgeLayout({ children, testId }: { children: ReactNode; testId: string }) {
+  const phone = useMedia(PHONE_QUERY);
+  const [location] = useLocation();
+  if (phone) {
+    // Phones (docs/mobile-plan.md, Part D): /knowledge is the menu itself; every other page is shown
+    // alone, with a way back to the menu, instead of under a long side menu.
+    if (location === '/knowledge') {
+      return (
+        <div className="oo-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 16 }} data-testid="page-knowledge-menu">
+          <KnowledgeSidebar />
+          {children && <main className="oo-panel oo-kmain" data-testid={testId}>{children}</main>}
+        </div>
+      );
+    }
+    return (
+      <div className="oo-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <Link href="/knowledge" className="oo-back" style={{ alignSelf: 'flex-start' }} data-testid="link-knowledge-menu">
+          <IconLeft size={14} />
+          Knowledge
+        </Link>
+        <main className="oo-panel oo-kmain" data-testid={testId}>{children}</main>
+      </div>
+    );
+  }
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }} className="oo-fade-in">
       <KnowledgeSidebar />
@@ -48,6 +72,7 @@ function ProjectLink({ p, current }: { p: ProjectListItem; current: boolean }) {
 
 function KnowledgeSidebar() {
   const [location] = useLocation();
+  const phone = useMedia(PHONE_QUERY);
   const params = new URLSearchParams(useSearch());
   const libraryTab = params.get('tab') === 'rules' || params.get('tab') === 'playbooks' ? params.get('tab') : 'documents';
   const libraryCurrent = (href: string) => {
@@ -180,7 +205,7 @@ function KnowledgeSidebar() {
               New project
             </button>
             {unfiled > 0 && (
-              <button type="button" className="oo-textbtn" style={{ alignSelf: 'flex-start', margin: '2px 10px 0', textAlign: 'left' }} onClick={suggest} disabled={suggesting} data-testid="button-suggest-project-functions">
+              <button type="button" className="oo-textbtn" style={{ alignSelf: 'flex-start', margin: `${phone ? 14 : 2}px 10px 0`, textAlign: 'left' }} onClick={suggest} disabled={suggesting} data-testid="button-suggest-project-functions">
                 {suggesting ? 'Suggesting…' : 'Suggest functions and clients'}
               </button>
             )}

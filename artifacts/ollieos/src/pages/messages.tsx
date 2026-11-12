@@ -16,6 +16,7 @@ import { Mail } from '@/components/mail-layout';
 import { useMedia } from '@/lib/use-media';
 import { NoReplyTab } from '@/pages/email-no-reply';
 import { SlackNotRead, SlackReader, SlackRow, slackGroupOf, useSlackToAnswer } from '@/pages/email-slack';
+import { ScrollRow } from '@/components/scroll-row';
 
 type Tab = 'to-answer' | 'drafts' | 'waiting';
 const TABS: Tab[] = ['to-answer', 'drafts', 'waiting'];
@@ -178,7 +179,7 @@ export default function MessagesPage() {
         </p>
       </div>
 
-      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0" style={{ marginTop: -6 }}>
+      <ScrollRow className="-mx-4 px-4 sm:mx-0 sm:px-0" style={{ marginTop: -6 }}>
         <div role="tablist" aria-label="Message views" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--oo-line)', minWidth: 'max-content' }}>
           {tabs.map((t) => (
             <button key={t.id} type="button" role="tab" className="oo-tab" aria-selected={t.id === tab} onClick={() => go(t.id)} data-testid={'tab-messages-' + t.id}>
@@ -186,7 +187,7 @@ export default function MessagesPage() {
             </button>
           ))}
         </div>
-      </div>
+      </ScrollRow>
 
       <div role="tabpanel" aria-label={tabs.find((t) => t.id === tab)!.label} style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: -6 }}>
         {tab === 'waiting' ? (
@@ -213,7 +214,7 @@ export default function MessagesPage() {
                   if (showEmail) void inbox.refetch();
                   if (showSlack) void slack.q.refetch();
                 }}
-                what={source === 'slack' ? 'Slack' : 'your inbox'}
+                what={source === 'slack' ? 'list of Slack messages' : 'inbox'}
                 empty={empty}
                 onPick={pickAnswer}
                 row={(key, current) => {
@@ -286,7 +287,7 @@ export default function MessagesPage() {
             loading={drafts.isLoading}
             failed={!drafts.data && !drafts.isLoading}
             retry={() => drafts.refetch()}
-            what="drafts"
+            what="list of drafts"
             empty="No drafts waiting. Brief a reply to an email from To answer, or chase one from Waiting for a reply. A draft leaves this list when you send an email in its thread, when its task is closed, or when you mark it done."
             onPick={pickDraft}
             row={(id, current) => {

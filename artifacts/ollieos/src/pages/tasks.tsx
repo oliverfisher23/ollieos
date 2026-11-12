@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useSearch } from 'wouter';
 import {
@@ -23,13 +23,17 @@ import { SOURCE_LABELS, TASK_SOURCES, addDays, formatWeekRange, todayLondon, wee
 import { Skel, SourceLabel, SourceMark } from '@/components/bits';
 import { DueCell, PriorityCell, StatusCell } from '@/components/task-cell-editors';
 import { IconCheck, IconDown, IconLeft, IconRight, IconSearch, IconUp } from '@/components/icons';
-import { TaskDetailPanel } from '@/components/task-detail';
 import { TaskMarks } from '@/components/task-marks';
 import { useInvalidateTasks } from '@/lib/task-cache';
 import { notify, notifyUndo } from '@/lib/notify';
 import { useTaskActions } from '@/lib/task-actions';
 import { Dot, Dropdown } from '@/components/dropdown';
 import { DragItemOf, DragList } from '@/components/drag-list';
+import { lazyPage } from '@/lib/lazy-page';
+import { ScrollRow } from '@/components/scroll-row';
+
+/** Opens on a tap, so its code (with reply drafting and checklists) loads after the list is on screen. */
+const TaskDetailPanel = lazyPage(() => import('@/components/task-detail'), 'TaskDetailPanel');
 
 const TABS: { value: TaskTab; label: string }[] = [
   { value: 'inbox', label: 'Inbox' },
@@ -118,6 +122,11 @@ function useQueryState() {
 
 export default function TasksPage() {
   const { sp, set } = useQueryState();
+  // Fetch the detail panel's code once the list is up, so opening a task is instant.
+  useEffect(() => {
+    const t = window.setTimeout(() => void TaskDetailPanel.preload().catch(() => {}), 1500);
+    return () => window.clearTimeout(t);
+  }, []);
   const rawTab = sp.get('tab') ?? 'open';
   const tab = (TAB_VALUES.includes(rawTab) ? rawTab : 'open') as TaskTab;
   const rawSource = sp.get('source');
@@ -209,13 +218,11 @@ export default function TasksPage() {
             {reviewCount > 0 && (
               <Link href="/review" className="oo-link" style={{ fontSize: 14 }} data-testid="link-review">Review {reviewCount}</Link>
             )}
-            <Link href="/messages" className="oo-link sm:hidden" style={{ fontSize: 14 }} data-testid="link-messages">Messages</Link>
-            <Link href="/meetings" className="oo-link sm:hidden" style={{ fontSize: 14 }} data-testid="link-meetings">Meetings</Link>
             <a href="/api/export/tasks.csv" download className="oo-link" style={{ fontSize: 14 }} data-testid="link-export-tasks">Export</a>
           </span>
         </div>
 
-        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <ScrollRow className="-mx-4 px-4 sm:mx-0 sm:px-0">
           <div role="tablist" aria-label="Task views" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--oo-line)', minWidth: 'max-content' }}>
             {TABS.map((t) => (
               <button key={t.value} type="button" role="tab" className="oo-tab" aria-selected={t.value === tab}
@@ -224,7 +231,7 @@ export default function TasksPage() {
               </button>
             ))}
           </div>
-        </div>
+        </ScrollRow>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
           <span className="oo-serif" style={{ fontSize: 22, marginRight: 6 }} data-testid="text-shown-count">
@@ -298,16 +305,20 @@ export default function TasksPage() {
         {tab === 'done' && <WeeklyCopy weekStart={week ?? thisWeek} />}
         {tab === 'backlog' && <ClearOutStart />}
 
-        <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3.5">
-          {[
-            ['Inbox to triage', stats?.inboxToTriage, 'inbox'],
-            ['Due this week', stats?.dueThisWeek, 'due'],
-            ['Waiting on others', stats?.waitingOnOthers, 'waiting'],
-            ['Done this week', stats?.doneThisWeek, 'done'],
-          ].map(([label, value, id]) => (
-            <div key={id as string} className="oo-stat" data-testid={'stat-' + id}>
-              <span style={{ fontSize: 14, textAlign: 'center' }}>{label}</span>
-              {value === undefined ? <Skel h={40} w={48} /> : <span className="oo-num" style={{ fontSize: 40, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1 }}>{value}</span>}
+        {/* On phones one compact strip with short labels, so the list starts on the first screen. */}
+        <div className="oo-stats grid grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3.5">
+          {([
+            ['Inbox to triage', 'To triage', stats?.inboxToTriage, 'inbox'],
+            ['Due this week', 'Due', stats?.dueThisWeek, 'due'],
+            ['Waiting on others', 'Waiting', stats?.waitingOnOthers, 'waiting'],
+            ['Done this week', 'Done', stats?.doneThisWeek, 'done'],
+          ] as const).map(([label, short, value, id]) => (
+            <div key={id} className="oo-stat" data-testid={'stat-' + id}>
+              <span className="oo-stat-label">
+                <span className="hidden sm:inline">{label}</span>
+                <span className="sm:hidden">{short}</span>
+              </span>
+              {value === undefined ? <Skel h={40} w={48} className="oo-stat-skel" /> : <span className="oo-num oo-stat-value">{value}</span>}
             </div>
           ))}
         </div>
@@ -348,7 +359,11 @@ export default function TasksPage() {
         )}
       </div>
 
-      {taskId && <TaskDetailPanel id={taskId} onClose={() => set({ task: null })} />}
+      {taskId && (
+        <Suspense fallback={null}>
+          <TaskDetailPanel id={taskId} onClose={() => set({ task: null })} />
+        </Suspense>
+      )}
     </section>
   );
 }
@@ -636,14 +651,14 @@ function TaskRows({ tab, rows: allRows, selected, sort, onSort, reorderable, onR
       {list.map((t) => (
         <DragItemOf key={t.id} id={t.id} title={t.title} enabled={canDrag}>
         {({ ref, style, dragging, grip }) => (
-        <div ref={ref} style={style} className="oo-card-row" data-dragging={dragging} data-leaving={leaving(t)} data-testid={'card-task-' + t.id}>
-          <div style={{ paddingTop: 2, display: 'flex', alignItems: 'center', gap: 12 }}>{gripSlot(grip)}{check(t)}</div>
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div ref={ref} style={style} className="oo-card-row oo-card-open" data-dragging={dragging} data-leaving={leaving(t)} data-testid={'card-task-' + t.id}>
+          <div className="oo-card-lead">{gripSlot(grip)}{check(t)}</div>
+          <div className="oo-card-body">
             <button type="button" className="oo-row-title" data-done={doneOf(t)} style={{ fontSize: 15, minHeight: 24 }} onClick={() => onOpen(t.id)}
               onFocus={() => inbox && setCursor(t.id)} data-testid={'button-open-task-mobile-' + t.id}>{t.title}</button>
             {hint(t)}
             <TaskMarks task={t} />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+            <div className="oo-card-pills">
               <SourceMark source={t.source} size={20} />
               {priorityCell(t, 'select-card-priority-' + t.id)}
               {statusCell(t, 'select-card-status-' + t.id)}
