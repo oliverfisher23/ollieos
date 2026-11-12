@@ -81,7 +81,7 @@ export async function judgeContradictions(card: JudgeCard, items: JudgeItem[], n
     ...items.map((i) => `[${i.ref}] (${day(i.at)}) ${i.text}`),
     "</approved>",
   ].join("\n");
-  const r = await haikuJson<{ items?: (JudgeVerdict & { contradicts?: boolean })[] }>(system(now), content, SCHEMA, 2048);
+  const r = await haikuJson<{ items?: (JudgeVerdict & { contradicts?: boolean })[] }>(system(now), content, SCHEMA, 2048, "contradiction_judge");
   const allowed = new Set(items.map((i) => i.ref));
   const seen = new Set<string>();
   return (r.items ?? [])

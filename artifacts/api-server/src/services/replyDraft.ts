@@ -4,6 +4,7 @@
  * filter as Ask OllieOS. Ollie edits the reply, then saves it as a draft in the Gmail thread.
  * OllieOS never sends email.
  */
+import { recordEdit } from "./draftLearning";
 import { and, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { db, peopleTable, replyDraftsTable, tasksTable, type ReplyDraft as ReplyDraftRow, type Task as TaskRow } from "@workspace/db";
 import { hasAnyEmail } from "./personMatch";
@@ -18,6 +19,7 @@ import { ConnectorError } from "./connectors/http";
 import { gmailThreadIdOf, gmailThreadUrl, readGmailThread, saveGmailDraft, type Address, type GmailThread, type ThreadMessage } from "./connectors/gmail";
 import { ConflictError, NotFoundError, UpstreamError, ValidationError, loadTask } from "./tasks";
 import { writingStyleNote } from "./writingStyle";
+import { recordCheck } from "./writerChecks";
 
 export interface ReplyDraftView {
   taskId: number;
@@ -249,6 +251,8 @@ export async function writeReplyDraft(
     ccLine: addressLine(env.cc),
     subject: env.subject,
     body,
+    // Part L: kept to compare with what Ollie saves or sends.
+    writtenBody: body,
     threadId: thread?.threadId ?? null,
     inReplyTo: env.inReplyTo,
     references: env.references,
@@ -268,6 +272,8 @@ export async function writeReplyDraft(
     .onConflictDoUpdate({ target: replyDraftsTable.taskId, set: values })
     .returning();
   await writeAudit(db, { actor, action: "reply_draft", entityType: "task", entityId: task.id, payload: { saved: false, thread: !!thread, instructions: !!input.instructions?.trim(), revised: !!input.current?.trim() } });
+  // Part Y: code checks on what was written.
+  await recordCheck("email_reply_draft", `draft:${row.id}`, body, { maxWords: 300, rulePhrases: true });
   return view(row);
 }
 
@@ -295,6 +301,8 @@ export async function saveReplyDraftToGmail(
     .where(eq(replyDraftsTable.id, row.id))
     .returning();
   await writeAudit(db, { actor, action: "reply_draft", entityType: "task", entityId: id, payload: { saved: true } });
+  // Part L: what Ollie changed before saving, to learn rules from.
+  await recordEdit(id, "edited", row.writtenBody, input.body).catch((err) => logger.warn({ err, task: id }, "Could not record a draft edit"));
   return view(saved);
 }
 

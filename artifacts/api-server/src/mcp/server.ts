@@ -41,6 +41,8 @@ import { AttendeeSchema, syncCalendarFeed } from "../services/calendarSync";
 import { briefForAi, resolveEventForAi } from "../services/briefs";
 import { saveSession, SESSION_LIMITS, type SessionAction } from "../services/sessions";
 import { addIdeaFromAi } from "../services/strategy";
+import { addPoint, POINT_CHARS } from "../services/talkingPoints";
+import { checkDraft } from "../services/draftLearning";
 
 export const SOURCE_OF_TRUTH =
   "OllieOS is the source of truth for Ollie's work: tasks, projects, people and decisions. Check it before asking Ollie for context.";
@@ -55,6 +57,7 @@ export const SERVER_INSTRUCTIONS = [
   "To see how things connect (who knows whom, which organisations sit behind a project), use explore and find_connection. Propose a missing relationship with propose_relationship.",
   "In a Cowork session, call get_context for the project or person it is about before you start, and call save_session once at the end with what was done.",
   "For questions of direction or priority, read Ollie's strategy and open ideas with get_strategy. When an idea worth coming back to comes up, add it with add_idea; it goes straight onto his list, marked as yours.",
+  "When you can read HubSpot or the KPI Portal (for example in the sweep), propose each client organisation's renewal_date, contract_value and account_health with add_fact, giving the source; a value OllieOS already holds is recognised as unchanged, and a changed one goes to Ollie as a conflict.",
 ].join(" ");
 
 const STATUSES = ["inbox", "now", "backlog", "waiting", "done", "noise", "dropped", "archived"] as const;
@@ -538,6 +541,48 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
       }),
   );
 
+  server.registerTool(
+    "check_draft",
+    {
+      description: describe(
+        "Checks a draft written as Ollie (an email, a message, a post) against his standing rules that apply, and returns each line that breaks one with the rule and a suggested fix. Read only: it changes nothing. Use it before handing Ollie a draft you wrote for him.",
+      ),
+      inputSchema: {
+        text: z.string().min(1).max(20000).describe("The draft"),
+        project: Pick.optional().describe("The project it is about, if any"),
+        person: Pick.optional().describe("Who it is to, if they are in OllieOS"),
+        organisation: Pick.optional().describe("The organisation it is to, if any"),
+      },
+    },
+    async (a) =>
+      guard(async () => {
+        const [project, person, org] = await Promise.all([pickOrNull(scope, a.project, ["project"]), pickOrNull(scope, a.person, ["person"]), pickOrNull(scope, a.organisation, ["organisation"])]);
+        const refs = [project && `project:${project.id}`, person && `person:${person.id}`, org && `organisation:${org.id}`].filter((r): r is string => !!r);
+        const issues = await checkDraft(a.text, refs, scope);
+        return ok({ issues: issues.map((i) => ({ rule: i.ruleRef, rule_title: i.ruleTitle, line: i.line, fix: i.fix })), message: issues.length ? `${issues.length} line${issues.length === 1 ? "" : "s"} break a rule.` : "No rule is broken." });
+      }),
+  );
+
+  server.registerTool(
+    "add_talking_point",
+    {
+      description: describe(
+        "Adds a \"Next time I see…\" point to a person: something Ollie wants to raise with them. It goes straight onto their page and to the top of the agenda of the next meeting they are in, and is marked raised once that meeting's notes show it was covered. Use it when Ollie says to remember to ask or tell someone something.",
+      ),
+      inputSchema: {
+        person: Pick.describe("The person: a ref such as person:4, a slug or a name"),
+        text: z.string().min(1).max(POINT_CHARS).describe("The point, in a line"),
+      },
+    },
+    async (a) =>
+      guard(async () => {
+        const person = await pickOrNull(scope, a.person, ["person"]);
+        if (!person) return NOT_FOUND("person");
+        const p = await addPoint(person.id, a.text, writer.actor, writer.clientId);
+        return ok({ point: { person: `person:${p.personId}`, text: p.text, status: "open" }, message: "Added to their Next time I see list." });
+      }),
+  );
+
   /* ---------- Knowledge ---------- */
 
   const SourceFields = {
@@ -570,7 +615,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
         entity: Pick.optional(),
         product: z.string().min(1).max(200).optional().describe("Instead of entity: a product, by name or ref such as product:2"),
         text: z.string().min(1).max(2000),
-        attribute: z.enum(FACT_ATTRIBUTES).optional().describe("job_title, organisation, status, next_step or decision_date"),
+        attribute: z.enum(FACT_ATTRIBUTES).optional().describe("job_title, organisation, status, next_step or decision_date; for client organisations also renewal_date (YYYY-MM-DD), contract_value (with currency, e.g. £48,000 a year) and account_health (healthy, watch or at risk, with the reason)"),
         supersedes: z.string().max(40).optional().describe("Ref of the fact this replaces, such as fact:7"),
         ...SourceFields,
       },

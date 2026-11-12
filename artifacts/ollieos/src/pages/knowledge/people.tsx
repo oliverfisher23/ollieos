@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PersonTalkingPoints } from '@/components/talking-points';
 import { Link, useParams } from 'wouter';
 import {
   updatePerson,
@@ -167,6 +168,8 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
             </div>
           </div>
         </section>
+
+        {!person.isSelf && <PersonTalkingPoints slug={slug} first={first} />}
 
         <FactsSection entityType="person" entityId={person.id} facts={facts} />
         <RelationshipsSection type="person" id={person.id} name={person.name} title="Relationships with others" />

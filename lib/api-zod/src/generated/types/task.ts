@@ -16,6 +16,11 @@ import type { TaskStatus } from './taskStatus';
 import type { TaskStep } from './taskStep';
 
 export interface Task {
+  /**
+     * Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.
+     * @nullable
+     */
+  position: number | null;
   /** How it repeats, anchored on its due date. Null when it does not. */
   repeat: RepeatRule | null;
   /** Checklist steps, in order */
@@ -87,4 +92,9 @@ export interface Task {
      * @nullable
      */
   noiseHint: string | null;
+  /**
+     * Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null
+     * @nullable
+     */
+  looksDone?: string | null;
 }

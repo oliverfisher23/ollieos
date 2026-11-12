@@ -192,7 +192,7 @@ export async function suggestProjectFunctions(): Promise<SuggestProjectFunctions
         const known = await knownAbout(p);
         if (known) {
           const content = [`<project>`, `${p.name}${p.summary ? `: ${p.summary.slice(0, 500)}` : ""}`, `</project>`, `<known>`, known, `</known>`].join("\n");
-          const r = await haikuJson<{ function?: string; function_why?: string; client?: string; client_why?: string; client_summary?: string }>(sys, content, SCHEMA, 1200);
+          const r = await haikuJson<{ function?: string; function_why?: string; client?: string; client_why?: string; client_summary?: string }>(sys, content, SCHEMA, 1200, "function_suggester");
           const tidy = (s: string | undefined) => (s ?? "").replace(/\s*—\s*/g, ", ").trim();
           if (p.needsFunction && isBusinessFunction(r.function)) {
             const out = await proposeProjectFunction(meta, p.id, r.function, tidy(r.function_why));

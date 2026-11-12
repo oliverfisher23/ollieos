@@ -9,7 +9,8 @@ const load = {
   triage: () => import('@/components/triage'),
   clearOut: () => import('@/components/clear-out'),
   review: () => import('@/pages/review'),
-  email: () => import('@/pages/email'),
+  messages: () => import('@/pages/messages'),
+  voice: () => import('@/pages/voice'),
   ask: () => import('@/pages/ask'),
   inbox: () => import('@/pages/knowledge/inbox'),
   projects: () => import('@/pages/knowledge/projects'),
@@ -35,7 +36,8 @@ const load = {
 export const TriageDialog = lazyPage(load.triage, 'TriageDialog');
 export const ClearOutDialog = lazyPage(load.clearOut, 'ClearOutDialog');
 export const ReviewPage = lazyPage(load.review, 'default');
-export const EmailPage = lazyPage(load.email, 'default');
+export const MessagesPage = lazyPage(load.messages, 'default');
+export const VoicePage = lazyPage(load.voice, 'default');
 export const AskPage = lazyPage(load.ask, 'default');
 export const KnowledgeInboxPage = lazyPage(load.inbox, 'default');
 export const KnowledgeIndexPage = lazyPage(load.projects, 'KnowledgeIndexPage');
@@ -72,7 +74,8 @@ function loaderFor(path: string): (() => Promise<unknown>) | null {
   if (p === '/triage') return load.triage;
   if (p === '/clear-out') return load.clearOut;
   if (under('/review')) return load.review;
-  if (under('/email')) return load.email;
+  if (under('/messages') || under('/email')) return load.messages;
+  if (under('/voice')) return load.voice;
   if (under('/ask')) return load.ask;
   if (under('/knowledge/inbox')) return load.inbox;
   if (under('/knowledge/people')) return load.people;

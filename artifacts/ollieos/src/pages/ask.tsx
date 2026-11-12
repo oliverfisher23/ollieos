@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { Thumbs } from '@/components/evals';
 import { Link, useLocation, useParams, useSearch } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -368,6 +369,7 @@ function TurnView({ turn, threadKeyId }: { turn: AskTurn; threadKeyId: number })
           {provenance(turn)}
         </div>
         <p style={{ margin: 0, fontSize: 16, lineHeight: 1.6 }} data-testid={'text-summary-' + turn.id}>{turn.summary}</p>
+        <div><Thumbs subject={'ask:' + turn.id} label="Was this answer useful?" /></div>
 
         {turn.items.length > 0 && (
           <ol style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>

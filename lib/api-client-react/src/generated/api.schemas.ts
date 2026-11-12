@@ -44,6 +44,12 @@ export interface RoundupContent {
   rules: RoundupLine[];
   playbooks: RoundupLine[];
   products: RoundupLine[];
+  /** Part Q: Library documents someone else changed this week. Missing on older round-ups. */
+  documents?: RoundupLine[];
+  /** Part W: agents whose scorecard dropped on last week. Missing on older round-ups. */
+  agents?: RoundupLine[];
+  /** Part R: where meeting time went this week. Missing on older round-ups. */
+  time?: RoundupLine[];
 }
 
 export interface Roundup {
@@ -214,6 +220,7 @@ export const TaskSource = {
   quarterly: 'quarterly',
   manual: 'manual',
   session: 'session',
+  voice: 'voice',
 } as const;
 
 export type TaskTab = typeof TaskTab[keyof typeof TaskTab];
@@ -295,6 +302,11 @@ export interface TaskGoal {
 }
 
 export interface Task {
+  /**
+     * Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.
+     * @nullable
+     */
+  position: number | null;
   /** How it repeats, anchored on its due date. Null when it does not. */
   repeat: RepeatRule | null;
   /** Checklist steps, in order */
@@ -366,6 +378,11 @@ export interface Task {
      * @nullable
      */
   noiseHint: string | null;
+  /**
+     * Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null
+     * @nullable
+     */
+  looksDone?: string | null;
 }
 
 export interface RepeatInput {
@@ -559,7 +576,14 @@ export interface CalendarEvent {
   location: string | null;
   /** A work meeting with someone or something OllieOS knows about. "Brief me" opens /briefs/{id}. */
   hasBrief: boolean;
+  /** Part K: an external meeting today whose prep page has not been opened yet */
+  notPrepped?: boolean;
 }
+
+export type HomeSummaryConnectorWarningsItem = {
+  key: string;
+  text: string;
+};
 
 export type HomeSummaryInbox = {
   count: number;
@@ -700,6 +724,10 @@ export interface KnowledgeInboxCounts {
 }
 
 export interface HomeSummary {
+  /** Part Q: services OllieOS reads that need a look */
+  connectorWarnings: HomeSummaryConnectorWarningsItem[];
+  /** Slack messages that need a reply and have waited over a working day (Part P) */
+  slackToAnswer: number;
   /** Ideas set to come back to on or before today */
   ideasDue: Idea[];
   /**
@@ -943,6 +971,33 @@ export interface ResearchStart {
   organisationId?: number;
 }
 
+export interface CommercialFact {
+  text: string;
+  /** When it was last confirmed */
+  at: string;
+  needsCheck: boolean;
+}
+
+/**
+ * Part T: a client's renewal date, contract value and account health, from approved facts
+ */
+export interface Commercial {
+  renewalDate: CommercialFact | null;
+  /** @nullable */
+  renewsOn: string | null;
+  contractValue: CommercialFact | null;
+  accountHealth: CommercialFact | null;
+}
+
+export type BriefViewPulseItem = {
+  name: string;
+  slug: string;
+  line: string;
+  needsAttention: boolean;
+  reasons: string[];
+  commercial: Commercial;
+};
+
 export type BriefViewTasksItem = {
   id: number;
   title: string;
@@ -1040,9 +1095,55 @@ export type BriefViewActionsItem = {
   status: string;
 };
 
+export type TalkingPointStatus = typeof TalkingPointStatus[keyof typeof TalkingPointStatus];
+
+
+export const TalkingPointStatus = {
+  open: 'open',
+  raised: 'raised',
+} as const;
+
+export interface TalkingPoint {
+  id: number;
+  personId: number;
+  /** @nullable */
+  personName: string | null;
+  text: string;
+  createdBy: string;
+  status: TalkingPointStatus;
+  /** @nullable */
+  raisedAt: string | null;
+  /**
+     * The meeting it was raised in
+     * @nullable
+     */
+  raisedTitle: string | null;
+  /**
+     * notes (Granola showed it covered) or ollie (ticked by hand)
+     * @nullable
+     */
+  raisedHow: string | null;
+  createdAt: string;
+}
+
 export interface BriefView {
+  id: number;
   event: BriefEvent;
   research: CompanyResearch[];
+  /** Part K: open Next time I see points for people in the meeting, shown at the top of the agenda */
+  talkingPoints?: TalkingPoint[];
+  /**
+     * Part K: the follow-up task drafted from this meeting's Granola notes
+     * @nullable
+     */
+  followUpTaskId?: number | null;
+  /** Part S: the pulse of each client organisation in an external meeting */
+  pulse?: BriefViewPulseItem[];
+  /**
+     * Part K: when Ollie first opened this prep page
+     * @nullable
+     */
+  openedAt?: string | null;
   generatedAt: string;
   /** The model could not write the brief. Refresh to try again. */
   failed: boolean;
@@ -1186,11 +1287,14 @@ export interface DigestSections {
   needs: DigestSection | null;
   moved: DigestSection | null;
   quiet: DigestSection | null;
+  /** Part Q: Library documents someone else changed since the last digest. Missing on older digests. */
+  changed?: DigestSection | null;
   today: DigestEvent[];
   quietNight: boolean;
 }
 
 export interface Digest {
+  id: number;
   date: string;
   windowStart: string;
   /**
@@ -1418,6 +1522,722 @@ export interface EmailInbox {
   problem: string | null;
 }
 
+export interface DriveSearchHit {
+  fileId: string;
+  name: string;
+  kind: string;
+  /** @nullable */
+  owner: string | null;
+  /** @nullable */
+  modifiedAt: string | null;
+  url: string;
+  inLibrary: boolean;
+}
+
+export type PlaybookRunInputTargetType = typeof PlaybookRunInputTargetType[keyof typeof PlaybookRunInputTargetType];
+
+
+export const PlaybookRunInputTargetType = {
+  person: 'person',
+  organisation: 'organisation',
+  project: 'project',
+} as const;
+
+export type PlaybookRunInputTarget = {
+  type: PlaybookRunInputTargetType;
+  id: number;
+};
+
+export type PlaybookRunInputMode = typeof PlaybookRunInputMode[keyof typeof PlaybookRunInputMode];
+
+
+export const PlaybookRunInputMode = {
+  tasks: 'tasks',
+  checklist: 'checklist',
+} as const;
+
+export interface PlaybookRunInput {
+  target: PlaybookRunInputTarget;
+  mode: PlaybookRunInputMode;
+  /** @nullable */
+  start?: string | null;
+}
+
+export type UsageViewRecentItem = {
+  at: string;
+  by: string;
+  /** @nullable */
+  via: string | null;
+};
+
+export interface UsageView {
+  count: number;
+  /** @nullable */
+  lastUsedAt: string | null;
+  recent: UsageViewRecentItem[];
+  unused: boolean;
+}
+
+export interface DraftCheckInput {
+  /**
+     * @minLength 1
+     * @maxLength 20000
+     */
+  body: string;
+}
+
+export interface DraftIssue {
+  ruleRef: string;
+  ruleTitle: string;
+  line: string;
+  fix: string;
+}
+
+export interface TimeSlice {
+  key: string;
+  label: string;
+  hours: number;
+}
+
+export interface TimeWeek {
+  weekStart: string;
+  meetingHours: number;
+  byGoal: TimeSlice[];
+  byFunction: TimeSlice[];
+  internalHours: number;
+  externalHours: number;
+  plannedTaskHours: number;
+}
+
+export interface TimeReport {
+  weeks: TimeWeek[];
+  thinGoals: string[];
+}
+
+export interface WeekCheck {
+  freeHours: number;
+  dueHours: number;
+  overBy: number;
+  over: boolean;
+  movable: Task[];
+  dueCount: number;
+}
+
+export type WorthALookLastFour = {
+  notes: number;
+  actions: number;
+  decisions: number;
+};
+
+export interface WorthALook {
+  seriesId: string;
+  title: string;
+  howOften: string;
+  hoursAMonth: number;
+  lastFour: WorthALookLastFour;
+  /** @nullable */
+  organiser: string | null;
+  note: string;
+}
+
+export type ClientPulseToneTone = typeof ClientPulseToneTone[keyof typeof ClientPulseToneTone];
+
+
+export const ClientPulseToneTone = {
+  positive: 'positive',
+  neutral: 'neutral',
+  concerned: 'concerned',
+} as const;
+
+export type ClientPulseTone = {
+  tone: ClientPulseToneTone;
+  /** @nullable */
+  reason: string | null;
+  at: string;
+  title: string;
+} | null;
+
+export interface ClientPulse {
+  organisationId: number;
+  name: string;
+  slug: string;
+  quietDays: number;
+  /** @nullable */
+  lastMetAt: string | null;
+  /** @nullable */
+  lastContactAt: string | null;
+  meetings90: number;
+  emailsWaiting: number;
+  /** @nullable */
+  oldestEmailAt: string | null;
+  owedToThem: number;
+  overdueToThem: number;
+  theyOwe: number;
+  tone: ClientPulseTone;
+  needsAttention: boolean;
+  reasons: string[];
+  line: string;
+  commercial: Commercial;
+}
+
+export interface QuietDaysInput {
+  /** @nullable */
+  quietDays: number | null;
+}
+
+export type RelationshipLookBackStatus = typeof RelationshipLookBackStatus[keyof typeof RelationshipLookBackStatus];
+
+
+export const RelationshipLookBackStatus = {
+  idle: 'idle',
+  running: 'running',
+  done: 'done',
+  failed: 'failed',
+} as const;
+
+export interface RelationshipLookBack {
+  status: RelationshipLookBackStatus;
+  total: number;
+  done: number;
+  proposed: number;
+  /** @nullable */
+  error: string | null;
+  /** @nullable */
+  finishedAt: string | null;
+}
+
+export interface TalkingPointInput {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  text: string;
+}
+
+export interface TalkingPointRaisedInput {
+  raised: boolean;
+}
+
+export interface BriefTalkingPointInput {
+  personId: number;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  text: string;
+}
+
+export interface TalkingPoints {
+  open: TalkingPoint[];
+  raised: TalkingPoint[];
+}
+
+export type TaskEvidenceShows = typeof TaskEvidenceShows[keyof typeof TaskEvidenceShows];
+
+
+export const TaskEvidenceShows = {
+  done: 'done',
+  progress: 'progress',
+} as const;
+
+/**
+ * same: from the task's own conversation; other: anywhere else
+ */
+export type TaskEvidenceStrength = typeof TaskEvidenceStrength[keyof typeof TaskEvidenceStrength];
+
+
+export const TaskEvidenceStrength = {
+  same: 'same',
+  other: 'other',
+} as const;
+
+export interface TaskEvidence {
+  id: number;
+  /** slack, email or meeting */
+  source: string;
+  /** @nullable */
+  url: string | null;
+  /**
+     * "You" for Ollie, otherwise the name as written
+     * @nullable
+     */
+  saidBy: string | null;
+  saidAt: string;
+  /**
+     * The Slack conversation
+     * @nullable
+     */
+  place: string | null;
+  quote: string;
+  shows: TaskEvidenceShows;
+  /** same: from the task's own conversation; other: anywhere else */
+  strength: TaskEvidenceStrength;
+  /** This evidence closed the task */
+  applied: boolean;
+  /** Ollie said Not done */
+  dismissed: boolean;
+}
+
+export type AgentViewKind = typeof AgentViewKind[keyof typeof AgentViewKind];
+
+
+export const AgentViewKind = {
+  sorter: 'sorter',
+  judge: 'judge',
+  writer: 'writer',
+  researcher: 'researcher',
+  unknown: 'unknown',
+} as const;
+
+/**
+ * Part W: how often Ollie kept what the agent did, this week against last
+ */
+export interface AgentMeasure {
+  key: string;
+  agent: string;
+  label: string;
+  kept: number;
+  undone: number;
+  waiting: number;
+  /** @nullable */
+  rate: number | null;
+  /** @nullable */
+  lastRate: number | null;
+  lastDecided: number;
+}
+
+export type WritingViewChecks = {
+  passed: number;
+  total: number;
+  lastIssues: string[];
+};
+
+export type WritingViewGradeLowest = {
+  subject: string;
+  score: number;
+  reason: string;
+} | null;
+
+export type WritingViewGrade = {
+  /** @nullable */
+  average: number | null;
+  count: number;
+  lowest: WritingViewGradeLowest;
+};
+
+export type WritingViewThumbs = {
+  up: number;
+  down: number;
+};
+
+/**
+ * Part Y: a writer's code checks, weekly grade and Ollie's thumbs over the last 7 days
+ */
+export interface WritingView {
+  checks: WritingViewChecks;
+  grade: WritingViewGrade;
+  thumbs: WritingViewThumbs;
+}
+
+export interface ReplaySummary {
+  passed: number;
+  total: number;
+  at: string;
+  promptVersion: string;
+  model: string;
+}
+
+/**
+ * Part X: a reader's test cases and its last replay
+ */
+export interface AgentTests {
+  cases: number;
+  lastReplay: ReplaySummary | null;
+}
+
+export interface AgentView {
+  key: string;
+  name: string;
+  kind: AgentViewKind;
+  does: string;
+  reads: string;
+  /** @nullable */
+  model: string | null;
+  runs: number;
+  failures: number;
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  /** @nullable */
+  avgMs: number | null;
+  /** @nullable */
+  lastRunAt: string | null;
+  /** @nullable */
+  lastError: string | null;
+  /** @nullable */
+  lastErrorAt: string | null;
+  promptVersions: number;
+  measures: AgentMeasure[];
+  writing: WritingView | null;
+  tests: AgentTests | null;
+}
+
+export type ConnectedAiViewProposals = {
+  approved: number;
+  rejected: number;
+  merged: number;
+  pending: number;
+};
+
+export interface ConnectedAiView {
+  id: number;
+  name: string;
+  kind: string;
+  auth: string;
+  revoked: boolean;
+  /** @nullable */
+  lastUsedAt: string | null;
+  reads: number;
+  writes: number;
+  proposals: ConnectedAiViewProposals;
+}
+
+export interface AgentsView {
+  since: string;
+  /** Estimated at list price */
+  totalCostUsd: number;
+  totalRuns: number;
+  agents: AgentView[];
+  connected: ConnectedAiView[];
+}
+
+export interface VoiceParseInput {
+  /** @maxLength 4000 */
+  transcript: string;
+}
+
+export type VoiceAboutType = typeof VoiceAboutType[keyof typeof VoiceAboutType];
+
+
+export const VoiceAboutType = {
+  project: 'project',
+  person: 'person',
+  organisation: 'organisation',
+} as const;
+
+export interface VoiceAbout {
+  type: VoiceAboutType;
+  id: number;
+  name: string;
+}
+
+export type VoiceItemKind = typeof VoiceItemKind[keyof typeof VoiceItemKind];
+
+
+export const VoiceItemKind = {
+  task: 'task',
+  promise: 'promise',
+  fact: 'fact',
+} as const;
+
+export type VoiceItemPriority = typeof VoiceItemPriority[keyof typeof VoiceItemPriority];
+
+
+export const VoiceItemPriority = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+} as const;
+
+export interface VoiceItem {
+  kind: VoiceItemKind;
+  /** @maxLength 300 */
+  text: string;
+  /** @nullable */
+  dueDate: string | null;
+  priority: VoiceItemPriority;
+  /** @nullable */
+  projectId: number | null;
+  /** @nullable */
+  personId: number | null;
+  about: VoiceAbout | null;
+}
+
+export interface VoiceParse {
+  items: VoiceItem[];
+  /** False when something hidden from AI was named and the transcript was split in code */
+  usedAi: boolean;
+}
+
+export interface VoiceSaveInput {
+  /** @maxLength 4000 */
+  transcript: string;
+  items: VoiceItem[];
+}
+
+export type VoiceSaveResultFactsItem = {
+  status: string;
+  suggestionId?: number;
+};
+
+export interface VoiceSaveResult {
+  tasks: number[];
+  facts: VoiceSaveResultFactsItem[];
+}
+
+export interface SlackDmPerson {
+  id: number;
+  name: string;
+  /** @nullable */
+  role: string | null;
+}
+
+export interface SlackDmOptions {
+  people: SlackDmPerson[];
+  /** @nullable */
+  suggestedPersonId: number | null;
+}
+
+export interface SlackDmInput {
+  personId: number;
+  /** @maxLength 3000 */
+  text: string;
+}
+
+export interface SlackDmResult {
+  personId: number;
+  personName: string;
+  channel: string;
+  ts: string;
+  url: string;
+}
+
+export type BulkDecideInputAction = typeof BulkDecideInputAction[keyof typeof BulkDecideInputAction];
+
+
+export const BulkDecideInputAction = {
+  approve: 'approve',
+  reject: 'reject',
+} as const;
+
+export interface BulkDecideInput {
+  action: BulkDecideInputAction;
+  /**
+     * @minItems 1
+     * @maxItems 500
+     */
+  ids: number[];
+}
+
+export type BulkDecideResultSkippedItem = {
+  id: number;
+  reason: string;
+};
+
+export interface BulkDecideResult {
+  approved: number;
+  rejected: number;
+  skipped: BulkDecideResultSkippedItem[];
+}
+
+export type TestCaseAvailabilityExpected = typeof TestCaseAvailabilityExpected[keyof typeof TestCaseAvailabilityExpected];
+
+
+export const TestCaseAvailabilityExpected = {
+  task: 'task',
+  no_task: 'no_task',
+} as const;
+
+export interface TestCaseAvailability {
+  available: boolean;
+  expected: TestCaseAvailabilityExpected;
+  /** @nullable */
+  caseId: number | null;
+}
+
+export type TestCaseInputExpected = typeof TestCaseInputExpected[keyof typeof TestCaseInputExpected];
+
+
+export const TestCaseInputExpected = {
+  task: 'task',
+  no_task: 'no_task',
+} as const;
+
+export interface TestCaseInput {
+  expected?: TestCaseInputExpected;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  note?: string | null;
+}
+
+export interface TestCaseResult {
+  at: string;
+  model: string;
+  promptVersion: string;
+  passed: boolean;
+  got: string[];
+}
+
+export type TestCaseExpected = typeof TestCaseExpected[keyof typeof TestCaseExpected];
+
+
+export const TestCaseExpected = {
+  task: 'task',
+  no_task: 'no_task',
+} as const;
+
+export interface TestCase {
+  id: number;
+  agent: string;
+  agentName: string;
+  title: string;
+  expected: TestCaseExpected;
+  gotThen: string[];
+  /** @nullable */
+  note: string | null;
+  /** @nullable */
+  taskId: number | null;
+  createdAt: string;
+  lastResult: TestCaseResult | null;
+}
+
+export interface ReplayInput {
+  agent: string;
+  /** @nullable */
+  model?: string | null;
+}
+
+export interface ReplayFailure {
+  caseId: number;
+  title: string;
+  expected: string;
+  got: string[];
+}
+
+export interface ReplayResult {
+  id: number;
+  agent: string;
+  model: string;
+  promptVersion: string;
+  total: number;
+  passed: number;
+  failed: ReplayFailure[];
+  previous: ReplaySummary | null;
+  at: string;
+}
+
+/**
+ * @nullable
+ */
+export type ThumbThumb = typeof ThumbThumb[keyof typeof ThumbThumb] | null;
+
+
+export const ThumbThumb = {
+  up: 'up',
+  down: 'down',
+} as const;
+
+export interface Thumb {
+  subject: string;
+  /** @nullable */
+  thumb: ThumbThumb;
+}
+
+/**
+ * @nullable
+ */
+export type ThumbInputThumb = typeof ThumbInputThumb[keyof typeof ThumbInputThumb] | null;
+
+
+export const ThumbInputThumb = {
+  up: 'up',
+  down: 'down',
+} as const;
+
+export interface ThumbInput {
+  subject: string;
+  /** @nullable */
+  thumb: ThumbInputThumb;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  note?: string | null;
+}
+
+/**
+ * Who reads Slack: only OllieOS's own Slack check fills this list
+ */
+export type SlackToAnswerReadBy = typeof SlackToAnswerReadBy[keyof typeof SlackToAnswerReadBy];
+
+
+export const SlackToAnswerReadBy = {
+  ollieos: 'ollieos',
+  claude: 'claude',
+} as const;
+
+/**
+ * Needs a reply, for information, or not read by AI
+ */
+export type SlackToAnswerItemNeeds = typeof SlackToAnswerItemNeeds[keyof typeof SlackToAnswerItemNeeds];
+
+
+export const SlackToAnswerItemNeeds = {
+  reply: 'reply',
+  info: 'info',
+  unknown: 'unknown',
+} as const;
+
+export interface SlackToAnswerItem {
+  id: number;
+  /** im, mpim or channel */
+  kind: string;
+  /** The other person for a DM, the names in a group DM, or #channel */
+  place: string;
+  /** @nullable */
+  fromName: string | null;
+  /** @nullable */
+  personId: number | null;
+  /** @nullable */
+  personSlug: string | null;
+  /** The message */
+  text: string;
+  at: string;
+  /** The message in Slack */
+  url: string;
+  /** Needs a reply, for information, or not read by AI */
+  needs: SlackToAnswerItemNeeds;
+  /**
+     * One line on what they want
+     * @nullable
+     */
+  ask: string | null;
+  /** Someone in it is hidden from AI, so it was not read and cannot be drafted */
+  hidden: boolean;
+  /**
+     * The open task for it, when there is one
+     * @nullable
+     */
+  taskId: number | null;
+}
+
+export interface SlackToAnswer {
+  items: SlackToAnswerItem[];
+  /** Who reads Slack: only OllieOS's own Slack check fills this list */
+  readBy: SlackToAnswerReadBy;
+  /**
+     * When the last good Slack check finished
+     * @nullable
+     */
+  checkedAt: string | null;
+}
+
+export interface SlackReplyDraft {
+  text: string;
+}
+
 export interface EmailInboxTask {
   taskId: number;
 }
@@ -1508,6 +2328,8 @@ export type EmailDraftItemTask = {
 export interface EmailDraftItem {
   draft: ReplyDraft;
   task: EmailDraftItemTask;
+  /** Part K: a recap drafted after an external meeting */
+  followUp?: boolean;
   /** A follow-up to an email nobody answered, rather than a reply */
   chase: boolean;
 }
@@ -1532,6 +2354,17 @@ export interface ReplyDraftInput {
      * @maxLength 20000
      */
   body: string;
+}
+
+export interface TaskReorderInput {
+  /**
+     * Task ids in the new order, top first
+     * @minItems 1
+     * @maxItems 500
+     */
+  ids: number[];
+  /** Forget the dragged order for these tasks instead, so they go back to due-date order */
+  clear?: boolean;
 }
 
 export type TriageInputAction = typeof TriageInputAction[keyof typeof TriageInputAction];
@@ -1752,6 +2585,21 @@ export interface ShelfLives {
      * @maximum 3650
      */
   organisation: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  renewal_date: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  contract_value: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  account_health: number;
 }
 
 export interface KnowledgeSettings {
@@ -1791,6 +2639,21 @@ export type KnowledgeSettingsUpdateShelfLifeDays = {
      * @maximum 3650
      */
   organisation?: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  renewal_date?: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  contract_value?: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  account_health?: number;
 };
 
 export interface KnowledgeSettingsUpdate {
@@ -2407,7 +3270,17 @@ export const FactAttribute = {
   status: 'status',
   next_step: 'next_step',
   decision_date: 'decision_date',
+  renewal_date: 'renewal_date',
+  contract_value: 'contract_value',
+  account_health: 'account_health',
 } as const;
+
+export type FactAlsoFromItem = {
+  source: string;
+  /** @nullable */
+  url: string | null;
+  at: string;
+};
 
 export interface Fact {
   id: number;
@@ -2432,6 +3305,8 @@ export interface Fact {
   approvedAt: string | null;
   /** Earlier versions this fact replaced, newest first */
   history: FactVersion[];
+  /** Cards marked "Same as existing" for this fact, its other sources, newest first */
+  alsoFrom: FactAlsoFromItem[];
 }
 
 export type FactInputEntityType = typeof FactInputEntityType[keyof typeof FactInputEntityType];
@@ -2457,6 +3332,9 @@ export const FactInputAttribute = {
   status: 'status',
   next_step: 'next_step',
   decision_date: 'decision_date',
+  renewal_date: 'renewal_date',
+  contract_value: 'contract_value',
+  account_health: 'account_health',
 } as const;
 
 export interface FactInput {
@@ -2741,6 +3619,18 @@ export interface Rule {
   outOfDate: boolean;
 }
 
+/**
+ * Part L: Now or Backlog when the playbook is run; Backlog when not set
+ * @nullable
+ */
+export type PlaybookStepStatus = typeof PlaybookStepStatus[keyof typeof PlaybookStepStatus] | null;
+
+
+export const PlaybookStepStatus = {
+  now: 'now',
+  backlog: 'backlog',
+} as const;
+
 export interface PlaybookStep {
   id: string;
   text: string;
@@ -2751,6 +3641,11 @@ export interface PlaybookStep {
      * @nullable
      */
   afterDays: number | null;
+  /**
+     * Part L: Now or Backlog when the playbook is run; Backlog when not set
+     * @nullable
+     */
+  status?: PlaybookStepStatus;
   /** @nullable */
   personName: string | null;
   /** @nullable */
@@ -3558,6 +4453,11 @@ export interface ConnectorService {
   lastGoodAt: string | null;
   /** @nullable */
   lastFromClaudeAt: string | null;
+  /**
+     * Part Q: why this service needs a look (no good check for a while, or checks that bring nothing in)
+     * @nullable
+     */
+  warning: string | null;
   runs: ConnectorRun[];
 }
 
@@ -4179,6 +5079,17 @@ export interface RuleUpdate {
   productIds?: number[];
 }
 
+/**
+ * @nullable
+ */
+export type PlaybookStepInputStatus = typeof PlaybookStepInputStatus[keyof typeof PlaybookStepInputStatus] | null;
+
+
+export const PlaybookStepInputStatus = {
+  now: 'now',
+  backlog: 'backlog',
+} as const;
+
 export interface PlaybookStepInput {
   /**
      * Keep the id of a step that stays
@@ -4199,6 +5110,8 @@ export interface PlaybookStepInput {
      * @nullable
      */
   afterDays?: number | null;
+  /** @nullable */
+  status?: PlaybookStepInputStatus;
 }
 
 export interface PlaybookInput {
@@ -4581,6 +5494,37 @@ weekStart?: string;
 
 export type GetWeeklyUpdateParams = {
 weekStart?: string;
+};
+
+export type ListTestCasesParams = {
+agent?: string;
+};
+
+export type ListFeedbackParams = {
+/**
+ * Comma-separated, e.g. ask:12,brief:4
+ */
+subjects: string;
+};
+
+export type SearchDriveParams = {
+/**
+ * @maxLength 200
+ */
+q: string;
+};
+
+export type ListUnusedRulesAndPlaybooks200 = {
+  rules: number[];
+  playbooks: number[];
+};
+
+export type RunPlaybook201 = {
+  taskIds: number[];
+};
+
+export type CheckReplyDraft200 = {
+  issues: DraftIssue[];
 };
 
 export type ListProjectsParams = {

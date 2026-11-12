@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
-import { boolean, date, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { peopleTable } from "./knowledge";
 import { calendarEventsTable } from "./calendar";
 
 /** One sentence or question in a brief, with the refs it relies on (feature 03 rule 3). */
@@ -52,6 +53,8 @@ export const meetingBriefsTable = pgTable("meeting_briefs", {
   /** Inbox tasks made from the meeting's actions (build plan 31) */
   actionTaskIds: integer("action_task_ids").array().notNull().default(sql`'{}'::integer[]`),
   model: text("model"),
+  /** Part K: when Ollie first opened the prep page; null means not prepped yet */
+  openedAt: timestamp("opened_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow()
@@ -85,6 +88,8 @@ export interface DigestSections {
   needs: DigestSection | null;
   moved: DigestSection | null;
   quiet: DigestSection | null;
+  /** Part Q: Library documents someone else changed since the last digest. Missing on older digests. */
+  changed?: DigestSection | null;
   today: DigestEvent[];
   quietNight: boolean;
 }
@@ -102,3 +107,34 @@ export const digestsTable = pgTable("digests", {
 
 export type MeetingBrief = typeof meetingBriefsTable.$inferSelect;
 export type Digest = typeof digestsTable.$inferSelect;
+
+/**
+ * "Next time I see…" points (build plan section 14, Part K): things Ollie wants to raise with a
+ * person. Open points go at the top of the agenda of the next meeting that person is in. When that
+ * meeting's Granola notes arrive, points the notes show were covered move to Raised; the rest carry
+ * over. Ollie can tick or untick by hand.
+ */
+export const talkingPointsTable = pgTable(
+  "talking_points",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    personId: integer("person_id")
+      .notNull()
+      .references(() => peopleTable.id, { onDelete: "cascade" }),
+    text: text("text").notNull(),
+    /** ollie, or the AI client that added it */
+    createdBy: text("created_by").notNull(),
+    /** open or raised */
+    status: text("status").notNull().default("open"),
+    raisedAt: timestamp("raised_at", { withTimezone: true }),
+    /** The meeting it was raised in, while that meeting is still on file */
+    raisedEventId: integer("raised_event_id").references(() => calendarEventsTable.id, { onDelete: "set null" }),
+    raisedTitle: text("raised_title"),
+    /** notes: Granola notes showed it was covered; ollie: ticked by hand */
+    raisedHow: text("raised_how"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("talking_points_person_idx").on(t.personId, t.status)],
+);
+
+export type TalkingPoint = typeof talkingPointsTable.$inferSelect;

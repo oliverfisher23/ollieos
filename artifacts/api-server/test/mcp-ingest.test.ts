@@ -138,6 +138,8 @@ describe("no delete tool (criterion 7)", () => {
         "add_fact",
         "add_idea",
         "add_note",
+        "add_talking_point",
+        "check_draft",
         "create_task",
         "explore",
         "fetch",

@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useLocation } from 'wouter';
 import { useListProjects, useQuickAddTask } from '@workspace/api-client-react';
 import { formatShort, parseQuickAdd, type QuickAddToken } from '@workspace/shared';
-import { IconUp } from '@/components/icons';
+import { IconMic, IconUp } from '@/components/icons';
 import { useInvalidateTasks } from '@/lib/task-cache';
 import { notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
@@ -125,6 +125,11 @@ export function AddBox({ idPrefix = 'home', autoFocus = false, onAdded }: { idPr
           </>
         )}
         <div style={{ flexGrow: 1 }} />
+        {add && (
+          <button type="button" className="oo-send" style={{ background: 'transparent', color: 'inherit' }} aria-label="Speak instead" onClick={() => { onAdded?.(); navigate('/voice'); }} data-testid={'button-voice-' + idPrefix}>
+            <IconMic />
+          </button>
+        )}
         <button type="submit" className="oo-send" aria-label={add ? 'Add task' : 'Ask'} disabled={!canSubmit} data-testid={'button-submit-' + idPrefix}>
           <IconUp />
         </button>

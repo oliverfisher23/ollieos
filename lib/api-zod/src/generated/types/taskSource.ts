@@ -16,4 +16,5 @@ export const TaskSource = {
   quarterly: 'quarterly',
   manual: 'manual',
   session: 'session',
+  voice: 'voice',
 } as const;

@@ -174,7 +174,8 @@ export async function loadVisibleDocs(scope: AiScope, refList: string[]): Promis
             location: documentsTable.location,
             summary: documentsTable.summary,
             lastConfirmedAt: documentsTable.lastConfirmedAt,
-            contents: documentContentsTable.text,
+            // One extra character preserves the existing "start only" indicator and clip behaviour.
+            contents: sql<string | null>`left(${documentContentsTable.text}, ${DOC_CONTENT_CHARS + 1})`,
             contentsTruncated: documentContentsTable.truncated,
             contentsReadAt: documentContentsTable.readAt,
           })

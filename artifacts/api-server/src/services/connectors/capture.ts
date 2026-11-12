@@ -17,7 +17,10 @@ import { logger } from "../../lib/logger";
 import { captureTask, enabledRules, logActivity, matchNoiseRule, type CaptureWriter } from "../aiWrites";
 import { emailsOf, hasAnyEmail, hasAnySlackId } from "../personMatch";
 import { propose, type Proposal } from "../suggestions";
+import { applyProgress, cleanProgress, openItemsFor, openItemsBlock, type ProgressCounts } from "../taskEvidence";
+import { proposeSignature, proposeWorksAt, recordTogether } from "../peopleSignals";
 import type { WorkMessage, WorkUnit } from "./messages";
+import type { AgentKey } from "../../lib/agents";
 import { sortUnits, type KnownNames, type SortedClaim, type SortedUnit } from "./sorter";
 
 export const CONNECTOR_WRITER: CaptureWriter = { actor: "ollieos", clientId: null };
@@ -32,6 +35,12 @@ export interface CaptureCounts {
   activity: number;
   /** Part N: decision and fact cards proposed to the Knowledge Inbox */
   knowledge?: number;
+  /** Part U: tasks closed by evidence from their own conversation, and tasks marked Looks done */
+  closed?: number;
+  looks_done?: number;
+  /** Part S: relationship and works-at cards, and details from signatures */
+  relationships?: number;
+  details?: number;
 }
 
 /** True when one of Ollie's noise rules covers every message in the exchange from someone else. */
@@ -127,6 +136,20 @@ export async function projectChoices(): Promise<{ id: number; name: string }[]> 
 export const emptyCounts = (): CaptureCounts => ({ inbox: 0, promises: 0, waiting: 0, noise: 0, duplicate: 0, noise_rule: 0, activity: 0 });
 
 const hidden = (p: { confidential: boolean; aiAccess: boolean }) => p.confidential || !p.aiAccess;
+
+/** Part U: the known people in an exchange, Ollie left out. */
+export function peopleIdsIn(u: WorkUnit, people: LoadedPeople): number[] {
+  const ids = new Set<number>();
+  for (const p of u.people) {
+    const row = personIn(people, p) ?? (p.name ? people.byName.get(p.name.toLowerCase()) : undefined);
+    if (row && !row.isSelf) ids.add(row.id);
+  }
+  for (const m of u.messages) {
+    const row = m.fromMe ? null : senderOf(people, m);
+    if (row && !row.isSelf) ids.add(row.id);
+  }
+  return [...ids];
+}
 
 /** False when anyone in the exchange is in People and hidden from AI: such exchanges are never read for knowledge. */
 export function mayReadForKnowledge(u: WorkUnit, people: LoadedPeople): boolean {
@@ -242,7 +265,19 @@ export async function proposeClaims(u: WorkUnit, claims: SortedClaim[], known: K
   return made;
 }
 
-export async function sortAndCapture(units: WorkUnit[], ctx: { me: string; now: Date }): Promise<CaptureCounts> {
+/** What the sorter made of the exchanges it read, for readers that keep more than tasks (Part P). */
+export interface SortedRead {
+  keep: WorkUnit[];
+  sorted: SortedUnit[];
+  /** Whether each exchange may be read by AI: false when anyone in it is hidden from AI */
+  readable: boolean[];
+  people: LoadedPeople;
+}
+
+export async function sortAndCapture(
+  units: WorkUnit[],
+  ctx: { me: string; now: Date; agent: AgentKey; onSorted?: (r: SortedRead) => Promise<void> },
+): Promise<CaptureCounts> {
   const counts = emptyCounts();
   const rules = await enabledRules();
   const keep = units.filter((u) => {
@@ -255,9 +290,47 @@ export async function sortAndCapture(units: WorkUnit[], ctx: { me: string; now: 
   const choices = await projectChoices();
   const before = await loadPeople(keep, []);
   const known = await knownNames(before);
-  const readable = keep.map((u) => mayReadForKnowledge(u, before));
-  const sorted = await sortUnits(keep, { me: ctx.me, projects: choices.map((p) => p.name), now: ctx.now, known, readKnowledge: (i) => readable[i] });
+  // Confirmation emails are never read for knowledge (Part U).
+  const readable = keep.map((u) => !u.confirmation && mayReadForKnowledge(u, before));
+  // Part U: the open tasks each exchange could show progress on.
+  const open = await openItemsFor(keep, keep.map((u) => peopleIdsIn(u, before)));
+  const blocks = open.map(openItemsBlock);
+  const sorted = await sortUnits(keep, {
+    me: ctx.me,
+    projects: choices.map((p) => p.name),
+    now: ctx.now,
+    known,
+    readKnowledge: (i) => readable[i],
+    agent: ctx.agent,
+    openItems: (i) => blocks[i] ?? null,
+  });
   await captureSorted(keep, sorted, { choices, rules, applyNoise: true, counts });
+  const progress: ProgressCounts = { closed: 0, looks_done: 0, progress: 0 };
+  for (const [i, u] of keep.entries()) {
+    const p = cleanProgress(sorted[i].progress, u, open[i]);
+    if (p.length) await applyProgress(u, open[i], p, progress);
+  }
+  if (progress.closed) counts.closed = progress.closed;
+  if (progress.looks_done) counts.looks_done = progress.looks_done;
+
+  // Part S: people seen together on email threads, and details from email signatures.
+  for (const [i, u] of keep.entries()) {
+    if (u.source !== "email" || u.confirmation) continue;
+    try {
+      const ids = peopleIdsIn(u, before);
+      const last = u.messages[u.messages.length - 1];
+      if (u.conversation && ids.length > 1) counts.relationships = (counts.relationships ?? 0) + (await recordTogether("email", u.conversation.id, u.subject, last.at, ids, ctx.now));
+      if (ids.length) counts.relationships = (counts.relationships ?? 0) + (await proposeWorksAt(ids, ctx.now));
+      const sig = sorted[i].signature;
+      const theirs = [...u.messages].reverse().find((m) => !m.fromMe);
+      const sender = theirs ? senderOf(before, theirs) : null;
+      if (sig && readable[i] && sender && !sender.isSelf && (sig.title || sig.company || sig.phone)) {
+        counts.details = (counts.details ?? 0) + (await proposeSignature({ id: sender.id, name: sender.name }, sig, { ref: theirs!.ref, url: theirs!.url, label: sourceLabel(u, theirs!), at: theirs!.at }, ctx.now));
+      }
+    } catch (err) {
+      logger.warn({ err, unit: u.key }, "Could not read people signals from an email");
+    }
+  }
 
   counts.knowledge = 0;
   const [self] = await db.select({ name: peopleTable.name }).from(peopleTable).where(eq(peopleTable.isSelf, true));
@@ -266,6 +339,7 @@ export async function sortAndCapture(units: WorkUnit[], ctx: { me: string; now: 
     const claims = readable[i] ? (sorted[i].knowledge ?? []) : [];
     if (claims.length) counts.knowledge += await proposeClaims(u, claims, known, before, selfName);
   }
+  if (ctx.onSorted) await ctx.onSorted({ keep, sorted, readable, people: before });
   return counts;
 }
 
@@ -290,6 +364,8 @@ export async function captureSorted(
   const projectFor = (name: string): number | null => projects.get(name.toLowerCase().trim()) ?? null;
 
   for (const [i, u] of keep.entries()) {
+    // Part U: a confirmation email only counts as evidence; it makes no tasks or activity.
+    if (u.confirmation) continue;
     const s = sorted[i];
     const linkedProjects = new Set<number>();
     const unitProject = projectFor(s.project) ?? opts.projectFor?.(i) ?? null;

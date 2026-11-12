@@ -37,4 +37,19 @@ export type KnowledgeSettingsUpdateShelfLifeDays = {
      * @maximum 3650
      */
   organisation?: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  renewal_date?: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  contract_value?: number;
+  /**
+     * @minimum 1
+     * @maximum 3650
+     */
+  account_health?: number;
 };

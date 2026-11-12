@@ -7,6 +7,7 @@ import {
   linksTable,
   notesTable,
   projectsTable,
+  suggestionsTable,
   type Decision as DecisionRow,
   type Fact as FactRow,
   type Note as NoteRow,
@@ -44,6 +45,8 @@ export interface FactView {
   approvedAt: Date | null;
   /** Earlier versions this fact replaced, newest first */
   history: { id: number; text: string; createdAt: Date; createdBy: string }[];
+  /** Cards Ollie marked "Same as existing" for this fact: its other sources, newest first */
+  alsoFrom: { source: string; url: string | null; at: Date }[];
 }
 
 /** Current facts for an entity, each with the chain of versions it superseded. */
@@ -54,6 +57,16 @@ export async function factsFor(entityType: EntityKind, entityId: number): Promis
     .where(and(eq(factsTable.entityType, entityType), eq(factsTable.entityId, entityId)))
     .orderBy(asc(factsTable.createdAt), asc(factsTable.id));
   const inQuestion = await inQuestionRefs();
+  const current = rows.filter((r) => r.supersededBy === null).map((r) => r.id);
+  const merged = current.length
+    ? await db
+        .select({ id: suggestionsTable.resultId, label: suggestionsTable.sourceLabel, by: suggestionsTable.proposedBy, url: suggestionsTable.sourceUrl, at: suggestionsTable.decidedAt, created: suggestionsTable.createdAt })
+        .from(suggestionsTable)
+        .where(and(eq(suggestionsTable.status, "merged"), eq(suggestionsTable.resultType, "fact"), inArray(suggestionsTable.resultId, current)))
+        .orderBy(desc(suggestionsTable.decidedAt))
+    : [];
+  const also = new Map<number, FactView["alsoFrom"]>();
+  for (const m of merged) if (m.id != null) also.set(m.id, [...(also.get(m.id) ?? []), { source: m.label ?? m.by, url: m.url, at: m.at ?? m.created }]);
   // A fact can replace several (a resolved conflict); a retired fact points at itself and has no successor.
   const replaced = new Map<number, FactRow[]>();
   for (const r of rows) if (r.supersededBy && r.supersededBy !== r.id) replaced.set(r.supersededBy, [...(replaced.get(r.supersededBy) ?? []), r]);
@@ -71,7 +84,7 @@ export async function factsFor(entityType: EntityKind, entityId: number): Promis
         queue.push(...(replaced.get(prev.id) ?? []));
       }
       history.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || b.id - a.id);
-      return toFactView(r, history, inQuestion);
+      return { ...toFactView(r, history, inQuestion), alsoFrom: also.get(r.id) ?? [] };
     });
 }
 
@@ -90,6 +103,7 @@ function toFactView(r: FactRow, history: FactView["history"], inQuestion: Readon
     outOfDate: inQuestion.has(`fact:${r.id}`),
     approvedAt: r.approvedAt,
     history,
+    alsoFrom: [],
   };
 }
 

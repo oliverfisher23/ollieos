@@ -1,4 +1,5 @@
 import { Link } from 'wouter';
+import { WorthALookSection } from '@/components/time-and-meetings';
 import { useListMeetings, type MeetingRow } from '@workspace/api-client-react';
 import { addDays, formatLong, formatShort, formatTime } from '@workspace/shared';
 import { ScopePill } from '@/components/research';
@@ -77,6 +78,7 @@ export default function MeetingsPage() {
           )}
 
           <section aria-labelledby="m-past" style={{ display: 'flex', flexDirection: 'column', gap: 4 }} data-testid="section-past">
+            <WorthALookSection />
             <h2 id="m-past" className="oo-h2">Last two weeks</h2>
             {q.data.past.length === 0 ? (
               <p className="oo-muted" style={{ margin: '6px 0 0', fontSize: 14 }} data-testid="state-past-empty">No work meetings in the last two weeks.</p>

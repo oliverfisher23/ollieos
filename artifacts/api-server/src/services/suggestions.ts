@@ -35,6 +35,9 @@ import { insertProduct } from "./products";
 export { FACT_ATTRIBUTES };
 export type FactAttribute = (typeof FACT_ATTRIBUTES)[number];
 /** Where a suggestion came from. */
+/** Part T: facts read from commercial systems, refreshed when proposed again unchanged. */
+const COMMERCIAL_ATTRIBUTES = new Set<string>(["renewal_date", "contract_value", "account_health"]);
+
 export const SUGGESTION_SOURCES = ["email", "meeting", "chat", "recording", "voice", "calendar", "slack", "document"] as const;
 export type SuggestionKind = Suggestion["kind"];
 
@@ -468,7 +471,11 @@ export async function propose(meta: ProposeMeta, p: Proposal, now = new Date()):
   if (p.kind === "fact") {
     const facts = await currentFacts(db, p.entityType, p.entityId);
     const same = facts.find((f) => normalise(f.text) === norm);
-    if (same) return { status: "duplicate", factId: same.id };
+    if (same) {
+      // Part T: a commercial fact read again from HubSpot or the KPI Portal is confirmed as of now.
+      if (same.attribute && COMMERCIAL_ATTRIBUTES.has(same.attribute)) await db.update(factsTable).set({ lastConfirmedAt: now }).where(eq(factsTable.id, same.id));
+      return { status: "duplicate", factId: same.id };
+    }
     if (p.payload.attribute) {
       conflictWith = facts
         .filter((f) => f.attribute === p.payload.attribute && f.id !== p.payload.supersedes)
@@ -933,6 +940,36 @@ export async function rejectSuggestion(id: number, now = new Date()) {
     await writeAudit(tx, { actor: ACTOR, action: "reject", entityType: "suggestion", entityId: id, payload: { kind: s.kind } });
     return { id, status: "rejected" as const, result: null };
   });
+}
+
+export interface BulkResult {
+  approved: number;
+  rejected: number;
+  /** Cards left waiting, with why: a conflict to decide, already decided, or a problem approving */
+  skipped: { id: number; reason: string }[];
+}
+
+/**
+ * Approves or rejects many cards at once, each in its own transaction, as if Ollie had pressed the
+ * button on each. Cards waiting on the Conflicts tab, already decided, or that cannot be approved
+ * as they stand are skipped and listed, never forced.
+ */
+export async function bulkDecide(action: "approve" | "reject", ids: number[], now = new Date()): Promise<BulkResult> {
+  const out: BulkResult = { approved: 0, rejected: 0, skipped: [] };
+  for (const id of [...new Set(ids)]) {
+    try {
+      if (action === "approve") {
+        await approveSuggestion(id, undefined, now);
+        out.approved++;
+      } else {
+        await rejectSuggestion(id, now);
+        out.rejected++;
+      }
+    } catch (err) {
+      out.skipped.push({ id, reason: err instanceof Error ? err.message : "Could not be decided" });
+    }
+  }
+  return out;
 }
 
 /**

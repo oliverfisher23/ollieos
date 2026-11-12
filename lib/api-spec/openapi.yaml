@@ -277,6 +277,29 @@ paths:
         "403":
           $ref: "#/components/responses/NotAuthorised"
 
+  /tasks/reorder:
+    post:
+      operationId: reorderTasks
+      tags: [tasks]
+      summary: Put tasks in the order Ollie dragged them, or clear that order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskReorderInput"
+      responses:
+        "204":
+          description: Saved
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
   /tasks/{id}:
     get:
       operationId: getTask
@@ -1074,6 +1097,671 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+
+  /agents:
+    get:
+      operationId: listAgents
+      tags: [agents]
+      summary: "Every AI agent in OllieOS with its runs, estimated cost, speed and errors over the last 7 days, and every connected AI (Part V)"
+      responses:
+        "200":
+          description: Agents
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentsView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /tasks/{id}/test-case:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getTaskTestCase
+      tags: [agents]
+      summary: "Part X: whether this item's exchange can still be kept as a test case"
+      responses:
+        "200":
+          description: Availability
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TestCaseAvailability" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    post:
+      operationId: keepTaskTestCase
+      tags: [agents]
+      summary: "Part X: keep what the reader was given for this item as a test case"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TestCaseInput" }
+      responses:
+        "201":
+          description: The test case
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TestCase" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /evals/cases:
+    get:
+      operationId: listTestCases
+      tags: [agents]
+      summary: "Part X: saved test cases"
+      parameters:
+        - { name: agent, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: Test cases
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/TestCase" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /evals/cases/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    delete:
+      operationId: removeTestCase
+      tags: [agents]
+      summary: "Part X: remove a test case"
+      responses:
+        "204": { description: Removed }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /evals/replay:
+    post:
+      operationId: replayTestCases
+      tags: [agents]
+      summary: "Part X: run a reader as the code now stands against its test cases"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReplayInput" }
+      responses:
+        "200":
+          description: The result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReplayResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /feedback:
+    get:
+      operationId: listFeedback
+      tags: [agents]
+      summary: "Part Y: Ollie's thumbs on Ask answers, briefs and digests"
+      parameters:
+        - { name: subjects, in: query, required: true, schema: { type: string }, description: "Comma-separated, e.g. ask:12,brief:4" }
+      responses:
+        "200":
+          description: Thumbs
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Thumb" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: setFeedback
+      tags: [agents]
+      summary: "Part Y: thumbs up or down (null clears)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ThumbInput" }
+      responses:
+        "200":
+          description: The thumb
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Thumb" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /voice/parse:
+    post:
+      operationId: parseVoice
+      tags: [tasks]
+      summary: "Feature 09: split what Ollie said into tasks, promises and facts to check. Saves nothing."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VoiceParseInput" }
+      responses:
+        "200":
+          description: Items to check
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VoiceParse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /voice/save:
+    post:
+      operationId: saveVoice
+      tags: [tasks]
+      summary: "Feature 09: save what Ollie confirmed (tasks to the Inbox, facts to the Knowledge Inbox)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VoiceSaveInput" }
+      responses:
+        "201":
+          description: What was saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VoiceSaveResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /export/tasks.csv:
+    get:
+      operationId: exportTasksCsv
+      tags: [tasks]
+      summary: "Milestone 9: every task as a CSV file"
+      responses:
+        "200":
+          description: CSV
+          content:
+            text/csv:
+              schema: { type: string }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /tasks/{id}/slack-dm:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getTaskSlackDmOptions
+      tags: [tasks]
+      summary: "Colleagues this task can be sent to on Slack, and who it is suggested for"
+      responses:
+        "200":
+          description: Options
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackDmOptions" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    post:
+      operationId: sendTaskSlackDm
+      tags: [tasks]
+      summary: "Send a colleague a Slack direct message as Ollie, then move the task to Waiting on them"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SlackDmInput" }
+      responses:
+        "200":
+          description: Sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackDmResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /library/drive-search:
+    get:
+      operationId: searchDrive
+      tags: [library]
+      summary: "Part L: search every Drive file Ollie can open, by name and text"
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, maxLength: 200 }
+      responses:
+        "200":
+          description: Files
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/DriveSearchHit" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /library/unused:
+    get:
+      operationId: listUnusedRulesAndPlaybooks
+      tags: [library]
+      summary: "Part L: rules and playbooks not used by any AI in 90 days"
+      responses:
+        "200":
+          description: Ids
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rules, playbooks]
+                properties:
+                  rules: { type: array, items: { type: integer } }
+                  playbooks: { type: array, items: { type: integer } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /playbooks/{id}/run:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: runPlaybook
+      tags: [library]
+      summary: "Part L: makes the playbook's steps into tasks for a person, organisation or project"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlaybookRunInput" }
+      responses:
+        "201":
+          description: The tasks made
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [taskIds]
+                properties:
+                  taskIds: { type: array, items: { type: integer } }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /playbooks/{id}/usage:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      operationId: getPlaybookUsage
+      tags: [library]
+      summary: "Part L: how often the playbook reached an AI, and the last 10 times"
+      responses:
+        "200":
+          description: Usage
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UsageView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /rules/{id}/usage:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      operationId: getRuleUsage
+      tags: [library]
+      summary: "Part L: how often the rule reached an AI, and the last 10 times"
+      responses:
+        "200":
+          description: Usage
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UsageView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /tasks/{id}/reply-draft/check:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: checkReplyDraft
+      tags: [tasks]
+      summary: "Part L: the lines of a draft that break a rule that applies, with a fix for each"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DraftCheckInput" }
+      responses:
+        "200":
+          description: Issues
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [issues]
+                properties:
+                  issues: { type: array, items: { $ref: "#/components/schemas/DraftIssue" } }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /time:
+    get:
+      operationId: getTimeReport
+      tags: [preparation]
+      summary: "Part R: meeting hours by goal and function, this week and the four before"
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeReport" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /week-check:
+    get:
+      operationId: getWeekCheck
+      tags: [preparation]
+      summary: "Part R: free working hours left this week against what is due"
+      responses:
+        "200":
+          description: Check
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WeekCheck" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /meetings/worth-a-look:
+    get:
+      operationId: listMeetingsWorthALook
+      tags: [preparation]
+      summary: "Part R: repeating meetings where 3 of the last 4 brought no actions or decisions"
+      responses:
+        "200":
+          description: Series
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/WorthALook" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /meetings/worth-a-look/{seriesId}/keep:
+    parameters:
+      - name: seriesId
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      operationId: keepMeetingSeries
+      tags: [preparation]
+      summary: "Part R: keep a repeating meeting; not asked again for 12 weeks"
+      responses:
+        "204":
+          description: Kept
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /organisations-pulse:
+    get:
+      operationId: listClientPulses
+      tags: [knowledge]
+      summary: "Part S: the pulse of every client organisation, those needing attention first"
+      responses:
+        "200":
+          description: Pulses
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/ClientPulse" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /organisations/{slug}/pulse:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    get:
+      operationId: getClientPulse
+      tags: [knowledge]
+      summary: "Part S: one organisation's pulse"
+      responses:
+        "200":
+          description: Pulse
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClientPulse" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    patch:
+      operationId: setClientQuietDays
+      tags: [knowledge]
+      summary: "Part S: days without contact before the organisation shows Needs attention (null for 30)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QuietDaysInput" }
+      responses:
+        "200":
+          description: Pulse
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ClientPulse" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /relationships/look-back:
+    get:
+      operationId: getRelationshipLookBack
+      tags: [knowledge]
+      summary: "Part S: the one-off look back over 6 months of email headers for works-with cards"
+      responses:
+        "200":
+          description: State
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelationshipLookBack" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    post:
+      operationId: startRelationshipLookBack
+      tags: [knowledge]
+      summary: "Part S: starts the look back in the background"
+      responses:
+        "202":
+          description: Started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RelationshipLookBack" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /people/{slug}/points:
+    parameters:
+      - $ref: "#/components/parameters/Slug"
+    get:
+      operationId: listTalkingPoints
+      tags: [knowledge]
+      summary: "Part K: a person's Next time I see points, open and recently raised"
+      responses:
+        "200":
+          description: Points
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TalkingPoints" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    post:
+      operationId: addTalkingPoint
+      tags: [knowledge]
+      summary: "Part K: adds a point to raise next time"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TalkingPointInput" }
+      responses:
+        "201":
+          description: The point
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TalkingPoint" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /points/{id}:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    patch:
+      operationId: setTalkingPointRaised
+      tags: [knowledge]
+      summary: "Part K: ticks a point as raised by hand, or puts it back"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TalkingPointRaisedInput" }
+      responses:
+        "200":
+          description: The point
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TalkingPoint" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteTalkingPoint
+      tags: [knowledge]
+      summary: "Part K: removes a point"
+      responses:
+        "204":
+          description: Removed
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /briefs/{eventId}/points:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: addBriefTalkingPoint
+      tags: [preparation]
+      summary: "Part K: adds a Next time I see point for someone in the meeting, from its prep page"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BriefTalkingPointInput" }
+      responses:
+        "201":
+          description: The point
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TalkingPoint" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /tasks/{id}/evidence:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      operationId: listTaskEvidence
+      tags: [tasks]
+      summary: "What OllieOS has seen: later messages, emails and meeting notes that show this task is done or moving (Part U), newest first"
+      responses:
+        "200":
+          description: Evidence
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/TaskEvidence" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /tasks/{id}/evidence/{evidenceId}/dismiss:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+      - name: evidenceId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: dismissTaskEvidence
+      tags: [tasks]
+      summary: "\"Not done\" on a Looks done marker: that evidence no longer marks the task"
+      responses:
+        "200":
+          description: The task's evidence after the change
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/TaskEvidence" } }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /email/slack:
+    get:
+      operationId: listSlackToAnswer
+      tags: [email]
+      summary: "Slack to answer: conversations from the last 14 days whose newest message is from someone else, newest first. Nothing is posted to Slack."
+      responses:
+        "200":
+          description: The list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackToAnswer" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /email/slack/{id}/done:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: markSlackToAnswerDone
+      tags: [email]
+      summary: Takes a Slack conversation off To answer until a newer message arrives, and marks its open task done
+      responses:
+        "200":
+          description: What was changed, for Undo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailInboxDone" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /email/slack/{id}/undo-done:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: undoSlackToAnswerDone
+      tags: [email]
+      summary: Puts a Slack conversation back on To answer and its task back where it was
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailInboxDone" }
+      responses:
+        "204":
+          description: Back on To answer
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /email/slack/{id}/task:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: ensureSlackToAnswerTask
+      tags: [email]
+      summary: "Make a task: \"Reply to <name> on Slack\", status Now, linked to the message. An open task already linked is used instead."
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmailInboxTask" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /email/slack/{id}/draft:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      operationId: draftSlackToAnswerReply
+      tags: [email]
+      summary: Drafts a short Slack reply in Ollie's style for him to copy. Nothing is posted.
+      responses:
+        "200":
+          description: Draft
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SlackReplyDraft" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
 
   /email/threads/{threadId}:
     get:
@@ -2708,6 +3396,25 @@ paths:
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
+  /suggestions/bulk:
+    post:
+      operationId: bulkDecideSuggestions
+      tags: [knowledge]
+      summary: Approve or reject many Knowledge Inbox cards at once; cards that cannot be decided as they stand are skipped
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulkDecideInput" }
+      responses:
+        "200":
+          description: What was decided
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulkDecideResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
   /suggestions/reject-source:
     post:
       operationId: rejectSuggestionsFromSource
@@ -3869,6 +4576,18 @@ components:
         rules: { type: array, items: { $ref: "#/components/schemas/RoundupLine" } }
         playbooks: { type: array, items: { $ref: "#/components/schemas/RoundupLine" } }
         products: { type: array, items: { $ref: "#/components/schemas/RoundupLine" } }
+        documents:
+          type: array
+          description: "Part Q: Library documents someone else changed this week. Missing on older round-ups."
+          items: { $ref: "#/components/schemas/RoundupLine" }
+        agents:
+          type: array
+          description: "Part W: agents whose scorecard dropped on last week. Missing on older round-ups."
+          items: { $ref: "#/components/schemas/RoundupLine" }
+        time:
+          type: array
+          description: "Part R: where meeting time went this week. Missing on older round-ups."
+          items: { $ref: "#/components/schemas/RoundupLine" }
 
     Roundup:
       type: object
@@ -4005,7 +4724,7 @@ components:
       enum: [high, medium, low]
     TaskSource:
       type: string
-      enum: [email, slack, meeting, quarterly, manual, session]
+      enum: [email, slack, meeting, quarterly, manual, session, voice]
     TaskTab:
       type: string
       enum: [inbox, open, now, backlog, waiting, done, noise, dropped, archived]
@@ -4063,7 +4782,11 @@ components:
         - noiseHint
         - repeat
         - steps
+        - position
       properties:
+        position:
+          type: [integer, "null"]
+          description: Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.
         repeat:
           description: How it repeats, anchored on its due date. Null when it does not.
           oneOf:
@@ -4169,6 +4892,9 @@ components:
         noiseHint:
           type: [string, "null"]
           description: Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.
+        looksDone:
+          type: [string, "null"]
+          description: "Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null"
 
     RepeatEvery:
       type: string
@@ -4463,11 +5189,24 @@ components:
         hasBrief:
           type: boolean
           description: A work meeting with someone or something OllieOS knows about. "Brief me" opens /briefs/{id}.
+        notPrepped:
+          type: boolean
+          description: "Part K: an external meeting today whose prep page has not been opened yet"
 
     HomeSummary:
       type: object
-      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access, knowledgeInbox, digestDate, ideasDue]
+      required: [doNext, inbox, waitingOn, promises, doneThisWeek, lastSweepAt, today, access, knowledgeInbox, digestDate, ideasDue, slackToAnswer, connectorWarnings]
       properties:
+        connectorWarnings:
+          type: array
+          description: "Part Q: services OllieOS reads that need a look"
+          items:
+            type: object
+            required: [key, text]
+            properties:
+              key: { type: string }
+              text: { type: string }
+        slackToAnswer: { type: integer, description: "Slack messages that need a reply and have waited over a working day (Part P)" }
         ideasDue:
           type: array
           description: Ideas set to come back to on or before today
@@ -4728,10 +5467,30 @@ components:
 
     BriefView:
       type: object
-      required: [event, research, generatedAt, failed, notMuch, sourcesLine, why, questions, questionsNote, agenda, attendees, promises, tasks, waitingOn, earlier, threads, projects, goals, documents, rules, heldBack, notes, granolaNotes, granolaRef, actions]
+      required: [id, event, research, generatedAt, failed, notMuch, sourcesLine, why, questions, questionsNote, agenda, attendees, promises, tasks, waitingOn, earlier, threads, projects, goals, documents, rules, heldBack, notes, granolaNotes, granolaRef, actions]
       properties:
+        id: { type: integer }
         event: { $ref: "#/components/schemas/BriefEvent" }
         research: { type: array, items: { $ref: "#/components/schemas/CompanyResearch" } }
+        talkingPoints:
+          type: array
+          description: "Part K: open Next time I see points for people in the meeting, shown at the top of the agenda"
+          items: { $ref: "#/components/schemas/TalkingPoint" }
+        followUpTaskId: { type: [integer, "null"], description: "Part K: the follow-up task drafted from this meeting's Granola notes" }
+        pulse:
+          type: array
+          description: "Part S: the pulse of each client organisation in an external meeting"
+          items:
+            type: object
+            required: [name, slug, line, needsAttention, reasons, commercial]
+            properties:
+              name: { type: string }
+              slug: { type: string }
+              line: { type: string }
+              needsAttention: { type: boolean }
+              reasons: { type: array, items: { type: string } }
+              commercial: { $ref: "#/components/schemas/Commercial" }
+        openedAt: { type: [string, "null"], format: date-time, description: "Part K: when Ollie first opened this prep page" }
         generatedAt: { type: string, format: date-time }
         failed: { type: boolean, description: The model could not write the brief. Refresh to try again. }
         notMuch: { type: boolean, description: Nothing citable on file. Show attendees and promises only. }
@@ -4953,13 +5712,17 @@ components:
           oneOf: [{ $ref: "#/components/schemas/DigestSection" }, { type: "null" }]
         quiet:
           oneOf: [{ $ref: "#/components/schemas/DigestSection" }, { type: "null" }]
+        changed:
+          description: "Part Q: Library documents someone else changed since the last digest. Missing on older digests."
+          oneOf: [{ $ref: "#/components/schemas/DigestSection" }, { type: "null" }]
         today: { type: array, items: { $ref: "#/components/schemas/DigestEvent" } }
         quietNight: { type: boolean }
 
     Digest:
       type: object
-      required: [date, windowStart, summary, sections, createdAt]
+      required: [id, date, windowStart, summary, sections, createdAt]
       properties:
+        id: { type: integer }
         date: { type: string, format: date }
         windowStart: { type: string, format: date-time }
         summary: { type: [string, "null"], description: One sentence. Null when the model could not write it. }
@@ -5154,6 +5917,577 @@ components:
         checkedAt: { type: string, format: date-time, description: When Gmail was last looked at }
         updating: { type: boolean, description: "Gmail is being looked at again, or new emails are being read" }
         problem: { type: [string, "null"], description: "Why the last look at Gmail failed; the list is from the one before" }
+    TalkingPoint:
+      type: object
+      required: [id, personId, personName, text, createdBy, status, raisedAt, raisedTitle, raisedHow, createdAt]
+      properties:
+        id: { type: integer }
+        personId: { type: integer }
+        personName: { type: [string, "null"] }
+        text: { type: string }
+        createdBy: { type: string }
+        status: { type: string, enum: [open, raised] }
+        raisedAt: { type: [string, "null"], format: date-time }
+        raisedTitle: { type: [string, "null"], description: The meeting it was raised in }
+        raisedHow: { type: [string, "null"], description: "notes (Granola showed it covered) or ollie (ticked by hand)" }
+        createdAt: { type: string, format: date-time }
+    DriveSearchHit:
+      type: object
+      required: [fileId, name, kind, owner, modifiedAt, url, inLibrary]
+      properties:
+        fileId: { type: string }
+        name: { type: string }
+        kind: { type: string }
+        owner: { type: [string, "null"] }
+        modifiedAt: { type: [string, "null"], format: date-time }
+        url: { type: string }
+        inLibrary: { type: boolean }
+    PlaybookRunInput:
+      type: object
+      additionalProperties: false
+      required: [target, mode]
+      properties:
+        target:
+          type: object
+          additionalProperties: false
+          required: [type, id]
+          properties:
+            type: { type: string, enum: [person, organisation, project] }
+            id: { type: integer }
+        mode: { type: string, enum: [tasks, checklist] }
+        start: { type: [string, "null"], format: date }
+    UsageView:
+      type: object
+      required: [count, lastUsedAt, recent, unused]
+      properties:
+        count: { type: integer }
+        lastUsedAt: { type: [string, "null"], format: date-time }
+        recent:
+          type: array
+          items:
+            type: object
+            required: [at, by, via]
+            properties:
+              at: { type: string, format: date-time }
+              by: { type: string }
+              via: { type: [string, "null"] }
+        unused: { type: boolean }
+    DraftCheckInput:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties: { body: { type: string, minLength: 1, maxLength: 20000 } }
+    DraftIssue:
+      type: object
+      required: [ruleRef, ruleTitle, line, fix]
+      properties:
+        ruleRef: { type: string }
+        ruleTitle: { type: string }
+        line: { type: string }
+        fix: { type: string }
+    TimeSlice:
+      type: object
+      required: [key, label, hours]
+      properties:
+        key: { type: string }
+        label: { type: string }
+        hours: { type: number }
+    TimeWeek:
+      type: object
+      required: [weekStart, meetingHours, byGoal, byFunction, internalHours, externalHours, plannedTaskHours]
+      properties:
+        weekStart: { type: string, format: date }
+        meetingHours: { type: number }
+        byGoal: { type: array, items: { $ref: "#/components/schemas/TimeSlice" } }
+        byFunction: { type: array, items: { $ref: "#/components/schemas/TimeSlice" } }
+        internalHours: { type: number }
+        externalHours: { type: number }
+        plannedTaskHours: { type: number }
+    TimeReport:
+      type: object
+      required: [weeks, thinGoals]
+      properties:
+        weeks: { type: array, items: { $ref: "#/components/schemas/TimeWeek" } }
+        thinGoals: { type: array, items: { type: string } }
+    WeekCheck:
+      type: object
+      required: [freeHours, dueHours, overBy, over, movable, dueCount]
+      properties:
+        freeHours: { type: number }
+        dueHours: { type: number }
+        overBy: { type: number }
+        over: { type: boolean }
+        movable: { type: array, items: { $ref: "#/components/schemas/Task" } }
+        dueCount: { type: integer }
+    WorthALook:
+      type: object
+      required: [seriesId, title, howOften, hoursAMonth, lastFour, organiser, note]
+      properties:
+        seriesId: { type: string }
+        title: { type: string }
+        howOften: { type: string }
+        hoursAMonth: { type: number }
+        lastFour:
+          type: object
+          required: [notes, actions, decisions]
+          properties:
+            notes: { type: integer }
+            actions: { type: integer }
+            decisions: { type: integer }
+        organiser: { type: [string, "null"] }
+        note: { type: string }
+    ClientPulse:
+      type: object
+      required: [organisationId, name, slug, quietDays, lastMetAt, lastContactAt, meetings90, emailsWaiting, oldestEmailAt, owedToThem, overdueToThem, theyOwe, tone, needsAttention, reasons, line, commercial]
+      properties:
+        organisationId: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        quietDays: { type: integer }
+        lastMetAt: { type: [string, "null"], format: date-time }
+        lastContactAt: { type: [string, "null"], format: date-time }
+        meetings90: { type: integer }
+        emailsWaiting: { type: integer }
+        oldestEmailAt: { type: [string, "null"], format: date-time }
+        owedToThem: { type: integer }
+        overdueToThem: { type: integer }
+        theyOwe: { type: integer }
+        tone:
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [tone, reason, at, title]
+              properties:
+                tone: { type: string, enum: [positive, neutral, concerned] }
+                reason: { type: [string, "null"] }
+                at: { type: string, format: date-time }
+                title: { type: string }
+        needsAttention: { type: boolean }
+        reasons: { type: array, items: { type: string } }
+        line: { type: string }
+        commercial: { $ref: "#/components/schemas/Commercial" }
+    CommercialFact:
+      type: object
+      required: [text, at, needsCheck]
+      properties:
+        text: { type: string }
+        at: { type: string, format: date-time, description: When it was last confirmed }
+        needsCheck: { type: boolean }
+    Commercial:
+      type: object
+      description: "Part T: a client's renewal date, contract value and account health, from approved facts"
+      required: [renewalDate, renewsOn, contractValue, accountHealth]
+      properties:
+        renewalDate:
+          oneOf:
+            - $ref: "#/components/schemas/CommercialFact"
+            - { type: "null" }
+        renewsOn: { type: [string, "null"], format: date }
+        contractValue:
+          oneOf:
+            - $ref: "#/components/schemas/CommercialFact"
+            - { type: "null" }
+        accountHealth:
+          oneOf:
+            - $ref: "#/components/schemas/CommercialFact"
+            - { type: "null" }
+    QuietDaysInput:
+      type: object
+      additionalProperties: false
+      required: [quietDays]
+      properties: { quietDays: { type: [integer, "null"] } }
+    RelationshipLookBack:
+      type: object
+      required: [status, total, done, proposed, error, finishedAt]
+      properties:
+        status: { type: string, enum: [idle, running, done, failed] }
+        total: { type: integer }
+        done: { type: integer }
+        proposed: { type: integer }
+        error: { type: [string, "null"] }
+        finishedAt: { type: [string, "null"], format: date-time }
+    TalkingPointInput:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties: { text: { type: string, minLength: 1, maxLength: 300 } }
+    TalkingPointRaisedInput:
+      type: object
+      additionalProperties: false
+      required: [raised]
+      properties: { raised: { type: boolean } }
+    BriefTalkingPointInput:
+      type: object
+      additionalProperties: false
+      required: [personId, text]
+      properties:
+        personId: { type: integer }
+        text: { type: string, minLength: 1, maxLength: 300 }
+    TalkingPoints:
+      type: object
+      required: [open, raised]
+      properties:
+        open: { type: array, items: { $ref: "#/components/schemas/TalkingPoint" } }
+        raised: { type: array, items: { $ref: "#/components/schemas/TalkingPoint" } }
+    TaskEvidence:
+      type: object
+      required: [id, source, url, saidBy, saidAt, place, quote, shows, strength, applied, dismissed]
+      properties:
+        id: { type: integer }
+        source: { type: string, description: "slack, email or meeting" }
+        url: { type: [string, "null"] }
+        saidBy: { type: [string, "null"], description: "\"You\" for Ollie, otherwise the name as written" }
+        saidAt: { type: string, format: date-time }
+        place: { type: [string, "null"], description: The Slack conversation, email subject or meeting }
+        quote: { type: string }
+        shows: { type: string, enum: [done, progress] }
+        strength: { type: string, enum: [same, other], description: "same: from the task's own conversation; other: anywhere else" }
+        applied: { type: boolean, description: This evidence closed the task }
+        dismissed: { type: boolean, description: Ollie said Not done }
+    AgentsView:
+      type: object
+      required: [since, totalCostUsd, totalRuns, agents, connected]
+      properties:
+        since: { type: string, format: date-time }
+        totalCostUsd: { type: number, description: Estimated at list price }
+        totalRuns: { type: integer }
+        agents: { type: array, items: { $ref: "#/components/schemas/AgentView" } }
+        connected: { type: array, items: { $ref: "#/components/schemas/ConnectedAiView" } }
+    AgentView:
+      type: object
+      required: [key, name, kind, does, reads, model, runs, failures, costUsd, inputTokens, outputTokens, avgMs, lastRunAt, lastError, lastErrorAt, promptVersions, measures, writing, tests]
+      properties:
+        key: { type: string }
+        name: { type: string }
+        kind: { type: string, enum: [sorter, judge, writer, researcher, unknown] }
+        does: { type: string }
+        reads: { type: string }
+        model: { type: [string, "null"] }
+        runs: { type: integer }
+        failures: { type: integer }
+        costUsd: { type: number }
+        inputTokens: { type: integer }
+        outputTokens: { type: integer }
+        avgMs: { type: [integer, "null"] }
+        lastRunAt: { type: [string, "null"], format: date-time }
+        lastError: { type: [string, "null"] }
+        lastErrorAt: { type: [string, "null"], format: date-time }
+        promptVersions: { type: integer }
+        measures: { type: array, items: { $ref: "#/components/schemas/AgentMeasure" } }
+        writing:
+          oneOf:
+            - { $ref: "#/components/schemas/WritingView" }
+            - { type: "null" }
+        tests:
+          oneOf:
+            - { $ref: "#/components/schemas/AgentTests" }
+            - { type: "null" }
+    WritingView:
+      type: object
+      description: "Part Y: a writer's code checks, weekly grade and Ollie's thumbs over the last 7 days"
+      required: [checks, grade, thumbs]
+      properties:
+        checks:
+          type: object
+          required: [passed, total, lastIssues]
+          properties:
+            passed: { type: integer }
+            total: { type: integer }
+            lastIssues: { type: array, items: { type: string } }
+        grade:
+          type: object
+          required: [average, count, lowest]
+          properties:
+            average: { type: [number, "null"] }
+            count: { type: integer }
+            lowest:
+              oneOf:
+                - type: object
+                  required: [subject, score, reason]
+                  properties:
+                    subject: { type: string }
+                    score: { type: integer }
+                    reason: { type: string }
+                - { type: "null" }
+        thumbs:
+          type: object
+          required: [up, down]
+          properties:
+            up: { type: integer }
+            down: { type: integer }
+    AgentTests:
+      type: object
+      description: "Part X: a reader's test cases and its last replay"
+      required: [cases, lastReplay]
+      properties:
+        cases: { type: integer }
+        lastReplay:
+          oneOf:
+            - $ref: "#/components/schemas/ReplaySummary"
+            - { type: "null" }
+    ReplaySummary:
+      type: object
+      required: [passed, total, at, promptVersion, model]
+      properties:
+        passed: { type: integer }
+        total: { type: integer }
+        at: { type: string, format: date-time }
+        promptVersion: { type: string }
+        model: { type: string }
+    VoiceParseInput:
+      type: object
+      additionalProperties: false
+      required: [transcript]
+      properties:
+        transcript: { type: string, maxLength: 4000 }
+    VoiceAbout:
+      type: object
+      required: [type, id, name]
+      properties:
+        type: { type: string, enum: [project, person, organisation] }
+        id: { type: integer }
+        name: { type: string }
+    VoiceItem:
+      type: object
+      additionalProperties: false
+      required: [kind, text, dueDate, priority, projectId, personId, about]
+      properties:
+        kind: { type: string, enum: [task, promise, fact] }
+        text: { type: string, maxLength: 300 }
+        dueDate: { type: [string, "null"], format: date }
+        priority: { type: string, enum: [high, medium, low] }
+        projectId: { type: [integer, "null"] }
+        personId: { type: [integer, "null"] }
+        about:
+          oneOf:
+            - $ref: "#/components/schemas/VoiceAbout"
+            - { type: "null" }
+    VoiceParse:
+      type: object
+      required: [items, usedAi]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/VoiceItem" } }
+        usedAi: { type: boolean, description: False when something hidden from AI was named and the transcript was split in code }
+    VoiceSaveInput:
+      type: object
+      additionalProperties: false
+      required: [transcript, items]
+      properties:
+        transcript: { type: string, maxLength: 4000 }
+        items: { type: array, items: { $ref: "#/components/schemas/VoiceItem" } }
+    VoiceSaveResult:
+      type: object
+      required: [tasks, facts]
+      properties:
+        tasks: { type: array, items: { type: integer } }
+        facts:
+          type: array
+          items:
+            type: object
+            required: [status]
+            properties:
+              status: { type: string }
+              suggestionId: { type: integer }
+    SlackDmPerson:
+      type: object
+      required: [id, name, role]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        role: { type: [string, "null"] }
+    SlackDmOptions:
+      type: object
+      required: [people, suggestedPersonId]
+      properties:
+        people: { type: array, items: { $ref: "#/components/schemas/SlackDmPerson" } }
+        suggestedPersonId: { type: [integer, "null"] }
+    SlackDmInput:
+      type: object
+      additionalProperties: false
+      required: [personId, text]
+      properties:
+        personId: { type: integer }
+        text: { type: string, maxLength: 3000 }
+    SlackDmResult:
+      type: object
+      required: [personId, personName, channel, ts, url]
+      properties:
+        personId: { type: integer }
+        personName: { type: string }
+        channel: { type: string }
+        ts: { type: string }
+        url: { type: string }
+    BulkDecideInput:
+      type: object
+      additionalProperties: false
+      required: [action, ids]
+      properties:
+        action: { type: string, enum: [approve, reject] }
+        ids: { type: array, minItems: 1, maxItems: 500, items: { type: integer } }
+    BulkDecideResult:
+      type: object
+      required: [approved, rejected, skipped]
+      properties:
+        approved: { type: integer }
+        rejected: { type: integer }
+        skipped:
+          type: array
+          items:
+            type: object
+            required: [id, reason]
+            properties:
+              id: { type: integer }
+              reason: { type: string }
+    TestCaseAvailability:
+      type: object
+      required: [available, expected, caseId]
+      properties:
+        available: { type: boolean }
+        expected: { type: string, enum: [task, no_task] }
+        caseId: { type: [integer, "null"] }
+    TestCaseInput:
+      type: object
+      additionalProperties: false
+      properties:
+        expected: { type: string, enum: [task, no_task] }
+        note: { type: [string, "null"], maxLength: 500 }
+    TestCaseResult:
+      type: object
+      required: [at, model, promptVersion, passed, got]
+      properties:
+        at: { type: string, format: date-time }
+        model: { type: string }
+        promptVersion: { type: string }
+        passed: { type: boolean }
+        got: { type: array, items: { type: string } }
+    TestCase:
+      type: object
+      required: [id, agent, agentName, title, expected, gotThen, note, taskId, createdAt, lastResult]
+      properties:
+        id: { type: integer }
+        agent: { type: string }
+        agentName: { type: string }
+        title: { type: string }
+        expected: { type: string, enum: [task, no_task] }
+        gotThen: { type: array, items: { type: string } }
+        note: { type: [string, "null"] }
+        taskId: { type: [integer, "null"] }
+        createdAt: { type: string, format: date-time }
+        lastResult:
+          oneOf:
+            - $ref: "#/components/schemas/TestCaseResult"
+            - { type: "null" }
+    ReplayInput:
+      type: object
+      additionalProperties: false
+      required: [agent]
+      properties:
+        agent: { type: string }
+        model: { type: [string, "null"] }
+    ReplayFailure:
+      type: object
+      required: [caseId, title, expected, got]
+      properties:
+        caseId: { type: integer }
+        title: { type: string }
+        expected: { type: string }
+        got: { type: array, items: { type: string } }
+    ReplayResult:
+      type: object
+      required: [id, agent, model, promptVersion, total, passed, failed, previous, at]
+      properties:
+        id: { type: integer }
+        agent: { type: string }
+        model: { type: string }
+        promptVersion: { type: string }
+        total: { type: integer }
+        passed: { type: integer }
+        failed: { type: array, items: { $ref: "#/components/schemas/ReplayFailure" } }
+        previous:
+          oneOf:
+            - $ref: "#/components/schemas/ReplaySummary"
+            - { type: "null" }
+        at: { type: string, format: date-time }
+    Thumb:
+      type: object
+      required: [subject, thumb]
+      properties:
+        subject: { type: string }
+        thumb: { type: [string, "null"], enum: [up, down, null] }
+    ThumbInput:
+      type: object
+      additionalProperties: false
+      required: [subject, thumb]
+      properties:
+        subject: { type: string }
+        thumb: { type: [string, "null"], enum: [up, down, null] }
+        note: { type: [string, "null"], maxLength: 500 }
+    AgentMeasure:
+      type: object
+      description: "Part W: how often Ollie kept what the agent did, this week against last"
+      required: [key, agent, label, kept, undone, waiting, rate, lastRate, lastDecided]
+      properties:
+        key: { type: string }
+        agent: { type: string }
+        label: { type: string }
+        kept: { type: integer }
+        undone: { type: integer }
+        waiting: { type: integer }
+        rate: { type: [integer, "null"] }
+        lastRate: { type: [integer, "null"] }
+        lastDecided: { type: integer }
+    ConnectedAiView:
+      type: object
+      required: [id, name, kind, auth, revoked, lastUsedAt, reads, writes, proposals]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        kind: { type: string }
+        auth: { type: string }
+        revoked: { type: boolean }
+        lastUsedAt: { type: [string, "null"], format: date-time }
+        reads: { type: integer }
+        writes: { type: integer }
+        proposals:
+          type: object
+          required: [approved, rejected, merged, pending]
+          properties:
+            approved: { type: integer }
+            rejected: { type: integer }
+            merged: { type: integer }
+            pending: { type: integer }
+    SlackToAnswer:
+      type: object
+      required: [items, readBy, checkedAt]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SlackToAnswerItem"
+        readBy: { type: string, enum: [ollieos, claude], description: "Who reads Slack: only OllieOS's own Slack check fills this list" }
+        checkedAt: { type: [string, "null"], format: date-time, description: When the last good Slack check finished }
+    SlackToAnswerItem:
+      type: object
+      required: [id, kind, place, fromName, personId, personSlug, text, at, url, needs, ask, hidden, taskId]
+      properties:
+        id: { type: integer }
+        kind: { type: string, description: "im, mpim or channel" }
+        place: { type: string, description: "The other person for a DM, the names in a group DM, or #channel" }
+        fromName: { type: [string, "null"] }
+        personId: { type: [integer, "null"] }
+        personSlug: { type: [string, "null"] }
+        text: { type: string, description: The message, first 300 characters }
+        at: { type: string, format: date-time }
+        url: { type: string, description: The message in Slack }
+        needs: { type: string, enum: [reply, info, unknown], description: "Needs a reply, for information, or not read by AI" }
+        ask: { type: [string, "null"], description: One line on what they want }
+        hidden: { type: boolean, description: "Someone in it is hidden from AI, so it was not read and cannot be drafted" }
+        taskId: { type: [integer, "null"], description: "The open task for it, when there is one" }
+    SlackReplyDraft:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string }
     EmailInboxTask:
       type: object
       required: [taskId]
@@ -5192,6 +6526,9 @@ components:
             sourceSubject: { type: [string, "null"] }
             sourceUrl: { type: [string, "null"] }
             confidential: { type: boolean }
+        followUp:
+          type: boolean
+          description: "Part K: a recap drafted after an external meeting"
         chase:
           type: boolean
           description: A follow-up to an email nobody answered, rather than a reply
@@ -5242,6 +6579,21 @@ components:
         cc: { type: string, maxLength: 2000 }
         subject: { type: string, maxLength: 500 }
         body: { type: string, minLength: 1, maxLength: 20000 }
+
+    TaskReorderInput:
+      type: object
+      required: [ids]
+      additionalProperties: false
+      properties:
+        ids:
+          type: array
+          description: Task ids in the new order, top first
+          minItems: 1
+          maxItems: 500
+          items: { type: integer }
+        clear:
+          type: boolean
+          description: Forget the dragged order for these tasks instead, so they go back to due-date order
 
     TriageInput:
       type: object
@@ -5417,7 +6769,7 @@ components:
 
     ShelfLives:
       type: object
-      required: [general, status, next_step, decision_date, job_title, organisation]
+      required: [general, status, next_step, decision_date, job_title, organisation, renewal_date, contract_value, account_health]
       properties:
         general: { type: integer, minimum: 1, maximum: 3650 }
         status: { type: integer, minimum: 1, maximum: 3650 }
@@ -5425,6 +6777,9 @@ components:
         decision_date: { type: integer, minimum: 1, maximum: 3650 }
         job_title: { type: integer, minimum: 1, maximum: 3650 }
         organisation: { type: integer, minimum: 1, maximum: 3650 }
+        renewal_date: { type: integer, minimum: 1, maximum: 3650 }
+        contract_value: { type: integer, minimum: 1, maximum: 3650 }
+        account_health: { type: integer, minimum: 1, maximum: 3650 }
 
     KnowledgeSettings:
       type: object
@@ -5446,6 +6801,9 @@ components:
             decision_date: { type: integer, minimum: 1, maximum: 3650 }
             job_title: { type: integer, minimum: 1, maximum: 3650 }
             organisation: { type: integer, minimum: 1, maximum: 3650 }
+            renewal_date: { type: integer, minimum: 1, maximum: 3650 }
+            contract_value: { type: integer, minimum: 1, maximum: 3650 }
+            account_health: { type: integer, minimum: 1, maximum: 3650 }
 
     FactCheckResult:
       type: object
@@ -5847,14 +7205,14 @@ components:
 
     Fact:
       type: object
-      required: [id, entityType, entityId, text, source, attribute, createdBy, createdAt, lastConfirmedAt, needsCheck, outOfDate, approvedAt, history]
+      required: [id, entityType, entityId, text, source, attribute, createdBy, createdAt, lastConfirmedAt, needsCheck, outOfDate, approvedAt, history, alsoFrom]
       properties:
         id: { type: integer }
         entityType: { type: string }
         entityId: { type: integer }
         text: { type: string }
         source: { type: [string, "null"] }
-        attribute: { type: [string, "null"], enum: [job_title, organisation, status, next_step, decision_date, null] }
+        attribute: { type: [string, "null"], enum: [job_title, organisation, status, next_step, decision_date, renewal_date, contract_value, account_health, null] }
         createdBy: { type: string }
         createdAt: { type: string, format: date-time }
         lastConfirmedAt: { type: string, format: date-time }
@@ -5865,6 +7223,16 @@ components:
           type: array
           description: Earlier versions this fact replaced, newest first
           items: { $ref: "#/components/schemas/FactVersion" }
+        alsoFrom:
+          type: array
+          description: Cards marked "Same as existing" for this fact, its other sources, newest first
+          items:
+            type: object
+            required: [source, url, at]
+            properties:
+              source: { type: string }
+              url: { type: [string, "null"] }
+              at: { type: string, format: date-time }
 
     FactInput:
       type: object
@@ -5876,7 +7244,7 @@ components:
         source: { type: [string, "null"] }
         attribute:
           type: [string, "null"]
-          enum: [job_title, organisation, status, next_step, decision_date, null]
+          enum: [job_title, organisation, status, next_step, decision_date, renewal_date, contract_value, account_health, null]
           description: With an attribute, the new fact replaces any current fact with the same attribute
 
     FactSupersede:
@@ -6553,7 +7921,7 @@ components:
 
     ConnectorService:
       type: object
-      required: [key, name, readBy, chosen, canReadDirect, account, lastGoodAt, lastFromClaudeAt, runs]
+      required: [key, name, readBy, chosen, canReadDirect, account, lastGoodAt, lastFromClaudeAt, runs, warning]
       properties:
         key: { $ref: "#/components/schemas/ConnectorKey" }
         name: { type: string }
@@ -6563,6 +7931,7 @@ components:
         account: { type: [string, "null"] }
         lastGoodAt: { type: [string, "null"], format: date-time }
         lastFromClaudeAt: { type: [string, "null"], format: date-time }
+        warning: { type: [string, "null"], description: "Part Q: why this service needs a look (no good check for a while, or checks that bring nothing in)" }
         runs: { type: array, items: { $ref: "#/components/schemas/ConnectorRun" } }
 
     ConnectorSchedule:
@@ -7131,6 +8500,7 @@ components:
         text: { type: string }
         personId: { type: [integer, "null"] }
         afterDays: { type: [integer, "null"], description: Days after starting }
+        status: { type: [string, "null"], enum: [now, backlog, null], description: "Part L: Now or Backlog when the playbook is run; Backlog when not set" }
         personName: { type: [string, "null"] }
         personSlug: { type: [string, "null"] }
 
@@ -7143,6 +8513,7 @@ components:
         text: { type: string, minLength: 1, maxLength: 600 }
         personId: { type: [integer, "null"] }
         afterDays: { type: [integer, "null"], minimum: 0, maximum: 3650 }
+        status: { type: [string, "null"], enum: [now, backlog, null] }
 
     Playbook:
       type: object

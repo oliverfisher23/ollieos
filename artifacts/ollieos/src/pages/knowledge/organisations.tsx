@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { ClientPulseCard } from '@/components/client-pulse';
 import { Link, useParams } from 'wouter';
 import {
   updateOrganisation,
   updatePerson,
   useGetOrganisation,
+  useListClientPulses,
   useListOrganisations,
   useListPeople,
   type OrganisationListItem,
@@ -38,6 +40,8 @@ import { ProductsSection } from '@/pages/knowledge/products';
 
 export function OrganisationsListPage() {
   const orgs = useListOrganisations();
+  const pulses = useListClientPulses();
+  const attention = new Set((pulses.data ?? []).filter((p) => p.needsAttention).map((p) => p.organisationId));
   const [creating, setCreating] = useState(false);
   return (
     <KnowledgeLayout testId="page-organisations">
@@ -54,7 +58,7 @@ export function OrganisationsListPage() {
         <p className="oo-muted" style={{ margin: 0 }} data-testid="state-organisations-empty">No organisations yet. Add one, then set it on the people who work there.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <OrgGroup title="External" orgs={orgs.data.filter((o) => !o.internal)} empty="No clients, partners or suppliers yet." testId="group-orgs-external" />
+          <OrgGroup title="External" orgs={orgs.data.filter((o) => !o.internal).sort((a, b) => Number(attention.has(b.id)) - Number(attention.has(a.id)))} attention={attention} empty="No clients, partners or suppliers yet." testId="group-orgs-external" />
           <OrgGroup title="Internal" orgs={orgs.data.filter((o) => o.internal)} empty="Add your own company as an internal organisation, then add your colleagues to it." testId="group-orgs-internal" />
         </div>
       )}
@@ -63,7 +67,7 @@ export function OrganisationsListPage() {
   );
 }
 
-function OrgGroup({ title, orgs, empty, testId }: { title: string; orgs: OrganisationListItem[]; empty: string; testId: string }) {
+function OrgGroup({ title, orgs, empty, testId, attention }: { title: string; orgs: OrganisationListItem[]; empty: string; testId: string; attention?: Set<number> }) {
   const id = testId + '-h';
   return (
     <section aria-labelledby={id} data-testid={testId}>
@@ -78,6 +82,7 @@ function OrgGroup({ title, orgs, empty, testId }: { title: string; orgs: Organis
               {o.type && <span className="oo-muted" style={{ fontSize: 13 }}>{o.type}</span>}
             </span>
             <span style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }} className="oo-muted">
+              {attention?.has(o.id) && <span className="oo-pill" data-tone="high" data-testid={'pill-attention-' + o.slug}>Needs attention</span>}
               {(o.confidential || !o.aiAccess) && <HiddenFromAi confidential={o.confidential} />}
               <span>{o.peopleCount === 1 ? '1 person' : `${o.peopleCount} people`}</span>
             </span>
@@ -173,6 +178,8 @@ export function OrganisationPage() {
           onChange={(patch) => save(patch, patch.confidential === true ? 'Marked confidential. Hidden from AI.' : undefined)}
         />
       </div>
+
+      {!o.internal && ['customer', 'client', 'partner'].includes((o.type ?? '').trim().toLowerCase()) && <ClientPulseCard slug={o.slug} />}
 
       <section aria-labelledby="osum-h" style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: '72ch' }}>
         <h2 id="osum-h" className="oo-h2">Summary</h2>

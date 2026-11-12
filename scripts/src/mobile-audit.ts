@@ -81,8 +81,9 @@ const ROUTES: RouteCheck[] = [
   { pattern: "/tasks", url: "/tasks?tab=backlog" },
   { pattern: "/tasks", url: (s) => (s.task ? "/tasks?task=" + s.task : null) },
   { pattern: "/review", url: "/review" },
-  { pattern: "/email", url: "/email" },
-  { pattern: "/email", url: "/email?tab=drafts" },
+  { pattern: "/voice", url: "/voice" },
+  { pattern: "/messages", url: "/messages" },
+  { pattern: "/messages", url: "/messages?tab=drafts" },
   { pattern: "/ask", url: "/ask" },
   { pattern: "/ask/:threadId", url: "/ask/0" },
   { pattern: "/knowledge/inbox", url: "/knowledge/inbox" },
@@ -124,7 +125,7 @@ const ROUTES: RouteCheck[] = [
 ];
 
 /** Routes that only redirect, so there is no page of their own to check. */
-const REDIRECT_ONLY = new Set(["/people/:slug"]);
+const REDIRECT_ONLY = new Set(["/people/:slug", "/email"]);
 
 /** Fails loudly when App.tsx gains a route this audit does not visit. */
 function checkCoverage() {

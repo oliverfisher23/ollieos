@@ -23,5 +23,10 @@ export interface ConnectorService {
   lastGoodAt: Date | null;
   /** @nullable */
   lastFromClaudeAt: Date | null;
+  /**
+     * Part Q: why this service needs a look (no good check for a while, or checks that bring nothing in)
+     * @nullable
+     */
+  warning: string | null;
   runs: ConnectorRun[];
 }

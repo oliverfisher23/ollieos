@@ -16,15 +16,32 @@ import type { BriefViewGoalsItem } from './briefViewGoalsItem';
 import type { BriefViewPlaybooksItem } from './briefViewPlaybooksItem';
 import type { BriefViewProductsItem } from './briefViewProductsItem';
 import type { BriefViewProjectsItem } from './briefViewProjectsItem';
+import type { BriefViewPulseItem } from './briefViewPulseItem';
 import type { BriefViewRulesItem } from './briefViewRulesItem';
 import type { BriefViewTasksItem } from './briefViewTasksItem';
 import type { BriefViewThreadsItem } from './briefViewThreadsItem';
 import type { BriefViewWaitingOnItem } from './briefViewWaitingOnItem';
 import type { CompanyResearch } from './companyResearch';
+import type { TalkingPoint } from './talkingPoint';
 
 export interface BriefView {
+  id: number;
   event: BriefEvent;
   research: CompanyResearch[];
+  /** Part K: open Next time I see points for people in the meeting, shown at the top of the agenda */
+  talkingPoints?: TalkingPoint[];
+  /**
+     * Part K: the follow-up task drafted from this meeting's Granola notes
+     * @nullable
+     */
+  followUpTaskId?: number | null;
+  /** Part S: the pulse of each client organisation in an external meeting */
+  pulse?: BriefViewPulseItem[];
+  /**
+     * Part K: when Ollie first opened this prep page
+     * @nullable
+     */
+  openedAt?: Date | null;
   generatedAt: Date;
   /** The model could not write the brief. Refresh to try again. */
   failed: boolean;

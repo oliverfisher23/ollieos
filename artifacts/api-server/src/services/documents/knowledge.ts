@@ -193,7 +193,7 @@ export async function extractKnowledge(input: ExtractInput, now = new Date()): P
   ]
     .filter(Boolean)
     .join("\n");
-  const result = await modelJson<Extracted>(ASK_MODEL, systemPrompt(k, now, !!input.changed), content, EXTRACT_SCHEMA, 6000);
+  const result = await modelJson<Extracted>(ASK_MODEL, systemPrompt(k, now, !!input.changed), content, EXTRACT_SCHEMA, 6000, "document_reader");
   return { result, known: k };
 }
 

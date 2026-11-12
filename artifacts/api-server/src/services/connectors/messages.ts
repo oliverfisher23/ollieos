@@ -24,6 +24,13 @@ export interface WorkUnit {
   people: { name: string | null; email: string | null; slackId?: string | null }[];
   /** Oldest first */
   messages: WorkMessage[];
+  /** Slack: the conversation this exchange is from (Part P); Gmail: the thread (Part U) */
+  conversation?: { id: string; kind: "im" | "mpim" | "channel" | "thread" };
+  /**
+   * Part U: an automatic confirmation email from an e-signature service ("Completed: ..."). Never
+   * makes tasks, activity or knowledge; only checked against open tasks for "Looks done".
+   */
+  confirmation?: boolean;
 }
 
 /** Collapses runs of blank lines and spaces, and cuts to a length on a word boundary. */

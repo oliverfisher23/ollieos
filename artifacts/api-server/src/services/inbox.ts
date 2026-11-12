@@ -13,7 +13,7 @@
  * reading the inbox adds nothing to Tasks. Emails the Gmail check already made a task for are
  * linked to it.
  */
-import { and, eq, like } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { appSettingsTable, db, tasksTable } from "@workspace/db";
 import { formatDayMonth, toRef } from "@workspace/shared";
 import { visibleRefs } from "../lib/ai-data/scope";
@@ -172,23 +172,23 @@ interface Linked {
 }
 
 /** Email tasks by thread: the open one when there is one, else the latest. Leaves out tasks from Ollie's own sent email and chases. */
-async function linkedTasks(): Promise<Map<string, Linked>> {
-  const rows = await db
-    .select({ id: tasksTable.id, status: tasksTable.status, updatedAt: tasksTable.updatedAt, sourceUrl: tasksTable.sourceUrl, sourceRef: tasksTable.sourceRef, fromName: tasksTable.fromName, fromAddress: tasksTable.fromAddress })
-    .from(tasksTable)
-    .where(and(eq(tasksTable.source, "email"), like(tasksTable.sourceUrl, "%#all/%")));
-  const out = new Map<string, Linked>();
-  for (const r of rows) {
-    if (r.sourceRef?.endsWith("#chase")) continue;
-    if (!r.fromAddress && r.fromName === "You") continue;
-    const threadId = /#all\/([A-Za-z0-9]+)\s*$/.exec(r.sourceUrl ?? "")?.[1];
-    if (!threadId) continue;
-    const cur = out.get(threadId);
-    const open = !CLOSED.has(r.status);
-    const curOpen = cur ? !CLOSED.has(cur.status) : false;
-    if (!cur || (open && !curOpen) || (open === curOpen && r.updatedAt > cur.updatedAt)) out.set(threadId, { id: r.id, status: r.status, updatedAt: r.updatedAt });
-  }
-  return out;
+export async function linkedTasks(threadIds: string[]): Promise<Map<string, Linked>> {
+  const ids = [...new Set(threadIds)];
+  if (!ids.length) return new Map();
+  // gmail_thread_id is stored from source_url, so old account-specific URLs need no backfill.
+  const result = await db.execute(sql`
+    select distinct on (gmail_thread_id)
+      gmail_thread_id as thread_id,
+      id, status, updated_at
+    from tasks
+    where source = 'email'
+      and gmail_thread_id in (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
+      and (source_ref is null or source_ref not like '%#chase')
+      and not (coalesce(from_address, '') = '' and from_name is not distinct from 'You')
+    order by gmail_thread_id,
+      (status not in ('done', 'dropped', 'noise', 'archived')) desc, updated_at desc, id desc`);
+  return new Map((result.rows as { thread_id: string; id: number; status: string; updated_at: Date }[])
+    .map((r) => [r.thread_id, { id: r.id, status: r.status, updatedAt: new Date(r.updated_at) }]));
 }
 
 /** A newsletter, mailing list, automatic email or calendar reply. */
@@ -307,7 +307,7 @@ export async function listInbox(): Promise<InboxView> {
 }
 
 async function buildView(snap: Snapshot): Promise<InboxView> {
-  const [done, linked, asks] = await Promise.all([loadDone(), linkedTasks(), loadAsks()]);
+  const [done, linked, asks] = await Promise.all([loadDone(), linkedTasks(snap.candidates.map((c) => c.threadId)), loadAsks()]);
   const items: InboxItem[] = [];
   let toRead = false;
   for (const c of snap.candidates) {
@@ -376,7 +376,7 @@ function startJudging() {
 async function judgeNew(): Promise<void> {
   const snap = snapshot;
   if (!snap) return;
-  const [asks, done, linked] = await Promise.all([loadAsks(), loadDone(), linkedTasks()]);
+  const [asks, done, linked] = await Promise.all([loadAsks(), loadDone(), linkedTasks(snap.candidates.map((c) => c.threadId))]);
   const todo = snap.candidates
     .filter((c) => done[c.threadId] !== c.messageId)
     .filter((c) => {
@@ -433,7 +433,7 @@ async function judgeOne(c: Candidate, me: string, taskId: number | null, scope: 
       return `<message from="${who}" when="${formatDayMonth(m.at)}">\n${m.text}\n</message>`;
     });
     const note = copied ? "Ollie is only copied in on the newest message." : "The newest message is addressed to Ollie.";
-    const r = await haikuJson<{ needsReply?: boolean; ask?: string }>(READ_SYSTEM, `Subject: ${c.subject ?? "(none)"}\n${note}\n<thread>\n${blocks.join("\n")}\n</thread>`, READ_SCHEMA, 300);
+    const r = await haikuJson<{ needsReply?: boolean; ask?: string }>(READ_SYSTEM, `Subject: ${c.subject ?? "(none)"}\n${note}\n<thread>\n${blocks.join("\n")}\n</thread>`, READ_SCHEMA, 300, "inbox_reader");
     if (typeof r.needsReply !== "boolean") return { ...base, needs: null, ask: null, why: "failed" };
     const ask = String(r.ask ?? "").replace(/\s+/g, " ").trim().slice(0, 140) || null;
     return { ...base, needs: r.needsReply ? "reply" : "info", ask };
@@ -462,7 +462,7 @@ async function freshWaiting(threadId: string): Promise<{ last: MetaMessage; all:
  */
 export async function ensureInboxTask(threadId: string, actor: string): Promise<{ taskId: number }> {
   const { last, all, me } = await freshWaiting(threadId);
-  const open = (await linkedTasks()).get(threadId);
+  const open = (await linkedTasks([threadId])).get(threadId);
   if (open && !CLOSED.has(open.status)) return { taskId: open.id };
   const theirs = [...all].reverse().find((m) => !m.labels.has("SENT") && m.from.email !== me) ?? last;
   const subject = theirs.subject ?? all.find((m) => m.subject)?.subject ?? null;
@@ -495,7 +495,7 @@ export async function markInboxDone(threadId: string, actor: string): Promise<{ 
   const done = await loadDone();
   done[threadId] = last.id;
   await saveDone(done);
-  const task = (await linkedTasks()).get(threadId);
+  const task = (await linkedTasks([threadId])).get(threadId);
   let taskId: number | null = null;
   let previousStatus: string | null = null;
   if (task && !CLOSED.has(task.status)) {

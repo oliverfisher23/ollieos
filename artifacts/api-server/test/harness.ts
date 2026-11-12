@@ -5,7 +5,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import { afterAll, beforeAll, beforeEach, expect } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, expect } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { pool } from "@workspace/db";
@@ -23,6 +23,12 @@ export let base = "";
 export let sid = "";
 
 export function useServer() {
+afterEach(async () => {
+  // Complete durable follow-on work before the next case truncates the test database.
+  const { drainScheduledWorkQueue } = await import("../src/services/scheduledWorkQueue");
+  await drainScheduledWorkQueue();
+});
+
 beforeAll(async () => {
   const { default: app } = await import("../src/app");
   server = app.listen(0);

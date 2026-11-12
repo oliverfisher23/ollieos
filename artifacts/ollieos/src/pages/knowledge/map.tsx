@@ -30,6 +30,8 @@ export default function MapPage() {
   const [view, setView] = useState<View>('map');
   const [hiddenTypes, setHiddenTypes] = useState<Set<GraphNodeType>>(new Set());
   const [statedOnly, setStatedOnly] = useState(false);
+  // Show only one kind of relationship (works with, client of, reports to…); '' shows all.
+  const [kind, setKind] = useState('');
   const [selected, setSelected] = useState<string | null>(item);
   const [path, setPath] = useState<{ nodes: Set<string>; edges: Set<string> } | null>(null);
   const items = useItemOptions();
@@ -58,14 +60,21 @@ export default function MapPage() {
     const keepNode = (n: GraphNode) => n.ref === item || !hiddenTypes.has(n.type);
     let nodes = data.nodes.filter(keepNode);
     const refs = new Set(nodes.map((n) => n.ref));
-    let edges = data.edges.filter((e) => refs.has(e.from) && refs.has(e.to) && (!statedOnly || e.stated));
-    if (statedOnly) {
+    let edges = data.edges.filter((e) => refs.has(e.from) && refs.has(e.to) && (!statedOnly || e.stated) && (!kind || e.kind === kind));
+    if (statedOnly || kind) {
       const used = new Set(edges.flatMap((e) => [e.from, e.to]));
       nodes = nodes.filter((n) => n.ref === item || used.has(n.ref));
       edges = edges.filter((e) => used.has(e.from) && used.has(e.to));
     }
     return { nodes, edges, names: new Map(data.nodes.map((n) => [n.ref, n])) };
-  }, [data, hiddenTypes, statedOnly, item]);
+  }, [data, hiddenTypes, statedOnly, kind, item]);
+
+  // The kinds of relationship on this map, named as read from the "from" end.
+  const kindOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const e of data?.edges ?? []) if (!seen.has(e.kind)) seen.set(e.kind, e.label);
+    return [{ value: '', label: 'Every relationship' }, ...[...seen].sort((a, b) => a[1].localeCompare(b[1])).map(([value, label]) => ({ value, label: label.charAt(0).toUpperCase() + label.slice(1) }))];
+  }, [data]);
 
   const present = useMemo(() => new Set((data?.nodes ?? []).map((n) => n.type)), [data]);
   const centreNode = item && data ? data.nodes.find((n) => n.ref === item) ?? null : null;
@@ -114,6 +123,9 @@ export default function MapPage() {
             <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')} data-testid="button-view-list">List</button>
           </span>
         )}
+        {kindOptions.length > 2 && (
+          <Dropdown variant="control" ariaLabel="Show one kind of relationship" value={kind} onChange={setKind} options={kindOptions} testId="select-map-kind" />
+        )}
         <button type="button" className="oo-chip-toggle" aria-pressed={statedOnly} onClick={() => setStatedOnly((s) => !s)} data-testid="button-stated-only">
           Only relationships you stated
         </button>
@@ -136,7 +148,7 @@ export default function MapPage() {
         <PageProblem notFound={(q.error as { status?: number }).status === 404} what="map" onRetry={() => q.refetch()} back={{ href: '/knowledge/map', label: 'Back to the whole map' }} />
       ) : !shown || shown.nodes.length === 0 ? (
         <p className="oo-muted" style={{ margin: 0, fontSize: 14 }} data-testid="state-map-empty">
-          {statedOnly ? 'No stated relationships here yet. Add them on a person, organisation or project page.' : 'Nothing on the map yet. Add people, organisations and projects, and they appear here.'}
+          {kind ? 'None of that kind of relationship here.' : statedOnly ? 'No stated relationships here yet. Add them on a person, organisation or project page.' : 'Nothing on the map yet. Add people, organisations and projects, and they appear here.'}
         </p>
       ) : (
         <>

@@ -3,6 +3,8 @@
  * Built on the first sweep finish of a weekday (question 32), or on open if a sweep has finished
  * today and there is none yet. No email in phase 1 (question 33). Kept 30 days.
  */
+import { weekCheck } from "./timeAndMeetings";
+import { listPulses } from "./clientPulse";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lt, notInArray, or, sql } from "drizzle-orm";
 import {
   activityTable,
@@ -20,16 +22,21 @@ import {
   type DigestSection,
   type DigestSections,
 } from "@workspace/db";
-import { addDays, formatLong, isIsoDate, londonRange, londonWallTimeToInstant, todayLondon, toRef, weekday } from "@workspace/shared";
+import { addDays, formatLong, formatTime, isIsoDate, londonRange, londonWallTimeToInstant, todayLondon, toRef, weekday } from "@workspace/shared";
 import { defaultScope, visibleRefs } from "../lib/ai-data/scope";
 import { writeAudit } from "../lib/audit";
 import { logger } from "../lib/logger";
 import { askScope } from "./ask/ask";
 import { digestSummaryFromLines } from "./ask/model";
-import { briefableIds } from "./briefs";
+import { recordCheck } from "./writerChecks";
+import { briefableIds, notPreppedIds } from "./briefs";
 import { listCadence } from "./cadence";
 import { inboxCounts } from "./knowledgeInbox";
 import { clearOutMonday, untouchedCount } from "./planning";
+import { slackRepliesOverdue } from "./slackToAnswer";
+import { connectorWarnings } from "./connectorHealth";
+import { changedDocuments, changedText } from "./documentChanges";
+import { closedByEvidence } from "./taskEvidence";
 import { dueIdeas } from "./strategy";
 import { NotFoundError, ValidationError } from "./tasks";
 
@@ -47,6 +54,7 @@ export function digestWindowStart(date: string): Date {
   return londonWallTimeToInstant(prev, 18, 0);
 }
 
+const hrs = (n: number) => (n === 1 ? "1 hour" : `${n} hours`);
 const clip = (s: string, n = 90) => (s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s);
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -150,6 +158,23 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
     const parts = [...g.inbox].sort((a, b) => b.n - a.n).map((r) => `${r.n} ${SOURCE_WORDS[r.source] ?? r.source}`);
     needs.push({ text: `${plural(inboxTotal, "new item", "new items")} in your Inbox (${parts.join(", ")})`, href: "/triage", refs: [], confidential: false });
   }
+  // Part K: today's external meetings whose prep page has not been opened.
+  const unprepped = await notPreppedIds(g.events, now);
+  for (const e of g.events.filter((x) => unprepped.has(x.id))) {
+    needs.push({ text: `Not prepped yet: ${clip(e.title, 70)} at ${formatTime(e.startsAt)}`, href: `/briefs/${e.id}`, refs: [], confidential: false });
+  }
+  // Part R: on Mondays, warn when this week is over full.
+  if (weekday(date) === 1) {
+    const wc = await weekCheck(now);
+    if (wc.over) needs.push({ text: `This week is over by about ${hrs(wc.overBy)}: ${hrs(wc.dueHours)} due against ${wc.freeHours} free`, href: "/", refs: [], confidential: false });
+  }
+  // Connector warnings (Part Q): a service that stopped working, or stopped bringing anything in.
+  for (const w of await connectorWarnings(now)) needs.push({ text: w.text, href: "/settings/connectors", refs: [], confidential: false });
+  // Slack to answer (Part P): only messages that have waited over a working day.
+  const slackWaiting = await slackRepliesOverdue(now);
+  if (slackWaiting) {
+    needs.push({ text: `${plural(slackWaiting, "Slack message", "Slack messages")} to answer, waiting over a working day`, href: "/messages?tab=to-answer&from=slack", refs: [], confidential: false });
+  }
   if (g.deadline?.dueDate) {
     const d = g.deadline.dueDate;
     const when = d < date ? `was due ${formatLong(d)}` : d === date ? "is due today" : `is due ${formatLong(d)}`;
@@ -191,8 +216,10 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
     }
   }
 
+  // Part U: tasks OllieOS closed from their own conversation say how it knew.
+  const how = await closedByEvidence(g.done.map((t) => t.id));
   const moved: DigestItem[] = [
-    ...g.done.map((t) => ({ text: `Done: ${clip(t.title)}`, href: `/tasks?task=${t.id}`, refs: [toRef("task", t.id)], confidential: false })),
+    ...g.done.map((t) => ({ text: `Done${how.has(t.id) ? ` (${how.get(t.id)})` : ""}: ${clip(t.title)}`, href: `/tasks?task=${t.id}`, refs: [toRef("task", t.id)], confidential: false })),
     ...g.replies.map((r) => ({
       text: `${r.name} replied: ${clip(r.summary, 80)}`,
       href: `/knowledge/people/${r.slug}`,
@@ -209,25 +236,38 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
   ];
 
   const quietPeople = g.cadence.people;
-  const quiet: DigestItem[] = quietPeople.map((p) => ({
+  // Part S: client organisations with no contact for their quiet period join Gone quiet.
+  const quietClients: DigestItem[] = (await listPulses(now))
+    .filter((p) => p.reasons.some((r) => r.startsWith("No contact")))
+    .map((p) => ({ text: `${p.name}: ${p.reasons.find((r) => r.startsWith("No contact"))!.toLowerCase()}`, href: `/knowledge/organisations/${p.slug}`, refs: [toRef("organisation", p.organisationId)], confidential: false }));
+  const quiet: DigestItem[] = [...quietClients, ...quietPeople.map((p) => ({
     text: `${p.name}${p.organisation ? `, ${p.organisation.name}` : ""}: ${p.lastContactAt ? `no contact since ${formatLong(p.lastContactAt)}` : "no contact on file"}`,
     href: `/knowledge/people/${p.slug}`,
     refs: [toRef("person", p.id)],
     confidential: false,
+  }))];
+
+  // Library documents someone else changed since the last digest (Part Q). Hidden ones have no AI line.
+  const changed: DigestItem[] = (await changedDocuments(since, now)).map((d) => ({
+    text: changedText(d),
+    href: `/knowledge/library?document=${d.documentId}`,
+    refs: [toRef("document", d.documentId)],
+    confidential: d.hidden,
   }));
 
   // Lock what is hidden from AI by default, so Ollie can see what an email would leave unnamed.
-  const all = [...needs, ...moved, ...quiet];
+  const all = [...needs, ...moved, ...quiet, ...changed];
   const plain = await visibleRefs(defaultScope(), all.flatMap((i) => i.refs));
   for (const i of all) i.confidential = i.refs.some((r) => !plain.has(r));
 
   const briefable = await briefableIds(g.events);
   const today = g.events.map((e) => ({ eventId: e.id, title: e.title, startsAt: e.startsAt.toISOString(), hasBrief: briefable.has(e.id) }));
-  const quietNight = !needs.length && !moved.length;
+  const quietNight = !needs.length && !moved.length && !changed.length;
   return {
     needs: quietNight ? null : section(needs, null),
     moved: quietNight ? null : section(moved, "/tasks?tab=done"),
     quiet: quietNight ? null : section(quiet, "/people", QUIET_MAX),
+    changed: quietNight ? null : section(changed, "/knowledge/library"),
     today,
     quietNight,
   };
@@ -241,6 +281,7 @@ async function summarise(sections: DigestSections): Promise<string | null> {
     ...(sections.needs?.items ?? []).map((i) => ({ ...i, group: "Needs you" })),
     ...(sections.moved?.items ?? []).map((i) => ({ ...i, group: "Moved" })),
     ...(sections.quiet?.items ?? []).map((i) => ({ ...i, group: "Gone quiet" })),
+    ...(sections.changed?.items ?? []).map((i) => ({ ...i, group: "Changed" })),
   ];
   const ok = await visibleRefs(scope, items.flatMap((i) => i.refs));
   const lines = items.map((i) => `${i.group}: ${i.refs.every((r) => ok.has(r)) ? i.text : "an item hidden from AI (do not name or guess it)"}`);
@@ -257,7 +298,7 @@ export async function buildDigest(date: string, now = new Date()): Promise<Diges
   const since = digestWindowStart(date);
   const sections = await buildSections(date, since, now);
   const summary = await summarise(sections);
-  return db.transaction(async (tx) => {
+  const saved = await db.transaction(async (tx) => {
     const [row] = await tx
       .insert(digestsTable)
       .values({ forDate: date, windowStart: since, summary, sections })
@@ -272,6 +313,9 @@ export async function buildDigest(date: string, now = new Date()): Promise<Diges
     });
     return row;
   });
+  // Part Y: code checks on the AI summary (asked for under 35 words, one sentence).
+  if (summary && summary !== QUIET_NIGHT) await recordCheck("digest_summary", `digest:${saved.id}`, summary, { maxWords: 35 });
+  return saved;
 }
 
 /** When a sweep finishes: the digest for today, once, on weekdays. */
@@ -309,6 +353,8 @@ async function sweepFinishedToday(now: Date): Promise<boolean> {
 }
 
 export interface DigestView {
+  /** Part Y: for thumbs */
+  id: number;
   date: string;
   windowStart: Date;
   summary: string | null;
@@ -316,7 +362,7 @@ export interface DigestView {
   createdAt: Date;
 }
 
-const toView = (d: Digest): DigestView => ({ date: d.forDate, windowStart: d.windowStart, summary: d.summary, sections: d.sections, createdAt: d.createdAt });
+const toView = (d: Digest): DigestView => ({ id: d.id, date: d.forDate, windowStart: d.windowStart, summary: d.summary, sections: d.sections, createdAt: d.createdAt });
 
 /**
  * One day's digest. For today, it is built on open if a sweep has finished today and the sweep's

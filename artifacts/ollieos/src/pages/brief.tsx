@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { BriefTalkingPoints } from '@/components/talking-points';
+import { Thumbs } from '@/components/evals';
+import { CommercialLines } from '@/components/client-pulse';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -150,6 +153,7 @@ function Brief({ brief }: { brief: BriefView }) {
             {brief.sourcesLine ? ' ' + brief.sourcesLine + '.' : ''}
             {e.location && e.location !== e.platform ? ' ' + e.location : ''}
           </p>
+          {!brief.failed && brief.why && <div><Thumbs subject={'brief:' + brief.id} label="Was this brief useful?" dark /></div>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {!ended && (
@@ -202,20 +206,43 @@ function Brief({ brief }: { brief: BriefView }) {
             )}
           </Panel>
 
+          {(brief.pulse ?? []).length > 0 && (
+            <Panel id="b-pulse" title="Client pulse">
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }} data-testid="list-brief-pulse">
+                {(brief.pulse ?? []).map((p) => (
+                  <li key={p.slug} style={{ fontSize: 14, lineHeight: 1.5 }}>
+                    <Link href={'/knowledge/organisations/' + p.slug} className="oo-link">{p.name}</Link>
+                    {p.needsAttention && <span className="oo-pill" data-tone="high" style={{ marginLeft: 8 }}>Needs attention</span>}
+                    <span className="oo-soft">: {p.line}.</span>
+                    {p.reasons.length > 0 && <span className="oo-muted"> {p.reasons.join('. ')}.</span>}
+                    <div style={{ marginTop: 4 }}><CommercialLines c={p.commercial} /></div>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          )}
+
           {brief.research.length > 0 && (
             <Panel id="b-research" title={brief.research.length === 1 ? 'Research on the company' : 'Research on the companies'}>
               <ResearchList items={brief.research} />
             </Panel>
           )}
 
-          {showContext && brief.agenda && brief.agenda.length > 0 && (
+          {((brief.talkingPoints ?? []).length > 0 || brief.attendees.some((a) => a.person) || (showContext && brief.agenda && brief.agenda.length > 0)) && (
             <Panel id="b-agenda" title="Suggested agenda">
-              <ol style={{ margin: 0, paddingLeft: 20, listStyle: 'decimal', display: 'flex', flexDirection: 'column', gap: 8, fontSize: 15, lineHeight: 1.5 }} data-testid="list-agenda">
+              <BriefTalkingPoints eventId={brief.event.id} points={brief.talkingPoints ?? []} people={brief.attendees.flatMap((a) => (a.person ? [{ id: a.person.id, name: a.person.name }] : []))} />
+              {showContext && brief.agenda && brief.agenda.length > 0 && <ol style={{ margin: 0, paddingLeft: 20, listStyle: 'decimal', display: 'flex', flexDirection: 'column', gap: 8, fontSize: 15, lineHeight: 1.5 }} data-testid="list-agenda">
                 {brief.agenda.map((l, i) => (
                   <li key={i}>{l.text}<Cites sources={l.sources} /></li>
                 ))}
-              </ol>
+              </ol>}
             </Panel>
+          )}
+
+          {brief.followUpTaskId != null && (
+            <p className="oo-soft" style={{ margin: 0, fontSize: 14 }} data-testid="text-brief-follow-up">
+              A follow-up email was drafted from the meeting notes and saved to Gmail. <Link href={'/messages?tab=drafts&id=' + brief.followUpTaskId} className="oo-link">Open it in Drafts</Link>
+            </p>
           )}
 
           {showContext && brief.questions && brief.questions.length > 0 && (

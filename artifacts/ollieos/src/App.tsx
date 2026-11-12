@@ -1,6 +1,6 @@
 import { Suspense, type ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { Redirect, Route, Switch, useLocation, Router as WouterRouter } from 'wouter';
+import { Redirect, Route, Switch, useLocation, useSearch, Router as WouterRouter } from 'wouter';
 import { useAuth } from '@workspace/replit-auth-web';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { PageLoading } from '@/components/page-loading';
@@ -17,13 +17,13 @@ import {
   DecisionPage,
   DecisionsListPage,
   DigestPage,
-  EmailPage,
   GoalsPage,
   KnowledgeIndexPage,
   KnowledgeInboxPage,
   LibraryPage,
   MapPage,
   MeetingsPage,
+  MessagesPage,
   NextBriefPage,
   NotePage,
   NotesListPage,
@@ -43,11 +43,18 @@ import {
   SettingsPage,
   StrategyPage,
   TriageDialog,
+  VoicePage,
 } from '@/routes';
 import { NotAuthorised, SignIn, Splash } from '@/pages/auth-screens';
 import { AuthProvider } from '@/lib/auth-context';
 import { useForbidden } from '@/lib/forbidden';
 import { queryClient } from '@/lib/query-client';
+
+/** The Email page is now Messages; old links keep their tab and the item they opened. */
+function EmailRedirect() {
+  const search = useSearch();
+  return <Redirect to={'/messages' + (search ? '?' + search : '')} replace />;
+}
 
 function TriagePage() {
   const [, navigate] = useLocation();
@@ -70,8 +77,10 @@ function Router() {
           <Route path="/triage" component={TriagePage} />
           <Route path="/clear-out" component={ClearOutPage} />
           <Route path="/tasks" component={TasksPage} />
+          <Route path="/voice" component={VoicePage} />
           <Route path="/review" component={ReviewPage} />
-          <Route path="/email" component={EmailPage} />
+          <Route path="/messages" component={MessagesPage} />
+          <Route path="/email" component={EmailRedirect} />
           <Route path="/ask" component={AskPage} />
           <Route path="/ask/:threadId" component={AskPage} />
           <Route path="/knowledge/inbox" component={KnowledgeInboxPage} />
@@ -133,7 +142,7 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
 
 function Shell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  if (location === '/' || location === '/triage' || location === '/clear-out' || location === '/ask' || location.startsWith('/ask/')) return <DarkShell>{children}</DarkShell>;
+  if (location === '/' || location === '/triage' || location === '/clear-out' || location === '/ask' || location.startsWith('/ask/') || location === '/voice') return <DarkShell>{children}</DarkShell>;
   return <LightShell>{children}</LightShell>;
 }
 

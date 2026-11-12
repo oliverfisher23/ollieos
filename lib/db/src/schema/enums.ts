@@ -3,7 +3,7 @@ import { customType, pgEnum } from "drizzle-orm/pg-core";
 export const taskKindEnum = pgEnum("task_kind", ["task", "promise"]);
 export const taskStatusEnum = pgEnum("task_status", ["inbox", "now", "backlog", "waiting", "done", "noise", "dropped", "archived"]);
 export const priorityEnum = pgEnum("priority", ["high", "medium", "low"]);
-export const taskSourceEnum = pgEnum("task_source", ["email", "slack", "meeting", "quarterly", "manual", "session"]);
+export const taskSourceEnum = pgEnum("task_source", ["email", "slack", "meeting", "quarterly", "manual", "session", "voice"]);
 export const entityTypeEnum = pgEnum("entity_type", [
   "task",
   "project",
@@ -67,7 +67,8 @@ export const reviewItemStateEnum = pgEnum("review_item_state", ["pending", "acce
 export const reviewKindEnum = pgEnum("review_kind", ["stale", "conflict", "contradiction"]);
 export const reviewStatusEnum = pgEnum("review_status", ["pending", "resolved"]);
 /** Fixed list of fact attributes (build plan question 42); null means a general fact. */
-export const FACT_ATTRIBUTES = ["job_title", "organisation", "status", "next_step", "decision_date"] as const;
+/** Part T (section 19): renewal_date, contract_value and account_health, for client organisations. */
+export const FACT_ATTRIBUTES = ["job_title", "organisation", "status", "next_step", "decision_date", "renewal_date", "contract_value", "account_health"] as const;
 export const factAttributeEnum = pgEnum("fact_attribute", FACT_ATTRIBUTES);
 /** Relationship cadence (feature 05). "none" keeps a person off the cadence page. */
 export const CADENCES = ["weekly", "fortnightly", "monthly", "two_monthly", "quarterly", "none"] as const;

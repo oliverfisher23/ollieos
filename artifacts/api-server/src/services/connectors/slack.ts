@@ -188,8 +188,20 @@ function mpimMembers(name: string | null, users: Map<string, SlackUser>, me: str
   return handles.map((h) => byHandle.get(h)).filter((x): x is { id: string; u: SlackUser } => !!x && x.id !== me).map((x) => x.u);
 }
 
+/** A conversation opened by a check, for Slack to answer: Ollie's newest message in it, if any. */
+export interface SlackOpened {
+  id: string;
+  kind: SlackConv["kind"];
+  /** ts of Ollie's newest message read this time, top level or broadcast */
+  mineTs: string | null;
+}
+
 export interface SlackRead {
   account: string;
+  /** Ollie's Slack user id */
+  me?: string;
+  /** Every conversation opened this time */
+  opened?: SlackOpened[];
   units: WorkUnit[];
   found: number;
   leftOut: number;
@@ -230,6 +242,7 @@ export async function readSlack(prev: SlackState | null, now = new Date()): Prom
   let found = 0;
   let leftOut = 0;
   let checked = 0;
+  const opened: SlackOpened[] = [];
   for (const c of pickConversations(convs, state, now)) {
     if (Date.now() - started > BUDGET_MS) break;
     if (checked > 0) await sleep(GAP_MS);
@@ -245,6 +258,8 @@ export async function readSlack(prev: SlackState | null, now = new Date()): Prom
       next.active = Math.round(Number(newest) * 1000);
     }
     state.convs[c.id] = next;
+    const mine = msgs.filter((m) => m.user === me && KEEP_SUBTYPES.has(m.subtype));
+    opened.push({ id: c.id, kind: c.kind, mineTs: mine.reduce<string | null>((a, m) => (a == null || m.ts > a ? m.ts : a), null) });
 
     const useful = usefulMessages(msgs, c.kind, me, users);
     if (c.kind !== "channel") leftOut += msgs.length - useful.length;
@@ -281,10 +296,49 @@ export async function readSlack(prev: SlackState | null, now = new Date()): Prom
       channel: label,
       people,
       messages,
+      conversation: { id: c.id, kind: c.kind },
     });
   }
   // Forget conversations Ollie has left, so the saved state does not grow for ever.
   const live = new Set(convs.map((c) => c.id));
   for (const id of Object.keys(state.convs)) if (!live.has(id)) delete state.convs[id];
-  return { account, units, found, leftOut, checked, state };
+  return { account, me, opened, units, found, leftOut, checked, state };
+}
+
+/** Ollie's Slack user id. */
+export async function slackMe(): Promise<string> {
+  return String((await slack("/auth.test")).user_id);
+}
+
+/**
+ * Part P: whether Ollie has written in the thread of a message since it was posted. Channel
+ * mentions are often answered in their thread, which conversations.history does not return.
+ */
+export async function repliedInThread(conversationId: string, ts: string, me: string): Promise<boolean> {
+  const body = await slack(`/conversations.replies?channel=${encodeURIComponent(conversationId)}&ts=${encodeURIComponent(ts)}&oldest=${encodeURIComponent(ts)}&inclusive=false&limit=200`);
+  return ((body.messages as SlackMessage[] | undefined) ?? []).some((m) => m.ts > ts && m.user === me);
+}
+
+export interface RecentSlackMessage {
+  fromMe: boolean;
+  fromName: string;
+  at: Date;
+  text: string;
+}
+
+/** Part P: the last few messages of a conversation, oldest first, for drafting a reply. */
+export async function recentSlackMessages(conversationId: string, limit = 8): Promise<RecentSlackMessage[]> {
+  const me = await slackMe();
+  const users = await loadUsers(Date.now());
+  const body = await slack(`/conversations.history?channel=${encodeURIComponent(conversationId)}&limit=${Math.min(50, limit * 3)}`);
+  return ((body.messages as SlackMessage[] | undefined) ?? [])
+    .filter((m) => KEEP_SUBTYPES.has(m.subtype) && !m.bot_id && m.user && m.text?.trim() && !users.get(m.user)?.bot)
+    .slice(0, limit)
+    .reverse()
+    .map((m) => ({
+      fromMe: m.user === me,
+      fromName: m.user === me ? "Ollie" : (users.get(m.user!)?.name ?? "Someone"),
+      at: new Date(Number(m.ts) * 1000),
+      text: trimText(plainSlack(m.text ?? "", users), MAX_TEXT),
+    }));
 }

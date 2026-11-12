@@ -39,6 +39,11 @@ export const tasksTable = pgTable(
     source: taskSourceEnum("source").notNull().default("manual"),
     sourceRef: text("source_ref"),
     sourceUrl: text("source_url"),
+    /**
+     * The Gmail thread id from the source link, including older account-specific links. Stored so
+     * it can be a plain indexed column; Replit's publish step garbles an index on the expression.
+     */
+    gmailThreadId: text("gmail_thread_id").generatedAlwaysAs(sql`substring(source_url from '#all/([A-Za-z0-9]+)[[:space:]]*$')`),
     sourceQuote: text("source_quote"),
     sourceSubject: text("source_subject"),
     sourceChannel: text("source_channel"),
@@ -77,6 +82,11 @@ export const tasksTable = pgTable(
     repeat: jsonb("repeat").$type<RepeatRule>(),
     /** The next copy made when this one was ticked off, so it is only made once */
     repeatNextId: integer("repeat_next_id"),
+    /**
+     * Where Ollie dragged it in the task list; lower comes first. Null means never placed by hand,
+     * so it sorts after placed tasks in the usual due-date order.
+     */
+    position: integer("position"),
     /** Checklist steps inside the task, in order */
     steps: jsonb("steps").$type<TaskStep[]>().notNull().default([]),
     search: tsvector("search").generatedAlwaysAs(
@@ -90,6 +100,8 @@ export const tasksTable = pgTable(
     index("tasks_person_idx").on(t.personId),
     index("tasks_waiting_on_idx").on(t.waitingOnPersonId),
     index("tasks_completed_idx").on(t.completedAt),
+    // Same normalisation as inbox linking, including older account-specific Gmail URLs.
+    index("tasks_gmail_thread_idx").on(t.gmailThreadId).where(sql`${t.source} = 'email'`),
     uniqueIndex("tasks_source_ref_unique").on(t.source, t.sourceRef).where(sql`source_ref is not null`),
     index("tasks_search_idx").using("gin", t.search),
   ],
@@ -173,6 +185,8 @@ export const replyDraftsTable = pgTable("reply_drafts", {
   sentAt: timestamp("sent_at", { withTimezone: true }),
   /** When Ollie took it off the Drafts list on the Email page; the draft stays on the task */
   dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+  /** Part L: the body as OllieOS last wrote it, to compare with what Ollie saved or sent */
+  writtenBody: text("written_body"),
   /** Ollie's one-line brief from "Brief a reply"; the draft is written from it in the background */
   brief: text("brief"),
   /** Ready to look at, still being written, or the background write failed */
@@ -198,3 +212,61 @@ export const threadSummariesTable = pgTable("thread_summaries", {
 
 export type ThreadSummary = typeof threadSummariesTable.$inferSelect;
 export type ReplyDraft = typeof replyDraftsTable.$inferSelect;
+
+/**
+ * Evidence on a task (build plan section 20, Part U): a later Slack message, email or meeting note
+ * that shows the task is done or moving. One row per task and message. Evidence from the task's own
+ * conversation that it is done closes the task (`applied`); evidence from anywhere else puts "Looks
+ * done" on it until Ollie marks it done or says it is not (`dismissedAt`). Removed with the task.
+ */
+export const taskEvidenceTable = pgTable(
+  "task_evidence",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasksTable.id, { onDelete: "cascade" }),
+    /** slack, email or meeting */
+    source: text("source").notNull(),
+    /** The message's capture ref, for example slack:D123:1731234567.000100 or gmail:18c2f0 */
+    sourceRef: text("source_ref").notNull(),
+    url: text("url"),
+    /** "You" for Ollie, otherwise the name as written */
+    saidBy: text("said_by"),
+    saidAt: timestamp("said_at", { withTimezone: true }).notNull(),
+    /** Where it was said: the Slack conversation, email subject or meeting title */
+    place: text("place"),
+    quote: text("quote").notNull(),
+    /** done or progress */
+    shows: text("shows").notNull(),
+    /** same: from the task's own conversation; other: anywhere else */
+    strength: text("strength").notNull(),
+    /** True when this evidence closed the task */
+    applied: boolean("applied").notNull().default(false),
+    /** Ollie said "Not done" to a Looks done marker */
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("task_evidence_task_ref_idx").on(t.taskId, t.sourceRef), index("task_evidence_task_idx").on(t.taskId)],
+);
+
+export type TaskEvidence = typeof taskEvidenceTable.$inferSelect;
+
+/**
+ * Part L (build plan section 14): what OllieOS drafted and what Ollie changed, either by editing the
+ * draft in OllieOS before saving it, or in Gmail or Superhuman before sending. Read once a week to
+ * propose rules for changes made the same way three or more times.
+ */
+export const draftEditsTable = pgTable(
+  "draft_edits",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    taskId: integer("task_id").references(() => tasksTable.id, { onDelete: "set null" }),
+    /** edited: changed in OllieOS before saving; sent: the sent email differed from the draft */
+    kind: text("kind").notNull(),
+    original: text("original").notNull(),
+    final: text("final").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("draft_edits_at_idx").on(t.at)],
+);

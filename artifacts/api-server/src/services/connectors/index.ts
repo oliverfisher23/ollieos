@@ -10,14 +10,14 @@
  * the same check.
  */
 import { and, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
-import { appSettingsTable, connectorRunsTable, db, peopleTable, type ConnectorRun } from "@workspace/db";
+import { appSettingsTable, calendarEventsTable, connectorRunsTable, db, peopleTable, type ConnectorRun } from "@workspace/db";
 import { addDays, londonParts, londonWallTimeToInstant, todayLondon } from "@workspace/shared";
 import { emailsOf } from "../personMatch";
 import { logger } from "../../lib/logger";
 import { replaceCalendar } from "../aiWrites";
 import { scheduledWork } from "../scheduledWork";
 import { ValidationError } from "../tasks";
-import { sortAndCapture } from "./capture";
+import { sortAndCapture, type SortedRead } from "./capture";
 import { readGmail } from "./gmail";
 import { ConnectorError, readGoogleCalendar } from "./googleCalendar";
 import { readDrive, type DriveState } from "./drive";
@@ -121,13 +121,15 @@ export async function lastGoodRun(key: ServiceKey): Promise<ConnectorRun | null>
 }
 
 /** Who reads a service now. */
-export async function readByNow(key: ServiceKey, settings?: ConnectorSettings): Promise<ReadBy> {
+export async function readByNow(key: ServiceKey, settings?: ConnectorSettings, good?: ConnectorRun | null): Promise<ReadBy> {
   if (!DIRECT_READY.has(key)) return "claude";
   // Claude never reads Dropbox for OllieOS, so there is nothing to hand over.
   if (key === "dropbox") return "ollieos";
   const s = settings ?? (await getConnectorSettings());
   const chosen = s.readBy[key];
   if (chosen) return chosen;
+  // Granola needs historical proof of an own meeting, not just the latest good run.
+  if (key !== "granola" && good !== undefined) return good ? "ollieos" : "claude";
   return (await provenRun(key)) ? "ollieos" : "claude";
 }
 
@@ -183,7 +185,31 @@ export interface RunOutcome {
 async function readCalendar(now: Date) {
   const r = await readGoogleCalendar(now);
   const w = await replaceCalendar({ actor: RUN_ACTOR, clientId: null }, r.events, now);
-  return { found: r.found, account: r.account, counts: { kept: w.replaced, removed: w.removed, left_out: r.skipped } };
+  // Part S: people who were in meetings together (meetings that have happened, in the last 2 days).
+  let together = 0;
+  try {
+    const { recordTogether } = await import("../peopleSignals");
+    const recent = await db
+      .select()
+      .from(calendarEventsTable)
+      .where(and(eq(calendarEventsTable.personal, false), lt(calendarEventsTable.endsAt, now), gte(calendarEventsTable.endsAt, new Date(now.getTime() - 2 * 86_400_000))));
+    for (const e of recent) if (e.personIds.length > 1) together += await recordTogether("meeting", e.sourceRef, e.title, e.startsAt, e.personIds, now);
+  } catch (err) {
+    logger.warn({ err }, "Could not record people in meetings together");
+  }
+  // Part R: meetings that ended go into the meeting history; the 12-week backfill runs once.
+  let history = { recorded: 0, backfilled: 0 };
+  try {
+    const { historyFromCalendar } = await import("../timeAndMeetings");
+    history = await historyFromCalendar(now);
+  } catch (err) {
+    logger.warn({ err }, "Could not update the meeting history");
+  }
+  return {
+    found: r.found,
+    account: r.account,
+    counts: { kept: w.replaced, removed: w.removed, left_out: r.skipped, ...(together ? { relationships: together } : {}), ...(history.recorded ? { history: history.recorded } : {}), ...(history.backfilled ? { backfilled: history.backfilled } : {}) },
+  };
 }
 
 /* Where each reader got to, so the next check carries on from there. */
@@ -209,7 +235,7 @@ async function readGmailRun(now: Date) {
   const saved = await getState<{ after: string }>("gmail");
   const since = saved?.after ? new Date(saved.after) : new Date(now.getTime() - FIRST_LOOK_BACK_MS);
   const r = await readGmail(since);
-  const c = await sortAndCapture(r.units, { me: `His email address is ${r.account}.`, now });
+  const c = await sortAndCapture(r.units, { me: `His email address is ${r.account}.`, now, agent: "gmail_sorter" });
   // Only move on once everything read has been captured, so a failed check is read again.
   await putState("gmail", { after: (r.newest ?? since).toISOString() });
   // Keeps No reply yet up to date; a problem there never fails the Gmail check.
@@ -235,13 +261,22 @@ async function readGmailRun(now: Date) {
 async function readSlackRun(now: Date) {
   const saved = await getState<SlackState>("slack");
   const r = await readSlack(saved, now);
-  const c = await sortAndCapture(r.units, { me: `On Slack he is ${r.account}; his messages are marked "from Ollie".`, now });
+  let read: SortedRead | null = null;
+  const c = await sortAndCapture(r.units, {
+    me: `On Slack he is ${r.account}; his messages are marked "from Ollie".`,
+    now,
+    agent: "slack_sorter",
+    onSorted: async (x) => void (read = x),
+  });
+  // Slack to answer (Part P) from the same read; saved before the cursor moves, so a failed check is read again.
+  const { updateSlackToAnswer } = await import("../slackToAnswer");
+  const t = await updateSlackToAnswer({ read, opened: r.opened ?? [], me: r.me ?? null, now });
   await putState("slack", r.state);
-  return { found: r.found, account: r.account, counts: { ...c, left_out: r.leftOut, conversations: r.checked } };
+  return { found: r.found, account: r.account, counts: { ...c, left_out: r.leftOut, conversations: r.checked, to_answer: t.waiting, answered: t.closed } };
 }
 
 async function readDriveRun(now: Date) {
-  const r = await readDrive(await getState<DriveState>("drive"), now);
+  const r = await readDrive(await getState<DriveState>("drive"), now, await myAddresses());
   await putState("drive", r.state);
   return { found: r.found, account: r.account, counts: { ...r.counts } };
 }
@@ -268,7 +303,7 @@ async function readGranolaRun(now: Date) {
   const me = await myAddresses();
   if (!me.size) throw new ConnectorError("OllieOS does not know your email address yet. Check Google Calendar first.");
   const r = await readGranola(await getState<GranolaState>("granola"), me, now);
-  const c = await captureMeetings(r.notes, { me: `His email address is ${[...me][0]}.`, now });
+  const c = await captureMeetings(r.notes, { me: `His email address is ${[...me][0]}.`, now, myEmails: me });
   await putState("granola", r.state);
   return { found: r.found, account: null, counts: { ...c, meetings: r.notes.length, left_out: r.leftOut, more: r.more ? 1 : 0 } };
 }

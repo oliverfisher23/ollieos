@@ -40,6 +40,8 @@ export interface ServiceView {
   lastGoodAt: Date | null;
   lastFromClaudeAt: Date | null;
   runs: RunView[];
+  /** Part Q: why this service needs a look, when it does */
+  warning: string | null;
 }
 
 export interface ConnectorsView {
@@ -86,27 +88,38 @@ async function lastFromClaude(key: ServiceKey): Promise<Date | null> {
 }
 
 export async function connectorsView(now = new Date()): Promise<ConnectorsView> {
-  const settings = await getConnectorSettings();
-  const lastRunAt = await lastTimerRunAt();
-  const services: ServiceView[] = [];
-  for (const key of SERVICE_KEYS) {
-    const runs = DIRECT_READY.has(key) ? await recentRuns(key, 6) : [];
-    const good = DIRECT_READY.has(key) ? await lastGoodRun(key) : null;
-    services.push({
+  const settingsPromise = getConnectorSettings();
+  const warningsPromise = import("../connectorHealth").then(async ({ connectorWarnings }) => new Map((await connectorWarnings(now)).map((w) => [w.key, w.text])));
+  // The fixed six-service list bounds concurrency and preserves card order.
+  const servicesPromise = Promise.all([settingsPromise, warningsPromise]).then(([settings, warnings]) => Promise.all(SERVICE_KEYS.map(async (key): Promise<ServiceView> => {
+    const [runs, good, lastFromClaudeAt, granolaReadBy] = await Promise.all([
+      DIRECT_READY.has(key) ? recentRuns(key, 6) : [],
+      DIRECT_READY.has(key) ? lastGoodRun(key) : null,
+      lastFromClaude(key),
+      key === "granola" ? readByNow(key, settings) : undefined,
+    ]);
+    return {
       key,
       name: SERVICE_NAMES[key],
-      readBy: await readByNow(key, settings),
+      readBy: granolaReadBy ?? await readByNow(key, settings, good),
       chosen: !!settings.readBy[key],
       canReadDirect: DIRECT_READY.has(key),
       account: good?.account ?? null,
       lastGoodAt: good?.finishedAt ?? null,
-      lastFromClaudeAt: await lastFromClaude(key),
+      lastFromClaudeAt,
       runs: runs.map(runView),
-    });
-  }
+      warning: warnings.get(key) ?? null,
+    };
+  })));
+  const [settings, lastRunAt, dropbox, services] = await Promise.all([
+    settingsPromise,
+    lastTimerRunAt(),
+    getDropboxSetup(),
+    servicesPromise,
+  ]);
   return {
     schedule: { ...settings.schedule, lastRunAt, nextRunAt: nextCheckAt(now, settings.schedule, lastRunAt) },
     services,
-    dropbox: await getDropboxSetup(),
+    dropbox,
   };
 }

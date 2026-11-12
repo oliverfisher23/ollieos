@@ -13,12 +13,14 @@ import ConnectorsSettings from './settings-connectors';
 import EmailSettings from './settings-email';
 import KnowledgeSettings from './settings-knowledge';
 import PlanningSettings from './settings-planning';
+import AgentsSettings from './settings-agents';
 
 /** Sections that moved into Connectors. */
 const MOVED: Record<string, string> = { 'ai-access': 'connectors', sweep: 'connectors' };
 
 const SECTIONS = [
   { slug: 'connectors', label: 'Connectors', milestone: 8, line: '' },
+  { slug: 'agents', label: 'Agents', milestone: 0, line: '' },
   { slug: 'email', label: 'Email', milestone: 0, line: '' },
   { slug: 'knowledge', label: 'Knowledge', milestone: 6, line: '' },
   { slug: 'noise-rules', label: 'Noise rules', milestone: 2, line: '' },
@@ -82,6 +84,8 @@ export default function SettingsPage() {
           <EmailSettings />
         ) : current.slug === 'knowledge' ? (
           <KnowledgeSettings />
+        ) : current.slug === 'agents' ? (
+          <AgentsSettings />
         ) : current.slug === 'planning' ? (
           <PlanningSettings />
         ) : (

@@ -18,6 +18,7 @@ import {
   playbooksTable,
   productsTable,
   reviewItemsTable,
+  slackToAnswerTable,
   suggestionsTable,
   tasksTable,
   accessRequestsTable,
@@ -110,6 +111,7 @@ export async function mergePeople(keepId: number, goneId: number, now = new Date
     const forTasks = await tx.update(tasksTable).set({ personId: keepId }).where(eq(tasksTable.personId, goneId)).returning({ id: tasksTable.id });
     const waitTasks = await tx.update(tasksTable).set({ waitingOnPersonId: keepId }).where(eq(tasksTable.waitingOnPersonId, goneId)).returning({ id: tasksTable.id });
     await tx.update(reviewItemsTable).set({ personId: keepId }).where(eq(reviewItemsTable.personId, goneId));
+    await tx.update(slackToAnswerTable).set({ personId: keepId }).where(eq(slackToAnswerTable.personId, goneId));
     await tx.update(productsTable).set({ ownerId: keepId }).where(eq(productsTable.ownerId, goneId));
     await tx.update(playbooksTable).set({ ownerId: keepId }).where(eq(playbooksTable.ownerId, goneId));
     const withSteps = await tx

@@ -112,6 +112,11 @@ export const LogoutMobileSessionResponse = zod.object({
  * @summary Everything the Home screen needs in one call
  */
 export const GetHomeResponse = zod.object({
+  "connectorWarnings": zod.array(zod.object({
+  "key": zod.string(),
+  "text": zod.string()
+})).describe('Part Q: services OllieOS reads that need a look'),
+  "slackToAnswer": zod.int().describe('Slack messages that need a reply and have waited over a working day (Part P)'),
   "ideasDue": zod.array(zod.object({
   "id": zod.int(),
   "title": zod.string(),
@@ -157,6 +162,7 @@ export const GetHomeResponse = zod.object({
 }),
   "doNext": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -176,7 +182,7 @@ export const GetHomeResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -227,19 +233,21 @@ export const GetHomeResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "reason": zod.string().describe('One-line reason, e.g. "Overdue by 2 days" or "High priority, due Friday 13th November"')
 })).describe('Ranked queue. Overdue first, then High by due date, then Medium by due date. Snoozed tasks are skipped.'),
   "inbox": zod.object({
   "count": zod.int(),
   "bySource": zod.array(zod.object({
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "count": zod.int()
 }))
 }),
   "waitingOn": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -259,7 +267,7 @@ export const GetHomeResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -310,11 +318,13 @@ export const GetHomeResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "daysWaiting": zod.int().describe('Whole days since waitingSince (or updatedAt if unknown). Amber at 5 or more.')
 })),
   "promises": zod.array(zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -334,7 +344,7 @@ export const GetHomeResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -385,11 +395,13 @@ export const GetHomeResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })).describe('Open tasks with kind promise'),
   "doneThisWeek": zod.object({
   "count": zod.int(),
   "latest": zod.array(zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -409,7 +421,7 @@ export const GetHomeResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -460,7 +472,8 @@ export const GetHomeResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })).describe('Up to 5, most recently completed first')
 }),
   "lastSweepAt": zod.coerce.date().nullable().describe('When the last successful sweep finished. Null until the sweep runs (milestone 5).'),
@@ -471,7 +484,8 @@ export const GetHomeResponse = zod.object({
   "endsAt": zod.coerce.date(),
   "personal": zod.boolean(),
   "location": zod.string().nullable(),
-  "hasBrief": zod.boolean().describe('A work meeting with someone or something OllieOS knows about. "Brief me" opens /briefs/{id}.')
+  "hasBrief": zod.boolean().describe('A work meeting with someone or something OllieOS knows about. "Brief me" opens /briefs/{id}.'),
+  "notPrepped": zod.boolean().optional().describe('Part K: an external meeting today whose prep page has not been opened yet')
 })).describe('Today\'s calendar events, in start order. Empty until the sweep writes calendar data (milestone 5).'),
   "access": zod.object({
   "pending": zod.array(zod.object({
@@ -527,13 +541,14 @@ export const GetHomeResponse = zod.object({
  */
 export const ListTasksQueryParams = zod.object({
   "tab": zod.enum(['inbox', 'open', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']).optional(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']).optional(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']).optional(),
   "weekStart": zod.date().optional().describe('Monday of the week (YYYY-MM-DD, London). Open tabs filter by due date, Done by completion date.'),
   "includeUndated": zod.coerce.boolean().optional().describe('With weekStart on open tabs, also include tasks with no due date.'),
   "q": zod.coerce.string().optional()
 })
 
 export const ListTasksResponseItem = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -553,7 +568,7 @@ export const ListTasksResponseItem = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -604,7 +619,8 @@ export const ListTasksResponseItem = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 export const ListTasksResponse = zod.array(ListTasksResponseItem)
 
@@ -649,6 +665,7 @@ export const QuickAddTaskBody = zod.object({
 
 export const QuickAddTaskResponse = zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -668,7 +685,7 @@ export const QuickAddTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -719,10 +736,26 @@ export const QuickAddTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "warnings": zod.array(zod.string()).describe('e.g. "No project called @foo, added without a project"')
 })
+
+
+/**
+ * @summary Put tasks in the order Ollie dragged them, or clear that order
+ */
+export const reorderTasksBodyIdsMax = 500;
+
+
+
+export const ReorderTasksBody = zod.object({
+  "ids": zod.array(zod.int()).min(1).max(reorderTasksBodyIdsMax).describe('Task ids in the new order, top first'),
+  "clear": zod.boolean().optional().describe('Forget the dragged order for these tasks instead, so they go back to due-date order')
+})
+
+export const ReorderTasksResponse = zod.void()
 
 
 /**
@@ -734,6 +767,7 @@ export const GetTaskParams = zod.object({
 
 export const GetTaskResponse = zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -753,7 +787,7 @@ export const GetTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -804,7 +838,8 @@ export const GetTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "history": zod.array(zod.object({
   "id": zod.int(),
@@ -851,6 +886,7 @@ export const UpdateTaskBody = zod.object({
 })
 
 export const UpdateTaskResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -870,7 +906,7 @@ export const UpdateTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -921,7 +957,8 @@ export const UpdateTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 
 
@@ -933,6 +970,7 @@ export const SnoozeTaskParams = zod.object({
 })
 
 export const SnoozeTaskResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -952,7 +990,7 @@ export const SnoozeTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1003,7 +1041,8 @@ export const SnoozeTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 
 
@@ -1054,6 +1093,7 @@ export const TriageTaskBody = zod.object({
 
 export const TriageTaskResponse = zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1073,7 +1113,7 @@ export const TriageTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1124,14 +1164,15 @@ export const TriageTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "noiseRule": zod.union([zod.object({
   "id": zod.int(),
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string(),
-  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),zod.null()]),
+  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),zod.null()]),
   "enabled": zod.boolean(),
   "hitCount": zod.int(),
   "lastHitAt": zod.coerce.date().nullable(),
@@ -1149,6 +1190,7 @@ export const UndoTaskParams = zod.object({
 })
 
 export const UndoTaskResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1168,7 +1210,7 @@ export const UndoTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1219,7 +1261,8 @@ export const UndoTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 
 
@@ -1231,6 +1274,7 @@ export const RestoreTaskParams = zod.object({
 })
 
 export const RestoreTaskResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1250,7 +1294,7 @@ export const RestoreTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1301,7 +1345,8 @@ export const RestoreTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 
 
@@ -1313,6 +1358,7 @@ export const ContinueRepeatParams = zod.object({
 })
 
 export const ContinueRepeatResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1332,7 +1378,7 @@ export const ContinueRepeatResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1383,7 +1429,8 @@ export const ContinueRepeatResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 
 
@@ -1399,6 +1446,7 @@ export const GetDayPlanResponse = zod.object({
   "made": zod.boolean().describe('True once Ollie has made today\'s plan'),
   "items": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1418,7 +1466,7 @@ export const GetDayPlanResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1469,7 +1517,8 @@ export const GetDayPlanResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "minutes": zod.int(),
   "start": zod.string().nullable().describe('HH:MM. Null when it did not fit today.'),
@@ -1485,6 +1534,7 @@ export const GetDayPlanResponse = zod.object({
 })),
   "suggestions": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1504,7 +1554,7 @@ export const GetDayPlanResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1555,7 +1605,8 @@ export const GetDayPlanResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "reason": zod.string(),
   "carriedOver": zod.boolean().describe('In an earlier plan and not finished')
@@ -1582,6 +1633,7 @@ export const SaveDayPlanResponse = zod.object({
   "made": zod.boolean().describe('True once Ollie has made today\'s plan'),
   "items": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1601,7 +1653,7 @@ export const SaveDayPlanResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1652,7 +1704,8 @@ export const SaveDayPlanResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "minutes": zod.int(),
   "start": zod.string().nullable().describe('HH:MM. Null when it did not fit today.'),
@@ -1668,6 +1721,7 @@ export const SaveDayPlanResponse = zod.object({
 })),
   "suggestions": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1687,7 +1741,7 @@ export const SaveDayPlanResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1738,7 +1792,8 @@ export const SaveDayPlanResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "reason": zod.string(),
   "carriedOver": zod.boolean().describe('In an earlier plan and not finished')
@@ -1758,6 +1813,7 @@ export const RefitDayPlanResponse = zod.object({
   "made": zod.boolean().describe('True once Ollie has made today\'s plan'),
   "items": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1777,7 +1833,7 @@ export const RefitDayPlanResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1828,7 +1884,8 @@ export const RefitDayPlanResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "minutes": zod.int(),
   "start": zod.string().nullable().describe('HH:MM. Null when it did not fit today.'),
@@ -1844,6 +1901,7 @@ export const RefitDayPlanResponse = zod.object({
 })),
   "suggestions": zod.array(zod.object({
   "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1863,7 +1921,7 @@ export const RefitDayPlanResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -1914,7 +1972,8 @@ export const RefitDayPlanResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),
   "reason": zod.string(),
   "carriedOver": zod.boolean().describe('In an earlier plan and not finished')
@@ -1952,6 +2011,7 @@ export const GetClearOutResponse = zod.object({
   "count": zod.int(),
   "show": zod.boolean(),
   "tasks": zod.array(zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -1971,7 +2031,7 @@ export const GetClearOutResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -2022,7 +2082,8 @@ export const GetClearOutResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })).describe('Oldest first, up to 200')
 })
 
@@ -2044,6 +2105,7 @@ export const KeepInBacklogParams = zod.object({
 })
 
 export const KeepInBacklogResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -2063,7 +2125,7 @@ export const KeepInBacklogResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -2114,7 +2176,8 @@ export const KeepInBacklogResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 
 
@@ -2126,6 +2189,7 @@ export const KeepTaskParams = zod.object({
 })
 
 export const KeepTaskResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -2145,7 +2209,7 @@ export const KeepTaskResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -2196,7 +2260,8 @@ export const KeepTaskResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })
 
 
@@ -2525,6 +2590,7 @@ export const ListEmailDraftsResponse = zod.object({
   "sourceUrl": zod.string().nullable(),
   "confidential": zod.boolean()
 }),
+  "followUp": zod.boolean().optional().describe('Part K: a recap drafted after an external meeting'),
   "chase": zod.boolean().describe('A follow-up to an email nobody answered, rather than a reply')
 }))
 })
@@ -2554,6 +2620,1046 @@ export const ListEmailInboxResponse = zod.object({
   "checkedAt": zod.coerce.date().describe('When Gmail was last looked at'),
   "updating": zod.boolean().describe('Gmail is being looked at again, or new emails are being read'),
   "problem": zod.string().nullable().describe('Why the last look at Gmail failed; the list is from the one before')
+})
+
+
+/**
+ * @summary Every AI agent in OllieOS with its runs, estimated cost, speed and errors over the last 7 days, and every connected AI (Part V)
+ */
+export const ListAgentsResponse = zod.object({
+  "since": zod.coerce.date(),
+  "totalCostUsd": zod.number().describe('Estimated at list price'),
+  "totalRuns": zod.int(),
+  "agents": zod.array(zod.object({
+  "key": zod.string(),
+  "name": zod.string(),
+  "kind": zod.enum(['sorter', 'judge', 'writer', 'researcher', 'unknown']),
+  "does": zod.string(),
+  "reads": zod.string(),
+  "model": zod.string().nullable(),
+  "runs": zod.int(),
+  "failures": zod.int(),
+  "costUsd": zod.number(),
+  "inputTokens": zod.int(),
+  "outputTokens": zod.int(),
+  "avgMs": zod.int().nullable(),
+  "lastRunAt": zod.coerce.date().nullable(),
+  "lastError": zod.string().nullable(),
+  "lastErrorAt": zod.coerce.date().nullable(),
+  "promptVersions": zod.int(),
+  "measures": zod.array(zod.object({
+  "key": zod.string(),
+  "agent": zod.string(),
+  "label": zod.string(),
+  "kept": zod.int(),
+  "undone": zod.int(),
+  "waiting": zod.int(),
+  "rate": zod.int().nullable(),
+  "lastRate": zod.int().nullable(),
+  "lastDecided": zod.int()
+}).describe('Part W: how often Ollie kept what the agent did, this week against last')),
+  "writing": zod.union([zod.object({
+  "checks": zod.object({
+  "passed": zod.int(),
+  "total": zod.int(),
+  "lastIssues": zod.array(zod.string())
+}),
+  "grade": zod.object({
+  "average": zod.number().nullable(),
+  "count": zod.int(),
+  "lowest": zod.union([zod.object({
+  "subject": zod.string(),
+  "score": zod.int(),
+  "reason": zod.string()
+}),zod.null()])
+}),
+  "thumbs": zod.object({
+  "up": zod.int(),
+  "down": zod.int()
+})
+}).describe('Part Y: a writer\'s code checks, weekly grade and Ollie\'s thumbs over the last 7 days'),zod.null()]),
+  "tests": zod.union([zod.object({
+  "cases": zod.int(),
+  "lastReplay": zod.union([zod.object({
+  "passed": zod.int(),
+  "total": zod.int(),
+  "at": zod.coerce.date(),
+  "promptVersion": zod.string(),
+  "model": zod.string()
+}),zod.null()])
+}).describe('Part X: a reader\'s test cases and its last replay'),zod.null()])
+})),
+  "connected": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "kind": zod.string(),
+  "auth": zod.string(),
+  "revoked": zod.boolean(),
+  "lastUsedAt": zod.coerce.date().nullable(),
+  "reads": zod.int(),
+  "writes": zod.int(),
+  "proposals": zod.object({
+  "approved": zod.int(),
+  "rejected": zod.int(),
+  "merged": zod.int(),
+  "pending": zod.int()
+})
+}))
+})
+
+
+/**
+ * @summary Part X: whether this item's exchange can still be kept as a test case
+ */
+export const GetTaskTestCaseParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetTaskTestCaseResponse = zod.object({
+  "available": zod.boolean(),
+  "expected": zod.enum(['task', 'no_task']),
+  "caseId": zod.int().nullable()
+})
+
+
+/**
+ * @summary Part X: keep what the reader was given for this item as a test case
+ */
+export const KeepTaskTestCaseParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const keepTaskTestCaseBodyNoteMax = 500;
+
+
+
+export const KeepTaskTestCaseBody = zod.object({
+  "expected": zod.enum(['task', 'no_task']).optional(),
+  "note": zod.string().max(keepTaskTestCaseBodyNoteMax).nullish()
+})
+
+export const KeepTaskTestCaseResponse = zod.object({
+  "id": zod.int(),
+  "agent": zod.string(),
+  "agentName": zod.string(),
+  "title": zod.string(),
+  "expected": zod.enum(['task', 'no_task']),
+  "gotThen": zod.array(zod.string()),
+  "note": zod.string().nullable(),
+  "taskId": zod.int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "lastResult": zod.union([zod.object({
+  "at": zod.coerce.date(),
+  "model": zod.string(),
+  "promptVersion": zod.string(),
+  "passed": zod.boolean(),
+  "got": zod.array(zod.string())
+}),zod.null()])
+})
+
+
+/**
+ * @summary Part X: saved test cases
+ */
+export const ListTestCasesQueryParams = zod.object({
+  "agent": zod.coerce.string().optional()
+})
+
+export const ListTestCasesResponseItem = zod.object({
+  "id": zod.int(),
+  "agent": zod.string(),
+  "agentName": zod.string(),
+  "title": zod.string(),
+  "expected": zod.enum(['task', 'no_task']),
+  "gotThen": zod.array(zod.string()),
+  "note": zod.string().nullable(),
+  "taskId": zod.int().nullable(),
+  "createdAt": zod.coerce.date(),
+  "lastResult": zod.union([zod.object({
+  "at": zod.coerce.date(),
+  "model": zod.string(),
+  "promptVersion": zod.string(),
+  "passed": zod.boolean(),
+  "got": zod.array(zod.string())
+}),zod.null()])
+})
+export const ListTestCasesResponse = zod.array(ListTestCasesResponseItem)
+
+
+/**
+ * @summary Part X: remove a test case
+ */
+export const RemoveTestCaseParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RemoveTestCaseResponse = zod.void()
+
+
+/**
+ * @summary Part X: run a reader as the code now stands against its test cases
+ */
+export const ReplayTestCasesBody = zod.object({
+  "agent": zod.string(),
+  "model": zod.string().nullish()
+})
+
+export const ReplayTestCasesResponse = zod.object({
+  "id": zod.int(),
+  "agent": zod.string(),
+  "model": zod.string(),
+  "promptVersion": zod.string(),
+  "total": zod.int(),
+  "passed": zod.int(),
+  "failed": zod.array(zod.object({
+  "caseId": zod.int(),
+  "title": zod.string(),
+  "expected": zod.string(),
+  "got": zod.array(zod.string())
+})),
+  "previous": zod.union([zod.object({
+  "passed": zod.int(),
+  "total": zod.int(),
+  "at": zod.coerce.date(),
+  "promptVersion": zod.string(),
+  "model": zod.string()
+}),zod.null()]),
+  "at": zod.coerce.date()
+})
+
+
+/**
+ * @summary Part Y: Ollie's thumbs on Ask answers, briefs and digests
+ */
+export const ListFeedbackQueryParams = zod.object({
+  "subjects": zod.coerce.string().describe('Comma-separated, e.g. ask:12,brief:4')
+})
+
+export const ListFeedbackResponseItem = zod.object({
+  "subject": zod.string(),
+  "thumb": zod.union([zod.literal('up'),zod.literal('down'),zod.literal(null)]).nullable()
+})
+export const ListFeedbackResponse = zod.array(ListFeedbackResponseItem)
+
+
+/**
+ * @summary Part Y: thumbs up or down (null clears)
+ */
+export const setFeedbackBodyNoteMax = 500;
+
+
+
+export const SetFeedbackBody = zod.object({
+  "subject": zod.string(),
+  "thumb": zod.union([zod.literal('up'),zod.literal('down'),zod.literal(null)]).nullable(),
+  "note": zod.string().max(setFeedbackBodyNoteMax).nullish()
+})
+
+export const SetFeedbackResponse = zod.object({
+  "subject": zod.string(),
+  "thumb": zod.union([zod.literal('up'),zod.literal('down'),zod.literal(null)]).nullable()
+})
+
+
+/**
+ * @summary Feature 09: split what Ollie said into tasks, promises and facts to check. Saves nothing.
+ */
+export const parseVoiceBodyTranscriptMax = 4000;
+
+
+
+export const ParseVoiceBody = zod.object({
+  "transcript": zod.string().max(parseVoiceBodyTranscriptMax)
+})
+
+export const parseVoiceResponseItemsItemTextMax = 300;
+
+
+
+export const ParseVoiceResponse = zod.object({
+  "items": zod.array(zod.object({
+  "kind": zod.enum(['task', 'promise', 'fact']),
+  "text": zod.string().max(parseVoiceResponseItemsItemTextMax),
+  "dueDate": zod.coerce.date().nullable(),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "projectId": zod.int().nullable(),
+  "personId": zod.int().nullable(),
+  "about": zod.union([zod.object({
+  "type": zod.enum(['project', 'person', 'organisation']),
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()])
+})),
+  "usedAi": zod.boolean().describe('False when something hidden from AI was named and the transcript was split in code')
+})
+
+
+/**
+ * @summary Feature 09: save what Ollie confirmed (tasks to the Inbox, facts to the Knowledge Inbox)
+ */
+export const saveVoiceBodyTranscriptMax = 4000;
+
+export const saveVoiceBodyItemsItemTextMax = 300;
+
+
+
+export const SaveVoiceBody = zod.object({
+  "transcript": zod.string().max(saveVoiceBodyTranscriptMax),
+  "items": zod.array(zod.object({
+  "kind": zod.enum(['task', 'promise', 'fact']),
+  "text": zod.string().max(saveVoiceBodyItemsItemTextMax),
+  "dueDate": zod.coerce.date().nullable(),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "projectId": zod.int().nullable(),
+  "personId": zod.int().nullable(),
+  "about": zod.union([zod.object({
+  "type": zod.enum(['project', 'person', 'organisation']),
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()])
+}))
+})
+
+export const SaveVoiceResponse = zod.object({
+  "tasks": zod.array(zod.int()),
+  "facts": zod.array(zod.object({
+  "status": zod.string(),
+  "suggestionId": zod.int().optional()
+}))
+})
+
+
+/**
+ * @summary Milestone 9: every task as a CSV file
+ */
+export const ExportTasksCsvResponse = zod.unknown()
+
+
+/**
+ * @summary Colleagues this task can be sent to on Slack, and who it is suggested for
+ */
+export const GetTaskSlackDmOptionsParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetTaskSlackDmOptionsResponse = zod.object({
+  "people": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "role": zod.string().nullable()
+})),
+  "suggestedPersonId": zod.int().nullable()
+})
+
+
+/**
+ * @summary Send a colleague a Slack direct message as Ollie, then move the task to Waiting on them
+ */
+export const SendTaskSlackDmParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const sendTaskSlackDmBodyTextMax = 3000;
+
+
+
+export const SendTaskSlackDmBody = zod.object({
+  "personId": zod.int(),
+  "text": zod.string().max(sendTaskSlackDmBodyTextMax)
+})
+
+export const SendTaskSlackDmResponse = zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "channel": zod.string(),
+  "ts": zod.string(),
+  "url": zod.string()
+})
+
+
+/**
+ * @summary Part L: search every Drive file Ollie can open, by name and text
+ */
+export const searchDriveQueryQMax = 200;
+
+
+
+export const SearchDriveQueryParams = zod.object({
+  "q": zod.coerce.string().max(searchDriveQueryQMax)
+})
+
+export const SearchDriveResponseItem = zod.object({
+  "fileId": zod.string(),
+  "name": zod.string(),
+  "kind": zod.string(),
+  "owner": zod.string().nullable(),
+  "modifiedAt": zod.coerce.date().nullable(),
+  "url": zod.string(),
+  "inLibrary": zod.boolean()
+})
+export const SearchDriveResponse = zod.array(SearchDriveResponseItem)
+
+
+/**
+ * @summary Part L: rules and playbooks not used by any AI in 90 days
+ */
+export const ListUnusedRulesAndPlaybooksResponse = zod.object({
+  "rules": zod.array(zod.int()),
+  "playbooks": zod.array(zod.int())
+})
+
+
+/**
+ * @summary Part L: makes the playbook's steps into tasks for a person, organisation or project
+ */
+export const RunPlaybookParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RunPlaybookBody = zod.object({
+  "target": zod.object({
+  "type": zod.enum(['person', 'organisation', 'project']),
+  "id": zod.int()
+}),
+  "mode": zod.enum(['tasks', 'checklist']),
+  "start": zod.coerce.date().nullish()
+})
+
+export const RunPlaybookResponse = zod.object({
+  "taskIds": zod.array(zod.int())
+})
+
+
+/**
+ * @summary Part L: how often the playbook reached an AI, and the last 10 times
+ */
+export const GetPlaybookUsageParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetPlaybookUsageResponse = zod.object({
+  "count": zod.int(),
+  "lastUsedAt": zod.coerce.date().nullable(),
+  "recent": zod.array(zod.object({
+  "at": zod.coerce.date(),
+  "by": zod.string(),
+  "via": zod.string().nullable()
+})),
+  "unused": zod.boolean()
+})
+
+
+/**
+ * @summary Part L: how often the rule reached an AI, and the last 10 times
+ */
+export const GetRuleUsageParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetRuleUsageResponse = zod.object({
+  "count": zod.int(),
+  "lastUsedAt": zod.coerce.date().nullable(),
+  "recent": zod.array(zod.object({
+  "at": zod.coerce.date(),
+  "by": zod.string(),
+  "via": zod.string().nullable()
+})),
+  "unused": zod.boolean()
+})
+
+
+/**
+ * @summary Part L: the lines of a draft that break a rule that applies, with a fix for each
+ */
+export const CheckReplyDraftParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const checkReplyDraftBodyBodyMax = 20000;
+
+
+
+export const CheckReplyDraftBody = zod.object({
+  "body": zod.string().min(1).max(checkReplyDraftBodyBodyMax)
+})
+
+export const CheckReplyDraftResponse = zod.object({
+  "issues": zod.array(zod.object({
+  "ruleRef": zod.string(),
+  "ruleTitle": zod.string(),
+  "line": zod.string(),
+  "fix": zod.string()
+}))
+})
+
+
+/**
+ * @summary Part R: meeting hours by goal and function, this week and the four before
+ */
+export const GetTimeReportResponse = zod.object({
+  "weeks": zod.array(zod.object({
+  "weekStart": zod.coerce.date(),
+  "meetingHours": zod.number(),
+  "byGoal": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "hours": zod.number()
+})),
+  "byFunction": zod.array(zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "hours": zod.number()
+})),
+  "internalHours": zod.number(),
+  "externalHours": zod.number(),
+  "plannedTaskHours": zod.number()
+})),
+  "thinGoals": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Part R: free working hours left this week against what is due
+ */
+export const GetWeekCheckResponse = zod.object({
+  "freeHours": zod.number(),
+  "dueHours": zod.number(),
+  "overBy": zod.number(),
+  "over": zod.boolean(),
+  "movable": zod.array(zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
+})),
+  "dueCount": zod.int()
+})
+
+
+/**
+ * @summary Part R: repeating meetings where 3 of the last 4 brought no actions or decisions
+ */
+export const ListMeetingsWorthALookResponseItem = zod.object({
+  "seriesId": zod.string(),
+  "title": zod.string(),
+  "howOften": zod.string(),
+  "hoursAMonth": zod.number(),
+  "lastFour": zod.object({
+  "notes": zod.int(),
+  "actions": zod.int(),
+  "decisions": zod.int()
+}),
+  "organiser": zod.string().nullable(),
+  "note": zod.string()
+})
+export const ListMeetingsWorthALookResponse = zod.array(ListMeetingsWorthALookResponseItem)
+
+
+/**
+ * @summary Part R: keep a repeating meeting; not asked again for 12 weeks
+ */
+export const KeepMeetingSeriesParams = zod.object({
+  "seriesId": zod.coerce.string()
+})
+
+export const KeepMeetingSeriesResponse = zod.void()
+
+
+/**
+ * @summary Part S: the pulse of every client organisation, those needing attention first
+ */
+export const ListClientPulsesResponseItem = zod.object({
+  "organisationId": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "quietDays": zod.int(),
+  "lastMetAt": zod.coerce.date().nullable(),
+  "lastContactAt": zod.coerce.date().nullable(),
+  "meetings90": zod.int(),
+  "emailsWaiting": zod.int(),
+  "oldestEmailAt": zod.coerce.date().nullable(),
+  "owedToThem": zod.int(),
+  "overdueToThem": zod.int(),
+  "theyOwe": zod.int(),
+  "tone": zod.union([zod.null(),zod.object({
+  "tone": zod.enum(['positive', 'neutral', 'concerned']),
+  "reason": zod.string().nullable(),
+  "at": zod.coerce.date(),
+  "title": zod.string()
+})]),
+  "needsAttention": zod.boolean(),
+  "reasons": zod.array(zod.string()),
+  "line": zod.string(),
+  "commercial": zod.object({
+  "renewalDate": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()]),
+  "renewsOn": zod.coerce.date().nullable(),
+  "contractValue": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()]),
+  "accountHealth": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()])
+}).describe('Part T: a client\'s renewal date, contract value and account health, from approved facts')
+})
+export const ListClientPulsesResponse = zod.array(ListClientPulsesResponseItem)
+
+
+/**
+ * @summary Part S: one organisation's pulse
+ */
+export const GetClientPulseParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const GetClientPulseResponse = zod.object({
+  "organisationId": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "quietDays": zod.int(),
+  "lastMetAt": zod.coerce.date().nullable(),
+  "lastContactAt": zod.coerce.date().nullable(),
+  "meetings90": zod.int(),
+  "emailsWaiting": zod.int(),
+  "oldestEmailAt": zod.coerce.date().nullable(),
+  "owedToThem": zod.int(),
+  "overdueToThem": zod.int(),
+  "theyOwe": zod.int(),
+  "tone": zod.union([zod.null(),zod.object({
+  "tone": zod.enum(['positive', 'neutral', 'concerned']),
+  "reason": zod.string().nullable(),
+  "at": zod.coerce.date(),
+  "title": zod.string()
+})]),
+  "needsAttention": zod.boolean(),
+  "reasons": zod.array(zod.string()),
+  "line": zod.string(),
+  "commercial": zod.object({
+  "renewalDate": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()]),
+  "renewsOn": zod.coerce.date().nullable(),
+  "contractValue": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()]),
+  "accountHealth": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()])
+}).describe('Part T: a client\'s renewal date, contract value and account health, from approved facts')
+})
+
+
+/**
+ * @summary Part S: days without contact before the organisation shows Needs attention (null for 30)
+ */
+export const SetClientQuietDaysParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const SetClientQuietDaysBody = zod.object({
+  "quietDays": zod.int().nullable()
+})
+
+export const SetClientQuietDaysResponse = zod.object({
+  "organisationId": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "quietDays": zod.int(),
+  "lastMetAt": zod.coerce.date().nullable(),
+  "lastContactAt": zod.coerce.date().nullable(),
+  "meetings90": zod.int(),
+  "emailsWaiting": zod.int(),
+  "oldestEmailAt": zod.coerce.date().nullable(),
+  "owedToThem": zod.int(),
+  "overdueToThem": zod.int(),
+  "theyOwe": zod.int(),
+  "tone": zod.union([zod.null(),zod.object({
+  "tone": zod.enum(['positive', 'neutral', 'concerned']),
+  "reason": zod.string().nullable(),
+  "at": zod.coerce.date(),
+  "title": zod.string()
+})]),
+  "needsAttention": zod.boolean(),
+  "reasons": zod.array(zod.string()),
+  "line": zod.string(),
+  "commercial": zod.object({
+  "renewalDate": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()]),
+  "renewsOn": zod.coerce.date().nullable(),
+  "contractValue": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()]),
+  "accountHealth": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()])
+}).describe('Part T: a client\'s renewal date, contract value and account health, from approved facts')
+})
+
+
+/**
+ * @summary Part S: the one-off look back over 6 months of email headers for works-with cards
+ */
+export const GetRelationshipLookBackResponse = zod.object({
+  "status": zod.enum(['idle', 'running', 'done', 'failed']),
+  "total": zod.int(),
+  "done": zod.int(),
+  "proposed": zod.int(),
+  "error": zod.string().nullable(),
+  "finishedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Part S: starts the look back in the background
+ */
+export const StartRelationshipLookBackResponse = zod.object({
+  "status": zod.enum(['idle', 'running', 'done', 'failed']),
+  "total": zod.int(),
+  "done": zod.int(),
+  "proposed": zod.int(),
+  "error": zod.string().nullable(),
+  "finishedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Part K: a person's Next time I see points, open and recently raised
+ */
+export const ListTalkingPointsParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const ListTalkingPointsResponse = zod.object({
+  "open": zod.array(zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+})),
+  "raised": zod.array(zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Part K: adds a point to raise next time
+ */
+export const AddTalkingPointParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const addTalkingPointBodyTextMax = 300;
+
+
+
+export const AddTalkingPointBody = zod.object({
+  "text": zod.string().min(1).max(addTalkingPointBodyTextMax)
+})
+
+export const AddTalkingPointResponse = zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Part K: ticks a point as raised by hand, or puts it back
+ */
+export const SetTalkingPointRaisedParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const SetTalkingPointRaisedBody = zod.object({
+  "raised": zod.boolean()
+})
+
+export const SetTalkingPointRaisedResponse = zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Part K: removes a point
+ */
+export const DeleteTalkingPointParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteTalkingPointResponse = zod.void()
+
+
+/**
+ * @summary Part K: adds a Next time I see point for someone in the meeting, from its prep page
+ */
+export const AddBriefTalkingPointParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const addBriefTalkingPointBodyTextMax = 300;
+
+
+
+export const AddBriefTalkingPointBody = zod.object({
+  "personId": zod.int(),
+  "text": zod.string().min(1).max(addBriefTalkingPointBodyTextMax)
+})
+
+export const AddBriefTalkingPointResponse = zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary What OllieOS has seen: later messages, emails and meeting notes that show this task is done or moving (Part U), newest first
+ */
+export const ListTaskEvidenceParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ListTaskEvidenceResponseItem = zod.object({
+  "id": zod.int(),
+  "source": zod.string().describe('slack, email or meeting'),
+  "url": zod.string().nullable(),
+  "saidBy": zod.string().nullable().describe('"You" for Ollie, otherwise the name as written'),
+  "saidAt": zod.coerce.date(),
+  "place": zod.string().nullable().describe('The Slack conversation'),
+  "quote": zod.string(),
+  "shows": zod.enum(['done', 'progress']),
+  "strength": zod.enum(['same', 'other']).describe('same: from the task\'s own conversation; other: anywhere else'),
+  "applied": zod.boolean().describe('This evidence closed the task'),
+  "dismissed": zod.boolean().describe('Ollie said Not done')
+})
+export const ListTaskEvidenceResponse = zod.array(ListTaskEvidenceResponseItem)
+
+
+/**
+ * @summary "Not done" on a Looks done marker: that evidence no longer marks the task
+ */
+export const DismissTaskEvidenceParams = zod.object({
+  "id": zod.coerce.number().int(),
+  "evidenceId": zod.coerce.number().int()
+})
+
+export const DismissTaskEvidenceResponseItem = zod.object({
+  "id": zod.int(),
+  "source": zod.string().describe('slack, email or meeting'),
+  "url": zod.string().nullable(),
+  "saidBy": zod.string().nullable().describe('"You" for Ollie, otherwise the name as written'),
+  "saidAt": zod.coerce.date(),
+  "place": zod.string().nullable().describe('The Slack conversation'),
+  "quote": zod.string(),
+  "shows": zod.enum(['done', 'progress']),
+  "strength": zod.enum(['same', 'other']).describe('same: from the task\'s own conversation; other: anywhere else'),
+  "applied": zod.boolean().describe('This evidence closed the task'),
+  "dismissed": zod.boolean().describe('Ollie said Not done')
+})
+export const DismissTaskEvidenceResponse = zod.array(DismissTaskEvidenceResponseItem)
+
+
+/**
+ * @summary Slack to answer: conversations from the last 14 days whose newest message is from someone else, newest first. Nothing is posted to Slack.
+ */
+export const ListSlackToAnswerResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.int(),
+  "kind": zod.string().describe('im, mpim or channel'),
+  "place": zod.string().describe('The other person for a DM, the names in a group DM, or #channel'),
+  "fromName": zod.string().nullable(),
+  "personId": zod.int().nullable(),
+  "personSlug": zod.string().nullable(),
+  "text": zod.string().describe('The message'),
+  "at": zod.coerce.date(),
+  "url": zod.string().describe('The message in Slack'),
+  "needs": zod.enum(['reply', 'info', 'unknown']).describe('Needs a reply, for information, or not read by AI'),
+  "ask": zod.string().nullable().describe('One line on what they want'),
+  "hidden": zod.boolean().describe('Someone in it is hidden from AI, so it was not read and cannot be drafted'),
+  "taskId": zod.int().nullable().describe('The open task for it, when there is one')
+})),
+  "readBy": zod.enum(['ollieos', 'claude']).describe('Who reads Slack: only OllieOS\'s own Slack check fills this list'),
+  "checkedAt": zod.coerce.date().nullable().describe('When the last good Slack check finished')
+})
+
+
+/**
+ * @summary Takes a Slack conversation off To answer until a newer message arrives, and marks its open task done
+ */
+export const MarkSlackToAnswerDoneParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const MarkSlackToAnswerDoneResponse = zod.object({
+  "taskId": zod.int().nullable(),
+  "previousStatus": zod.union([zod.literal('inbox'),zod.literal('now'),zod.literal('backlog'),zod.literal('waiting'),zod.literal(null)]).nullable()
+})
+
+
+/**
+ * @summary Puts a Slack conversation back on To answer and its task back where it was
+ */
+export const UndoSlackToAnswerDoneParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UndoSlackToAnswerDoneBody = zod.object({
+  "taskId": zod.int().nullable(),
+  "previousStatus": zod.union([zod.literal('inbox'),zod.literal('now'),zod.literal('backlog'),zod.literal('waiting'),zod.literal(null)]).nullable()
+})
+
+export const UndoSlackToAnswerDoneResponse = zod.void()
+
+
+/**
+ * @summary Make a task: "Reply to <name> on Slack", status Now, linked to the message. An open task already linked is used instead.
+ */
+export const EnsureSlackToAnswerTaskParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const EnsureSlackToAnswerTaskResponse = zod.object({
+  "taskId": zod.int()
+})
+
+
+/**
+ * @summary Drafts a short Slack reply in Ollie's style for him to copy. Nothing is posted.
+ */
+export const DraftSlackToAnswerReplyParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DraftSlackToAnswerReplyResponse = zod.object({
+  "text": zod.string()
 })
 
 
@@ -2677,7 +3783,7 @@ export const ListNoiseRulesResponseItem = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string(),
-  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),zod.null()]),
+  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),zod.null()]),
   "enabled": zod.boolean(),
   "hitCount": zod.int(),
   "lastHitAt": zod.coerce.date().nullable(),
@@ -2703,7 +3809,7 @@ export const UpdateNoiseRuleResponse = zod.object({
   "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
   "matchValue": zod.string(),
   "label": zod.string(),
-  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),zod.null()]),
+  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),zod.null()]),
   "enabled": zod.boolean(),
   "hitCount": zod.int(),
   "lastHitAt": zod.coerce.date().nullable(),
@@ -2887,6 +3993,7 @@ export const GetProjectResponse = zod.object({
   "text": zod.string(),
   "personId": zod.int().nullable(),
   "afterDays": zod.int().nullable().describe('Days after starting'),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish().describe('Part L: Now or Backlog when the playbook is run; Backlog when not set'),
   "personName": zod.string().nullable(),
   "personSlug": zod.string().nullable()
 })),
@@ -2937,7 +4044,7 @@ export const GetProjectResponse = zod.object({
   "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
-  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal(null)]).nullable(),
+  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal('renewal_date'),zod.literal('contract_value'),zod.literal('account_health'),zod.literal(null)]).nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "lastConfirmedAt": zod.coerce.date(),
@@ -2949,7 +4056,12 @@ export const GetProjectResponse = zod.object({
   "text": zod.string(),
   "createdAt": zod.coerce.date(),
   "createdBy": zod.string()
-})).describe('Earlier versions this fact replaced, newest first')
+})).describe('Earlier versions this fact replaced, newest first'),
+  "alsoFrom": zod.array(zod.object({
+  "source": zod.string(),
+  "url": zod.string().nullable(),
+  "at": zod.coerce.date()
+})).describe('Cards marked "Same as existing" for this fact, its other sources, newest first')
 })),
   "decisions": zod.array(zod.object({
   "id": zod.int(),
@@ -2971,6 +4083,7 @@ export const GetProjectResponse = zod.object({
   "replaced": zod.boolean().describe('Replaced by a newer claim; kept as history')
 })),
   "openTasks": zod.array(zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -2990,7 +4103,7 @@ export const GetProjectResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -3041,7 +4154,8 @@ export const GetProjectResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })),
   "people": zod.array(zod.object({
   "id": zod.int(),
@@ -3239,6 +4353,7 @@ export const GetPersonResponse = zod.object({
   "pausedByProjects": zod.boolean().describe('True when every linked project is paused or complete')
 }),
   "iOwe": zod.array(zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -3258,7 +4373,7 @@ export const GetPersonResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -3309,9 +4424,11 @@ export const GetPersonResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })),
   "theyOwe": zod.array(zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -3331,7 +4448,7 @@ export const GetPersonResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -3382,7 +4499,8 @@ export const GetPersonResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 })),
   "projects": zod.array(zod.object({
   "id": zod.int(),
@@ -3397,7 +4515,7 @@ export const GetPersonResponse = zod.object({
   "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
-  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal(null)]).nullable(),
+  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal('renewal_date'),zod.literal('contract_value'),zod.literal('account_health'),zod.literal(null)]).nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "lastConfirmedAt": zod.coerce.date(),
@@ -3409,7 +4527,12 @@ export const GetPersonResponse = zod.object({
   "text": zod.string(),
   "createdAt": zod.coerce.date(),
   "createdBy": zod.string()
-})).describe('Earlier versions this fact replaced, newest first')
+})).describe('Earlier versions this fact replaced, newest first'),
+  "alsoFrom": zod.array(zod.object({
+  "source": zod.string(),
+  "url": zod.string().nullable(),
+  "at": zod.coerce.date()
+})).describe('Cards marked "Same as existing" for this fact, its other sources, newest first')
 })),
   "notes": zod.array(zod.object({
   "id": zod.int(),
@@ -3693,6 +4816,7 @@ export const ListMeetingsResponse = zod.object({
  * @summary The brief for the next work meeting, today or tomorrow
  */
 export const GetNextBriefResponse = zod.object({
+  "id": zod.int(),
   "event": zod.object({
   "id": zod.int(),
   "title": zod.string(),
@@ -3747,6 +4871,45 @@ export const GetNextBriefResponse = zod.object({
   "stale": zod.boolean().describe('Older than 30 days'),
   "error": zod.string().nullable()
 })),
+  "talkingPoints": zod.array(zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+})).optional().describe('Part K: open Next time I see points for people in the meeting, shown at the top of the agenda'),
+  "followUpTaskId": zod.int().nullish().describe('Part K: the follow-up task drafted from this meeting\'s Granola notes'),
+  "pulse": zod.array(zod.object({
+  "name": zod.string(),
+  "slug": zod.string(),
+  "line": zod.string(),
+  "needsAttention": zod.boolean(),
+  "reasons": zod.array(zod.string()),
+  "commercial": zod.object({
+  "renewalDate": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()]),
+  "renewsOn": zod.coerce.date().nullable(),
+  "contractValue": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()]),
+  "accountHealth": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()])
+}).describe('Part T: a client\'s renewal date, contract value and account health, from approved facts')
+})).optional().describe('Part S: the pulse of each client organisation in an external meeting'),
+  "openedAt": zod.coerce.date().nullish().describe('Part K: when Ollie first opened this prep page'),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
   "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),
@@ -3903,6 +5066,7 @@ export const GetBriefParams = zod.object({
 })
 
 export const GetBriefResponse = zod.object({
+  "id": zod.int(),
   "event": zod.object({
   "id": zod.int(),
   "title": zod.string(),
@@ -3957,6 +5121,45 @@ export const GetBriefResponse = zod.object({
   "stale": zod.boolean().describe('Older than 30 days'),
   "error": zod.string().nullable()
 })),
+  "talkingPoints": zod.array(zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+})).optional().describe('Part K: open Next time I see points for people in the meeting, shown at the top of the agenda'),
+  "followUpTaskId": zod.int().nullish().describe('Part K: the follow-up task drafted from this meeting\'s Granola notes'),
+  "pulse": zod.array(zod.object({
+  "name": zod.string(),
+  "slug": zod.string(),
+  "line": zod.string(),
+  "needsAttention": zod.boolean(),
+  "reasons": zod.array(zod.string()),
+  "commercial": zod.object({
+  "renewalDate": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()]),
+  "renewsOn": zod.coerce.date().nullable(),
+  "contractValue": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()]),
+  "accountHealth": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()])
+}).describe('Part T: a client\'s renewal date, contract value and account health, from approved facts')
+})).optional().describe('Part S: the pulse of each client organisation in an external meeting'),
+  "openedAt": zod.coerce.date().nullish().describe('Part K: when Ollie first opened this prep page'),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
   "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),
@@ -4137,6 +5340,7 @@ export const RefreshBriefParams = zod.object({
 })
 
 export const RefreshBriefResponse = zod.object({
+  "id": zod.int(),
   "event": zod.object({
   "id": zod.int(),
   "title": zod.string(),
@@ -4191,6 +5395,45 @@ export const RefreshBriefResponse = zod.object({
   "stale": zod.boolean().describe('Older than 30 days'),
   "error": zod.string().nullable()
 })),
+  "talkingPoints": zod.array(zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+})).optional().describe('Part K: open Next time I see points for people in the meeting, shown at the top of the agenda'),
+  "followUpTaskId": zod.int().nullish().describe('Part K: the follow-up task drafted from this meeting\'s Granola notes'),
+  "pulse": zod.array(zod.object({
+  "name": zod.string(),
+  "slug": zod.string(),
+  "line": zod.string(),
+  "needsAttention": zod.boolean(),
+  "reasons": zod.array(zod.string()),
+  "commercial": zod.object({
+  "renewalDate": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()]),
+  "renewsOn": zod.coerce.date().nullable(),
+  "contractValue": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()]),
+  "accountHealth": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()])
+}).describe('Part T: a client\'s renewal date, contract value and account health, from approved facts')
+})).optional().describe('Part S: the pulse of each client organisation in an external meeting'),
+  "openedAt": zod.coerce.date().nullish().describe('Part K: when Ollie first opened this prep page'),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
   "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),
@@ -4347,6 +5590,7 @@ export const AllowForBriefParams = zod.object({
 })
 
 export const AllowForBriefResponse = zod.object({
+  "id": zod.int(),
   "event": zod.object({
   "id": zod.int(),
   "title": zod.string(),
@@ -4401,6 +5645,45 @@ export const AllowForBriefResponse = zod.object({
   "stale": zod.boolean().describe('Older than 30 days'),
   "error": zod.string().nullable()
 })),
+  "talkingPoints": zod.array(zod.object({
+  "id": zod.int(),
+  "personId": zod.int(),
+  "personName": zod.string().nullable(),
+  "text": zod.string(),
+  "createdBy": zod.string(),
+  "status": zod.enum(['open', 'raised']),
+  "raisedAt": zod.coerce.date().nullable(),
+  "raisedTitle": zod.string().nullable().describe('The meeting it was raised in'),
+  "raisedHow": zod.string().nullable().describe('notes (Granola showed it covered) or ollie (ticked by hand)'),
+  "createdAt": zod.coerce.date()
+})).optional().describe('Part K: open Next time I see points for people in the meeting, shown at the top of the agenda'),
+  "followUpTaskId": zod.int().nullish().describe('Part K: the follow-up task drafted from this meeting\'s Granola notes'),
+  "pulse": zod.array(zod.object({
+  "name": zod.string(),
+  "slug": zod.string(),
+  "line": zod.string(),
+  "needsAttention": zod.boolean(),
+  "reasons": zod.array(zod.string()),
+  "commercial": zod.object({
+  "renewalDate": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()]),
+  "renewsOn": zod.coerce.date().nullable(),
+  "contractValue": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()]),
+  "accountHealth": zod.union([zod.object({
+  "text": zod.string(),
+  "at": zod.coerce.date().describe('When it was last confirmed'),
+  "needsCheck": zod.boolean()
+}),zod.null()])
+}).describe('Part T: a client\'s renewal date, contract value and account health, from approved facts')
+})).optional().describe('Part S: the pulse of each client organisation in an external meeting'),
+  "openedAt": zod.coerce.date().nullish().describe('Part K: when Ollie first opened this prep page'),
   "generatedAt": zod.coerce.date(),
   "failed": zod.boolean().describe('The model could not write the brief. Refresh to try again.'),
   "notMuch": zod.boolean().describe('Nothing citable on file. Show attendees and promises only.'),
@@ -4567,6 +5850,7 @@ export const GetDigestParams = zod.object({
 })
 
 export const GetDigestResponse = zod.object({
+  "id": zod.int(),
   "date": zod.coerce.date(),
   "windowStart": zod.coerce.date(),
   "summary": zod.string().nullable().describe('One sentence. Null when the model could not write it.'),
@@ -4601,6 +5885,16 @@ export const GetDigestResponse = zod.object({
   "more": zod.int().describe('Items beyond the 5 shown'),
   "moreHref": zod.string().nullable()
 }),zod.null()]),
+  "changed": zod.union([zod.object({
+  "items": zod.array(zod.object({
+  "text": zod.string(),
+  "href": zod.string().nullable(),
+  "refs": zod.array(zod.string()),
+  "confidential": zod.boolean().describe('Hidden from AI by default. Counted but never named in an email.')
+})),
+  "more": zod.int().describe('Items beyond the 5 shown'),
+  "moreHref": zod.string().nullable()
+}),zod.null()]).optional().describe('Part Q: Library documents someone else changed since the last digest. Missing on older digests.'),
   "today": zod.array(zod.object({
   "eventId": zod.int(),
   "title": zod.string(),
@@ -5917,6 +7211,7 @@ export const ListPlaybooksResponseItem = zod.object({
   "text": zod.string(),
   "personId": zod.int().nullable(),
   "afterDays": zod.int().nullable().describe('Days after starting'),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish().describe('Part L: Now or Backlog when the playbook is run; Backlog when not set'),
   "personName": zod.string().nullable(),
   "personSlug": zod.string().nullable()
 })),
@@ -5988,7 +7283,8 @@ export const CreatePlaybookBody = zod.object({
   "id": zod.string().max(createPlaybookBodyStepsItemIdMax).nullish().describe('Keep the id of a step that stays'),
   "text": zod.string().min(1).max(createPlaybookBodyStepsItemTextMax),
   "personId": zod.int().nullish(),
-  "afterDays": zod.int().min(createPlaybookBodyStepsItemAfterDaysMin).max(createPlaybookBodyStepsItemAfterDaysMax).nullish()
+  "afterDays": zod.int().min(createPlaybookBodyStepsItemAfterDaysMin).max(createPlaybookBodyStepsItemAfterDaysMax).nullish(),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish()
 })).max(createPlaybookBodyStepsMax).optional(),
   "notes": zod.string().max(createPlaybookBodyNotesMax).nullish(),
   "state": zod.enum(['draft', 'in_use', 'retired']).optional(),
@@ -6010,6 +7306,7 @@ export const CreatePlaybookResponse = zod.object({
   "text": zod.string(),
   "personId": zod.int().nullable(),
   "afterDays": zod.int().nullable().describe('Days after starting'),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish().describe('Part L: Now or Backlog when the playbook is run; Backlog when not set'),
   "personName": zod.string().nullable(),
   "personSlug": zod.string().nullable()
 })),
@@ -6067,6 +7364,7 @@ export const GetPlaybookResponse = zod.object({
   "text": zod.string(),
   "personId": zod.int().nullable(),
   "afterDays": zod.int().nullable().describe('Days after starting'),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish().describe('Part L: Now or Backlog when the playbook is run; Backlog when not set'),
   "personName": zod.string().nullable(),
   "personSlug": zod.string().nullable()
 })),
@@ -6141,7 +7439,8 @@ export const UpdatePlaybookBody = zod.object({
   "id": zod.string().max(updatePlaybookBodyStepsItemIdMax).nullish().describe('Keep the id of a step that stays'),
   "text": zod.string().min(1).max(updatePlaybookBodyStepsItemTextMax),
   "personId": zod.int().nullish(),
-  "afterDays": zod.int().min(updatePlaybookBodyStepsItemAfterDaysMin).max(updatePlaybookBodyStepsItemAfterDaysMax).nullish()
+  "afterDays": zod.int().min(updatePlaybookBodyStepsItemAfterDaysMin).max(updatePlaybookBodyStepsItemAfterDaysMax).nullish(),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish()
 })).max(updatePlaybookBodyStepsMax).optional(),
   "notes": zod.string().max(updatePlaybookBodyNotesMax).nullish(),
   "state": zod.enum(['draft', 'in_use', 'retired']).optional(),
@@ -6164,6 +7463,7 @@ export const UpdatePlaybookResponse = zod.object({
   "text": zod.string(),
   "personId": zod.int().nullable(),
   "afterDays": zod.int().nullable().describe('Days after starting'),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish().describe('Part L: Now or Backlog when the playbook is run; Backlog when not set'),
   "personName": zod.string().nullable(),
   "personSlug": zod.string().nullable()
 })),
@@ -6320,7 +7620,7 @@ export const GetProductResponse = zod.object({
   "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
-  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal(null)]).nullable(),
+  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal('renewal_date'),zod.literal('contract_value'),zod.literal('account_health'),zod.literal(null)]).nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "lastConfirmedAt": zod.coerce.date(),
@@ -6332,7 +7632,12 @@ export const GetProductResponse = zod.object({
   "text": zod.string(),
   "createdAt": zod.coerce.date(),
   "createdBy": zod.string()
-})).describe('Earlier versions this fact replaced, newest first')
+})).describe('Earlier versions this fact replaced, newest first'),
+  "alsoFrom": zod.array(zod.object({
+  "source": zod.string(),
+  "url": zod.string().nullable(),
+  "at": zod.coerce.date()
+})).describe('Cards marked "Same as existing" for this fact, its other sources, newest first')
 })),
   "rules": zod.array(zod.object({
   "id": zod.int(),
@@ -6411,6 +7716,7 @@ export const GetProductResponse = zod.object({
   "text": zod.string(),
   "personId": zod.int().nullable(),
   "afterDays": zod.int().nullable().describe('Days after starting'),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish().describe('Part L: Now or Backlog when the playbook is run; Backlog when not set'),
   "personName": zod.string().nullable(),
   "personSlug": zod.string().nullable()
 })),
@@ -6600,6 +7906,7 @@ export const GetOrganisationResponse = zod.object({
   "text": zod.string(),
   "personId": zod.int().nullable(),
   "afterDays": zod.int().nullable().describe('Days after starting'),
+  "status": zod.union([zod.literal('now'),zod.literal('backlog'),zod.literal(null)]).nullish().describe('Part L: Now or Backlog when the playbook is run; Backlog when not set'),
   "personName": zod.string().nullable(),
   "personSlug": zod.string().nullable()
 })),
@@ -6722,7 +8029,7 @@ export const GetOrganisationResponse = zod.object({
   "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
-  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal(null)]).nullable(),
+  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal('renewal_date'),zod.literal('contract_value'),zod.literal('account_health'),zod.literal(null)]).nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "lastConfirmedAt": zod.coerce.date(),
@@ -6734,7 +8041,12 @@ export const GetOrganisationResponse = zod.object({
   "text": zod.string(),
   "createdAt": zod.coerce.date(),
   "createdBy": zod.string()
-})).describe('Earlier versions this fact replaced, newest first')
+})).describe('Earlier versions this fact replaced, newest first'),
+  "alsoFrom": zod.array(zod.object({
+  "source": zod.string(),
+  "url": zod.string().nullable(),
+  "at": zod.coerce.date()
+})).describe('Cards marked "Same as existing" for this fact, its other sources, newest first')
 })),
   "notes": zod.array(zod.object({
   "id": zod.int(),
@@ -7054,7 +8366,7 @@ export const CreateFactBody = zod.object({
   "entityId": zod.int(),
   "text": zod.string().min(1).max(createFactBodyTextMax),
   "source": zod.string().nullish(),
-  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal(null)]).nullish().describe('With an attribute, the new fact replaces any current fact with the same attribute')
+  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal('renewal_date'),zod.literal('contract_value'),zod.literal('account_health'),zod.literal(null)]).nullish().describe('With an attribute, the new fact replaces any current fact with the same attribute')
 })
 
 export const CreateFactResponse = zod.object({
@@ -7063,7 +8375,7 @@ export const CreateFactResponse = zod.object({
   "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
-  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal(null)]).nullable(),
+  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal('renewal_date'),zod.literal('contract_value'),zod.literal('account_health'),zod.literal(null)]).nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "lastConfirmedAt": zod.coerce.date(),
@@ -7075,7 +8387,12 @@ export const CreateFactResponse = zod.object({
   "text": zod.string(),
   "createdAt": zod.coerce.date(),
   "createdBy": zod.string()
-})).describe('Earlier versions this fact replaced, newest first')
+})).describe('Earlier versions this fact replaced, newest first'),
+  "alsoFrom": zod.array(zod.object({
+  "source": zod.string(),
+  "url": zod.string().nullable(),
+  "at": zod.coerce.date()
+})).describe('Cards marked "Same as existing" for this fact, its other sources, newest first')
 })
 
 
@@ -7101,7 +8418,7 @@ export const SupersedeFactResponse = zod.object({
   "entityId": zod.int(),
   "text": zod.string(),
   "source": zod.string().nullable(),
-  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal(null)]).nullable(),
+  "attribute": zod.union([zod.literal('job_title'),zod.literal('organisation'),zod.literal('status'),zod.literal('next_step'),zod.literal('decision_date'),zod.literal('renewal_date'),zod.literal('contract_value'),zod.literal('account_health'),zod.literal(null)]).nullable(),
   "createdBy": zod.string(),
   "createdAt": zod.coerce.date(),
   "lastConfirmedAt": zod.coerce.date(),
@@ -7113,7 +8430,12 @@ export const SupersedeFactResponse = zod.object({
   "text": zod.string(),
   "createdAt": zod.coerce.date(),
   "createdBy": zod.string()
-})).describe('Earlier versions this fact replaced, newest first')
+})).describe('Earlier versions this fact replaced, newest first'),
+  "alsoFrom": zod.array(zod.object({
+  "source": zod.string(),
+  "url": zod.string().nullable(),
+  "at": zod.coerce.date()
+})).describe('Cards marked "Same as existing" for this fact, its other sources, newest first')
 })
 
 
@@ -7250,6 +8572,28 @@ export const ApproveSuggestionResponse = zod.object({
 
 
 /**
+ * @summary Approve or reject many Knowledge Inbox cards at once; cards that cannot be decided as they stand are skipped
+ */
+export const bulkDecideSuggestionsBodyIdsMax = 500;
+
+
+
+export const BulkDecideSuggestionsBody = zod.object({
+  "action": zod.enum(['approve', 'reject']),
+  "ids": zod.array(zod.int()).min(1).max(bulkDecideSuggestionsBodyIdsMax)
+})
+
+export const BulkDecideSuggestionsResponse = zod.object({
+  "approved": zod.int(),
+  "rejected": zod.int(),
+  "skipped": zod.array(zod.object({
+  "id": zod.int(),
+  "reason": zod.string()
+}))
+})
+
+
+/**
  * @summary Reject everything still waiting that came from one document or Dropbox file
  */
 export const rejectSuggestionsFromSourceBodySourceRefMax = 1200;
@@ -7361,6 +8705,12 @@ export const getKnowledgeSettingsResponseShelfLifeDaysJobTitleMax = 3650;
 
 export const getKnowledgeSettingsResponseShelfLifeDaysOrganisationMax = 3650;
 
+export const getKnowledgeSettingsResponseShelfLifeDaysRenewalDateMax = 3650;
+
+export const getKnowledgeSettingsResponseShelfLifeDaysContractValueMax = 3650;
+
+export const getKnowledgeSettingsResponseShelfLifeDaysAccountHealthMax = 3650;
+
 
 
 export const GetKnowledgeSettingsResponse = zod.object({
@@ -7370,7 +8720,10 @@ export const GetKnowledgeSettingsResponse = zod.object({
   "next_step": zod.int().min(1).max(getKnowledgeSettingsResponseShelfLifeDaysNextStepMax),
   "decision_date": zod.int().min(1).max(getKnowledgeSettingsResponseShelfLifeDaysDecisionDateMax),
   "job_title": zod.int().min(1).max(getKnowledgeSettingsResponseShelfLifeDaysJobTitleMax),
-  "organisation": zod.int().min(1).max(getKnowledgeSettingsResponseShelfLifeDaysOrganisationMax)
+  "organisation": zod.int().min(1).max(getKnowledgeSettingsResponseShelfLifeDaysOrganisationMax),
+  "renewal_date": zod.int().min(1).max(getKnowledgeSettingsResponseShelfLifeDaysRenewalDateMax),
+  "contract_value": zod.int().min(1).max(getKnowledgeSettingsResponseShelfLifeDaysContractValueMax),
+  "account_health": zod.int().min(1).max(getKnowledgeSettingsResponseShelfLifeDaysAccountHealthMax)
 }),
   "lastCheckAt": zod.coerce.date().nullable()
 })
@@ -7391,6 +8744,12 @@ export const updateKnowledgeSettingsBodyShelfLifeDaysJobTitleMax = 3650;
 
 export const updateKnowledgeSettingsBodyShelfLifeDaysOrganisationMax = 3650;
 
+export const updateKnowledgeSettingsBodyShelfLifeDaysRenewalDateMax = 3650;
+
+export const updateKnowledgeSettingsBodyShelfLifeDaysContractValueMax = 3650;
+
+export const updateKnowledgeSettingsBodyShelfLifeDaysAccountHealthMax = 3650;
+
 
 
 export const UpdateKnowledgeSettingsBody = zod.object({
@@ -7400,7 +8759,10 @@ export const UpdateKnowledgeSettingsBody = zod.object({
   "next_step": zod.int().min(1).max(updateKnowledgeSettingsBodyShelfLifeDaysNextStepMax).optional(),
   "decision_date": zod.int().min(1).max(updateKnowledgeSettingsBodyShelfLifeDaysDecisionDateMax).optional(),
   "job_title": zod.int().min(1).max(updateKnowledgeSettingsBodyShelfLifeDaysJobTitleMax).optional(),
-  "organisation": zod.int().min(1).max(updateKnowledgeSettingsBodyShelfLifeDaysOrganisationMax).optional()
+  "organisation": zod.int().min(1).max(updateKnowledgeSettingsBodyShelfLifeDaysOrganisationMax).optional(),
+  "renewal_date": zod.int().min(1).max(updateKnowledgeSettingsBodyShelfLifeDaysRenewalDateMax).optional(),
+  "contract_value": zod.int().min(1).max(updateKnowledgeSettingsBodyShelfLifeDaysContractValueMax).optional(),
+  "account_health": zod.int().min(1).max(updateKnowledgeSettingsBodyShelfLifeDaysAccountHealthMax).optional()
 })
 })
 
@@ -7416,6 +8778,12 @@ export const updateKnowledgeSettingsResponseShelfLifeDaysJobTitleMax = 3650;
 
 export const updateKnowledgeSettingsResponseShelfLifeDaysOrganisationMax = 3650;
 
+export const updateKnowledgeSettingsResponseShelfLifeDaysRenewalDateMax = 3650;
+
+export const updateKnowledgeSettingsResponseShelfLifeDaysContractValueMax = 3650;
+
+export const updateKnowledgeSettingsResponseShelfLifeDaysAccountHealthMax = 3650;
+
 
 
 export const UpdateKnowledgeSettingsResponse = zod.object({
@@ -7425,7 +8793,10 @@ export const UpdateKnowledgeSettingsResponse = zod.object({
   "next_step": zod.int().min(1).max(updateKnowledgeSettingsResponseShelfLifeDaysNextStepMax),
   "decision_date": zod.int().min(1).max(updateKnowledgeSettingsResponseShelfLifeDaysDecisionDateMax),
   "job_title": zod.int().min(1).max(updateKnowledgeSettingsResponseShelfLifeDaysJobTitleMax),
-  "organisation": zod.int().min(1).max(updateKnowledgeSettingsResponseShelfLifeDaysOrganisationMax)
+  "organisation": zod.int().min(1).max(updateKnowledgeSettingsResponseShelfLifeDaysOrganisationMax),
+  "renewal_date": zod.int().min(1).max(updateKnowledgeSettingsResponseShelfLifeDaysRenewalDateMax),
+  "contract_value": zod.int().min(1).max(updateKnowledgeSettingsResponseShelfLifeDaysContractValueMax),
+  "account_health": zod.int().min(1).max(updateKnowledgeSettingsResponseShelfLifeDaysAccountHealthMax)
 }),
   "lastCheckAt": zod.coerce.date().nullable()
 })
@@ -7782,6 +9153,7 @@ export const AskOllieOSResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -7801,7 +9173,7 @@ export const AskOllieOSResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -7852,7 +9224,8 @@ export const AskOllieOSResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -7919,6 +9292,7 @@ export const GetAskThreadResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -7938,7 +9312,7 @@ export const GetAskThreadResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -7989,7 +9363,8 @@ export const GetAskThreadResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -8056,6 +9431,7 @@ export const DraftAskReplyResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -8075,7 +9451,7 @@ export const DraftAskReplyResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -8126,7 +9502,8 @@ export const DraftAskReplyResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -8193,6 +9570,7 @@ export const AllowAskTurnResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -8212,7 +9590,7 @@ export const AllowAskTurnResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -8263,7 +9641,8 @@ export const AllowAskTurnResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -8339,6 +9718,7 @@ export const BundleAskTasksResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -8358,7 +9738,7 @@ export const BundleAskTasksResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -8409,7 +9789,8 @@ export const BundleAskTasksResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -8476,6 +9857,7 @@ export const UndoAskBundleResponse = zod.object({
   "canBundle": zod.boolean(),
   "bundle": zod.union([zod.object({
   "task": zod.union([zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
   "repeat": zod.union([zod.object({
   "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
   "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
@@ -8495,7 +9877,7 @@ export const UndoAskBundleResponse = zod.object({
   "priority": zod.enum(['high', 'medium', 'low']),
   "dueDate": zod.coerce.date().nullable(),
   "snoozedUntil": zod.coerce.date().nullable(),
-  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session']),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
   "sourceRef": zod.string().nullable(),
   "sourceUrl": zod.string().nullable(),
   "sourceQuote": zod.string().nullable(),
@@ -8546,7 +9928,8 @@ export const UndoAskBundleResponse = zod.object({
 }),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
   "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
   "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
-  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.')
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null')
 }),zod.null()]),
   "title": zod.string(),
   "undone": zod.boolean(),
@@ -8826,6 +10209,7 @@ export const GetConnectorsResponse = zod.object({
   "account": zod.string().nullable(),
   "lastGoodAt": zod.coerce.date().nullable(),
   "lastFromClaudeAt": zod.coerce.date().nullable(),
+  "warning": zod.string().nullable().describe('Part Q: why this service needs a look (no good check for a while, or checks that bring nothing in)'),
   "runs": zod.array(zod.object({
   "id": zod.int(),
   "trigger": zod.enum(['timer', 'manual']),
@@ -8887,6 +10271,7 @@ export const UpdateConnectorScheduleResponse = zod.object({
   "account": zod.string().nullable(),
   "lastGoodAt": zod.coerce.date().nullable(),
   "lastFromClaudeAt": zod.coerce.date().nullable(),
+  "warning": zod.string().nullable().describe('Part Q: why this service needs a look (no good check for a while, or checks that bring nothing in)'),
   "runs": zod.array(zod.object({
   "id": zod.int(),
   "trigger": zod.enum(['timer', 'manual']),
@@ -8962,6 +10347,7 @@ export const SetDropboxFolderResponse = zod.object({
   "account": zod.string().nullable(),
   "lastGoodAt": zod.coerce.date().nullable(),
   "lastFromClaudeAt": zod.coerce.date().nullable(),
+  "warning": zod.string().nullable().describe('Part Q: why this service needs a look (no good check for a while, or checks that bring nothing in)'),
   "runs": zod.array(zod.object({
   "id": zod.int(),
   "trigger": zod.enum(['timer', 'manual']),
@@ -9010,6 +10396,7 @@ export const RetryDropboxFilesResponse = zod.object({
   "account": zod.string().nullable(),
   "lastGoodAt": zod.coerce.date().nullable(),
   "lastFromClaudeAt": zod.coerce.date().nullable(),
+  "warning": zod.string().nullable().describe('Part Q: why this service needs a look (no good check for a while, or checks that bring nothing in)'),
   "runs": zod.array(zod.object({
   "id": zod.int(),
   "trigger": zod.enum(['timer', 'manual']),
@@ -9066,6 +10453,7 @@ export const SetConnectorReadByResponse = zod.object({
   "account": zod.string().nullable(),
   "lastGoodAt": zod.coerce.date().nullable(),
   "lastFromClaudeAt": zod.coerce.date().nullable(),
+  "warning": zod.string().nullable().describe('Part Q: why this service needs a look (no good check for a while, or checks that bring nothing in)'),
   "runs": zod.array(zod.object({
   "id": zod.int(),
   "trigger": zod.enum(['timer', 'manual']),
@@ -9736,7 +11124,22 @@ export const GetRoundupsResponse = zod.object({
   "text": zod.string(),
   "detail": zod.string().nullable(),
   "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
-}))
+})),
+  "documents": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})).optional().describe('Part Q: Library documents someone else changed this week. Missing on older round-ups.'),
+  "agents": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})).optional().describe('Part W: agents whose scorecard dropped on last week. Missing on older round-ups.'),
+  "time": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})).optional().describe('Part R: where meeting time went this week. Missing on older round-ups.')
 })
 }),zod.null()]),
   "weeks": zod.array(zod.object({
@@ -9791,7 +11194,22 @@ export const MakeRoundupResponse = zod.object({
   "text": zod.string(),
   "detail": zod.string().nullable(),
   "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
-}))
+})),
+  "documents": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})).optional().describe('Part Q: Library documents someone else changed this week. Missing on older round-ups.'),
+  "agents": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})).optional().describe('Part W: agents whose scorecard dropped on last week. Missing on older round-ups.'),
+  "time": zod.array(zod.object({
+  "text": zod.string(),
+  "detail": zod.string().nullable(),
+  "private": zod.boolean().describe('Confidential or hidden from AI; left out of the Gmail draft')
+})).optional().describe('Part R: where meeting time went this week. Missing on older round-ups.')
 })
 })
 

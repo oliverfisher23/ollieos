@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { RelationshipLookBackPanel } from '@/components/client-pulse';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -29,6 +30,9 @@ const ROWS: { key: keyof ShelfLives; label: string; line: string }[] = [
   { key: 'general', label: 'General facts', line: 'Any fact without a kind' },
   { key: 'job_title', label: 'Job title', line: 'Someone’s role' },
   { key: 'organisation', label: 'Organisation', line: 'Where someone works' },
+  { key: 'renewal_date', label: 'Renewal date', line: 'When a client renews' },
+  { key: 'contract_value', label: 'Contract value', line: 'What a client contract is worth' },
+  { key: 'account_health', label: 'Account health', line: 'How a client account is doing' },
 ];
 
 export default function KnowledgeSettings() {
@@ -152,7 +156,7 @@ export default function KnowledgeSettings() {
         )}
       </section>
 
-      <RoundupSettings />
+      <RoundupSettingsAndPeople />
     </>
   );
 }
@@ -161,6 +165,15 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 /** Part O: when the weekly round-up is made. */
+function RoundupSettingsAndPeople() {
+  return (
+    <>
+      <RoundupSettings />
+      <RelationshipLookBackPanel />
+    </>
+  );
+}
+
 function RoundupSettings() {
   const q = useGetRoundupSchedule();
   const qc = useQueryClient();

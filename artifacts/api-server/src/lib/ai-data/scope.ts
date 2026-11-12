@@ -1,10 +1,10 @@
+import { appendAuditEvents } from "../audit";
 import { and, eq, gt, inArray, isNotNull, sql } from "drizzle-orm";
 import {
   accessRequestsTable,
   activityTable,
   aiClientsTable,
   coworkSessionsTable,
-  auditEventsTable,
   db,
   decisionsTable,
   documentsTable,
@@ -172,12 +172,12 @@ export async function recordReads(
   if (!unique.length) {
     // A search that found nothing is still logged, so Ollie can see what was asked.
     if (action === "search") {
-      await db.insert(auditEventsTable).values({ actor: scope.actor, clientId: scope.clientId, action, payload: { batch, ...context } });
+      await appendAuditEvents(db, [{ actor: scope.actor, clientId: scope.clientId, action, payload: { batch, ...context } }]);
       await db.update(aiClientsTable).set({ lastUsedAt: new Date() }).where(eq(aiClientsTable.id, scope.clientId));
     }
     return;
   }
-  await db.insert(auditEventsTable).values(
+  await appendAuditEvents(db,
     unique.map((r) => ({
       actor: scope.actor,
       clientId: scope.clientId,

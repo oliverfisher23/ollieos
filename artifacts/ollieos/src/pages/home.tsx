@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { WeekCheckCard } from '@/components/time-and-meetings';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -116,6 +117,16 @@ export default function HomePage() {
         <span aria-hidden="true" className="oo-dot" data-off={!home.data.lastSweepAt} />
         {home.data.lastSweepAt ? 'Last sweep ' + sweepWhen(home.data.lastSweepAt) : 'No sweep has run yet'}
       </span>
+      {home.data.connectorWarnings.length > 0 && (
+        <>
+          <span aria-hidden="true" className="oo-t4">·</span>
+          <Link href="/settings/connectors" title={home.data.connectorWarnings.map((w) => w.text).join('\n')}
+            style={{ color: 'inherit', textUnderlineOffset: 2, display: 'inline-flex', alignItems: 'center', gap: 6 }} data-testid="link-connector-warning">
+            <span aria-hidden="true" className="oo-dot" data-warn="true" />
+            {home.data.connectorWarnings.length === 1 ? `${home.data.connectorWarnings[0].text.split(':')[0]} needs a look` : `${home.data.connectorWarnings.length} connectors need a look`}
+          </Link>
+        </>
+      )}
       <span aria-hidden="true" className="oo-t4">·</span>
       <span data-testid="text-inbox-new">{home.data.inbox.count} new</span>
       {home.data.knowledgeInbox.total > 0 && (
@@ -186,6 +197,7 @@ export default function HomePage() {
       <>
         <DoNextCard items={d.doNext} phone />
         <DayPlanCard phone />
+        <WeekCheckCard phone />
         <Link href={d.inbox.count ? '/triage' : '/tasks?tab=inbox'} className="oo-dark-card oo-glass" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-inbox-phone">
           <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span className="oo-label" style={{ fontSize: 12 }}>Inbox</span>
@@ -196,6 +208,7 @@ export default function HomePage() {
             <span className="oo-btn oo-btn-white" style={{ borderRadius: 999, minHeight: 40 }}>{d.inbox.count ? 'Triage' : 'Open'}</span>
           </span>
         </Link>
+        {d.slackToAnswer > 0 && <SlackWaitingLink count={d.slackToAnswer} phone />}
         <ClearOutCard phone />
         <TodayPhone events={d.today} />
         <WaitingCard items={d.waitingOn} phone />
@@ -217,6 +230,7 @@ export default function HomePage() {
       <>
         <TodayStrip events={d.today} />
         <DayPlanCard />
+        <WeekCheckCard />
         <ClearOutCard />
         <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, alignItems: 'stretch' }}>
           <DoNextCard items={d.doNext} />
@@ -224,6 +238,7 @@ export default function HomePage() {
             <h2 id="h-inbox" className="oo-label">Inbox</h2>
             <p className="oo-serif-roman" style={{ margin: 0, fontSize: 48, lineHeight: 1 }} data-testid="text-inbox-count">{d.inbox.count}</p>
             <p className="oo-t2" style={{ margin: 0, fontSize: 13 }} data-testid="text-inbox-breakdown">{breakdown(d)}</p>
+            {d.slackToAnswer > 0 && <SlackWaitingLink count={d.slackToAnswer} />}
             <div style={{ marginTop: 'auto', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {d.inbox.count ? (
                 <Link href="/triage" className="oo-btn oo-btn-white" data-testid="link-triage">Triage {d.inbox.count}</Link>
@@ -354,6 +369,8 @@ function sweepWhen(at: string): string {
 function BriefLink({ e, phone = false }: { e: CalendarEvent; phone?: boolean }) {
   if (!e.hasBrief) return null;
   return (
+    <>
+    {e.notPrepped && <span className="oo-pill" data-tone="high" style={{ fontSize: 11 }} data-testid={'pill-not-prepped-' + e.id}>Not prepped</span>}
     <Link
       href={'/briefs/' + e.id}
       className="oo-amber"
@@ -363,6 +380,7 @@ function BriefLink({ e, phone = false }: { e: CalendarEvent; phone?: boolean }) 
     >
       Brief me{!phone && <IconArrowOut size={12} />}
     </Link>
+    </>
   );
 }
 
@@ -549,5 +567,23 @@ function DoneCard({ home }: { home: HomeSummary }) {
         <Link href="/tasks?tab=done" className="oo-tap" style={{ fontSize: 13 }} data-testid="link-done-all">See everything done</Link>
       </div>
     </section>
+  );
+}
+
+/** Slack to answer (Part P): messages that need a reply and have waited over a working day. */
+function SlackWaitingLink({ count, phone = false }: { count: number; phone?: boolean }) {
+  const label = `${count === 1 ? '1 Slack message' : `${count} Slack messages`} to answer`;
+  if (phone) {
+    return (
+      <Link href="/messages?tab=to-answer&from=slack" className="oo-dark-card oo-glass-quiet" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-slack-to-answer">
+        <span className="oo-t2" style={{ fontSize: 13 }}>{label}, waiting over a working day</span>
+        <IconArrowOut size={18} />
+      </Link>
+    );
+  }
+  return (
+    <Link href="/messages?tab=to-answer&from=slack" className="oo-t2" style={{ fontSize: 13, color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-slack-to-answer">
+      {label}
+    </Link>
   );
 }

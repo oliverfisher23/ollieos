@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
+  checkReplyDraft,
+  type DraftIssue,
   getGetReplyDraftQueryKey,
   getGetTaskQueryKey,
   getListEmailDraftsQueryKey,
@@ -46,6 +48,29 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
   const [saving, setSaving] = useState(false);
   const [confirmRewrite, setConfirmRewrite] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Part L: lines that break a rule, from Check */
+  const [issues, setIssues] = useState<DraftIssue[] | null>(null);
+  const [checking, setChecking] = useState(false);
+  const check = async () => {
+    if (!fields?.body.trim()) return;
+    setChecking(true);
+    try {
+      setIssues((await checkReplyDraft(taskId, { body: fields.body })).issues);
+    } catch (err) {
+      reportApiError(err);
+      notify('Could not check it', errorMessage(err));
+    } finally {
+      setChecking(false);
+    }
+  };
+  const fixAll = () => {
+    if (!fields || !issues) return;
+    let body = fields.body;
+    for (const i of issues) if (body.includes(i.line)) body = body.replace(i.line, i.fix);
+    setFields({ ...fields, body });
+    setIssues([]);
+    notify('Fixed', 'Only the flagged lines changed. Check them before you save.');
+  };
 
   // Start from the draft saved earlier, if there is one, and pick up a background draft once written.
   useEffect(() => {
@@ -225,6 +250,25 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
               )}
             </p>
 
+            {issues && (
+              <div className="oo-source" style={{ gap: 8 }} role="status" data-testid="card-draft-issues">
+                {issues.length === 0 ? (
+                  <span style={{ fontSize: 13 }}>No rule is broken.</span>
+                ) : (
+                  <>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{issues.length === 1 ? '1 line breaks a rule' : `${issues.length} lines break a rule`}</span>
+                    <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, lineHeight: 1.5 }}>
+                      {issues.map((i, n) => (
+                        <li key={n}>
+                          <span className="oo-muted">{i.ruleTitle}: </span>"{i.line}" <span className="oo-soft">becomes</span> "{i.fix}"
+                        </li>
+                      ))}
+                    </ul>
+                    <div><button type="button" className="oo-btn oo-btn-ink oo-btn-sm" onClick={fixAll} data-testid="button-fix-draft">Fix these</button></div>
+                  </>
+                )}
+              </div>
+            )}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
               {draft.canSaveToGmail && (
                 <button type="button" className="oo-btn oo-btn-ink" disabled={saving || !fields.body.trim() || (!!draft.savedAt && !dirty)} onClick={save} data-testid="button-save-gmail">
@@ -232,6 +276,7 @@ export function ReplyDraftCard({ taskId, chase = false }: { taskId: number; /** 
                 </button>
               )}
               <button type="button" className="oo-btn oo-btn-outline" onClick={copy} data-testid="button-copy-reply">Copy</button>
+              <button type="button" className="oo-btn oo-btn-outline" disabled={checking || !fields.body.trim()} onClick={() => void check()} data-testid="button-check-draft">{checking ? 'Checking…' : 'Check'}</button>
               {confirmRewrite ? (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
                   Replace your edits?

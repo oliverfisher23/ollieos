@@ -2,14 +2,14 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Logo } from '@/components/bits';
 import { AddBox } from '@/components/add-box';
-import { IconBook, IconCalendar, IconCompass, IconGoal, IconHome, IconLogout, IconMore, IconPeople, IconPlus, IconRight, IconSettings, IconTasks, IconMail } from '@/components/icons';
+import { IconBook, IconCalendar, IconCompass, IconGoal, IconHome, IconLogout, IconMessages, IconMore, IconPeople, IconPlus, IconRight, IconSettings, IconTasks } from '@/components/icons';
 import { useSession } from '@/lib/auth-context';
 import { preloadRoute } from '@/routes';
 
 const RAIL = [
   { href: '/', label: 'Home', Icon: IconHome },
   { href: '/tasks', label: 'Tasks', Icon: IconTasks },
-  { href: '/email', label: 'Email', Icon: IconMail },
+  { href: '/messages', label: 'Messages', Icon: IconMessages },
   { href: '/meetings', label: 'Meetings', Icon: IconCalendar },
   { href: '/people', label: 'People', Icon: IconPeople },
   { href: '/goals', label: 'Goals', Icon: IconGoal },
@@ -31,10 +31,6 @@ export function navActive(href: string, location: string): boolean {
   return location === href || location.startsWith(href + '/');
 }
 
-/**
- * The app's one navigation: the icon rail on desktop and the bottom bar on phones, on every page.
- * Both shells wrap their content in this so the rail sits in the same place everywhere.
- */
 /** Starts a page's code downloading as soon as its link is touched, hovered or focused. */
 const preload = (href: string) => ({
   onPointerEnter: () => preloadRoute(href),
@@ -42,10 +38,30 @@ const preload = (href: string) => ({
   onFocus: () => preloadRoute(href),
 });
 
+/**
+ * The app's one navigation: the icon rail on desktop and the bottom bar on phones, on every page.
+ * Both shells wrap their content in this so the rail sits in the same place everywhere.
+ */
 export function MainNav({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const { logout } = useSession();
   const [sheet, setSheet] = useState<'add' | 'more' | null>(null);
+  const [, navigate] = useLocation();
+  // Feature 09: holding the add button opens voice capture.
+  const held = useRef(false);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdToSpeak = {
+    onPointerDown: () => {
+      held.current = false;
+      holdTimer.current = setTimeout(() => {
+        held.current = true;
+        navigate('/voice');
+      }, 500);
+    },
+    onPointerUp: () => holdTimer.current && clearTimeout(holdTimer.current),
+    onPointerLeave: () => holdTimer.current && clearTimeout(holdTimer.current),
+    onContextMenu: (e: { preventDefault: () => void }) => e.preventDefault(),
+  };
   const cur = (href: string) => (navActive(href, location) ? 'page' : undefined);
   const inMore = MORE.some((m) => navActive(m.href, location));
   // A page opened from the More sheet closes it.
@@ -80,7 +96,7 @@ export function MainNav({ children }: { children: ReactNode }) {
       <nav className="oo-tabbar oo-on-dark sm:hidden" aria-label="Main">
         <Link href="/" aria-current={cur('/')} data-testid="link-tab-home"><IconHome size={22} />Home</Link>
         <Link href="/tasks" aria-current={cur('/tasks')} data-testid="link-tab-tasks"><IconTasks size={22} />Tasks</Link>
-        <button type="button" aria-label="Add a task" onClick={() => setSheet('add')} data-testid="button-tab-add">
+        <button type="button" aria-label="Add a task. Hold to speak." onClick={() => { if (!held.current) setSheet('add'); held.current = false; }} {...holdToSpeak} data-testid="button-tab-add">
           <span className="oo-add"><IconPlus size={22} /></span>
         </button>
         <Link href="/people" aria-current={cur('/people')} {...preload('/people')} data-testid="link-tab-people"><IconPeople size={22} />People</Link>
@@ -120,7 +136,7 @@ export function MainNav({ children }: { children: ReactNode }) {
 const MORE = [
   { href: '/knowledge', label: 'Knowledge', Icon: IconBook },
   { href: '/meetings', label: 'Meetings', Icon: IconCalendar },
-  { href: '/email', label: 'Email', Icon: IconMail },
+  { href: '/messages', label: 'Messages', Icon: IconMessages },
   { href: '/goals', label: 'Goals', Icon: IconGoal },
   { href: '/strategy', label: 'Strategy', Icon: IconCompass },
   { href: '/settings', label: 'Settings', Icon: IconSettings },

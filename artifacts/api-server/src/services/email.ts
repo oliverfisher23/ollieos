@@ -5,6 +5,7 @@
  * (the draft stays on the task). A sent reply also marks its email task done; a sent chase leaves
  * its Waiting on task as it is. OllieOS never sends email.
  */
+import { recordEdit } from "./draftLearning";
 import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db, documentContentsTable, documentsTable, replyDraftsTable, tasksTable } from "@workspace/db";
 import { OPEN_STATUSES, formatLong } from "@workspace/shared";
@@ -66,6 +67,7 @@ export async function listEmailDrafts(): Promise<{ items: EmailDraftItem[] }> {
         confidential: t.confidential === true,
       },
       chase: !!t.sourceRef?.endsWith("#chase"),
+      followUp: !!t.sourceRef?.endsWith("#follow-up"),
     })),
   };
 }
@@ -85,7 +87,7 @@ export async function dismissEmailDraft(taskId: number, actor: string): Promise<
  */
 export async function checkSentDrafts(): Promise<number> {
   const rows = await db
-    .select({ id: replyDraftsTable.id, taskId: replyDraftsTable.taskId, threadId: replyDraftsTable.threadId, updatedAt: replyDraftsTable.updatedAt, status: tasksTable.status, sourceRef: tasksTable.sourceRef })
+    .select({ id: replyDraftsTable.id, taskId: replyDraftsTable.taskId, threadId: replyDraftsTable.threadId, updatedAt: replyDraftsTable.updatedAt, status: tasksTable.status, sourceRef: tasksTable.sourceRef, writtenBody: replyDraftsTable.writtenBody })
     .from(replyDraftsTable)
     .innerJoin(tasksTable, eq(tasksTable.id, replyDraftsTable.taskId))
     .where(and(open(), isNotNull(replyDraftsTable.threadId)))
@@ -107,6 +109,17 @@ export async function checkSentDrafts(): Promise<number> {
     // Set without touching updatedAt, so the time it was last written or saved stays as it was.
     await db.update(replyDraftsTable).set({ sentAt: sent[sent.length - 1].at, updatedAt: r.updatedAt }).where(eq(replyDraftsTable.id, r.id));
     marked++;
+    // Part L: what Ollie actually sent, against what OllieOS drafted, to learn rules from.
+    if (r.writtenBody) {
+      try {
+        const thread = await readGmailThread(r.threadId!, 20_000);
+        const mine = (thread?.messages ?? []).filter((m) => m.from.email?.toLowerCase() === thread!.account && m.at.getTime() > r.updatedAt.getTime());
+        const last = mine[mine.length - 1];
+        if (last) await recordEdit(r.taskId, "sent", r.writtenBody, last.text);
+      } catch (err) {
+        logger.warn({ err, task: r.taskId }, "Could not compare a sent email with its draft");
+      }
+    }
     // The reply went, so the email is answered. A chase stays Waiting on until they answer.
     if (!r.sourceRef?.endsWith("#chase") && TO_ANSWER.includes(r.status)) {
       try {

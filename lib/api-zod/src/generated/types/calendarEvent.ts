@@ -16,4 +16,6 @@ export interface CalendarEvent {
   location: string | null;
   /** A work meeting with someone or something OllieOS knows about. "Brief me" opens /briefs/{id}. */
   hasBrief: boolean;
+  /** Part K: an external meeting today whose prep page has not been opened yet */
+  notPrepped?: boolean;
 }

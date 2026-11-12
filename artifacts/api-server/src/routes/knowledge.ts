@@ -1,5 +1,9 @@
 import { Router, type IRouter } from "express";
+import { getRelationshipLookBack, startRelationshipLookBack } from "../services/peopleSignals";
+import { listPulses, pulseFor, setQuietDays } from "../services/clientPulse";
+import { addPoint, deletePoint, listPoints, POINT_CHARS, setPointRaised } from "../services/talkingPoints";
 import { z } from "zod";
+import { FACT_ATTRIBUTES } from "@workspace/db";
 import { BUSINESS_FUNCTIONS, CADENCES, PRODUCT_STATES, PRODUCT_USERS, PROJECT_LIFECYCLES, isIsoDate } from "@workspace/shared";
 import { createProduct, getProduct, listProducts, updateProduct } from "../services/products";
 import { suggestProductUsers } from "../services/productUsers";
@@ -146,7 +150,7 @@ const FactCreate = z
     entityId: id,
     text: z.string().min(1).max(2000),
     source: shortText(500),
-    attribute: z.enum(["job_title", "organisation", "status", "next_step", "decision_date"]).nullable().optional(),
+    attribute: z.enum(FACT_ATTRIBUTES).nullable().optional(),
   })
   .strict();
 const FactSupersede = z.object({ text: z.string().min(1).max(2000), source: shortText(500) }).strict();
@@ -216,6 +220,38 @@ router.post(
 );
 router.post("/people/:slug/check-in-draft", handle(async (req, res) => void res.json(await checkInDraft(SlugParams.parse(req.params).slug))));
 router.get("/people/:slug", handle(async (req, res) => void res.json(await getPerson(SlugParams.parse(req.params).slug))));
+// Part K: "Next time I see…" points.
+router.get(
+  "/people/:slug/points",
+  handle(async (req, res) => {
+    const p = await getPerson(SlugParams.parse(req.params).slug);
+    res.json(await listPoints(p.person.id));
+  }),
+);
+router.post(
+  "/people/:slug/points",
+  handle(async (req, res) => {
+    const p = await getPerson(SlugParams.parse(req.params).slug);
+    const b = z.object({ text: z.string().min(1).max(POINT_CHARS) }).strict().parse(req.body ?? {});
+    res.status(201).json(await addPoint(p.person.id, b.text, "ollie"));
+  }),
+);
+router.patch(
+  "/points/:id",
+  handle(async (req, res) => {
+    const { id } = z.object({ id: z.coerce.number().int().positive() }).parse(req.params);
+    const b = z.object({ raised: z.boolean() }).strict().parse(req.body ?? {});
+    res.json(await setPointRaised(id, b.raised, "ollie"));
+  }),
+);
+router.delete(
+  "/points/:id",
+  handle(async (req, res) => {
+    const { id } = z.object({ id: z.coerce.number().int().positive() }).parse(req.params);
+    await deletePoint(id, "ollie");
+    res.status(204).end();
+  }),
+);
 router.patch(
   "/people/:slug",
   handle(async (req, res) => void res.json(await updatePerson(SlugParams.parse(req.params).slug, PersonUpdate.parse(req.body)))),
@@ -223,6 +259,27 @@ router.patch(
 
 /* Organisations */
 router.get("/organisations", handle(async (_req, res) => void res.json(await listOrganisations())));
+// Part S: the client pulse, for every client organisation and for one.
+router.get("/organisations-pulse", handle(async (_req, res) => void res.json(await listPulses())));
+// Part S: the one-off look back over 6 months of email headers for "works with" cards.
+router.get("/relationships/look-back", handle(async (_req, res) => void res.json(await getRelationshipLookBack())));
+router.post("/relationships/look-back", handle(async (_req, res) => void res.status(202).json(await startRelationshipLookBack())));
+router.get(
+  "/organisations/:slug/pulse",
+  handle(async (req, res) => {
+    const d = await getOrganisation(SlugParams.parse(req.params).slug);
+    res.json(await pulseFor(d.organisation.id));
+  }),
+);
+router.patch(
+  "/organisations/:slug/pulse",
+  handle(async (req, res) => {
+    const d = await getOrganisation(SlugParams.parse(req.params).slug);
+    const b = z.object({ quietDays: z.number().int().nullable() }).strict().parse(req.body ?? {});
+    await setQuietDays(d.organisation.id, b.quietDays);
+    res.json(await pulseFor(d.organisation.id));
+  }),
+);
 router.post("/organisations", handle(async (req, res) => void res.status(201).json(await createOrganisation(OrganisationCreate.parse(req.body)))));
 router.get("/organisations/:slug", handle(async (req, res) => void res.json(await getOrganisation(SlugParams.parse(req.params).slug))));
 router.patch(

@@ -114,7 +114,7 @@ async function summarise(threadId: string | null, allowed?: (emails: string[]) =
   }
   let summary: string;
   try {
-    const r = await haikuJson<{ summary?: string }>(SYSTEM, `<thread>\n${picked.join("\n")}\n</thread>\n\nSummarise this thread of ${msgs.length} messages.`, SCHEMA, 1024);
+    const r = await haikuJson<{ summary?: string }>(SYSTEM, `<thread>\n${picked.join("\n")}\n</thread>\n\nSummarise this thread of ${msgs.length} messages.`, SCHEMA, 1024, "thread_summary");
     summary = String(r.summary ?? "").trim();
   } catch (err) {
     logger.warn({ err }, "Thread summary failed");

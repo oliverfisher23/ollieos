@@ -1,4 +1,5 @@
 import { Link } from 'wouter';
+import { Thumbs } from '@/components/evals';
 import {
   getGetDigestQueryKey,
   useGetDigest,
@@ -67,11 +68,13 @@ function DigestBody({ d }: { d: Digest }) {
         ) : d.summary ? (
           <p className="oo-soft" style={{ margin: 0, fontSize: 15, lineHeight: 1.6 }} data-testid="text-digest-summary">{d.summary}</p>
         ) : null}
+        {!s.quietNight && <div><Thumbs subject={'digest:' + d.id} label="Was this digest useful?" /></div>}
       </header>
 
       <Section id="dg-needs" title="Needs you" section={s.needs} />
       <Section id="dg-moved" title="Moved" section={s.moved} />
       <Section id="dg-quiet" title="Gone quiet" section={s.quiet} />
+      <Section id="dg-changed" title="Changed" section={s.changed ?? null} />
 
       {s.today.length > 0 && (
         <section aria-labelledby="dg-today" style={{ display: 'flex', flexDirection: 'column', gap: 10 }} data-testid="section-dg-today">

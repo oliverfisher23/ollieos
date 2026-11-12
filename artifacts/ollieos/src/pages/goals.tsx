@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { WhereTimeWent } from '@/components/time-and-meetings';
 import { Link } from 'wouter';
 import {
   createGoal,
@@ -61,6 +62,7 @@ export default function GoalsPage() {
             </div>
           )}
           <UnlinkedWork tasks={q.data.unlinked} goals={q.data.goals} />
+          <WhereTimeWent />
         </>
       )}
     </main>

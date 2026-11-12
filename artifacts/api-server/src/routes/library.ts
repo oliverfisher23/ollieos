@@ -1,4 +1,8 @@
 import { Router, type IRouter } from "express";
+import { searchDrive } from "../services/connectors/drive";
+import { ConnectorError } from "../services/connectors/http";
+import { runPlaybook, unusedIds, usageOf } from "../services/playbookRuns";
+import { UpstreamError } from "../services/tasks";
 import { z } from "zod";
 import { DOC_LOCATIONS, PLAYBOOK_STATES, PLAYBOOK_STEPS_MAX, RULE_MAX } from "@workspace/shared";
 import { handle } from "../lib/handle";
@@ -58,6 +62,7 @@ const Step = z
     text: z.string().min(1, "Each step needs some text").max(STEP_MAX, `Keep each step to ${STEP_MAX} characters or fewer`),
     personId: z.number().int().positive().nullable().optional(),
     afterDays: z.number().int().min(0).max(AFTER_DAYS_MAX).nullable().optional(),
+    status: z.enum(["now", "backlog"]).nullable().optional(),
   })
   .strict();
 const PlaybookCreate = z
@@ -118,5 +123,43 @@ router.delete(
     res.status(204).end();
   }),
 );
+
+/* Part L: Drive search, running playbooks, and where rules and playbooks were used. */
+router.get(
+  "/library/drive-search",
+  handle(async (req, res) => {
+    const { q } = z.object({ q: z.string().max(200).default("") }).parse(req.query);
+    try {
+      res.json(await searchDrive(q));
+    } catch (err) {
+      if (err instanceof ConnectorError) throw new UpstreamError(err.message);
+      throw err;
+    }
+  }),
+);
+router.post(
+  "/playbooks/:id/run",
+  handle(async (req, res) => {
+    const { id } = z.object({ id: z.coerce.number().int().positive() }).parse(req.params);
+    const b = z
+      .object({
+        target: z.object({ type: z.enum(["person", "organisation", "project"]), id: z.number().int().positive() }).strict(),
+        mode: z.enum(["tasks", "checklist"]),
+        start: z.string().nullable().optional(),
+      })
+      .strict()
+      .parse(req.body ?? {});
+    res.status(201).json(await runPlaybook(id, b, "ollie"));
+  }),
+);
+router.get(
+  "/playbooks/:id/usage",
+  handle(async (req, res) => void res.json(await usageOf("playbook", z.object({ id: z.coerce.number().int().positive() }).parse(req.params).id))),
+);
+router.get(
+  "/rules/:id/usage",
+  handle(async (req, res) => void res.json(await usageOf("rule", z.object({ id: z.coerce.number().int().positive() }).parse(req.params).id))),
+);
+router.get("/library/unused", handle(async (_req, res) => void res.json({ rules: await unusedIds("rule"), playbooks: await unusedIds("playbook") })));
 
 export default router;

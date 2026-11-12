@@ -19,4 +19,7 @@ export const FactInputAttribute = {
   status: 'status',
   next_step: 'next_step',
   decision_date: 'decision_date',
+  renewal_date: 'renewal_date',
+  contract_value: 'contract_value',
+  account_health: 'account_health',
 } as const;

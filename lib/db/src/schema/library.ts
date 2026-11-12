@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, check, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { docLocationEnum, playbookStateEnum, tsvector } from "./enums";
 import { peopleTable } from "./knowledge";
 import { coworkSessionsTable } from "./coworkSessions";
@@ -134,6 +134,8 @@ export interface PlaybookStep {
   personId: number | null;
   /** Days after starting the playbook */
   afterDays: number | null;
+  /** Part L: where the task goes when the playbook is run; Backlog when not set */
+  status?: "now" | "backlog" | null;
 }
 
 /**
@@ -198,3 +200,30 @@ export const legacyPlaybooksTable = pgTable(
 export type Document = typeof documentsTable.$inferSelect;
 export type Rule = typeof rulesTable.$inferSelect;
 export type Playbook = typeof playbooksTable.$inferSelect;
+
+/**
+ * Documents that changed (build plan section 19, Part Q): a Library document in Drive that someone
+ * other than Ollie changed, with one line on what changed. Recorded when the Drive check re-reads
+ * the file, only for documents linked to an active project, function or product. The line is
+ * written by AI only when the document is visible to AI; otherwise it stays null and the digest
+ * shows the change with a lock. Removed with the document.
+ */
+export const documentChangesTable = pgTable(
+  "document_changes",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    documentId: integer("document_id")
+      .notNull()
+      .references(() => documentsTable.id, { onDelete: "cascade" }),
+    /** The file's modified time for this change */
+    modifiedAt: timestamp("modified_at", { withTimezone: true }).notNull(),
+    byName: text("by_name"),
+    byEmail: text("by_email"),
+    /** One line on what changed, or null when AI may not read the document or the line failed */
+    summary: text("summary"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("document_changes_doc_modified_idx").on(t.documentId, t.modifiedAt), index("document_changes_modified_idx").on(t.modifiedAt)],
+);
+
+export type DocumentChange = typeof documentChangesTable.$inferSelect;
