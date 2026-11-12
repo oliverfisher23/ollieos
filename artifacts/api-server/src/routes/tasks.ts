@@ -7,6 +7,7 @@ import { z } from "zod";
 import { DROP_REASONS, REPEAT_EVERY, TASK_SOURCES, TASK_STATUSES, PRIORITIES, TASK_KINDS, isIsoDate } from "@workspace/shared";
 import { projectSuggestionsFor } from "../services/projectSuggest";
 import { dismissStuckHint } from "../services/stuckCoach";
+import { buildWorkPack, dismissPack, getWorkPack, markPackUsed, savePackToGmail } from "../services/workPack";
 import {
   MAX_STEPS,
   buildDraftPrompt,
@@ -363,6 +364,13 @@ router.post(
     res.json(await chaseLater(id));
   }),
 );
+
+// Section 28: the work pack. Built, copied, saved to Gmail as a draft, or dismissed; never sent.
+router.get("/tasks/:id/work-pack", handle(async (req, res) => void res.json({ pack: await getWorkPack(IdParams.parse(req.params).id) })));
+router.post("/tasks/:id/work-pack", handle(async (req, res) => void res.json(await buildWorkPack(IdParams.parse(req.params).id))));
+router.post("/tasks/:id/work-pack/used", handle(async (req, res) => void res.json(await markPackUsed(IdParams.parse(req.params).id))));
+router.post("/tasks/:id/work-pack/dismiss", handle(async (req, res) => void res.json(await dismissPack(IdParams.parse(req.params).id))));
+router.post("/tasks/:id/work-pack/gmail-draft", handle(async (req, res) => void res.json(await savePackToGmail(IdParams.parse(req.params).id))));
 
 router.post(
   "/tasks/:id/stuck/dismiss",

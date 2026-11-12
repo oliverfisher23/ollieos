@@ -245,6 +245,17 @@ export interface EntitySummary {
   confidential: boolean;
 }
 
+/**
+ * Section 28: the task's work pack status, when it has one worth showing
+ */
+export type TaskPack = typeof TaskPack[keyof typeof TaskPack] | null;
+
+
+export const TaskPack = {
+  ready_to_send: 'ready_to_send',
+  needs_work: 'needs_work',
+} as const;
+
 export type RepeatEvery = typeof RepeatEvery[keyof typeof RepeatEvery];
 
 
@@ -424,8 +435,56 @@ export interface Task {
   dropReason?: DropReason | null;
   /** Section 27: a Waiting on task that has waited long enough for a chase */
   chaseDue?: boolean;
+  /** Section 28: the task's work pack status, when it has one worth showing */
+  pack?: TaskPack;
   /** Section 27: the stuck-task coach's line on a Now or Backlog task that keeps slipping. Null once dismissed. */
   stuckHint?: StuckHint | null;
+}
+
+export type WorkPackStatus = typeof WorkPackStatus[keyof typeof WorkPackStatus];
+
+
+export const WorkPackStatus = {
+  ready_to_send: 'ready_to_send',
+  needs_work: 'needs_work',
+  nothing_found: 'nothing_found',
+} as const;
+
+export type WorkPackDraft = {
+  to: string;
+  subject: string;
+  body: string;
+} | null;
+
+export interface SourceChip {
+  ref: string;
+  type: string;
+  label: string;
+  /** @nullable */
+  path: string | null;
+  confidential: boolean;
+}
+
+export interface WorkPack {
+  taskId: number;
+  status: WorkPackStatus;
+  /** What OllieOS already holds for the task */
+  have: string;
+  next: string;
+  draft: WorkPackDraft;
+  outline: string[];
+  questions: string[];
+  sources: SourceChip[];
+  createdAt: string;
+  /** @nullable */
+  usedAt: string | null;
+  /** @nullable */
+  dismissedAt: string | null;
+  savedToGmail: boolean;
+}
+
+export interface WorkPackEnvelope {
+  pack: WorkPack | null;
 }
 
 /**
@@ -5107,15 +5166,6 @@ export interface AskInput {
   question: string;
   /** @nullable */
   parentId?: number | null;
-}
-
-export interface SourceChip {
-  ref: string;
-  type: string;
-  label: string;
-  /** @nullable */
-  path: string | null;
-  confidential: boolean;
 }
 
 export type AskBadgeTone = typeof AskBadgeTone[keyof typeof AskBadgeTone];

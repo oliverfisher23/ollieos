@@ -247,6 +247,7 @@ export const GetHomeResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -347,6 +348,7 @@ export const GetHomeResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -439,6 +441,7 @@ export const GetHomeResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -531,6 +534,7 @@ export const GetHomeResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -694,6 +698,7 @@ export const ListTasksResponseItem = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -835,6 +840,7 @@ export const QuickAddTaskResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -936,6 +942,7 @@ export const ListTaskDuplicatesResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -1026,6 +1033,7 @@ export const ListTaskDuplicatesResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -1140,6 +1148,7 @@ export const MergeTaskDuplicateResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -1265,6 +1274,7 @@ export const GetTaskResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -1400,6 +1410,7 @@ export const UpdateTaskResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -1499,6 +1510,7 @@ export const SnoozeTaskResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -1637,6 +1649,7 @@ export const TriageTaskResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -1749,6 +1762,7 @@ export const UndoTaskResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -1848,6 +1862,7 @@ export const RestoreTaskResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -1947,6 +1962,7 @@ export const ContinueRepeatResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -2050,6 +2066,7 @@ export const GetDayPlanResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -2153,6 +2170,7 @@ export const GetDayPlanResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -2267,6 +2285,7 @@ export const SaveDayPlanResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -2370,6 +2389,7 @@ export const SaveDayPlanResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -2477,6 +2497,7 @@ export const RefitDayPlanResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -2580,6 +2601,7 @@ export const RefitDayPlanResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -2705,6 +2727,7 @@ export const GetClearOutResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -2814,6 +2837,7 @@ export const KeepInBacklogResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -2913,6 +2937,7 @@ export const KeepTaskResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -3998,6 +4023,7 @@ export const GetWeekCheckResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -4840,12 +4866,180 @@ export const ChaseTaskLaterResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
   "suggestion": zod.string().describe('One line on what to try'),
   "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist')
 }),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
+})
+
+
+/**
+ * @summary The task's work pack, if it has one (section 28)
+ */
+export const GetTaskWorkPackParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetTaskWorkPackResponse = zod.object({
+  "pack": zod.union([zod.object({
+  "taskId": zod.int(),
+  "status": zod.enum(['ready_to_send', 'needs_work', 'nothing_found']),
+  "have": zod.string().describe('What OllieOS already holds for the task'),
+  "next": zod.string(),
+  "draft": zod.union([zod.object({
+  "to": zod.string(),
+  "subject": zod.string(),
+  "body": zod.string()
+}),zod.null()]),
+  "outline": zod.array(zod.string()),
+  "questions": zod.array(zod.string()),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "createdAt": zod.coerce.date(),
+  "usedAt": zod.coerce.date().nullable(),
+  "dismissedAt": zod.coerce.date().nullable(),
+  "savedToGmail": zod.boolean()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Build the work pack for this task, or build it again
+ */
+export const BuildTaskWorkPackParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const BuildTaskWorkPackResponse = zod.object({
+  "taskId": zod.int(),
+  "status": zod.enum(['ready_to_send', 'needs_work', 'nothing_found']),
+  "have": zod.string().describe('What OllieOS already holds for the task'),
+  "next": zod.string(),
+  "draft": zod.union([zod.object({
+  "to": zod.string(),
+  "subject": zod.string(),
+  "body": zod.string()
+}),zod.null()]),
+  "outline": zod.array(zod.string()),
+  "questions": zod.array(zod.string()),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "createdAt": zod.coerce.date(),
+  "usedAt": zod.coerce.date().nullable(),
+  "dismissedAt": zod.coerce.date().nullable(),
+  "savedToGmail": zod.boolean()
+})
+
+
+/**
+ * @summary The message was copied: the pack counts as used
+ */
+export const MarkTaskWorkPackUsedParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const MarkTaskWorkPackUsedResponse = zod.object({
+  "taskId": zod.int(),
+  "status": zod.enum(['ready_to_send', 'needs_work', 'nothing_found']),
+  "have": zod.string().describe('What OllieOS already holds for the task'),
+  "next": zod.string(),
+  "draft": zod.union([zod.object({
+  "to": zod.string(),
+  "subject": zod.string(),
+  "body": zod.string()
+}),zod.null()]),
+  "outline": zod.array(zod.string()),
+  "questions": zod.array(zod.string()),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "createdAt": zod.coerce.date(),
+  "usedAt": zod.coerce.date().nullable(),
+  "dismissedAt": zod.coerce.date().nullable(),
+  "savedToGmail": zod.boolean()
+})
+
+
+/**
+ * @summary Not useful: take the pack off the task
+ */
+export const DismissTaskWorkPackParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DismissTaskWorkPackResponse = zod.object({
+  "taskId": zod.int(),
+  "status": zod.enum(['ready_to_send', 'needs_work', 'nothing_found']),
+  "have": zod.string().describe('What OllieOS already holds for the task'),
+  "next": zod.string(),
+  "draft": zod.union([zod.object({
+  "to": zod.string(),
+  "subject": zod.string(),
+  "body": zod.string()
+}),zod.null()]),
+  "outline": zod.array(zod.string()),
+  "questions": zod.array(zod.string()),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "createdAt": zod.coerce.date(),
+  "usedAt": zod.coerce.date().nullable(),
+  "dismissedAt": zod.coerce.date().nullable(),
+  "savedToGmail": zod.boolean()
+})
+
+
+/**
+ * @summary Save the pack message to Gmail as a draft; never sent
+ */
+export const SaveTaskWorkPackDraftParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const SaveTaskWorkPackDraftResponse = zod.object({
+  "taskId": zod.int(),
+  "status": zod.enum(['ready_to_send', 'needs_work', 'nothing_found']),
+  "have": zod.string().describe('What OllieOS already holds for the task'),
+  "next": zod.string(),
+  "draft": zod.union([zod.object({
+  "to": zod.string(),
+  "subject": zod.string(),
+  "body": zod.string()
+}),zod.null()]),
+  "outline": zod.array(zod.string()),
+  "questions": zod.array(zod.string()),
+  "sources": zod.array(zod.object({
+  "ref": zod.string(),
+  "type": zod.string(),
+  "label": zod.string(),
+  "path": zod.string().nullable(),
+  "confidential": zod.boolean()
+})),
+  "createdAt": zod.coerce.date(),
+  "usedAt": zod.coerce.date().nullable(),
+  "dismissedAt": zod.coerce.date().nullable(),
+  "savedToGmail": zod.boolean()
 })
 
 
@@ -4939,6 +5133,7 @@ export const DismissTaskStuckHintResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -5398,6 +5593,7 @@ export const GetProjectResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -5701,6 +5897,7 @@ export const GetPersonResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -5791,6 +5988,7 @@ export const GetPersonResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -11394,6 +11592,7 @@ export const AskOllieOSResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -11548,6 +11747,7 @@ export const GetAskThreadResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -11702,6 +11902,7 @@ export const DraftAskReplyResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -11856,6 +12057,7 @@ export const AllowAskTurnResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -12019,6 +12221,7 @@ export const BundleAskTasksResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),
@@ -12173,6 +12376,7 @@ export const UndoAskBundleResponse = zod.object({
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
   "stuckHint": zod.union([zod.object({
   "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
   "kind": zod.string().describe('first_step, split, delegate or drop'),

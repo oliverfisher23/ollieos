@@ -14,6 +14,7 @@ import type { RepeatRule } from './repeatRule';
 import type { StuckHint } from './stuckHint';
 import type { TaskGoal } from './taskGoal';
 import type { TaskKind } from './taskKind';
+import type { TaskPack } from './taskPack';
 import type { TaskSource } from './taskSource';
 import type { TaskStatus } from './taskStatus';
 import type { TaskStep } from './taskStep';
@@ -108,6 +109,8 @@ export interface Task {
   dropReason?: DropReason | null;
   /** Section 27: a Waiting on task that has waited long enough for a chase */
   chaseDue?: boolean;
+  /** Section 28: the task's work pack status, when it has one worth showing */
+  pack?: TaskPack;
   /** Section 27: the stuck-task coach's line on a Now or Backlog task that keeps slipping. Null once dismissed. */
   stuckHint?: StuckHint | null;
 }

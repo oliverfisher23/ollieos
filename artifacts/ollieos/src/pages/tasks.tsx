@@ -190,6 +190,8 @@ export default function TasksPage() {
   // Client work or internal, from each task's project (filtered here, so it combines with every other filter).
   const rawWork = sp.get('work');
   const work = rawWork === 'client' || rawWork === 'internal' || rawWork === 'none' ? rawWork : null;
+  // Section 28: only tasks whose work pack says they are ready to send.
+  const readyOnly = sp.get('ready') === '1';
   // Section 27: choosing several tasks to change at once.
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState<Set<number>>(new Set());
@@ -197,9 +199,10 @@ export default function TasksPage() {
   const workOf = useMemo(() => new Map((projects.data ?? []).map((p) => [p.id, p.workType ?? null])), [projects.data]);
   const rows = useMemo(() => {
     const all = list.data ?? [];
-    const kept = work ? all.filter((t) => ((t.project ? workOf.get(t.project.id) : null) ?? 'none') === work) : all;
+    const byWork = work ? all.filter((t) => ((t.project ? workOf.get(t.project.id) : null) ?? 'none') === work) : all;
+    const kept = readyOnly ? byWork.filter((t) => t.pack === 'ready_to_send') : byWork;
     return sortTasks(kept, sort);
-  }, [list.data, sort?.key, sort?.dir, work, workOf]);
+  }, [list.data, sort?.key, sort?.dir, work, workOf, readyOnly]);
 
   const togglePick = (id: number) =>
     setPicked((s) => {
@@ -307,6 +310,8 @@ export default function TasksPage() {
             ]}
             testId="select-work"
           />
+          <button type="button" className="oo-control" aria-pressed={readyOnly}
+            onClick={() => set({ ready: readyOnly ? null : '1' })} data-testid="button-ready-only">Ready to send</button>
           <button type="button" className="oo-control" aria-pressed={week === thisWeek}
             onClick={() => set({ week: week === thisWeek ? null : thisWeek })} data-testid="button-this-week">This week</button>
           <div style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid var(--oo-control-border)', borderRadius: 'var(--oo-r-input)', background: 'var(--oo-panel)' }}>
@@ -446,7 +451,7 @@ export default function TasksPage() {
           </div>
         ) : rows.length === 0 ? (
           <div style={{ padding: '28px 0', display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="state-tasks-empty">
-            <p className="oo-serif" style={{ margin: 0, fontSize: 20 }}>{q || source || week || work ? 'Nothing matches these filters.' : EMPTY[tab]}</p>
+            <p className="oo-serif" style={{ margin: 0, fontSize: 20 }}>{q || source || week || work || readyOnly ? (readyOnly && !q && !source && !week && !work ? 'Nothing is ready to send yet.' : 'Nothing matches these filters.') : EMPTY[tab]}</p>
             {(q || source || week) && <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>Try another week or clear the search.</p>}
           </div>
         ) : groups ? (
@@ -720,6 +725,7 @@ function TaskRows({ tab, rows: allRows, selected, sort, onSort, reorderable, onR
   const pills = (t: Task) => (
     <>
       {t.stale && <StalePill id={t.id} />}
+      {t.pack === 'ready_to_send' && <span className="oo-pill" data-tone="done" title="What this needs already exists. Open it for the work pack." data-testid={'pill-ready-' + t.id}>Ready to send</span>}
       {t.chaseDue && <span className="oo-pill" data-tone="waiting" title="You have waited long enough to chase" data-testid={'pill-chase-' + t.id}>Chase</span>}
       {t.stuckHint && <span className="oo-pill" data-tone="stale" title={t.stuckHint.why} data-testid={'pill-stuck-' + t.id}>Stuck</span>}
     </>
