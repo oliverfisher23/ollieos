@@ -119,7 +119,7 @@ export default function TasksPage() {
             {reviewCount > 0 && (
               <Link href="/review" className="oo-link" style={{ fontSize: 14 }} data-testid="link-review">Review {reviewCount}</Link>
             )}
-            <Link href="/email" className="oo-link sm:hidden" style={{ fontSize: 14 }} data-testid="link-email">Email</Link>
+            <Link href="/messages" className="oo-link sm:hidden" style={{ fontSize: 14 }} data-testid="link-messages">Messages</Link>
             <Link href="/meetings" className="oo-link sm:hidden" style={{ fontSize: 14 }} data-testid="link-meetings">Meetings</Link>
             <a href="/api/export/tasks.csv" download className="oo-link" style={{ fontSize: 14 }} data-testid="link-export-tasks">Export</a>
           </span>

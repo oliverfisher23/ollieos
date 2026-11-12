@@ -24,10 +24,9 @@ The full list by tab (Inbox, Now, Backlog, Waiting on, Done, Noise). Click a tas
 - **Keep as a test case.** On an item OllieOS found that it got wrong (or right), this saves what the reader was given so a later change can be checked against it.
 - **Export.** Tasks, Export downloads every task as a CSV file.
 
-## Email
+## Messages
 
-- **To answer.** Inbox emails sorted into Needs a reply and For your information, with a line on what each wants.
-- **Slack.** Slack messages waiting for your reply.
+- **To answer.** Emails and Slack messages waiting on you, together, sorted into Needs a reply and For your information, with a line on what each wants. All, Email and Slack narrow the list.
 - **Waiting for a reply.** Emails you sent that asked for something and have had no answer.
 - **Drafts.** Every draft OllieOS has written: replies, chases, check-ins and meeting follow-ups.
 
