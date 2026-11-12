@@ -106,7 +106,16 @@ export default function HomePage() {
   const phone = useMedia(PHONE_QUERY);
   // Shorter than the app's 30 seconds: the status line carries Claude's access requests, so coming back
   // to the app re-checks them. 5 seconds still lets the start-up prefetch count.
-  const home = useGetHome({ query: { queryKey: getGetHomeQueryKey(), staleTime: 5_000 } });
+  // A brief hiccup (the server restarting, a dropped connection) is retried quietly, with growing waits,
+  // before Home says it could not load; what is already on screen stays while it retries.
+  const home = useGetHome({
+    query: {
+      queryKey: getGetHomeQueryKey(),
+      staleTime: 5_000,
+      retry: (count, err) => (err as { status?: number } | null)?.status !== 401 && (err as { status?: number } | null)?.status !== 403 && count < 4,
+      retryDelay: (n) => Math.min(1000 * 2 ** n, 8000),
+    },
+  });
   const now = new Date();
   const name = user?.firstName || 'Ollie';
 
@@ -179,7 +188,7 @@ export default function HomePage() {
   );
 
   let body;
-  if (home.isLoading) {
+  if (home.isLoading || (!home.data && home.isFetching)) {
     body = (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, width: '100%' }} aria-busy="true">
         {[0, 1, 2].map((i) => (
@@ -187,7 +196,7 @@ export default function HomePage() {
         ))}
       </div>
     );
-  } else if (home.error || !home.data) {
+  } else if (!home.data) {
     body = (
       <div className="oo-dark-card oo-glass" style={{ width: '100%', alignItems: 'flex-start' }} data-testid="state-home-error">
         <h2 className="oo-label">Could not load Home</h2>
