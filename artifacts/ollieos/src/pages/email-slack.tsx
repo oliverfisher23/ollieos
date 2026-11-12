@@ -76,7 +76,6 @@ export function SlackRow({ s, current, onPick }: { s: SlackToAnswerItem; current
 export function SlackReader({ s, onBack, onNext }: { s: SlackToAnswerItem; onBack: () => void; onNext: () => void }) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState<'done' | 'task' | 'draft' | null>(null);
-  const [done, setDone] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   const top = useRef<HTMLHeadingElement>(null);
 
@@ -88,13 +87,11 @@ export function SlackReader({ s, onBack, onNext }: { s: SlackToAnswerItem; onBac
     setBusy('done');
     try {
       const r = await markSlackToAnswerDone(s.id);
-      setDone(true);
-      await refresh();
+      void refresh();
       notifyUndo('Marked done', 'It comes back if they write again.', () => {
         void (async () => {
           try {
             await undoSlackToAnswerDone(s.id, r);
-            setDone(false);
             await refresh();
           } catch (err) {
             reportApiError(err);
@@ -105,9 +102,12 @@ export function SlackReader({ s, onBack, onNext }: { s: SlackToAnswerItem; onBac
     } catch (err) {
       reportApiError(err);
       notify('That did not save', errorMessage(err));
+      return;
     } finally {
       setBusy(null);
     }
+    // Straight on to the next message, as Done on an email does; Undo is on the note.
+    onNext();
   };
 
   const makeTask = async () => {
@@ -171,25 +171,18 @@ export function SlackReader({ s, onBack, onNext }: { s: SlackToAnswerItem; onBac
         {s.ask && <span className="oo-soft" style={{ fontSize: 13 }}><span className="oo-muted">{s.needs === 'info' ? 'For your information:' : 'Needs a reply:'}</span> {s.ask}</span>}
       </div>
 
-      {done ? (
-        <div className="oo-source" style={{ gap: 10 }} role="status" data-testid="state-slack-done">
-          <span style={{ fontSize: 14 }}>Marked done. It comes back if they write again.</span>
-          <div><button type="button" className="oo-btn oo-btn-sm oo-btn-ink" onClick={onNext} data-testid="button-slack-next">Next message</button></div>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }} role="toolbar" aria-label="Slack actions">
-          <button type="button" className="oo-btn oo-btn-sm oo-btn-ink" disabled={busy !== null || s.hidden} onClick={() => void writeDraft()} data-testid="button-slack-draft">
-            {busy === 'draft' ? 'Writing…' : draft == null ? 'Draft a reply' : 'Draft again'}
-          </button>
-          <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy !== null} onClick={() => void markDone()} data-testid="button-slack-done">Done</button>
-          {s.taskId == null && (
-            <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy !== null} onClick={() => void makeTask()} data-testid="button-slack-task">Make a task</button>
-          )}
-          <a href={s.url} target="_blank" rel="noreferrer" className="oo-btn oo-btn-sm oo-btn-outline" style={{ gap: 4 }} data-testid="link-slack-open">
-            Open in Slack <IconArrowOut size={12} />
-          </a>
-        </div>
-      )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }} role="toolbar" aria-label="Slack actions">
+        <button type="button" className="oo-btn oo-btn-sm oo-btn-ink" disabled={busy !== null || s.hidden} onClick={() => void writeDraft()} data-testid="button-slack-draft">
+          {busy === 'draft' ? 'Writing…' : draft == null ? 'Draft a reply' : 'Draft again'}
+        </button>
+        <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy !== null} onClick={() => void markDone()} data-testid="button-slack-done">Done</button>
+        {s.taskId == null && (
+          <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy !== null} onClick={() => void makeTask()} data-testid="button-slack-task">Make a task</button>
+        )}
+        <a href={s.url} target="_blank" rel="noreferrer" className="oo-btn oo-btn-sm oo-btn-outline" style={{ gap: 4 }} data-testid="link-slack-open">
+          Open in Slack <IconArrowOut size={12} />
+        </a>
+      </div>
       {s.hidden && (
         <span className="oo-muted" style={{ fontSize: 13, lineHeight: 1.5 }} data-testid="text-slack-hidden">
           Someone in this conversation is hidden from AI, so OllieOS has not read it and cannot draft a reply.
@@ -201,7 +194,7 @@ export function SlackReader({ s, onBack, onNext }: { s: SlackToAnswerItem; onBac
         <p className="oo-mail-body" data-testid="text-slack-message">{s.text}</p>
       </div>
 
-      {draft != null && !done && (
+      {draft != null && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} data-testid="card-slack-draft">
           <label className="oo-field-label" htmlFor={'slack-draft-' + s.id}>Reply to copy into Slack</label>
           <textarea id={'slack-draft-' + s.id} className="oo-input" rows={5} value={draft} onChange={(e) => setDraft(e.target.value)} style={{ resize: 'vertical', lineHeight: 1.5 }} data-testid="input-slack-draft" />
