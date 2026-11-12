@@ -5,6 +5,7 @@ import {
   updatePerson,
   useGetPerson,
   useListOrganisations,
+  useListPeople,
   type PersonDetail,
   type PersonUpdate,
 } from '@workspace/api-client-react';
@@ -28,6 +29,7 @@ import { RelationshipsSection } from '@/components/knowledge/relationships';
 import { OtherEmails, SamePersonAs, SlackAccount } from '@/components/knowledge/person-identity';
 import { copyText, firstName, isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
 import { CadencePill, CadenceSelect, CheckInDialog } from '@/components/cadence';
+import { ContactActionButtons, ContactNoteDialog, StrengthPill, TagEditor } from '@/components/contact-bits';
 import { notify } from '@/lib/notify';
 import { initials, toneFor } from '@/lib/task-cache';
 
@@ -55,8 +57,11 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
   const write = useKnowledgeWrite();
   const unlink = useUnlink();
   const orgs = useListOrganisations();
-  const { person, cadence, iOwe, theyOwe, projects, facts, timeline } = data;
+  const { person, strength, introductions, cadence, iOwe, theyOwe, projects, facts, timeline } = data;
   const [drafting, setDrafting] = useState(false);
+  const [addingTask, setAddingTask] = useState(false);
+  const everyone = useListPeople();
+  const allTags = [...new Map((everyone.data ?? []).flatMap((p) => p.tags).map((t) => [t.toLowerCase(), t])).values()].sort((a, b) => a.localeCompare(b, 'en-GB'));
   const first = firstName(person.name);
   const save = (patch: PersonUpdate, done?: string) => write(() => updatePerson(slug, patch), { done });
 
@@ -80,8 +85,36 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
               {' · '}
               <InlineText inline value={person.role} label="Role" placeholder="Add a role" testId="person-role" onSave={(v) => save({ role: v })} />
             </p>
+            {!person.isSelf && (
+              <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                <StrengthPill strength={strength} testId="pill-person-strength" />
+                {person.archived && <span className="oo-pill" data-tone="archived" data-testid="pill-person-archived">Archived</span>}
+              </span>
+            )}
           </div>
         </div>
+
+        {!person.isSelf && <ContactActionButtons p={person} onTask={() => setAddingTask(true)} />}
+        {addingTask && <ContactNoteDialog kind="task" person={person} onClose={() => setAddingTask(false)} />}
+
+        {introductions.length > 0 && (
+          <section aria-labelledby="intro-h" style={{ display: 'flex', flexDirection: 'column', gap: 8 }} data-testid="section-introductions">
+            <h2 id="intro-h" className="oo-h2">Who can introduce me?</h2>
+            <p className="oo-muted" style={{ margin: 0, fontSize: 13, maxWidth: '72ch' }}>
+              You are not in regular touch with {first}. These are people you know well who are connected to them.
+            </p>
+            {introductions.map((i) => (
+              <div key={i.via.id} className="oo-krow" data-testid={'row-introduction-' + i.via.slug}>
+                <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                  <Link href={'/knowledge/people/' + i.via.slug} className="oo-krow-link" style={{ fontWeight: 500 }}>{i.via.name}</Link>
+                  <span className="oo-muted" style={{ fontSize: 13 }}>{[i.via.organisation, i.via.role].filter(Boolean).join(' · ')}</span>
+                  <span style={{ fontSize: 13 }}>{i.via.name.split(' ')[0]} {i.how}.</span>
+                </span>
+                <StrengthPill strength={i.via.strength} />
+              </div>
+            ))}
+          </section>
+        )}
 
         <section aria-labelledby="rel-h" style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: '72ch' }}>
           <h2 id="rel-h" className="oo-h2">Relationship</h2>
@@ -154,6 +187,9 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
             <dd><InlineText value={person.email} label="Email" placeholder="Add an email" testId="person-email" onSave={(v) => save({ email: v })} /></dd>
             <dt>Other emails</dt>
             <dd><OtherEmails person={person} /></dd>
+            {/* Space above keeps its phone tap area clear of "Add another address". */}
+            <dt style={{ paddingTop: 12 }}>Phone</dt>
+            <dd style={{ paddingTop: 12 }}><InlineText value={person.phone} label="Phone" placeholder="Add a phone number" maxLength={60} testId="person-phone" onSave={(v) => save({ phone: v })} /></dd>
             <dt>Slack</dt>
             <dd><SlackAccount person={person} /></dd>
             <dt style={{ paddingTop: 12 }}>LinkedIn</dt>
@@ -164,6 +200,8 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
                 <a href={person.linkedinUrl} target="_blank" rel="noreferrer" className="oo-link" style={{ fontSize: 13 }} data-testid="link-person-linkedin">Open profile</a>
               )}
             </dd>
+            <dt>Tags</dt>
+            <dd><TagEditor tags={person.tags} all={allTags} name={person.name} testId="tags-person" onChange={(tags) => void save({ tags })} /></dd>
             <dt>Last contact</dt>
             <dd data-testid="text-last-contact">{person.lastContactAt ? formatDayMonth(person.lastContactAt) : 'None recorded'}</dd>
             {!person.isSelf && (
@@ -203,6 +241,27 @@ function PersonBody({ slug, data }: { slug: string; data: PersonDetail }) {
             </dd>
           </dl>
         </section>
+
+        {!person.isSelf && (
+          <section className="oo-panel" aria-labelledby="arch-h" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <h2 id="arch-h" className="oo-h2" style={{ fontSize: 14 }}>{person.archived ? 'Archived' : 'Archive'}</h2>
+            <p className="oo-muted" style={{ margin: 0, fontSize: 13 }}>
+              {person.archived
+                ? `${first} is out of the main Contacts list. They come back by themselves if you are in touch again.`
+                : `Takes ${first} out of the main Contacts list and ends check-ins. Nothing is deleted, and they come back if you are in touch again.`}
+            </p>
+            <div>
+              <button
+                type="button"
+                className="oo-btn oo-btn-outline oo-btn-sm"
+                onClick={() => save({ archived: !person.archived }, person.archived ? `${first} is back in Contacts` : `${first} archived`)}
+                data-testid="button-person-archive"
+              >
+                {person.archived ? 'Bring back' : 'Archive'}
+              </button>
+            </div>
+          </section>
+        )}
 
         <section className="oo-panel" aria-labelledby="same-h" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <h2 id="same-h" className="oo-h2" style={{ fontSize: 14 }}>Duplicate record?</h2>

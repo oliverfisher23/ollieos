@@ -48,6 +48,8 @@ import type {
   BriefView,
   BulkDecideInput,
   BulkDecideResult,
+  BulkPeopleInput,
+  BulkPeopleResult,
   BundleInput,
   BundleResult,
   CadencePage,
@@ -165,12 +167,16 @@ import type {
   MeetingView,
   MeetingsList,
   MergeOption,
+  MergeOrganisationResult,
   MergePersonInput,
   MergePersonResult,
   MergeSuggestionInput,
   MessageCounts,
   MessagesDone,
   MessagesDoneInput,
+  MissingContactAddInput,
+  MissingContactDismissInput,
+  MissingContacts,
   MobileTokenExchangeRequest,
   MobileTokenExchangeSuccess,
   MuteInput,
@@ -189,6 +195,8 @@ import type {
   OkResult,
   Organisation,
   OrganisationDetail,
+  OrganisationDomainsInput,
+  OrganisationDomainsResult,
   OrganisationInput,
   OrganisationListItem,
   OrganisationUpdate,
@@ -12578,6 +12586,371 @@ export const useRestoreCadenceSuggestions = <TError = ErrorType<NotAuthorisedRes
       return useMutation(getRestoreCadenceSuggestionsMutationOptions(options), queryClient);
     }
 
+export const getBulkUpdatePeopleUrl = () => {
+
+
+
+
+  return `/api/people/bulk`
+}
+
+/**
+ * @summary One change to several people at once (a cadence, a tag, an organisation, or archive)
+ */
+export const bulkUpdatePeople = async (bulkPeopleInput: BulkPeopleInput, options?: Parameters<typeof customFetch>[1]): Promise<BulkPeopleResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<BulkPeopleResult>(getBulkUpdatePeopleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bulkPeopleInput)
+  }
+);}
+
+
+
+
+
+export const getBulkUpdatePeopleMutationKey = () => ['bulkUpdatePeople'] as const;
+
+export const getBulkUpdatePeopleMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdatePeople>>, TError,BulkUpdatePeopleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkUpdatePeople>>, TError,BulkUpdatePeopleMutationVariables, TContext> => {
+
+const mutationKey = getBulkUpdatePeopleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkUpdatePeople>>, BulkUpdatePeopleMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkUpdatePeople(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkUpdatePeopleMutationResult = NonNullable<Awaited<ReturnType<typeof bulkUpdatePeople>>>
+    export type BulkUpdatePeopleMutationBody = BodyType<BulkPeopleInput>
+    export type BulkUpdatePeopleMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type BulkUpdatePeopleMutationVariables = {data: BodyType<BulkPeopleInput>}
+
+    /**
+ * @summary One change to several people at once (a cadence, a tag, an organisation, or archive)
+ */
+export const useBulkUpdatePeople = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkUpdatePeople>>, TError,BulkUpdatePeopleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof bulkUpdatePeople>>,
+        TError,
+        BulkUpdatePeopleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getBulkUpdatePeopleMutationOptions(options), queryClient);
+    }
+
+export const getListMissingContactsUrl = () => {
+
+
+
+
+  return `/api/contacts/missing`
+}
+
+/**
+ * @summary People on two or more work meetings in the calendar who are not in Contacts
+ */
+export const listMissingContacts = async ( options?: Parameters<typeof customFetch>[1]): Promise<MissingContacts> => {
+
+  return customFetch<MissingContacts>(getListMissingContactsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMissingContactsQueryKey = () => {
+    return [
+    `/api/contacts/missing`
+    ] as const;
+    }
+
+
+export const getListMissingContactsQueryOptions = <TData = Awaited<ReturnType<typeof listMissingContacts>>, TError = ErrorType<NotAuthorisedResponse>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMissingContacts>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMissingContactsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMissingContacts>>> = ({ signal }) => listMissingContacts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMissingContacts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListMissingContactsQueryResult = NonNullable<Awaited<ReturnType<typeof listMissingContacts>>>
+export type ListMissingContactsQueryError = ErrorType<NotAuthorisedResponse>
+
+
+export function useListMissingContacts<TData = Awaited<ReturnType<typeof listMissingContacts>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMissingContacts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMissingContacts>>,
+          TError,
+          Awaited<ReturnType<typeof listMissingContacts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMissingContacts<TData = Awaited<ReturnType<typeof listMissingContacts>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMissingContacts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMissingContacts>>,
+          TError,
+          Awaited<ReturnType<typeof listMissingContacts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListMissingContacts<TData = Awaited<ReturnType<typeof listMissingContacts>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMissingContacts>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary People on two or more work meetings in the calendar who are not in Contacts
+ */
+
+export function useListMissingContacts<TData = Awaited<ReturnType<typeof listMissingContacts>>, TError = ErrorType<NotAuthorisedResponse>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMissingContacts>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListMissingContactsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddMissingContactUrl = () => {
+
+
+
+
+  return `/api/contacts/missing/add`
+}
+
+/**
+ * @summary Add someone from the calendar to Contacts and link their meetings to them
+ */
+export const addMissingContact = async (missingContactAddInput: MissingContactAddInput, options?: Parameters<typeof customFetch>[1]): Promise<Person> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Person>(getAddMissingContactUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(missingContactAddInput)
+  }
+);}
+
+
+
+
+
+export const getAddMissingContactMutationKey = () => ['addMissingContact'] as const;
+
+export const getAddMissingContactMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMissingContact>>, TError,AddMissingContactMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addMissingContact>>, TError,AddMissingContactMutationVariables, TContext> => {
+
+const mutationKey = getAddMissingContactMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addMissingContact>>, AddMissingContactMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  addMissingContact(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddMissingContactMutationResult = NonNullable<Awaited<ReturnType<typeof addMissingContact>>>
+    export type AddMissingContactMutationBody = BodyType<MissingContactAddInput>
+    export type AddMissingContactMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type AddMissingContactMutationVariables = {data: BodyType<MissingContactAddInput>}
+
+    /**
+ * @summary Add someone from the calendar to Contacts and link their meetings to them
+ */
+export const useAddMissingContact = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMissingContact>>, TError,AddMissingContactMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addMissingContact>>,
+        TError,
+        AddMissingContactMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddMissingContactMutationOptions(options), queryClient);
+    }
+
+export const getDismissMissingContactUrl = () => {
+
+
+
+
+  return `/api/contacts/missing/dismiss`
+}
+
+/**
+ * @summary Not now; stop listing this person as missing
+ */
+export const dismissMissingContact = async (missingContactDismissInput: MissingContactDismissInput, options?: Parameters<typeof customFetch>[1]): Promise<OkResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OkResult>(getDismissMissingContactUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(missingContactDismissInput)
+  }
+);}
+
+
+
+
+
+export const getDismissMissingContactMutationKey = () => ['dismissMissingContact'] as const;
+
+export const getDismissMissingContactMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissMissingContact>>, TError,DismissMissingContactMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof dismissMissingContact>>, TError,DismissMissingContactMutationVariables, TContext> => {
+
+const mutationKey = getDismissMissingContactMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof dismissMissingContact>>, DismissMissingContactMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  dismissMissingContact(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DismissMissingContactMutationResult = NonNullable<Awaited<ReturnType<typeof dismissMissingContact>>>
+    export type DismissMissingContactMutationBody = BodyType<MissingContactDismissInput>
+    export type DismissMissingContactMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type DismissMissingContactMutationVariables = {data: BodyType<MissingContactDismissInput>}
+
+    /**
+ * @summary Not now; stop listing this person as missing
+ */
+export const useDismissMissingContact = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof dismissMissingContact>>, TError,DismissMissingContactMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof dismissMissingContact>>,
+        TError,
+        DismissMissingContactMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDismissMissingContactMutationOptions(options), queryClient);
+    }
+
 export const getListPossibleDuplicatesUrl = () => {
 
 
@@ -18612,6 +18985,184 @@ export const useCreateOrganisation = <TError = ErrorType<ErrorResponse | NotAuth
         TContext
       > => {
       return useMutation(getCreateOrganisationMutationOptions(options), queryClient);
+    }
+
+export const getSetOrganisationDomainsUrl = (slug: string,) => {
+
+
+
+
+  return `/api/organisations/${slug}/domains`
+}
+
+/**
+ * @summary Set the email domains that belong to an organisation; people with no organisation who write from them are placed under it
+ */
+export const setOrganisationDomains = async (slug: string,
+    organisationDomainsInput: OrganisationDomainsInput, options?: Parameters<typeof customFetch>[1]): Promise<OrganisationDomainsResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrganisationDomainsResult>(getSetOrganisationDomainsUrl(slug),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(organisationDomainsInput)
+  }
+);}
+
+
+
+
+
+export const getSetOrganisationDomainsMutationKey = () => ['setOrganisationDomains'] as const;
+
+export const getSetOrganisationDomainsMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setOrganisationDomains>>, TError,SetOrganisationDomainsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setOrganisationDomains>>, TError,SetOrganisationDomainsMutationVariables, TContext> => {
+
+const mutationKey = getSetOrganisationDomainsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setOrganisationDomains>>, SetOrganisationDomainsMutationVariables> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  setOrganisationDomains(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetOrganisationDomainsMutationResult = NonNullable<Awaited<ReturnType<typeof setOrganisationDomains>>>
+    export type SetOrganisationDomainsMutationBody = BodyType<OrganisationDomainsInput>
+    export type SetOrganisationDomainsMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type SetOrganisationDomainsMutationVariables = {slug: string;data: BodyType<OrganisationDomainsInput>}
+
+    /**
+ * @summary Set the email domains that belong to an organisation; people with no organisation who write from them are placed under it
+ */
+export const useSetOrganisationDomains = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setOrganisationDomains>>, TError,SetOrganisationDomainsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setOrganisationDomains>>,
+        TError,
+        SetOrganisationDomainsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetOrganisationDomainsMutationOptions(options), queryClient);
+    }
+
+export const getMergeOrganisationUrl = (slug: string,) => {
+
+
+
+
+  return `/api/organisations/${slug}/merge`
+}
+
+/**
+ * @summary Merge another organisation into this one. Everything on it moves here and it is removed.
+ */
+export const mergeOrganisation = async (slug: string,
+    mergePersonInput: MergePersonInput, options?: Parameters<typeof customFetch>[1]): Promise<MergeOrganisationResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MergeOrganisationResult>(getMergeOrganisationUrl(slug),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(mergePersonInput)
+  }
+);}
+
+
+
+
+
+export const getMergeOrganisationMutationKey = () => ['mergeOrganisation'] as const;
+
+export const getMergeOrganisationMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeOrganisation>>, TError,MergeOrganisationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof mergeOrganisation>>, TError,MergeOrganisationMutationVariables, TContext> => {
+
+const mutationKey = getMergeOrganisationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof mergeOrganisation>>, MergeOrganisationMutationVariables> = (props) => {
+          const {slug,data} = props ?? {};
+
+          return  mergeOrganisation(slug,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MergeOrganisationMutationResult = NonNullable<Awaited<ReturnType<typeof mergeOrganisation>>>
+    export type MergeOrganisationMutationBody = BodyType<MergePersonInput>
+    export type MergeOrganisationMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type MergeOrganisationMutationVariables = {slug: string;data: BodyType<MergePersonInput>}
+
+    /**
+ * @summary Merge another organisation into this one. Everything on it moves here and it is removed.
+ */
+export const useMergeOrganisation = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof mergeOrganisation>>, TError,MergeOrganisationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof mergeOrganisation>>,
+        TError,
+        MergeOrganisationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMergeOrganisationMutationOptions(options), queryClient);
     }
 
 export const getGetOrganisationUrl = (slug: string,) => {

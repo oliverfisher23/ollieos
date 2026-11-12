@@ -5,12 +5,16 @@ import { listPulses, pulseFor, setQuietDays } from "../services/clientPulse";
 import { addPoint, deletePoint, listPoints, POINT_CHARS, setPointRaised } from "../services/talkingPoints";
 import { z } from "zod";
 import { FACT_ATTRIBUTES } from "@workspace/db";
-import { BUSINESS_FUNCTIONS, CADENCES, PRODUCT_STATES, PRODUCT_USERS, PROJECT_LIFECYCLES, WORK_TYPES, isIsoDate } from "@workspace/shared";
+import { BUSINESS_FUNCTIONS, CADENCES, PRODUCT_STATES, PRODUCT_USERS, PROJECT_LIFECYCLES, WORK_TYPES, isIsoDate, TAG_MAX_CHARS, TAGS_MAX } from "@workspace/shared";
 import { createProduct, getProduct, listProducts, updateProduct } from "../services/products";
 import { suggestProductUsers } from "../services/productUsers";
 import { suggestProjectFunctions } from "../services/projectFunctions";
 import { CADENCE_TABS, listCadence } from "../services/cadence";
 import { importLinkedInConnections, lastLinkedInImport } from "../services/linkedinImport";
+import { addMissingContact, dismissMissingContact, listMissingContacts } from "../services/missingContacts";
+import { bulkUpdatePeople } from "../services/peopleBulk";
+import { setOrganisationDomains } from "../services/orgDomains";
+import { mergeOrganisations } from "../services/mergeOrganisations";
 import { clearDismissedCadenceSuggestions, dismissCadenceSuggestion, suggestCadences } from "../services/cadenceSuggestions";
 import { checkInDraft } from "../services/checkIn";
 import { handle } from "../lib/handle";
@@ -81,10 +85,13 @@ const PersonCreate = z
     relationshipSummary: shortText(20000),
     confidential: z.boolean().optional(),
     aiAccess: z.boolean().optional(),
+    phone: shortText(60),
+    tags: z.array(z.string().trim().min(1).max(TAG_MAX_CHARS)).max(TAGS_MAX).optional(),
   })
   .strict();
 const PersonUpdate = PersonCreate.partial()
   .extend({
+    archived: z.boolean().optional(),
     cadence: z.enum(CADENCES).optional(),
     cadencePaused: z.boolean().optional(),
     otherEmails: z.array(z.string().trim().email("That email address does not look right").max(320)).max(20).optional(),
@@ -94,6 +101,19 @@ const PersonUpdate = PersonCreate.partial()
   .strict();
 const MergeBody = z.object({ otherId: id }).strict();
 const NotSameBody = z.object({ aId: id, bId: id }).strict();
+const BulkPeopleBody = z
+  .object({
+    ids: z.array(id).min(1).max(500),
+    cadence: z.enum(CADENCES).optional(),
+    addTag: z.string().trim().min(1).max(TAG_MAX_CHARS).optional(),
+    removeTag: z.string().trim().min(1).max(TAG_MAX_CHARS).optional(),
+    organisationId: id.nullable().optional(),
+    archived: z.boolean().optional(),
+  })
+  .strict();
+const DomainsBody = z.object({ domains: z.array(z.string().max(200)).max(20) }).strict();
+const MissingAddBody = z.object({ email: z.string().trim().email().max(320), name: z.string().trim().min(1).max(200).optional() }).strict();
+const MissingDismissBody = z.object({ email: z.string().trim().email().max(320) }).strict();
 const SlackQuery = z.object({ q: z.string().max(100).default("") });
 const CadenceQuery = z.object({ tab: z.enum(CADENCE_TABS).optional() });
 const DismissSuggestionBody = z.object({ personId: id }).strict();
@@ -201,6 +221,17 @@ router.get("/settings/contact-finder", handle(async (_req, res) => void res.json
 router.put("/settings/contact-finder", handle(async (req, res) => void res.json(await setContactFinderSettings(z.object({ autoAdd: z.boolean() }).strict().parse(req.body ?? {})))));
 router.post("/contacts/find", handle(async (_req, res) => void res.json(await findContacts())));
 router.post("/contacts/:id/undo-auto-add", handle(async (req, res) => void res.json(await undoAutoAdded(z.object({ id: z.coerce.number().int().positive() }).parse(req.params).id))));
+router.get("/contacts/missing", handle(async (_req, res) => void res.json({ people: await listMissingContacts() })));
+router.post("/contacts/missing/add", handle(async (req, res) => void res.status(201).json(await addMissingContact(MissingAddBody.parse(req.body)))));
+router.post(
+  "/contacts/missing/dismiss",
+  handle(async (req, res) => {
+    await dismissMissingContact(MissingDismissBody.parse(req.body).email);
+    res.json({ ok: true });
+  }),
+);
+// Before /people/:slug so "bulk" is not read as a slug.
+router.post("/people/bulk", handle(async (req, res) => void res.json(await bulkUpdatePeople(BulkPeopleBody.parse(req.body)))));
 router.get("/contacts/linkedin-import", handle(async (_req, res) => void res.json({ last: await lastLinkedInImport() })));
 router.post("/contacts/linkedin-import", handle(async (req, res) => void res.json(await importLinkedInConnections(LinkedInImportBody.parse(req.body).csv))));
 router.get("/people/cadence-suggestions", handle(async (_req, res) => void res.json(await suggestCadences())));
@@ -309,6 +340,17 @@ router.patch(
   }),
 );
 router.post("/organisations", handle(async (req, res) => void res.status(201).json(await createOrganisation(OrganisationCreate.parse(req.body)))));
+router.put(
+  "/organisations/:slug/domains",
+  handle(async (req, res) => void res.json(await setOrganisationDomains(SlugParams.parse(req.params).slug, DomainsBody.parse(req.body).domains))),
+);
+router.post(
+  "/organisations/:slug/merge",
+  handle(async (req, res) => {
+    const keep = await getOrganisation(SlugParams.parse(req.params).slug);
+    res.json(await mergeOrganisations(keep.organisation.id, MergeBody.parse(req.body).otherId));
+  }),
+);
 router.get("/organisations/:slug", handle(async (req, res) => void res.json(await getOrganisation(SlugParams.parse(req.params).slug))));
 router.patch(
   "/organisations/:slug",

@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import {
+  bulkUpdatePeople,
   dismissCadenceSuggestion,
   restoreCadenceSuggestions,
   updatePerson,
@@ -20,9 +21,9 @@ import {
   type OrganisationListItem,
   type PersonListItem,
 } from '@workspace/api-client-react';
-import { CADENCES, CADENCE_LABELS, formatDayMonthShort, isClientOrgType } from '@workspace/shared';
+import { CADENCES, CADENCE_LABELS, isClientOrgType } from '@workspace/shared';
 import { Avatar, Skel } from '@/components/bits';
-import { IconRight, IconSearch } from '@/components/icons';
+import { IconMore, IconRight, IconSearch } from '@/components/icons';
 import { Dropdown } from '@/components/dropdown';
 import { ScrollRow } from '@/components/scroll-row';
 import { CreateDialog } from '@/components/knowledge/create-dialog';
@@ -31,11 +32,14 @@ import { CadencePill, CadenceSelect, CheckInDialog } from '@/components/cadence'
 import { PossibleDuplicates } from '@/components/knowledge/person-identity';
 import { LinkedInImportDialog } from '@/components/linkedin-import';
 import { AutoAddedMark } from '@/components/contact-finder';
+import { ContactNoteDialog, StrengthPill, contactDate, contactLinks } from '@/components/contact-bits';
+import { ContactPanel } from '@/components/contact-panel';
+import { MissingFromContacts } from '@/components/contact-missing';
 import { firstName, useKnowledgeWrite } from '@/lib/knowledge';
 
 type View = 'people' | 'organisations';
-type Filter = 'all' | 'keep' | 'overdue' | 'due' | 'clients' | 'colleagues' | 'no-org';
-type Sort = 'name' | 'recent' | 'overdue';
+type Filter = 'all' | 'keep' | 'overdue' | 'due' | 'clients' | 'colleagues' | 'no-org' | 'archive' | 'archived';
+type Sort = 'name' | 'recent' | 'overdue' | 'strength';
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -45,24 +49,33 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'clients', label: 'Clients and partners' },
   { id: 'colleagues', label: 'Colleagues' },
   { id: 'no-org', label: 'No organisation' },
+  { id: 'archive', label: 'Could archive' },
+  { id: 'archived', label: 'Archived' },
 ];
 
 const SORTS: { value: Sort; label: string }[] = [
   { value: 'name', label: 'Name' },
   { value: 'recent', label: 'Last contact' },
   { value: 'overdue', label: 'Most overdue' },
+  { value: 'strength', label: 'Strength' },
 ];
 
 /** Rows shown before "Show all", so a long list stays quick. */
 const PAGE = 100;
 const STATUS_ORDER: Record<string, number> = { overdue: 0, due_soon: 1, on_track: 2, paused: 3, none: 4 };
+const STRENGTH_ORDER: Record<string, number> = { strong: 0, warm: 1, cooling: 2, cold: 3 };
 
 const isClient = (p: PersonListItem) => !p.internal && isClientOrgType(p.organisationType);
 const needsCheckIn = (p: PersonListItem) => p.cadence.status === 'overdue' || p.cadence.status === 'due_soon';
 const plural = (n: number, one: string, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 
 function matchFilter(p: PersonListItem, f: Filter): boolean {
+  // Archived people are only in their own view.
+  if (f === 'archived') return p.archived;
+  if (p.archived) return false;
   switch (f) {
+    case 'archive':
+      return p.archiveCandidate;
     case 'keep':
       return p.cadence.cadence !== 'none';
     case 'overdue':
@@ -85,6 +98,7 @@ const time = (d: Date | string | null | undefined) => (d ? new Date(d).getTime()
 function sortPeople(list: PersonListItem[], sort: Sort): PersonListItem[] {
   const byName = (a: PersonListItem, b: PersonListItem) => a.name.localeCompare(b.name, 'en-GB');
   if (sort === 'recent') return [...list].sort((a, b) => time(b.lastContactAt) - time(a.lastContactAt) || byName(a, b));
+  if (sort === 'strength') return [...list].sort((a, b) => STRENGTH_ORDER[a.strength] - STRENGTH_ORDER[b.strength] || time(b.lastContactAt) - time(a.lastContactAt) || byName(a, b));
   if (sort === 'overdue') {
     return [...list].sort(
       (a, b) =>
@@ -112,6 +126,8 @@ export default function ContactsPage() {
   const [creating, setCreating] = useState<null | 'person' | 'organisation'>(null);
   const [drafting, setDrafting] = useState<PersonListItem | null>(null);
   const [importing, setImporting] = useState(false);
+  const [tag, setTag] = useState('');
+  const [openId, setOpenId] = useState<number | null>(null);
 
   const peopleQ = useListPeople();
   const orgsQ = useListOrganisations();
@@ -126,13 +142,24 @@ export default function ContactsPage() {
     navigate('/contacts' + (qs.size ? '?' + qs.toString() : ''), { replace: true });
   };
 
-  const people = useMemo(() => (peopleQ.data ?? []).filter((p) => !p.isSelf), [peopleQ.data]);
+  const everyone = useMemo(() => (peopleQ.data ?? []).filter((p) => !p.isSelf), [peopleQ.data]);
+  // Archived people only show in their own view.
+  const people = useMemo(() => everyone.filter((p) => !p.archived), [everyone]);
+  const allTags = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const p of everyone) for (const t of p.tags) if (!seen.has(t.toLowerCase())) seen.set(t.toLowerCase(), t);
+    return [...seen.values()].sort((a, b) => a.localeCompare(b, 'en-GB'));
+  }, [everyone]);
   const orgs = orgsQ.data ?? [];
   const q = text.trim().toLowerCase();
   const overdue = people.filter((p) => p.cadence.status === 'overdue').length;
+  const couldArchive = people.filter((p) => p.archiveCandidate).length;
+  // The quick view follows the list, so a change made in it shows straight away.
+  const open = openId != null ? (everyone.find((p) => p.id === openId) ?? null) : null;
   const attentionOrgs = (pulses.data ?? []).filter((p) => p.needsAttention);
 
   return (
+    <>
     <main className="oo-panel oo-kmain oo-fade-in" data-testid="page-contacts">
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
@@ -171,7 +198,14 @@ export default function ContactsPage() {
         <NeedsAttention people={people} orgs={attentionOrgs} onDraft={setDrafting} />
       )}
       {!q && view === 'people' && (filter === 'all' || filter === 'keep') && <Suggestions />}
+      {!q && view === 'people' && filter === 'all' && <MissingFromContacts />}
       {!q && view === 'people' && filter === 'all' && <PossibleDuplicates />}
+      {!q && view === 'people' && filter === 'all' && couldArchive > 0 && (
+        <p className="oo-muted" style={{ margin: 0, fontSize: 13 }} data-testid="text-could-archive">
+          {plural(couldArchive, 'person', 'people')} you have not spoken to in a year, with no project and nothing open.{' '}
+          <button type="button" className="oo-textbtn" onClick={() => setParams({ filter: 'archive' })} data-testid="button-review-archive">Review</button>
+        </p>
+      )}
 
       <ScrollRow className="-mx-4 px-4 sm:mx-0 sm:px-0" style={{ marginTop: -6 }}>
         <div role="tablist" aria-label="Contacts view" style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--oo-line)', minWidth: 'max-content' }}>
@@ -191,7 +225,20 @@ export default function ContactsPage() {
           ) : !peopleQ.data ? (
             <PageProblem notFound={false} what="list" onRetry={() => peopleQ.refetch()} back={{ href: '/', label: 'Home' }} />
           ) : (
-            <PeopleView people={people} filter={filter} sort={sort} q={q} onFilter={(f) => setParams({ filter: f })} onSort={setSort} onDraft={setDrafting} />
+            <PeopleView
+              people={everyone}
+              orgs={orgs}
+              filter={filter}
+              sort={sort}
+              tag={allTags.includes(tag) ? tag : ''}
+              allTags={allTags}
+              q={q}
+              onFilter={(f) => setParams({ filter: f })}
+              onSort={setSort}
+              onTag={setTag}
+              onOpen={(p) => setOpenId(p.id)}
+              onDraft={setDrafting}
+            />
           )
         ) : orgsQ.isLoading || peopleQ.isLoading ? (
           <Loading />
@@ -210,6 +257,8 @@ export default function ContactsPage() {
       {drafting && <CheckInDialog person={drafting} onClose={() => setDrafting(null)} />}
       {importing && <LinkedInImportDialog onClose={() => setImporting(false)} />}
     </main>
+    {open && <ContactPanel p={open} allTags={allTags} onClose={() => setOpenId(null)} onDraft={() => setDrafting(open)} />}
+    </>
   );
 }
 
@@ -351,48 +400,103 @@ function SuggestionRow({ s }: { s: CadenceSuggestion }) {
 
 /* ---------- People ---------- */
 
+/** Clicks on a control inside a row (a link, a button, a picker's list) are not a click on the row. */
+const onControl = (e: { target: EventTarget }) => !!(e.target as HTMLElement).closest('a, button, input, select, label, [role="option"], [cmdk-root], [role="dialog"]');
+
 function PeopleView({
   people,
+  orgs,
   filter,
   sort,
+  tag,
+  allTags,
   q,
   onFilter,
   onSort,
+  onTag,
+  onOpen,
   onDraft,
 }: {
   people: PersonListItem[];
+  orgs: OrganisationListItem[];
   filter: Filter;
   sort: Sort;
+  tag: string;
+  allTags: string[];
   q: string;
   onFilter: (f: Filter) => void;
   onSort: (s: Sort) => void;
+  onTag: (t: string) => void;
+  onOpen: (p: PersonListItem) => void;
   onDraft: (p: PersonListItem) => void;
 }) {
+  const write = useKnowledgeWrite();
   const [all, setAll] = useState(false);
-  useEffect(() => setAll(false), [filter, q]);
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const [noting, setNoting] = useState<{ kind: 'task' | 'point'; p: PersonListItem } | null>(null);
+  useEffect(() => {
+    setAll(false);
+    setPicked(new Set());
+  }, [filter, q, tag]);
   const counts = useMemo(() => Object.fromEntries(FILTERS.map((f) => [f.id, people.filter((p) => matchFilter(p, f.id)).length])) as Record<Filter, number>, [people]);
+  const tagKey = tag.toLowerCase();
   const list = sortPeople(
-    people.filter((p) => matchFilter(p, filter) && (!q || matchesText(q, p.name, p.role, p.organisation?.name))),
+    people.filter((p) => matchFilter(p, filter) && (!tag || p.tags.some((t) => t.toLowerCase() === tagKey)) && (!q || matchesText(q, p.name, p.role, p.organisation?.name, p.email, ...p.tags))),
     sort,
   );
   const shown = all ? list : list.slice(0, PAGE);
+  const pickedHere = shown.filter((p) => picked.has(p.id));
+  const allPicked = shown.length > 0 && pickedHere.length === shown.length;
+  const toggle = (id: number) =>
+    setPicked((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const archive = (p: PersonListItem) => void write(() => updatePerson(p.slug, { archived: !p.archived }), { done: p.archived ? `${firstName(p.name)} is back in Contacts` : `${firstName(p.name)} archived` });
+  const archiveAll = () => void write(() => bulkUpdatePeople({ ids: list.map((p) => p.id), archived: true }), { done: `${plural(list.length, 'person', 'people')} archived` });
+  // Chips for the two archive views appear only when there is someone in them.
+  const chips = FILTERS.filter((f) => (f.id !== 'archive' && f.id !== 'archived') || counts[f.id] > 0 || filter === f.id);
 
   return (
     <>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between', paddingTop: 12 }}>
         <div role="group" aria-label="Filter people" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {FILTERS.map((f) => (
+          {chips.map((f) => (
             <button key={f.id} type="button" className="oo-chip-toggle" aria-pressed={filter === f.id} onClick={() => onFilter(f.id)} data-testid={'filter-contacts-' + f.id}>
               {f.label} <span className="oo-num" style={{ fontSize: 12 }}>{counts[f.id]}</span>
             </button>
           ))}
         </div>
-        <Dropdown variant="compact" ariaLabel="Sort people" value={sort} onChange={(v) => onSort(v as Sort)} options={SORTS.map((s) => ({ value: s.value, label: `Sort: ${s.label}` }))} align="end" testId="select-contacts-sort" />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {allTags.length > 0 && (
+            <Dropdown
+              variant="compact"
+              ariaLabel="Filter by tag"
+              value={tag}
+              onChange={onTag}
+              options={[{ value: '', label: 'Tag: any' }, ...allTags.map((t) => ({ value: t, label: `Tag: ${t}` }))]}
+              align="end"
+              testId="select-contacts-tag"
+            />
+          )}
+          <Dropdown variant="compact" ariaLabel="Sort people" value={sort} onChange={(v) => onSort(v as Sort)} options={SORTS.map((s) => ({ value: s.value, label: `Sort: ${s.label}` }))} align="end" testId="select-contacts-sort" />
+        </div>
       </div>
+
+      {filter === 'archive' && list.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }} data-testid="banner-could-archive">
+          <p className="oo-muted" style={{ margin: 0, fontSize: 13, maxWidth: '64ch' }}>
+            No contact in a year (or none on file), no cadence, no active project and nothing open between you. Archiving takes someone out of this list; they come back by themselves if you are in touch again.
+          </p>
+          <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" onClick={archiveAll} data-testid="button-archive-all">Archive all {list.length}</button>
+        </div>
+      )}
 
       {!list.length ? (
         <p className="oo-muted" style={{ margin: 0, fontSize: 14, padding: '8px 0' }} data-testid="state-contacts-empty">
-          {q ? `Nobody matches "${q}".` : emptyFor(filter)}
+          {q ? `Nobody matches "${q}".` : tag ? `Nobody here has the tag ${tag}.` : emptyFor(filter)}
         </p>
       ) : (
         <>
@@ -400,26 +504,44 @@ function PeopleView({
             <table className="oo-table oo-table-light" data-testid="table-contacts">
               <thead>
                 <tr>
+                  <th scope="col" style={{ width: 32 }}>
+                    <input
+                      type="checkbox"
+                      className="oo-rv-select"
+                      checked={allPicked}
+                      onChange={() => setPicked(allPicked ? new Set() : new Set(shown.map((p) => p.id)))}
+                      aria-label="Select everyone shown"
+                      data-testid="checkbox-contacts-all"
+                    />
+                  </th>
                   <th scope="col">Person</th>
+                  <th scope="col">Strength</th>
                   <th scope="col">Last contact</th>
                   <th scope="col">Keep in touch</th>
                   <th scope="col">Status</th>
                   <th scope="col">Open</th>
-                  <th scope="col"><span className="oo-sr">Action</span></th>
+                  <th scope="col"><span className="oo-sr">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
                 {shown.map((p) => (
-                  <tr key={p.id} data-testid={'row-contact-' + p.slug}>
-                    <td><PersonCell p={p} /></td>
-                    <td data-testid={'text-last-contact-' + p.slug}>{p.lastContactAt ? formatDayMonthShort(p.lastContactAt) : <span className="oo-muted">None on file</span>}</td>
+                  <tr key={p.id} className="oo-contact-row" onClick={(e) => !onControl(e) && onOpen(p)} data-testid={'row-contact-' + p.slug}>
+                    <td>
+                      <input type="checkbox" className="oo-rv-select" checked={picked.has(p.id)} onChange={() => toggle(p.id)} aria-label={`Select ${p.name}`} data-testid={'checkbox-contact-' + p.slug} />
+                    </td>
+                    <td><PersonCell p={p} onOpen={() => onOpen(p)} /></td>
+                    <td><StrengthPill strength={p.strength} testId={'pill-strength-' + p.slug} /></td>
+                    <td data-testid={'text-last-contact-' + p.slug}>{p.lastContactAt ? contactDate(p.lastContactAt) : <span className="oo-muted">None on file</span>}</td>
                     <td><CadenceSelect personSlug={p.slug} name={p.name} value={p.cadence.cadence} label="Cadence" testId={'select-cadence-' + p.slug} /></td>
                     <td>{p.cadence.cadence === 'none' ? <span className="oo-muted">–</span> : <CadencePill c={p.cadence} testId={'pill-cadence-' + p.slug} />}</td>
                     <td><Owes p={p} /></td>
-                    <td style={{ textAlign: 'right' }}>
-                      {needsCheckIn(p) && (
-                        <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" onClick={() => onDraft(p)} data-testid={'button-row-checkin-' + p.slug}>Check in</button>
-                      )}
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                        {needsCheckIn(p) && (
+                          <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" onClick={() => onDraft(p)} data-testid={'button-row-checkin-' + p.slug}>Check in</button>
+                        )}
+                        <RowMenu p={p} onDraft={() => onDraft(p)} onNote={(kind) => setNoting({ kind, p })} onArchive={() => archive(p)} />
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -430,10 +552,14 @@ function PeopleView({
             {shown.map((p) => (
               <div key={p.id} className="oo-card-row" style={{ flexDirection: 'column', alignItems: 'stretch' }} data-testid={'card-contact-' + p.slug}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                  <PersonCell p={p} />
-                  {p.cadence.cadence !== 'none' && <CadencePill c={p.cadence} />}
+                  <PersonCell p={p} onOpen={() => onOpen(p)} />
+                  <RowMenu p={p} onDraft={() => onDraft(p)} onNote={(kind) => setNoting({ kind, p })} onArchive={() => archive(p)} />
                 </div>
-                <span className="oo-muted" style={{ fontSize: 13 }}>{p.lastContactAt ? `Last contact ${formatDayMonthShort(p.lastContactAt)}` : 'No contact on file'}</span>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <StrengthPill strength={p.strength} />
+                  {p.cadence.cadence !== 'none' && <CadencePill c={p.cadence} />}
+                  <span className="oo-muted" style={{ fontSize: 13 }}>{p.lastContactAt ? `Last contact ${contactDate(p.lastContactAt)}` : 'No contact on file'}</span>
+                </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <CadenceSelect personSlug={p.slug} name={p.name} value={p.cadence.cadence} label="Cadence" testId={'select-cadence-card-' + p.slug} />
                   {(p.iOweCount > 0 || p.theyOweCount > 0) && <Owes p={p} />}
@@ -449,7 +575,98 @@ function PeopleView({
           )}
         </>
       )}
+
+      {pickedHere.length > 0 && <BulkBar people={pickedHere} orgs={orgs} allTags={allTags} archivedView={filter === 'archived'} onDone={() => setPicked(new Set())} />}
+      {noting && <ContactNoteDialog kind={noting.kind} person={noting.p} onClose={() => setNoting(null)} />}
     </>
+  );
+}
+
+/** The ⋯ menu on a row: email, Slack and LinkedIn open in their own apps; the rest happen here. */
+function RowMenu({ p, onDraft, onNote, onArchive }: { p: PersonListItem; onDraft: () => void; onNote: (kind: 'task' | 'point') => void; onArchive: () => void }) {
+  const [, navigate] = useLocation();
+  const l = contactLinks(p);
+  const options = [
+    l.email && { value: 'email', label: 'Email' },
+    l.slack && { value: 'slack', label: 'Message on Slack' },
+    l.linkedin && { value: 'linkedin', label: 'Open LinkedIn' },
+    l.phone && { value: 'phone', label: `Call ${p.phone}` },
+    { value: 'point', label: 'Add a talking point' },
+    { value: 'task', label: 'Add a task' },
+    needsCheckIn(p) && { value: 'checkin', label: 'Draft a check-in' },
+    { value: 'page', label: 'Open full page' },
+    { value: 'archive', label: p.archived ? 'Bring back from the archive' : 'Archive' },
+  ].filter((o): o is { value: string; label: string } => !!o);
+  const act = (v: string) => {
+    if (v === 'email' && l.email) window.location.href = l.email;
+    else if (v === 'phone' && l.phone) window.location.href = l.phone;
+    else if (v === 'slack' && l.slack) window.open(l.slack, '_blank', 'noopener');
+    else if (v === 'linkedin' && l.linkedin) window.open(l.linkedin, '_blank', 'noopener');
+    else if (v === 'point' || v === 'task') onNote(v);
+    else if (v === 'checkin') onDraft();
+    else if (v === 'page') navigate('/knowledge/people/' + p.slug);
+    else if (v === 'archive') onArchive();
+  };
+  return <Dropdown variant="bare" ariaLabel={`Actions for ${p.name}`} value="" onChange={act} options={options} searchable={false} align="end" trigger={<span style={{ display: 'inline-flex', flex: 'none' }}><IconMore size={18} /></span>} style={{ color: 'var(--oo-ink-soft)' }} testId={'menu-contact-' + p.slug} />;
+}
+
+/** One change to everyone selected. */
+function BulkBar({ people, orgs, allTags, archivedView, onDone }: { people: PersonListItem[]; orgs: OrganisationListItem[]; allTags: string[]; archivedView: boolean; onDone: () => void }) {
+  const write = useKnowledgeWrite();
+  const [tag, setTag] = useState('');
+  const [busy, setBusy] = useState(false);
+  const ids = people.map((p) => p.id);
+  const n = plural(ids.length, 'person', 'people');
+  const run = async (patch: Omit<Parameters<typeof bulkUpdatePeople>[0], 'ids'>, done: string, clear = false) => {
+    setBusy(true);
+    const r = await write(() => bulkUpdatePeople({ ids, ...patch }), { done });
+    setBusy(false);
+    if (r && clear) onDone();
+  };
+  return (
+    <div className="oo-bulk-bar" role="region" aria-label="Change the selected people" data-testid="bar-contacts-bulk">
+      <span className="oo-num" style={{ fontSize: 14, fontWeight: 600 }} data-testid="text-contacts-selected">{ids.length} selected</span>
+      <Dropdown
+        variant="compact"
+        ariaLabel="Set a cadence for the selected people"
+        value=""
+        placeholder="Set cadence"
+        disabled={busy}
+        onChange={(v) => void run({ cadence: v as Cadence }, `Cadence set for ${n}`)}
+        options={CADENCES.map((c) => ({ value: c, label: CADENCE_LABELS[c] }))}
+        testId="select-bulk-cadence"
+      />
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const t = tag.trim();
+          if (!t) return;
+          setTag('');
+          void run({ addTag: t }, `${t} added to ${n}`);
+        }}
+        style={{ display: 'inline-flex', gap: 6 }}
+      >
+        <label className="oo-sr" htmlFor="bulk-tag">Tag to add to the selected people</label>
+        <input id="bulk-tag" className="oo-input oo-input-sm" style={{ width: 130 }} list="bulk-tags" maxLength={40} placeholder="Add a tag" value={tag} onChange={(e) => setTag(e.target.value)} disabled={busy} data-testid="input-bulk-tag" />
+        <datalist id="bulk-tags">{allTags.map((t) => <option key={t} value={t} />)}</datalist>
+        <button type="submit" className="oo-btn oo-btn-outline oo-btn-sm" disabled={busy || !tag.trim()} data-testid="button-bulk-tag">Tag</button>
+      </form>
+      <Dropdown
+        variant="compact"
+        ariaLabel="Set the organisation for the selected people"
+        value=""
+        placeholder="Set organisation"
+        searchPlaceholder="Search organisations"
+        disabled={busy}
+        onChange={(v) => void run({ organisationId: v === 'none' ? null : Number(v) }, `Organisation set for ${n}`)}
+        options={[{ value: 'none', label: 'No organisation' }, ...orgs.map((o) => ({ value: String(o.id), label: o.name, hint: o.type ?? undefined }))]}
+        testId="select-bulk-organisation"
+      />
+      <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" disabled={busy} onClick={() => void run({ archived: !archivedView }, archivedView ? `${n} back in Contacts` : `${n} archived`, true)} data-testid="button-bulk-archive">
+        {archivedView ? 'Bring back' : 'Archive'}
+      </button>
+      <button type="button" className="oo-textbtn" onClick={onDone} data-testid="button-bulk-clear">Clear</button>
+    </div>
   );
 }
 
@@ -467,20 +684,30 @@ function emptyFor(f: Filter): string {
       return 'No colleagues yet. Mark your own company as internal on its organisation page.';
     case 'no-org':
       return 'Everyone has an organisation.';
+    case 'archive':
+      return 'Nobody to archive: everyone here is someone you have spoken to in the last year, or has something open.';
+    case 'archived':
+      return 'Nobody is archived.';
     default:
       return 'Nobody here yet. People are added from email, meetings and Slack, or with New person.';
   }
 }
 
-function PersonCell({ p }: { p: PersonListItem }) {
+function PersonCell({ p, onOpen }: { p: PersonListItem; onOpen?: () => void }) {
   return (
     <span style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
       <Avatar name={p.name} id={p.id} size={32} />
       <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Link href={'/knowledge/people/' + p.slug} className="oo-krow-link" style={{ fontWeight: 500 }} data-testid={'link-contact-' + p.slug}>{p.name}</Link>
+          {onOpen ? (
+            <button type="button" className="oo-contact-name oo-tap" onClick={onOpen} data-testid={'button-open-contact-' + p.slug}>{p.name}</button>
+          ) : (
+            <Link href={'/knowledge/people/' + p.slug} className="oo-krow-link" style={{ fontWeight: 500 }} data-testid={'link-contact-' + p.slug}>{p.name}</Link>
+          )}
           {p.confidential ? <LockMark /> : !p.aiAccess && <HiddenFromAi confidential={false} />}
           {p.internal && <span className="oo-pill" data-tone="internal" data-testid={'pill-internal-' + p.slug}>Internal</span>}
+          {p.tags.slice(0, 3).map((t) => <span key={t} className="oo-tag">{t}</span>)}
+          {p.tags.length > 3 && <span className="oo-muted" style={{ fontSize: 12 }}>+{p.tags.length - 3}</span>}
           <AutoAddedMark p={p} />
         </span>
         {(p.organisation || p.role) && <span className="oo-muted" style={{ fontSize: 13 }}>{[p.organisation?.name, p.role].filter(Boolean).join(' · ')}</span>}
@@ -603,7 +830,7 @@ function OrgRow({ o, people, pulse, openByDefault, onDraft }: { o: OrganisationL
         </span>
         <span style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', fontSize: 13 }} className="oo-muted">
           {pulse && <span className="oo-pill" data-tone="waiting" title={pulse.reasons.join(' · ')}>Needs attention</span>}
-          <span>{o.lastContactAt ? `Last contact ${formatDayMonthShort(o.lastContactAt)}` : 'No contact on file'}</span>
+          <span>{o.lastContactAt ? `Last contact ${contactDate(o.lastContactAt)}` : 'No contact on file'}</span>
         </span>
       </div>
       {open && (

@@ -81,6 +81,7 @@ const ROUTES: RouteCheck[] = [
   { pattern: "/tasks", url: "/tasks?tab=backlog" },
   { pattern: "/tasks", url: (s) => (s.task ? "/tasks?task=" + s.task : null) },
   { pattern: "/review", url: "/review" },
+  { pattern: "/duplicates", url: "/duplicates" },
   { pattern: "/voice", url: "/voice" },
   { pattern: "/messages", url: "/messages" },
   { pattern: "/messages", url: "/messages?tab=drafts" },
@@ -104,6 +105,9 @@ const ROUTES: RouteCheck[] = [
   { pattern: "/knowledge/sessions", url: "/knowledge/sessions" },
   { pattern: "/knowledge/map", url: "/knowledge/map" },
   { pattern: "/meetings", url: "/meetings" },
+  // A meeting page shows its prep, so it is skipped with the brief pages.
+  { pattern: "/meetings/:eventId", url: (s) => (INCLUDE_BRIEFS && s.event ? "/meetings/" + s.event : null) },
+  { pattern: "/digest/friday", url: "/digest/friday" },
   { pattern: "/briefs/next", url: () => (INCLUDE_BRIEFS ? "/briefs/next" : null) },
   { pattern: "/briefs/:eventId", url: (s) => (INCLUDE_BRIEFS && s.event ? "/briefs/" + s.event : null) },
   { pattern: "/digest", url: "/digest" },

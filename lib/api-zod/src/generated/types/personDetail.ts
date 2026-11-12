@@ -6,15 +6,20 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Fact } from './fact';
+import type { Introduction } from './introduction';
 import type { LinkedEntity } from './linkedEntity';
 import type { Note } from './note';
 import type { Person } from './person';
 import type { PersonCadence } from './personCadence';
+import type { Strength } from './strength';
 import type { Task } from './task';
 import type { TimelineItem } from './timelineItem';
 
 export interface PersonDetail {
   person: Person;
+  strength: Strength;
+  /** People Ollie knows well who could introduce him; empty when he already knows this person well */
+  introductions: Introduction[];
   cadence: PersonCadence;
   iOwe: Task[];
   theyOwe: Task[];

@@ -5722,7 +5722,15 @@ export const ListPeopleResponseItem = zod.object({
   "cadenceLabel": zod.string(),
   "cadencePaused": zod.boolean(),
   "pausedByProjects": zod.boolean().describe('True when every linked project is paused or complete')
-})
+}),
+  "email": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "linkedinUrl": zod.string().nullable(),
+  "slackUserId": zod.string().nullable(),
+  "tags": zod.array(zod.string()),
+  "archived": zod.boolean().describe('Moved out of the main Contacts list'),
+  "strength": zod.enum(['strong', 'warm', 'cooling', 'cold']).describe('How strong the relationship looks from how often and how recently Ollie is in touch'),
+  "archiveCandidate": zod.boolean().describe('Not spoken to in a year, no cadence, no active project and nothing open')
 })
 export const ListPeopleResponse = zod.array(ListPeopleResponseItem)
 
@@ -5731,6 +5739,12 @@ export const ListPeopleResponse = zod.array(ListPeopleResponseItem)
  * @summary New person
  */
 export const createPersonBodyNameMax = 200;
+
+export const createPersonBodyPhoneMax = 60;
+
+export const createPersonBodyTagsItemMax = 40;
+
+export const createPersonBodyTagsMax = 20;
 
 
 
@@ -5741,7 +5755,9 @@ export const CreatePersonBody = zod.object({
   "email": zod.string().nullish(),
   "relationshipSummary": zod.string().nullish(),
   "confidential": zod.boolean().optional(),
-  "aiAccess": zod.boolean().optional()
+  "aiAccess": zod.boolean().optional(),
+  "phone": zod.string().max(createPersonBodyPhoneMax).nullish(),
+  "tags": zod.array(zod.string().max(createPersonBodyTagsItemMax)).max(createPersonBodyTagsMax).optional()
 })
 
 export const CreatePersonResponse = zod.object({
@@ -5766,6 +5782,9 @@ export const CreatePersonResponse = zod.object({
   "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
   "slackUserId": zod.string().nullable().describe('Their Slack account'),
   "linkedinUrl": zod.string().nullable().describe('Their LinkedIn profile link'),
+  "phone": zod.string().nullable(),
+  "tags": zod.array(zod.string()).describe('Groups Ollie defines'),
+  "archived": zod.boolean().describe('Moved out of the main Contacts list'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -5801,9 +5820,25 @@ export const GetPersonResponse = zod.object({
   "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
   "slackUserId": zod.string().nullable().describe('Their Slack account'),
   "linkedinUrl": zod.string().nullable().describe('Their LinkedIn profile link'),
+  "phone": zod.string().nullable(),
+  "tags": zod.array(zod.string()).describe('Groups Ollie defines'),
+  "archived": zod.boolean().describe('Moved out of the main Contacts list'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 }),
+  "strength": zod.enum(['strong', 'warm', 'cooling', 'cold']).describe('How strong the relationship looks from how often and how recently Ollie is in touch'),
+  "introductions": zod.array(zod.object({
+  "via": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.string().nullable(),
+  "organisation": zod.string().nullable(),
+  "strength": zod.enum(['strong', 'warm', 'cooling', 'cold']).describe('How strong the relationship looks from how often and how recently Ollie is in touch')
+}),
+  "how": zod.string().describe('How they connect, read from the introducer: works with Anna Clarke'),
+  "kind": zod.enum(['direct', 'organisation', 'second'])
+})).describe('People Ollie knows well who could introduce him; empty when he already knows this person well'),
   "cadence": zod.object({
   "status": zod.enum(['overdue', 'due_soon', 'on_track', 'paused', 'none']),
   "daysSince": zod.int().nullable().describe('Whole days since the last contact; null when there is none on file'),
@@ -6071,6 +6106,12 @@ export const updatePersonBodyOtherEmailsMax = 20;
 
 export const updatePersonBodyLinkedinUrlMax = 300;
 
+export const updatePersonBodyPhoneMax = 60;
+
+export const updatePersonBodyTagsItemMax = 40;
+
+export const updatePersonBodyTagsMax = 20;
+
 
 
 export const UpdatePersonBody = zod.object({
@@ -6085,7 +6126,10 @@ export const UpdatePersonBody = zod.object({
   "cadencePaused": zod.boolean().optional(),
   "otherEmails": zod.array(zod.string().max(updatePersonBodyOtherEmailsItemMax)).max(updatePersonBodyOtherEmailsMax).optional().describe('Replaces the list of other addresses'),
   "slackUserId": zod.string().nullish().describe('Their Slack account id'),
-  "linkedinUrl": zod.string().max(updatePersonBodyLinkedinUrlMax).nullish().describe('Their LinkedIn profile link')
+  "linkedinUrl": zod.string().max(updatePersonBodyLinkedinUrlMax).nullish().describe('Their LinkedIn profile link'),
+  "phone": zod.string().max(updatePersonBodyPhoneMax).nullish(),
+  "tags": zod.array(zod.string().max(updatePersonBodyTagsItemMax)).max(updatePersonBodyTagsMax).optional().describe('Replaces their tags'),
+  "archived": zod.boolean().optional().describe('Out of the main Contacts list; archiving clears the cadence')
 })
 
 export const UpdatePersonResponse = zod.object({
@@ -6110,6 +6154,9 @@ export const UpdatePersonResponse = zod.object({
   "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
   "slackUserId": zod.string().nullable().describe('Their Slack account'),
   "linkedinUrl": zod.string().nullable().describe('Their LinkedIn profile link'),
+  "phone": zod.string().nullable(),
+  "tags": zod.array(zod.string()).describe('Groups Ollie defines'),
+  "archived": zod.boolean().describe('Moved out of the main Contacts list'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
@@ -6245,6 +6292,104 @@ export const DismissCadenceSuggestionResponse = zod.object({
  * @summary Bring back everyone hidden from the suggestions with Not now
  */
 export const RestoreCadenceSuggestionsResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
+ * @summary One change to several people at once (a cadence, a tag, an organisation, or archive)
+ */
+export const bulkUpdatePeopleBodyIdsMax = 500;
+
+export const bulkUpdatePeopleBodyAddTagMax = 40;
+
+export const bulkUpdatePeopleBodyRemoveTagMax = 40;
+
+
+
+export const BulkUpdatePeopleBody = zod.object({
+  "ids": zod.array(zod.int()).min(1).max(bulkUpdatePeopleBodyIdsMax),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']).optional(),
+  "addTag": zod.string().max(bulkUpdatePeopleBodyAddTagMax).optional(),
+  "removeTag": zod.string().max(bulkUpdatePeopleBodyRemoveTagMax).optional(),
+  "organisationId": zod.int().nullish(),
+  "archived": zod.boolean().optional()
+})
+
+export const BulkUpdatePeopleResponse = zod.object({
+  "updated": zod.int()
+})
+
+
+/**
+ * @summary People on two or more work meetings in the calendar who are not in Contacts
+ */
+export const ListMissingContactsResponse = zod.object({
+  "people": zod.array(zod.object({
+  "email": zod.string(),
+  "name": zod.string(),
+  "meetings": zod.int().describe('Work meetings in the calendar with them'),
+  "lastMetAt": zod.coerce.date().nullable(),
+  "nextMeetingAt": zod.coerce.date().nullable(),
+  "titles": zod.array(zod.string()),
+  "organisation": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),zod.null()])
+}))
+})
+
+
+/**
+ * @summary Add someone from the calendar to Contacts and link their meetings to them
+ */
+export const addMissingContactBodyNameMax = 200;
+
+
+
+export const AddMissingContactBody = zod.object({
+  "email": zod.string(),
+  "name": zod.string().max(addMissingContactBodyNameMax).optional()
+})
+
+export const AddMissingContactResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "role": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "relationshipSummary": zod.string().nullable(),
+  "confidential": zod.boolean(),
+  "aiAccess": zod.boolean(),
+  "lastContactAt": zod.coerce.date().nullable(),
+  "organisation": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "cadence": zod.enum(['none', 'weekly', 'fortnightly', 'monthly', 'two_monthly', 'quarterly']),
+  "cadencePaused": zod.boolean(),
+  "isSelf": zod.boolean().describe('Ollie\'s own record'),
+  "otherEmails": zod.array(zod.string()).describe('Other addresses they use, in lower case'),
+  "slackUserId": zod.string().nullable().describe('Their Slack account'),
+  "linkedinUrl": zod.string().nullable().describe('Their LinkedIn profile link'),
+  "phone": zod.string().nullable(),
+  "tags": zod.array(zod.string()).describe('Groups Ollie defines'),
+  "archived": zod.boolean().describe('Moved out of the main Contacts list'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Not now; stop listing this person as missing
+ */
+export const DismissMissingContactBody = zod.object({
+  "email": zod.string()
+})
+
+export const DismissMissingContactResponse = zod.object({
   "ok": zod.boolean()
 })
 
@@ -9981,10 +10126,66 @@ export const CreateOrganisationResponse = zod.object({
   "type": zod.string().nullable(),
   "internal": zod.boolean().describe('Ollie\'s own company rather than a client'),
   "summary": zod.string().nullable(),
+  "domains": zod.array(zod.string()).describe('Email domains that belong to it (acme.com); new people there are placed under it'),
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Set the email domains that belong to an organisation; people with no organisation who write from them are placed under it
+ */
+export const SetOrganisationDomainsParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const setOrganisationDomainsBodyDomainsMax = 20;
+
+
+
+export const SetOrganisationDomainsBody = zod.object({
+  "domains": zod.array(zod.string()).max(setOrganisationDomainsBodyDomainsMax)
+})
+
+export const SetOrganisationDomainsResponse = zod.object({
+  "domains": zod.array(zod.string()),
+  "placed": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+})).describe('People with no organisation who write from these domains, now placed here')
+})
+
+
+/**
+ * @summary Merge another organisation into this one. Everything on it moves here and it is removed.
+ */
+export const MergeOrganisationParams = zod.object({
+  "slug": zod.coerce.string()
+})
+
+export const MergeOrganisationBody = zod.object({
+  "otherId": zod.int().describe('The person to merge into this one and remove')
+})
+
+export const MergeOrganisationResponse = zod.object({
+  "kept": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}),
+  "removed": zod.object({
+  "id": zod.int(),
+  "name": zod.string()
+}),
+  "moved": zod.object({
+  "people": zod.int(),
+  "facts": zod.int(),
+  "notes": zod.int(),
+  "links": zod.int()
+})
 })
 
 
@@ -9996,6 +10197,10 @@ export const GetOrganisationParams = zod.object({
 })
 
 export const GetOrganisationResponse = zod.object({
+  "reportsTo": zod.array(zod.object({
+  "personId": zod.int(),
+  "managerId": zod.int()
+})).describe('Who reports to whom among the people who work here'),
   "playbooks": zod.array(zod.object({
   "id": zod.int(),
   "title": zod.string(),
@@ -10103,6 +10308,7 @@ export const GetOrganisationResponse = zod.object({
   "type": zod.string().nullable(),
   "internal": zod.boolean().describe('Ollie\'s own company rather than a client'),
   "summary": zod.string().nullable(),
+  "domains": zod.array(zod.string()).describe('Email domains that belong to it (acme.com); new people there are placed under it'),
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
   "createdAt": zod.coerce.date(),
@@ -10204,6 +10410,7 @@ export const UpdateOrganisationResponse = zod.object({
   "type": zod.string().nullable(),
   "internal": zod.boolean().describe('Ollie\'s own company rather than a client'),
   "summary": zod.string().nullable(),
+  "domains": zod.array(zod.string()).describe('Email domains that belong to it (acme.com); new people there are placed under it'),
   "confidential": zod.boolean(),
   "aiAccess": zod.boolean(),
   "createdAt": zod.coerce.date(),

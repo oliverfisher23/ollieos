@@ -16,6 +16,8 @@ export interface Organisation {
   internal: boolean;
   /** @nullable */
   summary: string | null;
+  /** Email domains that belong to it (acme.com); new people there are placed under it */
+  domains: string[];
   confidential: boolean;
   aiAccess: boolean;
   createdAt: Date;

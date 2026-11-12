@@ -99,6 +99,12 @@ export const peopleTable = pgTable(
     slackUserId: text("slack_user_id"),
     /** Their LinkedIn profile, from Ollie or the LinkedIn connections import */
     linkedinUrl: text("linkedin_url"),
+    /** Their phone number, as Ollie typed it or as an email signature gave it */
+    phone: text("phone"),
+    /** Groups Ollie defines ("Investors", "Advisors"); free text, matched without case */
+    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+    /** Moved out of the main Contacts list. Archiving clears the cadence; new contact brings them back. */
+    archived: boolean("archived").notNull().default(false),
     relationshipSummary: text("relationship_summary"),
     confidential: boolean("confidential").notNull().default(false),
     aiAccess: boolean("ai_access").notNull().default(true),

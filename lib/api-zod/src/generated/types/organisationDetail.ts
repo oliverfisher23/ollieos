@@ -11,11 +11,14 @@ import type { LinkedEntity } from './linkedEntity';
 import type { LinkedProduct } from './linkedProduct';
 import type { Note } from './note';
 import type { Organisation } from './organisation';
+import type { OrganisationDetailReportsToItem } from './organisationDetailReportsToItem';
 import type { PersonChip } from './personChip';
 import type { Playbook } from './playbook';
 import type { TimelineItem } from './timelineItem';
 
 export interface OrganisationDetail {
+  /** Who reports to whom among the people who work here */
+  reportsTo: OrganisationDetailReportsToItem[];
   playbooks: Playbook[];
   products: LinkedProduct[];
   research: CompanyResearch[];

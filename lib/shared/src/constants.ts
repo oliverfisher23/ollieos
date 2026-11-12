@@ -256,3 +256,52 @@ export const WORK_TYPES = ["client", "internal"] as const;
 export type WorkType = (typeof WORK_TYPES)[number];
 export const WORK_TYPE_LABELS: Record<WorkType, string> = { client: "Client work", internal: "Internal" };
 export const isWorkType = (v: unknown): v is WorkType => v === "client" || v === "internal";
+
+/** How strong a relationship looks from contact alone, for everyone, cadence or not. */
+export const STRENGTHS = ["strong", "warm", "cooling", "cold"] as const;
+export type Strength = (typeof STRENGTHS)[number];
+export const STRENGTH_LABELS: Record<Strength, string> = { strong: "Strong", warm: "Warm", cooling: "Cooling", cold: "Cold" };
+/** Contact days are counted over this many days. */
+export const STRENGTH_WINDOW_DAYS = 120;
+
+/**
+ * Strong: in touch on six or more days in the last four months, and within the last 30 days.
+ * Warm: in touch within 14 days, or on two or more days and within 45 days.
+ * Cooling: some contact in the last four months. Cold: none in four months, or none on file.
+ */
+export function relationshipStrength(input: { daysSince: number | null; contactDays: number }): Strength {
+  const { daysSince, contactDays } = input;
+  if (daysSince == null || daysSince > STRENGTH_WINDOW_DAYS) return "cold";
+  if (daysSince <= 30 && contactDays >= 6) return "strong";
+  if (daysSince <= 14 || (daysSince <= 45 && contactDays >= 2)) return "warm";
+  return "cooling";
+}
+
+/** Tags on people: short, no repeats (ignoring case), first spelling wins. */
+export const TAG_MAX_CHARS = 40;
+export const TAGS_MAX = 20;
+export function cleanTags(list: readonly string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of list) {
+    const t = raw.replace(/\s+/g, " ").trim().slice(0, TAG_MAX_CHARS);
+    const k = t.toLowerCase();
+    if (!t || seen.has(k)) continue;
+    seen.add(k);
+    out.push(t);
+    if (out.length >= TAGS_MAX) break;
+  }
+  return out;
+}
+
+/** An email domain in one form ("@Acme.com", "https://www.acme.com/x" and "acme.com" are all acme.com); null when it is not one. */
+export function cleanEmailDomain(raw: string | null | undefined): string | null {
+  const s = (raw ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^[a-z]+:\/\//, "")
+    .replace(/^.*@/, "")
+    .replace(/^www\./, "")
+    .replace(/[/?#].*$/, "");
+  return /^[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(s) ? s : null;
+}
