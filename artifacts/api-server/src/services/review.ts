@@ -28,6 +28,8 @@ export interface ReviewItemView {
   id: number;
   kind: ReviewItem["kind"];
   state: ReviewItem["state"];
+  /** Where it came from: a meeting's notes, an email Ollie sent, or a Slack message he sent */
+  via: "meeting" | "email" | "slack";
   text: string;
   action: string | null;
   quote: string | null;
@@ -56,6 +58,8 @@ export interface ReviewItemView {
 export const expectedByOf = (r: Pick<ReviewItem, "kind" | "expectedBy" | "meetingAt">): string | null =>
   r.kind === "no_reply" ? (r.expectedBy ?? expectedByDate(r.meetingAt)) : null;
 
+const viaOf = (r: Pick<ReviewItem, "kind" | "sourceRef">): ReviewItemView["via"] => (r.kind !== "no_reply" ? "meeting" : r.sourceRef.startsWith("slack:") ? "slack" : "email");
+
 async function toViews(rows: ReviewItem[], now = new Date()): Promise<ReviewItemView[]> {
   const today = todayLondon(now);
   if (!rows.length) return [];
@@ -75,6 +79,7 @@ async function toViews(rows: ReviewItem[], now = new Date()): Promise<ReviewItem
     id: r.id,
     kind: r.kind,
     state: r.state,
+    via: viaOf(r),
     text: r.text,
     action: r.action,
     quote: r.quote,
@@ -145,7 +150,8 @@ async function chase(item: ReviewItem, choice: ReviewChoice, now: Date): Promise
       status: "waiting",
       priority: item.priority,
       dueDate: item.dueDate,
-      source: "email",
+      source: viaOf(item) === "slack" ? "slack" : "email",
+      sourceChannel: viaOf(item) === "slack" ? item.owner : null,
       // Its own ref, so it never clashes with a task the regular Gmail check made from the same email.
       sourceRef: `${item.sourceRef}#chase`,
       sourceUrl: item.sourceUrl,

@@ -14,9 +14,10 @@ import {
   type ReviewDecideInputAction,
   type ReviewItem,
 } from '@workspace/api-client-react';
-import { addDays, formatLong, formatShort, todayLondon, weekday } from '@workspace/shared';
+import { formatLong, formatShort, todayLondon } from '@workspace/shared';
 import { Skel } from '@/components/bits';
-import { Dropdown, type DropdownOption } from '@/components/dropdown';
+import { Dropdown } from '@/components/dropdown';
+import { dayChoices } from '@/components/later-picker';
 import { PageProblem } from '@/components/knowledge/parts';
 import { ReplyDraftCard } from '@/components/reply-draft';
 import { NOBODY, OWN, WaitingPicker } from '@/components/waiting-picker';
@@ -34,9 +35,9 @@ const BUTTONS: { action: Action; label: string; testId: string }[] = [
 ];
 
 function doneLine(action: Action, count: number): string {
-  if (action === 'waiting') return count === 1 ? 'Added to Waiting on' : `${n(count, 'email')} added to Waiting on`;
-  if (action === 'done') return count === 1 ? 'Marked as handled' : `${n(count, 'email')} marked as handled`;
-  return count === 1 ? 'Dropped' : `${n(count, 'email')} dropped`;
+  if (action === 'waiting') return count === 1 ? 'Added to Waiting on' : `${n(count, 'message')} added to Waiting on`;
+  if (action === 'done') return count === 1 ? 'Marked as handled' : `${n(count, 'message')} marked as handled`;
+  return count === 1 ? 'Dropped' : `${n(count, 'message')} dropped`;
 }
 
 const DAY = 86_400_000;
@@ -182,33 +183,6 @@ interface Chased {
   name: string;
 }
 
-/** Working days on from a date, skipping weekends. */
-function workingDaysOn(date: string, days: number): string {
-  let d = date;
-  let counted = 0;
-  while (counted < days) {
-    d = addDays(d, 1);
-    const w = weekday(d);
-    if (w !== 0 && w !== 6) counted++;
-  }
-  return d;
-}
-
-/** Quick choices for Change date, without repeats when two land on the same day. */
-function expectedChoices(today: string): DropdownOption[] {
-  const dow = weekday(today);
-  const toMonday = (1 - dow + 7) % 7 || 7;
-  const raw = [
-    { label: 'Tomorrow', date: addDays(today, 1) },
-    { label: 'In 3 working days', date: workingDaysOn(today, 3) },
-    { label: 'Next Monday', date: addDays(today, toMonday) },
-    { label: 'In a week', date: addDays(today, 7) },
-    { label: 'In 2 weeks', date: addDays(today, 14) },
-  ];
-  const seen = new Set<string>();
-  return raw.filter((r) => !seen.has(r.date) && seen.add(r.date)).map((r) => ({ value: r.date, label: r.label, hint: formatShort(r.date) }));
-}
-
 /** "Change date": the day a reply is expected by, when it turns due. */
 function ChangeDate({ it }: { it: ReviewItem }) {
   const qc = useQueryClient();
@@ -235,7 +209,7 @@ function ChangeDate({ it }: { it: ReviewItem }) {
       onChange={(v) => void save(v)}
       searchable={false}
       disabled={saving}
-      options={expectedChoices(todayLondon())}
+      options={dayChoices(todayLondon())}
       trigger={<span>Change date</span>}
       footer={(close) => (
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -260,11 +234,11 @@ function ChangeDate({ it }: { it: ReviewItem }) {
   );
 }
 
-/** Waiting for a reply: emails Ollie sent that asked for something and nobody has answered yet. */
+/** Waiting for a reply: emails and Slack messages Ollie sent that asked for something and nobody has answered yet. */
 export function NoReplyTab() {
   const q = useListReview();
   const items = useMemo(() => newestFirst((q.data?.items ?? []).filter((i) => i.kind === 'no_reply')), [q.data]);
-  const { selected, setSelected, waitingFor: open, setWaitingFor: setOpen, busy, toggle, decide } = useReviewDecide((c) => (c === 1 ? 'email' : 'emails'), doneLine);
+  const { selected, setSelected, waitingFor: open, setWaitingFor: setOpen, busy, toggle, decide } = useReviewDecide((c) => (c === 1 ? 'message' : 'messages'), doneLine);
   const [writeEmail, setWriteEmail] = useState(false);
   const [chased, setChased] = useState<Chased[]>([]);
   const picked = items.filter((i) => selected.has(i.id)).map((i) => i.id);
@@ -280,13 +254,13 @@ export function NoReplyTab() {
   const chase = async (it: ReviewItem, personId: number | null | undefined) => {
     const done = await decide([it.id], 'waiting', personId);
     const taskId = done?.[0]?.taskId;
-    if (writeEmail && taskId != null) setChased((list) => [{ taskId, title: it.text, name: it.person?.name ?? it.owner }, ...list.filter((c) => c.taskId !== taskId)]);
+    if (writeEmail && it.via !== 'slack' && taskId != null) setChased((list) => [{ taskId, title: it.text, name: it.person?.name ?? it.owner }, ...list.filter((c) => c.taskId !== taskId)]);
   };
 
   return (
     <>
       <p className="oo-muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-        Emails you sent that asked for something and nobody has answered yet. Each shows up as soon as it is sent and turns due on the day a reply is expected by, 3 working days later unless you change it. Chase makes a Waiting on task, and can write a follow-up for you to save to Gmail. Nothing is sent.
+        Emails and Slack messages you sent that asked for something and nobody has answered yet. Each turns due on the day a reply is expected by, 3 working days later unless you change it. Chase makes a Waiting on task, and for an email can write a follow-up for you to save to Gmail. Slack messages are picked up by the Slack check, from direct messages and group DMs. Nothing is sent.
       </p>
 
       <ScanPanel />
@@ -345,7 +319,7 @@ export function NoReplyTab() {
             )}
           </div>
 
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }} aria-label="Emails waiting for a reply">
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }} aria-label="Messages waiting for a reply">
             {items.map((it) => (
               <Row
                 key={it.id}
@@ -395,6 +369,7 @@ function Row({ it, busy, checked, onToggle, chaseOpen, onChoose, onChase, onCanc
           <span data-testid={'text-no-reply-subject-' + it.id}>
             {it.sourceUrl ? <a href={it.sourceUrl} target="_blank" rel="noreferrer">{it.meetingTitle}</a> : it.meetingTitle}, sent {formatLong(it.meetingAt)}
           </span>
+          {it.via === 'slack' && <span className="oo-pill" data-testid={'pill-no-reply-slack-' + it.id}>Slack</span>}
           <span data-testid={'text-no-reply-age-' + it.id}>{waitingFor(it.meetingAt)}</span>
           {it.expectedBy && (
             <span data-testid={'text-waiting-expected-' + it.id}>
@@ -424,10 +399,12 @@ function Row({ it, busy, checked, onToggle, chaseOpen, onChoose, onChase, onCanc
         {chaseOpen && (
           <WaitingPicker busy={busy} initial={it.person ? String(it.person.id) : NOBODY} hint={it.person ? undefined : it.owner} confirmLabel="Chase"
             onCancel={onCancelChase} onConfirm={(v) => onChase(v ?? null)} testKey={'no-reply-' + it.id}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', alignSelf: 'center' }}>
-              <input type="checkbox" className="oo-rv-select" checked={writeEmail} onChange={(e) => onWriteEmail(e.target.checked)} data-testid={'checkbox-chase-email-' + it.id} />
-              Write a chase email
-            </label>
+            {it.via !== 'slack' && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', alignSelf: 'center' }}>
+                <input type="checkbox" className="oo-rv-select" checked={writeEmail} onChange={(e) => onWriteEmail(e.target.checked)} data-testid={'checkbox-chase-email-' + it.id} />
+                Write a chase email
+              </label>
+            )}
           </WaitingPicker>
         )}
       </div>

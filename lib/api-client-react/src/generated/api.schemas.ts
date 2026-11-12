@@ -749,6 +749,8 @@ export interface HomeSummary {
   connectorWarnings: HomeSummaryConnectorWarningsItem[];
   /** Slack messages that need a reply and have waited over a working day (Part P) */
   slackToAnswer: number;
+  /** Emails that need a reply and have waited over a working day, as of the last look at Gmail */
+  emailToAnswer: number;
   /** Ideas set to come back to on or before today */
   ideasDue: Idea[];
   /**
@@ -1678,6 +1680,23 @@ export interface EmailInboxItem {
      * @nullable
      */
   ask: string | null;
+  /**
+     * Later: the day it comes back, while it is hidden
+     * @nullable
+     */
+  snoozedUntil: string | null;
+  /**
+     * The sender in People, when they are there
+     * @nullable
+     */
+  personId: number | null;
+  /** @nullable */
+  personSlug: string | null;
+  /**
+     * Why it comes first: Client, or Overdue to contact
+     * @nullable
+     */
+  priority: string | null;
 }
 
 export interface EmailInbox {
@@ -2373,6 +2392,16 @@ export const SlackToAnswerItemNeeds = {
   unknown: 'unknown',
 } as const;
 
+export interface SlackReplyDraft {
+  text: string;
+  /**
+     * What Ollie asked it to say
+     * @nullable
+     */
+  brief: string | null;
+  updatedAt: string;
+}
+
 export interface SlackToAnswerItem {
   id: number;
   /** im, mpim or channel */
@@ -2404,9 +2433,23 @@ export interface SlackToAnswerItem {
      * @nullable
      */
   taskId: number | null;
+  /** The reply drafted for it, when there is one: it is on Drafts, not To answer */
+  draft: SlackReplyDraft | null;
+  /**
+     * Later: the day it comes back, while it is hidden
+     * @nullable
+     */
+  snoozedUntil: string | null;
+  /**
+     * Why it comes first: Client, or Overdue to contact
+     * @nullable
+     */
+  priority: string | null;
 }
 
 export interface SlackToAnswer {
+  /** The conversations listed are being looked at again */
+  updating: boolean;
   items: SlackToAnswerItem[];
   /** Who reads Slack: only OllieOS's own Slack check fills this list */
   readBy: SlackToAnswerReadBy;
@@ -2417,8 +2460,126 @@ export interface SlackToAnswer {
   checkedAt: string | null;
 }
 
-export interface SlackReplyDraft {
+export interface SlackDraftInput {
+  /**
+     * What the reply should say
+     * @maxLength 500
+     * @nullable
+     */
+  brief?: string | null;
+  /**
+     * What to change about the draft it has: shorter, warmer
+     * @maxLength 500
+     * @nullable
+     */
+  change?: string | null;
+}
+
+export type SlackConversationMessagesItem = {
+  fromName: string;
+  fromOllie: boolean;
+  at: string;
   text: string;
+};
+
+export interface SlackConversation {
+  /** False when Slack could not be read, so only the saved message is given */
+  fromSlack: boolean;
+  messages: SlackConversationMessagesItem[];
+}
+
+export interface LaterInput {
+  /**
+     * The day it comes back, after today; null brings it back now
+     * @nullable
+     */
+  until: string | null;
+}
+
+export interface MessageCounts {
+  /** Emails and Slack messages under Needs a reply on To answer */
+  needsReply: number;
+  /** Those that have waited over one working day */
+  overdue: number;
+  emailsOverdue: number;
+  slackOverdue: number;
+}
+
+export interface MessagesDoneInput {
+  threadIds: string[];
+  slackIds: number[];
+}
+
+/**
+ * @nullable
+ */
+export type MessagesDoneEmailsItemPreviousStatus = typeof MessagesDoneEmailsItemPreviousStatus[keyof typeof MessagesDoneEmailsItemPreviousStatus] | null;
+
+
+export const MessagesDoneEmailsItemPreviousStatus = {
+  inbox: 'inbox',
+  now: 'now',
+  backlog: 'backlog',
+  waiting: 'waiting',
+} as const;
+
+export type MessagesDoneEmailsItem = {
+  threadId: string;
+  /** @nullable */
+  taskId: number | null;
+  /** @nullable */
+  previousStatus: MessagesDoneEmailsItemPreviousStatus;
+};
+
+/**
+ * @nullable
+ */
+export type MessagesDoneSlackItemPreviousStatus = typeof MessagesDoneSlackItemPreviousStatus[keyof typeof MessagesDoneSlackItemPreviousStatus] | null;
+
+
+export const MessagesDoneSlackItemPreviousStatus = {
+  inbox: 'inbox',
+  now: 'now',
+  backlog: 'backlog',
+  waiting: 'waiting',
+} as const;
+
+export type MessagesDoneSlackItem = {
+  id: number;
+  /** @nullable */
+  taskId: number | null;
+  /** @nullable */
+  previousStatus: MessagesDoneSlackItemPreviousStatus;
+};
+
+export interface MessagesDone {
+  emails: MessagesDoneEmailsItem[];
+  slack: MessagesDoneSlackItem[];
+}
+
+export interface SlackDraftText {
+  /** @maxLength 4000 */
+  text: string;
+}
+
+export type MuteInputMatchType = typeof MuteInputMatchType[keyof typeof MuteInputMatchType];
+
+
+export const MuteInputMatchType = {
+  from_address_equals: 'from_address_equals',
+  slack_channel_equals: 'slack_channel_equals',
+} as const;
+
+export interface MuteInput {
+  matchType: MuteInputMatchType;
+  /** @maxLength 200 */
+  matchValue: string;
+}
+
+export interface MuteResult {
+  rule: NoiseRule;
+  /** False when the rule was already on */
+  created: boolean;
 }
 
 export interface EmailInboxTask {
@@ -2966,6 +3127,18 @@ export const ReviewItemState = {
   answered: 'answered',
 } as const;
 
+/**
+ * Where it came from: a meeting's notes, an email Ollie sent, or a Slack message he sent
+ */
+export type ReviewItemVia = typeof ReviewItemVia[keyof typeof ReviewItemVia];
+
+
+export const ReviewItemVia = {
+  meeting: 'meeting',
+  email: 'email',
+  slack: 'slack',
+} as const;
+
 export type ReviewItemSuggestedType = typeof ReviewItemSuggestedType[keyof typeof ReviewItemSuggestedType];
 
 
@@ -2981,6 +3154,8 @@ export interface ReviewItem {
   kind: ReviewItemKind;
   /** answered means someone wrote back before Ollie decided */
   state: ReviewItemState;
+  /** Where it came from: a meeting's notes, an email Ollie sent, or a Slack message he sent */
+  via: ReviewItemVia;
   /** The action, or for an unanswered email the ask: who owes what */
   text: string;
   /**
@@ -6105,6 +6280,10 @@ export type RunPlaybook201 = {
 
 export type CheckReplyDraft200 = {
   issues: DraftIssue[];
+};
+
+export type RefreshSlackToAnswer200 = {
+  closed: number;
 };
 
 export type ListProjectsParams = {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getGetWritingStyleQueryKey, readWritingStyle, saveWritingStyle, useGetWritingStyle } from '@workspace/api-client-react';
+import { MAIL_APP_LABELS, setMailApp, useMailApp } from '@/lib/mail-app';
 import { formatLong } from '@workspace/shared';
 import { Skel } from '@/components/bits';
 import { errorMessage, notify } from '@/lib/notify';
@@ -58,6 +59,8 @@ export default function EmailSettings() {
     }
   };
 
+  const mailApp = useMailApp();
+
   return (
     <section className="oo-panel flex flex-col gap-4 px-5 py-7 sm:px-8 sm:py-8" aria-labelledby="em-h" data-testid="page-settings-email">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -114,6 +117,20 @@ export default function EmailSettings() {
           {dirty && !reading && <span className="oo-muted" style={{ fontSize: 12 }}>Read again replaces the note, including your edits.</span>}
         </>
       )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--oo-line)', paddingTop: 18, marginTop: 6 }}>
+        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600 }}>Open emails in</h2>
+        <p className="oo-soft" style={{ margin: 0, fontSize: 14, maxWidth: '64ch', lineHeight: 1.6 }}>
+          Where the Open button on an email in Messages takes you. This is kept on this device, so your phone and laptop can differ. Drafts are always saved to Gmail, which Superhuman shows too.
+        </p>
+        <div role="group" aria-label="Open emails in" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {(['gmail', 'superhuman'] as const).map((app) => (
+            <button key={app} type="button" className="oo-chip-toggle" aria-pressed={mailApp === app} onClick={() => setMailApp(app)} data-testid={'button-mail-app-' + app}>
+              {MAIL_APP_LABELS[app]}
+            </button>
+          ))}
+        </div>
+      </div>
     </section>
   );
 }

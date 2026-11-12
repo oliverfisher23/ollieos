@@ -7,6 +7,7 @@ import {
   ensureEmailInboxTask,
   getGetEmailThreadQueryKey,
   getGetEmailThreadSummaryQueryKey,
+  getGetMessageCountsQueryKey,
   getGetReplyDraftQueryKey,
   getGetTaskQueryKey,
   getGetTaskThreadQueryKey,
@@ -14,8 +15,11 @@ import {
   getListEmailDraftsQueryKey,
   getListEmailInboxQueryKey,
   markEmailInboxDone,
+  muteFromMessages,
   saveEmailAttachment,
+  snoozeEmailInbox,
   undoEmailInboxDone,
+  updateNoiseRule,
   useGetEmailThread,
   useGetEmailThreadSummary,
   useGetTask,
@@ -26,12 +30,14 @@ import {
   type EmailThreadMessage,
   type Task,
 } from '@workspace/api-client-react';
-import { STATUS_LABELS, formatShort, formatTime } from '@workspace/shared';
+import { STATUS_LABELS, formatLong, formatShort, formatTime } from '@workspace/shared';
 import { Avatar, Skel } from '@/components/bits';
 import { IconArrowOut, IconLeft } from '@/components/icons';
+import { LaterPicker } from '@/components/later-picker';
 import { NoiseRuleChooser } from '@/components/noise-rule-chooser';
 import { ReplyDraftCard } from '@/components/reply-draft';
 import { reportApiError } from '@/lib/forbidden';
+import { mailLink, useMailApp } from '@/lib/mail-app';
 import { errorMessage, notify, notifyUndo } from '@/lib/notify';
 import { useInvalidateTasks } from '@/lib/task-cache';
 import { useTaskActions } from '@/lib/task-actions';
@@ -155,8 +161,8 @@ function Message({ taskFor, threadId, m, open, onToggle }: { taskFor: () => Prom
 }
 
 /**
- * The reading pane on the Email page: the email thread from Gmail, a summary of long threads,
- * attachments, what OllieOS made of it, and Brief a reply, Reply, Done and Noise. Drafts are
+ * The reading pane for an email on Messages: the email thread from Gmail, a summary of long threads,
+ * attachments, what OllieOS made of it, and Brief a reply, Reply, Done, Later, Mute sender and Noise. Drafts are
  * written and edited here; nothing is ever sent. An inbox email with no task yet gets one the
  * first time Ollie briefs, replies or saves an attachment.
  */
@@ -202,6 +208,7 @@ export function EmailReader({
   const [brief, setBrief] = useState('');
   const composer = useRef<HTMLDivElement>(null);
   const top = useRef<HTMLHeadingElement>(null);
+  const mailApp = useMailApp();
 
   useEffect(() => {
     setReplying(mode === 'draft' || hasDraft);
@@ -253,11 +260,62 @@ export function EmailReader({
       const r = await markEmailInboxDone(threadId);
       const refresh = () => {
         void qc.invalidateQueries({ queryKey: getListEmailInboxQueryKey() });
+        void qc.invalidateQueries({ queryKey: getGetMessageCountsQueryKey() });
         if (r.taskId != null) invalidateTasks(r.taskId);
       };
       refresh();
       notifyUndo('Marked done', 'It is off To answer until a new message arrives. It stays in your Gmail inbox.', () => {
         void undoEmailInboxDone(threadId, r).then(refresh, (err) => {
+          reportApiError(err);
+          notify('That did not undo', errorMessage(err));
+        });
+      });
+      onNext();
+    } catch (err) {
+      reportApiError(err);
+      notify('That did not save', errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const refreshInbox = () => {
+    void qc.invalidateQueries({ queryKey: getListEmailInboxQueryKey() });
+    void qc.invalidateQueries({ queryKey: getGetMessageCountsQueryKey() });
+  };
+
+  /** Later on To answer: hidden until a day, or until a new message arrives. Null brings it back. */
+  const later = async (until: string | null) => {
+    if (!threadId) return;
+    setBusy(true);
+    try {
+      await snoozeEmailInbox(threadId, { until });
+      refreshInbox();
+      if (until) {
+        notifyUndo(`Hidden until ${formatLong(until)}`, 'It comes back sooner if a new message arrives.', () => {
+          void snoozeEmailInbox(threadId, { until: null }).then(refreshInbox, (err) => {
+            reportApiError(err);
+            notify('That did not undo', errorMessage(err));
+          });
+        });
+        onNext();
+      } else notify('Back on To answer', undefined);
+    } catch (err) {
+      reportApiError(err);
+      notify('That did not save', errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Mute sender: a noise rule for their address, so their email no longer shows here or becomes a task. */
+  const muteSender = async (address: string) => {
+    setBusy(true);
+    try {
+      const r = await muteFromMessages({ matchType: 'from_address_equals', matchValue: address });
+      refreshInbox();
+      notifyUndo(`Muted ${address}`, 'Their email no longer shows on Messages or becomes a task. It stays in Gmail. Turn it back on in Settings, Noise rules.', () => {
+        void updateNoiseRule(r.rule.id, { enabled: false }).then(refreshInbox, (err) => {
           reportApiError(err);
           notify('That did not undo', errorMessage(err));
         });
@@ -334,7 +392,7 @@ export function EmailReader({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }} data-testid={'reader-email-' + (threadId ?? t!.id)}>
       <button type="button" className="oo-mail-back oo-btn oo-btn-outline oo-btn-sm" style={{ alignSelf: 'flex-start', gap: 4 }} onClick={onBack} data-testid="button-email-back">
-        <IconLeft size={14} /> All emails
+        <IconLeft size={14} /> All messages
       </button>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -349,14 +407,18 @@ export function EmailReader({
               {t.confidential && <span className="oo-pill">Confidential</span>}
             </>
           ) : (
-            <span data-testid="text-email-not-task">From {from}. Not a task in OllieOS.</span>
+            <span data-testid="text-email-not-task">
+              From {inbox?.personSlug ? <Link href={'/knowledge/people/' + inbox.personSlug} className="oo-link" data-testid="link-email-person">{from}</Link> : from}. Not a task in OllieOS.
+            </span>
           )}
+          {inbox?.priority && <span className="oo-pill" data-tone="now">{inbox.priority}</span>}
+          {inbox?.snoozedUntil && <span data-testid="text-email-snoozed">Hidden until {formatLong(inbox.snoozedUntil)}</span>}
         </span>
         {t?.suggestedAction && <span className="oo-soft" style={{ fontSize: 13 }}><span className="oo-muted">Next step:</span> {t.suggestedAction}</span>}
       </div>
 
       {!closed && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }} role="toolbar" aria-label="Email actions">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }} role="toolbar" aria-label="Email actions">
           {mode === 'answer' && !replying && !briefing && (
             <>
               <button type="button" className="oo-btn oo-btn-sm oo-btn-ink" onClick={() => setBriefing(true)} data-testid="button-email-brief">Brief a reply</button>
@@ -366,7 +428,16 @@ export function EmailReader({
           {mode === 'answer' ? (
             <>
               <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy} onClick={() => void (inbox ? inboxDone() : t && done(t))} data-testid="button-email-done">Done</button>
+              {inbox &&
+                (inbox.snoozedUntil ? (
+                  <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy} onClick={() => void later(null)} data-testid="button-email-back-now">Bring back</button>
+                ) : (
+                  <LaterPicker what={`the email from ${from}`} disabled={busy} onPick={(d) => void later(d)} testId="button-email-later" />
+                ))}
               {t && <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy} onClick={() => void noise(t)} data-testid="button-email-noise">Noise</button>}
+              {!t && inbox?.fromEmail && (
+                <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy} onClick={() => void muteSender(inbox.fromEmail!)} data-testid="button-email-mute">Mute sender</button>
+              )}
             </>
           ) : chase ? (
             <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy} onClick={() => void removeDraft()} data-testid="button-email-remove-draft">Remove from Drafts</button>
@@ -374,8 +445,8 @@ export function EmailReader({
             t && <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" disabled={busy} onClick={() => void done(t)} data-testid="button-email-done">Done</button>
           )}
           {gmailUrl && (
-            <a href={gmailUrl} target="_blank" rel="noreferrer" className="oo-btn oo-btn-sm oo-btn-outline" style={{ gap: 4 }} data-testid="link-email-gmail">
-              Open in Gmail <IconArrowOut size={12} />
+            <a href={mailLink(gmailUrl, mailApp).href} target="_blank" rel="noreferrer" className="oo-btn oo-btn-sm oo-btn-outline" style={{ gap: 4 }} data-testid="link-email-gmail">
+              {mailLink(gmailUrl, mailApp).label} <IconArrowOut size={12} />
             </a>
           )}
         </div>
@@ -400,12 +471,12 @@ export function EmailReader({
         <div className="oo-source" style={{ gap: 10 }} role="status" data-testid="state-email-noise">
           <span style={{ fontSize: 14, fontWeight: 600 }}>Moved to Noise</span>
           <span className="oo-soft" style={{ fontSize: 13, lineHeight: 1.5 }}>
-            It is off your lists. To keep emails like this out of your Inbox from now on, pick a rule. It stays in Gmail; OllieOS cannot mark email as spam there.
+            It is off your lists. To keep emails like this off Messages and out of your tasks from now on, pick a rule. It stays in Gmail; OllieOS cannot mark email as spam there.
           </span>
           <NoiseRuleChooser task={t} />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             <button type="button" className="oo-btn oo-btn-sm oo-btn-outline" onClick={() => void actions.undo(t)} data-testid="button-email-undo-noise">Undo</button>
-            <button type="button" className="oo-btn oo-btn-sm oo-btn-ink" onClick={onNext} data-testid="button-email-next">Next email</button>
+            <button type="button" className="oo-btn oo-btn-sm oo-btn-ink" onClick={onNext} data-testid="button-email-next">Next message</button>
           </div>
         </div>
       )}
