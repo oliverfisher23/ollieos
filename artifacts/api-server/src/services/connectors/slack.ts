@@ -326,11 +326,16 @@ export interface RecentSlackMessage {
   text: string;
 }
 
-/** Part P: the last few messages of a conversation, oldest first, for drafting a reply. */
-export async function recentSlackMessages(conversationId: string, limit = 8): Promise<RecentSlackMessage[]> {
+/**
+ * Part P: the last few messages of a conversation, oldest first, for drafting a reply and for
+ * reading it on Messages. `latest` stops at that message (a channel mention, say); `maxText` is how
+ * much of each message is kept.
+ */
+export async function recentSlackMessages(conversationId: string, limit = 8, opts: { latest?: string; maxText?: number } = {}): Promise<RecentSlackMessage[]> {
   const me = await slackMe();
   const users = await loadUsers(Date.now());
-  const body = await slack(`/conversations.history?channel=${encodeURIComponent(conversationId)}&limit=${Math.min(50, limit * 3)}`);
+  const upTo = opts.latest ? `&latest=${encodeURIComponent(opts.latest)}&inclusive=true` : "";
+  const body = await slack(`/conversations.history?channel=${encodeURIComponent(conversationId)}&limit=${Math.min(50, limit * 3)}${upTo}`);
   return ((body.messages as SlackMessage[] | undefined) ?? [])
     .filter((m) => KEEP_SUBTYPES.has(m.subtype) && !m.bot_id && m.user && m.text?.trim() && !users.get(m.user)?.bot)
     .slice(0, limit)
@@ -339,6 +344,12 @@ export async function recentSlackMessages(conversationId: string, limit = 8): Pr
       fromMe: m.user === me,
       fromName: m.user === me ? "Ollie" : (users.get(m.user!)?.name ?? "Someone"),
       at: new Date(Number(m.ts) * 1000),
-      text: trimText(plainSlack(m.text ?? "", users), MAX_TEXT),
+      text: trimText(plainSlack(m.text ?? "", users), opts.maxText ?? MAX_TEXT),
     }));
+}
+
+/** Whether Ollie has written in a conversation since a message, top level or broadcast. One Slack call. */
+export async function wroteSince(conversationId: string, ts: string, me: string): Promise<boolean> {
+  const body = await slack(`/conversations.history?channel=${encodeURIComponent(conversationId)}&oldest=${encodeURIComponent(ts)}&inclusive=false&limit=100`);
+  return ((body.messages as SlackMessage[] | undefined) ?? []).some((m) => m.ts > ts && m.user === me && KEEP_SUBTYPES.has(m.subtype));
 }

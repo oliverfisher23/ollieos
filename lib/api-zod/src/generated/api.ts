@@ -117,6 +117,7 @@ export const GetHomeResponse = zod.object({
   "text": zod.string()
 })).describe('Part Q: services OllieOS reads that need a look'),
   "slackToAnswer": zod.int().describe('Slack messages that need a reply and have waited over a working day (Part P)'),
+  "emailToAnswer": zod.int().describe('Emails that need a reply and have waited over a working day, as of the last look at Gmail'),
   "ideasDue": zod.array(zod.object({
   "id": zod.int(),
   "title": zod.string(),
@@ -3319,7 +3320,11 @@ export const ListEmailInboxResponse = zod.object({
   "taskId": zod.int().nullable().describe('The email task linked to it'),
   "gmailUrl": zod.string(),
   "needs": zod.enum(['reply', 'info', 'checking', 'unknown']).describe('Needs a reply, for information, not read yet, or not read by AI (hidden from it, or reading failed)'),
-  "ask": zod.string().nullable().describe('One line on what the sender wants')
+  "ask": zod.string().nullable().describe('One line on what the sender wants'),
+  "snoozedUntil": zod.coerce.date().nullable().describe('Later: the day it comes back, while it is hidden'),
+  "personId": zod.int().nullable().describe('The sender in People, when they are there'),
+  "personSlug": zod.string().nullable(),
+  "priority": zod.string().nullable().describe('Why it comes first: Client, or Overdue to contact')
 })),
   "more": zod.boolean().describe('More inbox emails than are listed'),
   "leftOut": zod.int().describe('Newsletters and automatic emails left out'),
@@ -4981,9 +4986,116 @@ export const DismissTaskEvidenceResponse = zod.array(DismissTaskEvidenceResponse
 
 
 /**
+ * @summary Messages: how many emails and Slack messages need a reply, and how many of those have waited over a working day. For the menu.
+ */
+export const GetMessageCountsResponse = zod.object({
+  "needsReply": zod.int().describe('Emails and Slack messages under Needs a reply on To answer'),
+  "overdue": zod.int().describe('Those that have waited over one working day'),
+  "emailsOverdue": zod.int(),
+  "slackOverdue": zod.int()
+})
+
+
+/**
+ * @summary Mark all done: takes several emails and Slack messages off To answer at once
+ */
+export const MarkMessagesDoneBody = zod.object({
+  "threadIds": zod.array(zod.string()),
+  "slackIds": zod.array(zod.int())
+})
+
+export const MarkMessagesDoneResponse = zod.object({
+  "emails": zod.array(zod.object({
+  "threadId": zod.string(),
+  "taskId": zod.int().nullable(),
+  "previousStatus": zod.union([zod.literal('inbox'),zod.literal('now'),zod.literal('backlog'),zod.literal('waiting'),zod.literal(null)]).nullable()
+})),
+  "slack": zod.array(zod.object({
+  "id": zod.int(),
+  "taskId": zod.int().nullable(),
+  "previousStatus": zod.union([zod.literal('inbox'),zod.literal('now'),zod.literal('backlog'),zod.literal('waiting'),zod.literal(null)]).nullable()
+}))
+})
+
+
+/**
+ * @summary Puts them back on To answer and their tasks back where they were
+ */
+export const UndoMessagesDoneBody = zod.object({
+  "emails": zod.array(zod.object({
+  "threadId": zod.string(),
+  "taskId": zod.int().nullable(),
+  "previousStatus": zod.union([zod.literal('inbox'),zod.literal('now'),zod.literal('backlog'),zod.literal('waiting'),zod.literal(null)]).nullable()
+})),
+  "slack": zod.array(zod.object({
+  "id": zod.int(),
+  "taskId": zod.int().nullable(),
+  "previousStatus": zod.union([zod.literal('inbox'),zod.literal('now'),zod.literal('backlog'),zod.literal('waiting'),zod.literal(null)]).nullable()
+}))
+})
+
+export const UndoMessagesDoneResponse = zod.void()
+
+
+/**
+ * @summary Later: hides an inbox email until a day, or until a new message arrives. A null day brings it back.
+ */
+export const SnoozeEmailInboxParams = zod.object({
+  "threadId": zod.coerce.string()
+})
+
+export const SnoozeEmailInboxBody = zod.object({
+  "until": zod.coerce.date().nullable().describe('The day it comes back, after today; null brings it back now')
+})
+
+export const SnoozeEmailInboxResponse = zod.void()
+
+
+/**
+ * @summary Check now: looks at the listed Slack conversations again and closes those Ollie has answered
+ */
+export const RefreshSlackToAnswerResponse = zod.object({
+  "closed": zod.int()
+})
+
+
+/**
+ * @summary The last few messages of the conversation, oldest first, for reading on Messages. Read only.
+ */
+export const GetSlackConversationParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetSlackConversationResponse = zod.object({
+  "fromSlack": zod.boolean().describe('False when Slack could not be read, so only the saved message is given'),
+  "messages": zod.array(zod.object({
+  "fromName": zod.string(),
+  "fromOllie": zod.boolean(),
+  "at": zod.coerce.date(),
+  "text": zod.string()
+}))
+})
+
+
+/**
+ * @summary Later: hides a Slack message until a day, or until a newer message arrives. A null day brings it back.
+ */
+export const SnoozeSlackToAnswerParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const SnoozeSlackToAnswerBody = zod.object({
+  "until": zod.coerce.date().nullable().describe('The day it comes back, after today; null brings it back now')
+})
+
+export const SnoozeSlackToAnswerResponse = zod.void()
+
+
+/**
  * @summary Slack to answer: conversations from the last 14 days whose newest message is from someone else, newest first. Nothing is posted to Slack.
  */
 export const ListSlackToAnswerResponse = zod.object({
+  "updating": zod.boolean().describe('The conversations listed are being looked at again'),
   "items": zod.array(zod.object({
   "id": zod.int(),
   "kind": zod.string().describe('im, mpim or channel'),
@@ -4997,7 +5109,14 @@ export const ListSlackToAnswerResponse = zod.object({
   "needs": zod.enum(['reply', 'info', 'unknown']).describe('Needs a reply, for information, or not read by AI'),
   "ask": zod.string().nullable().describe('One line on what they want'),
   "hidden": zod.boolean().describe('Someone in it is hidden from AI, so it was not read and cannot be drafted'),
-  "taskId": zod.int().nullable().describe('The open task for it, when there is one')
+  "taskId": zod.int().nullable().describe('The open task for it, when there is one'),
+  "draft": zod.union([zod.object({
+  "text": zod.string(),
+  "brief": zod.string().nullable().describe('What Ollie asked it to say'),
+  "updatedAt": zod.coerce.date()
+}),zod.null()]).describe('The reply drafted for it, when there is one: it is on Drafts, not To answer'),
+  "snoozedUntil": zod.coerce.date().nullable().describe('Later: the day it comes back, while it is hidden'),
+  "priority": zod.string().nullable().describe('Why it comes first: Client, or Overdue to contact')
 })),
   "readBy": zod.enum(['ollieos', 'claude']).describe('Who reads Slack: only OllieOS\'s own Slack check fills this list'),
   "checkedAt": zod.coerce.date().nullable().describe('When the last good Slack check finished')
@@ -5045,15 +5164,60 @@ export const EnsureSlackToAnswerTaskResponse = zod.object({
 
 
 /**
- * @summary Drafts a short Slack reply in Ollie's style for him to copy. Nothing is posted.
+ * @summary Drafts a short Slack reply in Ollie's style for him to copy, and keeps it so it shows on Drafts. A brief says what it should say; a change asks for the draft it has to be changed. Nothing is posted.
  */
 export const DraftSlackToAnswerReplyParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
-export const DraftSlackToAnswerReplyResponse = zod.object({
-  "text": zod.string()
+export const draftSlackToAnswerReplyBodyBriefMax = 500;
+
+export const draftSlackToAnswerReplyBodyChangeMax = 500;
+
+
+
+export const DraftSlackToAnswerReplyBody = zod.object({
+  "brief": zod.string().max(draftSlackToAnswerReplyBodyBriefMax).nullish().describe('What the reply should say'),
+  "change": zod.string().max(draftSlackToAnswerReplyBodyChangeMax).nullish().describe('What to change about the draft it has: shorter, warmer')
 })
+
+export const DraftSlackToAnswerReplyResponse = zod.object({
+  "text": zod.string(),
+  "brief": zod.string().nullable().describe('What Ollie asked it to say'),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Saves Ollie's own edits to the draft, or a reply he wrote himself
+ */
+export const SaveSlackToAnswerDraftParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const saveSlackToAnswerDraftBodyTextMax = 4000;
+
+
+
+export const SaveSlackToAnswerDraftBody = zod.object({
+  "text": zod.string().max(saveSlackToAnswerDraftBodyTextMax)
+})
+
+export const SaveSlackToAnswerDraftResponse = zod.object({
+  "text": zod.string(),
+  "brief": zod.string().nullable().describe('What Ollie asked it to say'),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Takes the draft off Drafts; the message goes back on To answer
+ */
+export const RemoveSlackToAnswerDraftParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RemoveSlackToAnswerDraftResponse = zod.void()
 
 
 /**
@@ -5184,6 +5348,35 @@ export const ListNoiseRulesResponseItem = zod.object({
   "createdAt": zod.coerce.date()
 })
 export const ListNoiseRulesResponse = zod.array(ListNoiseRulesResponseItem)
+
+
+/**
+ * @summary Mute from Messages: stop showing a sender's email or a Slack channel's mentions. Makes the rule, or turns the existing one back on.
+ */
+export const muteFromMessagesBodyMatchValueMax = 200;
+
+
+
+export const MuteFromMessagesBody = zod.object({
+  "matchType": zod.enum(['from_address_equals', 'slack_channel_equals']),
+  "matchValue": zod.string().max(muteFromMessagesBodyMatchValueMax)
+})
+
+export const MuteFromMessagesResponse = zod.object({
+  "rule": zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string(),
+  "source": zod.union([zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),zod.null()]),
+  "enabled": zod.boolean(),
+  "hitCount": zod.int(),
+  "lastHitAt": zod.coerce.date().nullable(),
+  "createdFromTaskId": zod.int().nullable(),
+  "createdAt": zod.coerce.date()
+}),
+  "created": zod.boolean().describe('False when the rule was already on')
+})
 
 
 /**
@@ -6472,7 +6665,29 @@ export const GetMeetingResponse = zod.object({
   "status": zod.string()
 })).describe('Inbox tasks made from the note\'s actions')
 }).nullable().describe('The Granola note, once one is linked to the meeting'),
-  "granolaCheck": zod.boolean().describe('True when OllieOS reads Granola itself')
+  "granolaCheck": zod.boolean().describe('True when OllieOS reads Granola itself'),
+  "agendaCheck": zod.union([zod.object({
+  "at": zod.coerce.date(),
+  "stale": zod.boolean().describe('The agenda or the note changed since the check'),
+  "items": zod.array(zod.object({
+  "index": zod.int(),
+  "title": zod.string(),
+  "status": zod.enum(['covered', 'partly', 'not_covered']),
+  "note": zod.string(),
+  "dropped": zod.boolean().describe('Ollie dropped it')
+}))
+}),zod.null()]).describe('How the meeting went against the agenda, once its Granola note has been compared with it'),
+  "leftovers": zod.union([zod.object({
+  "eventId": zod.int().describe('The earlier meeting they are left over from'),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "index": zod.int(),
+  "title": zod.string(),
+  "status": zod.enum(['covered', 'partly', 'not_covered']),
+  "note": zod.string()
+}))
+}),zod.null()]).describe('What was not covered at the last meeting like this one, offered for this agenda')
 })
 
 
@@ -6527,6 +6742,102 @@ export const ShapeAgendaResponse = zod.object({
   "at": zod.coerce.date()
 }))
 })
+
+
+/**
+ * @summary Compare the meeting's Granola note with its agenda, marking each item covered, partly or not covered
+ */
+export const CheckAgendaParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const CheckAgendaResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "platform": zod.string().nullable(),
+  "location": zod.string().nullable(),
+  "scope": zod.enum(['internal', 'external']).describe('External when anyone on the meeting is from outside Ollie\'s own company'),
+  "companies": zod.array(zod.string()),
+  "prep": zod.enum(['ready', 'not_much', 'failed', 'not_written', 'none']).describe('Anything but none means the meeting has a prep page at /briefs/{id}'),
+  "attendees": zod.array(zod.object({
+  "name": zod.string(),
+  "email": zod.string().nullable(),
+  "person": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "organisation": zod.object({
+  "name": zod.string(),
+  "slug": zod.string()
+}).nullable()
+}).nullable().describe('Set when they are in Contacts'),
+  "suggestedOrganisation": zod.union([zod.object({
+  "existing": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}).nullable().describe('An organisation already in Contacts'),
+  "newName": zod.string().nullable().describe('When none fits'),
+  "internal": zod.boolean().describe('The domain is Ollie\'s own company\'s')
+}),zod.null()])
+})),
+  "notes": zod.string().nullable().describe('Ollie\'s agenda and notes'),
+  "agendaChat": zod.array(zod.object({
+  "role": zod.enum(['ollie', 'ai']),
+  "text": zod.string(),
+  "at": zod.coerce.date()
+})),
+  "granola": zod.object({
+  "url": zod.string().nullable(),
+  "notes": zod.string(),
+  "attachedAt": zod.coerce.date().nullable(),
+  "actions": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string()
+})).describe('Inbox tasks made from the note\'s actions')
+}).nullable().describe('The Granola note, once one is linked to the meeting'),
+  "granolaCheck": zod.boolean().describe('True when OllieOS reads Granola itself'),
+  "agendaCheck": zod.union([zod.object({
+  "at": zod.coerce.date(),
+  "stale": zod.boolean().describe('The agenda or the note changed since the check'),
+  "items": zod.array(zod.object({
+  "index": zod.int(),
+  "title": zod.string(),
+  "status": zod.enum(['covered', 'partly', 'not_covered']),
+  "note": zod.string(),
+  "dropped": zod.boolean().describe('Ollie dropped it')
+}))
+}),zod.null()]).describe('How the meeting went against the agenda, once its Granola note has been compared with it'),
+  "leftovers": zod.union([zod.object({
+  "eventId": zod.int().describe('The earlier meeting they are left over from'),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "index": zod.int(),
+  "title": zod.string(),
+  "status": zod.enum(['covered', 'partly', 'not_covered']),
+  "note": zod.string()
+}))
+}),zod.null()]).describe('What was not covered at the last meeting like this one, offered for this agenda')
+})
+
+
+/**
+ * @summary Drop an item that was not covered so it is not offered on the next agenda, or bring it back
+ */
+export const SetLeftoverDroppedParams = zod.object({
+  "eventId": zod.coerce.number().int(),
+  "index": zod.coerce.number().int()
+})
+
+export const SetLeftoverDroppedBody = zod.object({
+  "dropped": zod.boolean()
+})
+
+export const SetLeftoverDroppedResponse = zod.void()
 
 
 /**
@@ -6616,7 +6927,29 @@ export const LinkGranolaNoteResponse = zod.object({
   "status": zod.string()
 })).describe('Inbox tasks made from the note\'s actions')
 }).nullable().describe('The Granola note, once one is linked to the meeting'),
-  "granolaCheck": zod.boolean().describe('True when OllieOS reads Granola itself')
+  "granolaCheck": zod.boolean().describe('True when OllieOS reads Granola itself'),
+  "agendaCheck": zod.union([zod.object({
+  "at": zod.coerce.date(),
+  "stale": zod.boolean().describe('The agenda or the note changed since the check'),
+  "items": zod.array(zod.object({
+  "index": zod.int(),
+  "title": zod.string(),
+  "status": zod.enum(['covered', 'partly', 'not_covered']),
+  "note": zod.string(),
+  "dropped": zod.boolean().describe('Ollie dropped it')
+}))
+}),zod.null()]).describe('How the meeting went against the agenda, once its Granola note has been compared with it'),
+  "leftovers": zod.union([zod.object({
+  "eventId": zod.int().describe('The earlier meeting they are left over from'),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "items": zod.array(zod.object({
+  "index": zod.int(),
+  "title": zod.string(),
+  "status": zod.enum(['covered', 'partly', 'not_covered']),
+  "note": zod.string()
+}))
+}),zod.null()]).describe('What was not covered at the last meeting like this one, offered for this agenda')
 })
 
 
@@ -12979,6 +13312,7 @@ export const ListReviewResponse = zod.object({
   "id": zod.int(),
   "kind": zod.enum(['action', 'no_reply']).describe('action: from a Granola look back; no_reply: an email Ollie sent that nobody answered'),
   "state": zod.enum(['pending', 'accepted', 'done', 'dropped', 'answered']).describe('answered means someone wrote back before Ollie decided'),
+  "via": zod.enum(['meeting', 'email', 'slack']).describe('Where it came from: a meeting\'s notes, an email Ollie sent, or a Slack message he sent'),
   "text": zod.string().describe('The action, or for an unanswered email the ask: who owes what'),
   "action": zod.string().nullable().describe('The next step (or chase line), in one sentence'),
   "quote": zod.string().nullable().describe('The line in the notes or email it came from'),
@@ -13032,6 +13366,7 @@ export const SetReviewExpectedByResponse = zod.object({
   "id": zod.int(),
   "kind": zod.enum(['action', 'no_reply']).describe('action: from a Granola look back; no_reply: an email Ollie sent that nobody answered'),
   "state": zod.enum(['pending', 'accepted', 'done', 'dropped', 'answered']).describe('answered means someone wrote back before Ollie decided'),
+  "via": zod.enum(['meeting', 'email', 'slack']).describe('Where it came from: a meeting\'s notes, an email Ollie sent, or a Slack message he sent'),
   "text": zod.string().describe('The action, or for an unanswered email the ask: who owes what'),
   "action": zod.string().nullable().describe('The next step (or chase line), in one sentence'),
   "quote": zod.string().nullable().describe('The line in the notes or email it came from'),
@@ -13191,6 +13526,7 @@ export const DecideReviewResponse = zod.object({
   "id": zod.int(),
   "kind": zod.enum(['action', 'no_reply']).describe('action: from a Granola look back; no_reply: an email Ollie sent that nobody answered'),
   "state": zod.enum(['pending', 'accepted', 'done', 'dropped', 'answered']).describe('answered means someone wrote back before Ollie decided'),
+  "via": zod.enum(['meeting', 'email', 'slack']).describe('Where it came from: a meeting\'s notes, an email Ollie sent, or a Slack message he sent'),
   "text": zod.string().describe('The action, or for an unanswered email the ask: who owes what'),
   "action": zod.string().nullable().describe('The next step (or chase line), in one sentence'),
   "quote": zod.string().nullable().describe('The line in the notes or email it came from'),

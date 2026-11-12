@@ -35,6 +35,21 @@ export function replaceAgenda(editor: Editor, markdown: string) {
   editor.commands.setContent(markdown, { contentType: 'markdown', emitUpdate: false });
 }
 
+/**
+ * Adds an item to the end of the agenda's numbered list (starting one when there is none), as if
+ * Ollie had typed it, so it saves and can be undone.
+ */
+export function appendAgendaItem(editor: Editor, text: string) {
+  const item = { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] };
+  let listEnd: number | null = null;
+  editor.state.doc.forEach((node, offset) => {
+    if (listEnd == null && node.type.name === 'orderedList') listEnd = offset + node.nodeSize - 1;
+  });
+  if (listEnd != null) editor.chain().insertContentAt(listEnd, item).run();
+  else if (editor.isEmpty) editor.commands.setContent({ type: 'doc', content: [{ type: 'orderedList', content: [item] }] }, { emitUpdate: true });
+  else editor.chain().insertContentAt(editor.state.doc.content.size, { type: 'orderedList', content: [item] }).run();
+}
+
 function Tool({ label, active, disabled, onClick, children }: { label: string; active?: boolean; disabled?: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <button

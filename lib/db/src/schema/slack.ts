@@ -1,4 +1,4 @@
-import { index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { date, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { peopleTable } from "./knowledge";
 import { tasksTable } from "./tasks";
 
@@ -27,7 +27,7 @@ export const slackToAnswerTable = pgTable(
     slackUserId: text("slack_user_id"),
     fromName: text("from_name"),
     personId: integer("person_id").references(() => peopleTable.id, { onDelete: "set null" }),
-    /** The message, plain text, first 300 characters */
+    /** The message, plain text, first 800 characters */
     text: text("text").notNull(),
     url: text("url").notNull(),
     at: timestamp("at", { withTimezone: true }).notNull(),
@@ -41,6 +41,14 @@ export const slackToAnswerTable = pgTable(
     taskId: integer("task_id").references(() => tasksTable.id, { onDelete: "set null" }),
     /** messageTs when Ollie marked it Done: hidden until a newer message arrives */
     doneTs: text("done_ts"),
+    /** A reply drafted for Ollie to copy, kept until he answers in Slack or removes it */
+    draftText: text("draft_text"),
+    /** What Ollie asked the draft to say, when he briefed it */
+    draftBrief: text("draft_brief"),
+    draftAt: timestamp("draft_at", { withTimezone: true }),
+    /** Later: hidden until this day, or until a newer message than snoozedTs arrives */
+    snoozedUntil: date("snoozed_until", { mode: "string" }),
+    snoozedTs: text("snoozed_ts"),
     /** When a message from Ollie after it was seen */
     closedAt: timestamp("closed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

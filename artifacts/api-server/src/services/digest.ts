@@ -34,6 +34,7 @@ import { briefableIds, notPreppedIds } from "./briefs";
 import { listCadence } from "./cadence";
 import { inboxCounts } from "./knowledgeInbox";
 import { clearOutMonday, untouchedCount } from "./planning";
+import { emailRepliesOverdue } from "./messages";
 import { slackRepliesOverdue } from "./slackToAnswer";
 import { connectorWarnings } from "./connectorHealth";
 import { stuckCount } from "./stuckTasks";
@@ -187,8 +188,12 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
   // Connector warnings (Part Q): a service that stopped working, or stopped bringing anything in.
   for (const w of await connectorWarnings(now)) needs.push({ text: w.text, href: "/settings/connectors", refs: [], confidential: false });
   // Slack to answer (Part P): only messages that have waited over a working day.
-  const slackWaiting = await slackRepliesOverdue(now);
-  if (slackWaiting) {
+  const [slackWaiting, emailWaiting] = await Promise.all([slackRepliesOverdue(now), emailRepliesOverdue(now)]);
+  if (slackWaiting && emailWaiting) {
+    needs.push({ text: `${plural(emailWaiting, "email", "emails")} and ${plural(slackWaiting, "Slack message", "Slack messages")} to answer, waiting over a working day`, href: "/messages", refs: [], confidential: false });
+  } else if (emailWaiting) {
+    needs.push({ text: `${plural(emailWaiting, "email", "emails")} to answer, waiting over a working day`, href: "/messages?tab=to-answer&from=email", refs: [], confidential: false });
+  } else if (slackWaiting) {
     needs.push({ text: `${plural(slackWaiting, "Slack message", "Slack messages")} to answer, waiting over a working day`, href: "/messages?tab=to-answer&from=slack", refs: [], confidential: false });
   }
   if (g.deadline?.dueDate) {
