@@ -74,3 +74,54 @@ export const meetingHistoryTable = pgTable(
   },
   (t) => [index("meeting_history_starts_idx").on(t.startsAt), index("meeting_history_series_idx").on(t.seriesId)],
 );
+
+/**
+ * Section 25, the contact finder: someone OllieOS saw in an email thread, Slack conversation or
+ * meeting who is not in Contacts. One row per person and place. Only exchanges AI may read are
+ * recorded. Kept a year.
+ */
+export const contactSightingsTable = pgTable(
+  "contact_sightings",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    /** The lower-case email, or "slack:<user id>" */
+    key: text("key").notNull(),
+    email: text("email"),
+    slackId: text("slack_id"),
+    /** The display name as seen */
+    name: text("name"),
+    /** email, slack or meeting */
+    source: text("source").notNull(),
+    /** The thread, conversation or meeting note */
+    ref: text("ref").notNull(),
+    /** A subject or meeting title, for the card and the model */
+    label: text("label"),
+    at: timestamp("at", { withTimezone: true }).notNull(),
+    /** Ollie wrote in it (sent, replied or posted) */
+    ollieWrote: boolean("ollie_wrote").notNull().default(false),
+    /** They wrote in it */
+    theyWrote: boolean("they_wrote").notNull().default(false),
+    /** From their email signature, when the reader found one */
+    title: text("title"),
+    company: text("company"),
+  },
+  (t) => [uniqueIndex("contact_sightings_key_ref_idx").on(t.key, t.ref), index("contact_sightings_key_idx").on(t.key), index("contact_sightings_at_idx").on(t.at)],
+);
+
+/**
+ * Section 25: what the contact finder has already done with each person (key) and new company
+ * domain ("domain:acme.com"), so nothing is proposed twice and a card Ollie rejected is never
+ * proposed again.
+ */
+export const contactFinderSeenTable = pgTable("contact_finder_seen", {
+  key: text("key").primaryKey(),
+  /** proposed: a card is waiting; added: in Contacts; ignored: not a person or company, or Ollie said no */
+  status: text("status").$type<"proposed" | "added" | "ignored">().notNull(),
+  suggestionId: integer("suggestion_id"),
+  /** person:<id> or organisation:<id> once added */
+  result: text("result"),
+  why: text("why"),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type ContactSighting = typeof contactSightingsTable.$inferSelect;

@@ -1560,3 +1560,55 @@ Ollie asked which agents could learn from the knowledge base or improve how task
 - The Gmail and Slack sorter and the Granola reader take `lessons`. `replay` takes `extraLessonIds` and `keep: false`.
 - `GET /lessons`, `POST /lessons/learn`, `PATCH /lessons/:id`, `POST /lessons/:id/try`. The panel is `components/reader-lessons.tsx` on Settings, Agents.
 - **Checked by** `test/section-24.test.ts` (5 tests): lessons proposed only with three real corrections; hidden items never read; nothing applied until turned on; on and off reach the reader's instructions; the cap of 12; a try with and without the lesson leaves the cases untouched; a lesson Ollie said no to is not proposed again; the weekly and 50-decision triggers. The full suite passes: 413 tests. Also checked in a browser at desktop and phone width.
+
+## 25. New people and organisations from email, Slack and meetings (asked for 12th November 2026)
+
+Ollie asked for an agent that adds people and organisations by itself. The readers only ever linked people already in Contacts, and everyone else they saw was forgotten. Only Claude's `upsert_person` proposed new people. Agreed: build both proposals and adding automatically, with **Add automatically when sure off until Ollie turns it on**, because the connector's rule is that new people and organisations are suggestions until he approves them. He turns it on once the contact finder's scorecard shows he keeps nearly all of its cards.
+
+| Part | What | Size |
+|---|---|---|
+| Z8 | Approving a new person links or creates their organisation; an organisation card is approved with its people | Small |
+| Z9 | Sightings: unknown people the readers see, with who wrote | Medium |
+| Z10 | The contact finder (Haiku): candidates, organisations by domain, cards or adding them | Medium to large |
+
+### Part Z8: a new person and their organisation
+
+- **The gap.** A New person card with only an organisation *name* (Claude's `upsert_person` and others) was approved with no organisation.
+- **Now.** The organisation, in this order: the organisation id on the card if it still exists; the New organisation card the person came with (approved now if still waiting); an organisation with the same name; a waiting New organisation card with that name (approved now); else a new organisation with just that name.
+- A New organisation card with people waiting on it shows **Approve with N people**, which approves it and then each of them. **Approve on its own** still approves just the organisation.
+- Organisations gain `domains` (acme.com), set from a card's domains. New person cards can carry a Slack account.
+
+### Part Z9: sightings
+
+- **What is recorded.** Everyone in an email thread or Slack conversation the Gmail or Slack reader reads who matches no email or Slack account in Contacts. Everyone at a Granola meeting the same. Each row says whether Ollie wrote and whether they wrote, plus the subject and their signature title and company when the reader found one.
+- **What is left out.** Exchanges with anyone hidden from AI, automatic confirmations, automated senders (no-reply, notifications) and shared inboxes (info@, accounts@, team@ and similar).
+- **The relationship look back** on Settings, Knowledge also records them for the last six months of email (up to 600 threads). Ollie's own messages are recognised by Gmail's SENT label. A thread with anyone hidden from AI is skipped.
+- `contact_sightings`, one row per person and thread, meeting or conversation. No AI. Kept a year.
+
+### Part Z10: the contact finder
+
+- **Candidates, in code.** Real two-way contact: a meeting; a Slack conversation both wrote in; email threads where both wrote (and seen in two or more places); or Ollie wrote to them in two or more threads. Someone who only ever wrote to Ollie is never a candidate. Up to 40 a pass, strongest first.
+- **Organisations, in code.** A domain an organisation lists, or inferred from two or more of its people (Part S), links them to it. Ollie's own domain is Springpod (the internal organisation). Slack colleagues go under Springpod too. Free email (gmail.com and similar) never implies an organisation. A new company domain becomes one New organisation card with its people under it.
+- **Haiku** gets the address, the names shown, where and how often they were seen, up to five subjects and their signature. For each person it gives its reasoning, then a yes or no on whether this is one real human; then their name in normal form, their role (only from a signature, never guessed) and a line on how Ollie knows them. For a new domain it gives a yes or no on whether it is one company, then its name, type (client, partner, supplier, school, college, university, employer, investor or other) and a line about it.
+- **Cards.** New organisation, New person (under it, or under the organisation already in Contacts), with "Seen in 3 email threads and 1 meeting, you both wrote in 3; latest 11th November" as the source. Someone with the same name as a person who has no email becomes an "add this email" change card instead. Each person and domain is looked at once. A card Ollie rejects is never proposed again. Someone added to Contacts another way since is left alone.
+- **Add automatically when sure** (Settings, Knowledge, off by default). Only someone at an organisation already in Contacts (or a Slack colleague), with two-way contact in two or more places, or a meeting and two-way email. They are approved straight away, marked "Added by OllieOS" with **Undo** on Contacts, and the digest says "Added to Contacts by OllieOS". Undo removes them and the address is never suggested again. It refuses once anything has been linked to them (a task, fact, note, link or waiting card). New organisations are never added without a card.
+- **When.** After each check, and with **Look for new people now**.
+- **Scorecard.** "People and organisations kept": cards approved or merged against rejected. Auto-added people Ollie undoes count as rejected.
+
+### Built and checked
+
+- `contact_sightings` and `contact_finder_seen` (`lib/db/src/schema/accounts.ts`); `organisations.domains`; `people.auto_added_at`.
+- `services/contactFinder.ts`; `organisationForPerson` and `approveWithPeople` in `services/suggestions.ts`.
+- `POST /suggestions/:id/approve-with-people`; `GET` and `PUT /settings/contact-finder`; `POST /contacts/find`; `POST /contacts/:id/undo-auto-add`. People in the Contacts list carry `autoAddedAt`, and organisation cards carry `peopleWaiting`.
+- `test/section-25.test.ts` (7 tests) covers:
+  - organisation linking, all four ways;
+  - approve with people;
+  - sightings: known, automated, shared and hidden left out; two-way; signature;
+  - the look back's SENT label and hidden threads;
+  - who qualifies;
+  - cards under new and known organisations, free email, not a person, and the same-name email card;
+  - nothing proposed twice, and a rejected card stays rejected;
+  - adding automatically only when sure and only when turned on;
+  - Undo refused when linked, and working otherwise.
+- The full suite passes: 428 tests. Checked in a browser: Settings, Contacts with "Added by OllieOS" and Undo, and Approve with 2 people.
+- Not built: sightings from calendar invites (only Granola meetings count), and LinkedIn connections that match nobody.

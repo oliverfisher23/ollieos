@@ -1,3 +1,4 @@
+import { findContacts, getContactFinderSettings, setContactFinderSettings, undoAutoAdded } from "../services/contactFinder";
 import { Router, type IRouter } from "express";
 import { getRelationshipLookBack, startRelationshipLookBack } from "../services/peopleSignals";
 import { listPulses, pulseFor, setQuietDays } from "../services/clientPulse";
@@ -195,6 +196,11 @@ router.get("/people", handle(async (_req, res) => void res.json(await listPeople
 router.post("/people", handle(async (req, res) => void res.status(201).json(await createPerson(PersonCreate.parse(req.body)))));
 // Before /people/:slug so "cadence" is not read as a slug.
 router.get("/people/cadence", handle(async (req, res) => void res.json(await listCadence(CadenceQuery.parse(req.query).tab))));
+// Section 25: the contact finder: its setting, a run now, and Undo for someone it added by itself.
+router.get("/settings/contact-finder", handle(async (_req, res) => void res.json(await getContactFinderSettings())));
+router.put("/settings/contact-finder", handle(async (req, res) => void res.json(await setContactFinderSettings(z.object({ autoAdd: z.boolean() }).strict().parse(req.body ?? {})))));
+router.post("/contacts/find", handle(async (_req, res) => void res.json(await findContacts())));
+router.post("/contacts/:id/undo-auto-add", handle(async (req, res) => void res.json(await undoAutoAdded(z.object({ id: z.coerce.number().int().positive() }).parse(req.params).id))));
 router.get("/contacts/linkedin-import", handle(async (_req, res) => void res.json({ last: await lastLinkedInImport() })));
 router.post("/contacts/linkedin-import", handle(async (req, res) => void res.json(await importLinkedInConnections(LinkedInImportBody.parse(req.body).csv))));
 router.get("/people/cadence-suggestions", handle(async (_req, res) => void res.json(await suggestCadences())));

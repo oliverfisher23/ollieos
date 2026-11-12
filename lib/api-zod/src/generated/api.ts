@@ -4535,6 +4535,7 @@ export const ListPeopleResponseItem = zod.object({
   "lastContactAt": zod.coerce.date().nullable(),
   "iOweCount": zod.int(),
   "theyOweCount": zod.int(),
+  "autoAddedAt": zod.coerce.date().nullish().describe('Section 25: when the contact finder added them by itself; Contacts offers Undo'),
   "cadence": zod.object({
   "status": zod.enum(['overdue', 'due_soon', 'on_track', 'paused', 'none']),
   "daysSince": zod.int().nullable().describe('Whole days since the last contact; null when there is none on file'),
@@ -9050,6 +9051,7 @@ export const ListKnowledgeInboxResponse = zod.object({
   "stronger": zod.enum(['new', 'old', 'even']),
   "weighing": zod.string().describe('One line on which side looks stronger')
 })).optional().describe('Contradiction and out-of-date cards: the approved items the new card disagrees with'),
+  "peopleWaiting": zod.int().optional().describe('Section 25: on a New organisation card, how many New person cards are waiting on it'),
   "presort": zod.union([zod.object({
   "verdict": zod.enum(['keep', 'reject', 'same', 'duplicate']),
   "why": zod.string(),
@@ -9256,6 +9258,72 @@ export const RedraftFridayUpdateSectionResponse = zod.object({
 }),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Approve a New organisation card and the New person cards waiting on it (section 25)
+ */
+export const ApproveSuggestionWithPeopleParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ApproveSuggestionWithPeopleResponse = zod.object({
+  "organisation": zod.object({
+  "type": zod.string(),
+  "id": zod.int()
+}),
+  "people": zod.int(),
+  "skipped": zod.array(zod.object({
+  "id": zod.int(),
+  "reason": zod.string()
+}))
+})
+
+
+/**
+ * @summary The contact finder's setting (section 25)
+ */
+export const GetContactFinderSettingsResponse = zod.object({
+  "autoAdd": zod.boolean().describe('Add the clearest people straight to Contacts instead of as cards')
+})
+
+
+/**
+ * @summary Turn adding the clearest people automatically on or off
+ */
+export const SetContactFinderSettingsBody = zod.object({
+  "autoAdd": zod.boolean().describe('Add the clearest people straight to Contacts instead of as cards')
+})
+
+export const SetContactFinderSettingsResponse = zod.object({
+  "autoAdd": zod.boolean().describe('Add the clearest people straight to Contacts instead of as cards')
+})
+
+
+/**
+ * @summary Run the contact finder now (section 25)
+ */
+export const FindContactsResponse = zod.object({
+  "looked": zod.int(),
+  "people": zod.int().describe('New person cards'),
+  "organisations": zod.int().describe('New organisation cards'),
+  "emails": zod.int().describe('Cards adding an email to someone with the same name'),
+  "added": zod.int().describe('Added to Contacts without a card'),
+  "ignored": zod.int().describe('Not a person'),
+  "failed": zod.boolean()
+})
+
+
+/**
+ * @summary Undo someone the contact finder added by itself; refused once anything is linked to them
+ */
+export const UndoAutoAddedContactParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UndoAutoAddedContactResponse = zod.object({
+  "id": zod.int()
 })
 
 
