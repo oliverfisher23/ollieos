@@ -45,6 +45,7 @@ import { writeBriefFromDocs } from "./ask/model";
 import { projectsForPeople, stateFor } from "./cadence";
 import { loadScopeContext, scopeOf, type MeetingScope, type ScopeContext } from "./meetingScope";
 import { researchViews, type ResearchView } from "./research";
+import { checkAgendaQuietly } from "./agendaCheck";
 import { suggestOrganisations, suggestionFor, type OrgSuggestion } from "./orgSuggest";
 import { chooseThreads, unrelatedActivityIds, type HiddenThread, type MatchContext } from "./threadMatch";
 import { ConflictError, NotFoundError } from "./tasks";
@@ -1050,7 +1051,7 @@ export async function attachMeetingNotes(
   const notes = input.notes.slice(0, 50000);
   const sameNote = event.granolaRef === input.granolaRef;
   const eventIds = [...new Set([...(sameNote ? event.granolaTaskIds : []), ...input.actionTaskIds])];
-  return db.transaction(async (tx) => {
+  const attached = await db.transaction(async (tx) => {
     await tx
       .update(calendarEventsTable)
       .set({ granolaRef: input.granolaRef, granolaUrl: input.url ?? (sameNote ? event.granolaUrl : null), granolaNotes: notes, granolaTaskIds: eventIds, granolaAttachedAt: now })
@@ -1073,6 +1074,9 @@ export async function attachMeetingNotes(
     });
     return row;
   });
+  // Close the loop: how the meeting went against Ollie's agenda, when he wrote one.
+  await checkAgendaQuietly(event.id);
+  return attached;
 }
 
 /**

@@ -1408,6 +1408,46 @@ export interface AgendaTurn {
   at: string;
 }
 
+export type AgendaItemStatus = typeof AgendaItemStatus[keyof typeof AgendaItemStatus];
+
+
+export const AgendaItemStatus = {
+  covered: 'covered',
+  partly: 'partly',
+  not_covered: 'not_covered',
+} as const;
+
+export type AgendaCheckItemsItem = {
+  index: number;
+  title: string;
+  status: AgendaItemStatus;
+  note: string;
+  /** Ollie dropped it */
+  dropped: boolean;
+};
+
+export interface AgendaCheck {
+  at: string;
+  /** The agenda or the note changed since the check */
+  stale: boolean;
+  items: AgendaCheckItemsItem[];
+}
+
+export type AgendaLeftoversItemsItem = {
+  index: number;
+  title: string;
+  status: AgendaItemStatus;
+  note: string;
+};
+
+export interface AgendaLeftovers {
+  /** The earlier meeting they are left over from */
+  eventId: number;
+  title: string;
+  startsAt: string;
+  items: AgendaLeftoversItemsItem[];
+}
+
 export interface MeetingView {
   id: number;
   title: string;
@@ -1435,6 +1475,10 @@ export interface MeetingView {
   granola: MeetingViewGranola;
   /** True when OllieOS reads Granola itself */
   granolaCheck: boolean;
+  /** How the meeting went against the agenda, once its Granola note has been compared with it */
+  agendaCheck: AgendaCheck | null;
+  /** What was not covered at the last meeting like this one, offered for this agenda */
+  leftovers: AgendaLeftovers | null;
 }
 
 export interface MeetingPersonalInput {
@@ -1452,6 +1496,10 @@ export interface GranolaLinkInput {
 
 export interface ThreadVerdictInput {
   related: boolean;
+}
+
+export interface AgendaItemDropInput {
+  dropped: boolean;
 }
 
 export interface AgendaInput {

@@ -3,6 +3,7 @@ import { BriefTalkingPoints } from '@/components/talking-points';
 import { LazyMeetingAgenda as MeetingAgenda } from '@/components/meeting-agenda-lazy';
 import { FromGranola } from '@/components/from-granola';
 import { MeetingThreads } from '@/components/meeting-threads';
+import { AddIdea } from '@/components/agenda-ideas';
 import { AddToContactsButton, nameFromInvite } from '@/components/add-to-contacts';
 import { Thumbs } from '@/components/evals';
 import { CommercialLines } from '@/components/client-pulse';
@@ -122,6 +123,9 @@ function Brief({ brief }: { brief: BriefView }) {
   const e = brief.event;
   const ended = new Date(e.endsAt).getTime() <= now;
   const showContext = !brief.notMuch && !brief.failed;
+  const people = brief.attendees.flatMap((a) => (a.person ? [{ id: a.person.id, name: a.person.name }] : []));
+  const points = brief.talkingPoints ?? [];
+  const suggested = showContext ? (brief.agenda ?? []) : [];
 
   const replace = (next: BriefView) => {
     qc.setQueryData(getGetBriefQueryKey(e.id), next);
@@ -183,6 +187,8 @@ function Brief({ brief }: { brief: BriefView }) {
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
         <main style={{ flex: '999 1 560px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Once the meeting has ended the page leads with how it went. */}
+          {ended && <FromGranola eventId={e.id} endsAt={e.endsAt} />}
           <Panel id="b-why" title="Why this meeting">
             {brief.failed ? (
               <p className="oo-muted" style={{ margin: 0, fontSize: 15 }} data-testid="text-brief-failed">
@@ -239,18 +245,39 @@ function Brief({ brief }: { brief: BriefView }) {
             </Panel>
           )}
 
-          {((brief.talkingPoints ?? []).length > 0 || brief.attendees.some((a) => a.person) || (showContext && brief.agenda && brief.agenda.length > 0)) && (
-            <Panel id="b-agenda" title="Suggested agenda">
-              <BriefTalkingPoints eventId={brief.event.id} points={brief.talkingPoints ?? []} people={brief.attendees.flatMap((a) => (a.person ? [{ id: a.person.id, name: a.person.name }] : []))} />
-              {showContext && brief.agenda && brief.agenda.length > 0 && <ol style={{ margin: 0, paddingLeft: 20, listStyle: 'decimal', display: 'flex', flexDirection: 'column', gap: 8, fontSize: 15, lineHeight: 1.5 }} data-testid="list-agenda">
-                {brief.agenda.map((l, i) => (
-                  <li key={i}>{l.text}<Cites sources={l.sources} /></li>
-                ))}
-              </ol>}
-            </Panel>
-          )}
-
-          <MeetingAgenda eventId={e.id} />
+          {/* One agenda: Ollie's own, with what he wanted to raise and what OllieOS suggests offered above it. */}
+          <MeetingAgenda
+            eventId={e.id}
+            ideas={
+              people.length > 0 || points.length > 0 || suggested.length > 0
+                ? (agenda) => (
+                    <>
+                      {(people.length > 0 || points.length > 0) && <BriefTalkingPoints eventId={e.id} points={points} people={people} agenda={agenda} />}
+                      {suggested.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="list-agenda">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                            <span className="oo-field-label">Suggested from what is on file</span>
+                            {suggested.some((l) => !agenda.has(l.text)) && (
+                              <button type="button" className="oo-textbtn" disabled={agenda.busy} onClick={() => suggested.filter((l) => !agenda.has(l.text)).forEach((l) => agenda.add(l.text))} data-testid="button-suggested-add-all">
+                                Add all
+                              </button>
+                            )}
+                          </div>
+                          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {suggested.map((l, i) => (
+                              <li key={i} className="oo-idea-row" data-testid={'item-suggested-' + i}>
+                                <span style={{ flex: '1 1 220px', lineHeight: 1.5, minWidth: 0 }}>{l.text}<Cites sources={l.sources} /></span>
+                                <AddIdea agenda={agenda} text={l.text} testId={'suggested-' + i} />
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </>
+                  )
+                : undefined
+            }
+          />
 
           {brief.followUpTaskId != null && (
             <p className="oo-soft" style={{ margin: 0, fontSize: 14 }} data-testid="text-brief-follow-up">
@@ -269,7 +296,7 @@ function Brief({ brief }: { brief: BriefView }) {
             </Panel>
           )}
 
-          <FromGranola eventId={e.id} endsAt={e.endsAt} />
+          {!ended && <FromGranola eventId={e.id} endsAt={e.endsAt} />}
 
           {brief.earlier.length > 0 && (
             <Panel id="b-earlier" title="Last time, from Granola">

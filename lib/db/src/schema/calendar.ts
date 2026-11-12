@@ -18,6 +18,22 @@ export interface AgendaTurn {
   at: string;
 }
 
+/** How the meeting went against Ollie's agenda, worked out from its Granola note. */
+export interface AgendaCheck {
+  /** The note and the agenda (a hash of it) the check was made from, so a change to either shows as out of date */
+  granolaRef: string;
+  agendaHash: string;
+  at: string;
+  items: {
+    title: string;
+    status: "covered" | "partly" | "not_covered";
+    /** One line on what was said or decided, or what was left */
+    note: string;
+    /** Ollie dropped it, so it is not offered on the next meeting's agenda */
+    dropped?: boolean;
+  }[];
+}
+
 /**
  * Today and the next 7 days, upserted by source_ref on each sweep so ids stay stable for briefs.
  * Future events no longer in the feed are removed; past events are kept for 30 days (build plan 29).
@@ -62,6 +78,8 @@ export const calendarEventsTable = pgTable(
     /** Inbox tasks made from the note's actions */
     granolaTaskIds: integer("granola_task_ids").array().notNull().default(sql`'{}'::integer[]`),
     granolaAttachedAt: timestamp("granola_attached_at", { withTimezone: true }),
+    /** Each agenda item marked covered, partly or not covered from the Granola note; null until checked */
+    agendaCheck: jsonb("agenda_check").$type<AgendaCheck | null>(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow()

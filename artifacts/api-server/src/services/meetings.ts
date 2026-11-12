@@ -10,6 +10,7 @@ import { eligible, loadMatchers, matchEvent } from "./briefs";
 import type { MeetingScope } from "./meetingScope";
 import { writeAudit } from "../lib/audit";
 import { readByNow } from "./connectors";
+import { checkView, leftoversFor, type AgendaCheckView, type Leftovers } from "./agendaCheck";
 import { suggestOrganisations, suggestionFor, type OrgSuggestion } from "./orgSuggest";
 import { NotFoundError } from "./tasks";
 
@@ -173,6 +174,10 @@ export interface MeetingView {
   granola: { url: string | null; notes: string; attachedAt: Date | null; actions: { id: number; title: string; status: string }[] } | null;
   /** True when OllieOS reads Granola itself, so Check Granola now can fetch the note */
   granolaCheck: boolean;
+  /** How the meeting went against the agenda, once its Granola note has been compared with it */
+  agendaCheck: AgendaCheckView | null;
+  /** What was not covered at the last meeting like this one, offered for this agenda */
+  leftovers: Leftovers | null;
 }
 
 export async function workEvent(eventId: number): Promise<CalendarEvent> {
@@ -211,6 +216,7 @@ export async function meetingView(eventId: number): Promise<MeetingView> {
       : [],
     readByNow("granola").then((r) => r === "ollieos"),
   ]);
+  const leftovers = await leftoversFor(event);
   return {
     id: event.id,
     title: event.title,
@@ -235,6 +241,8 @@ export async function meetingView(eventId: number): Promise<MeetingView> {
     agendaChat: event.agendaChat,
     granola: granolaNotes ? { url: event.granolaUrl, notes: granolaNotes, attachedAt: event.granolaAttachedAt, actions } : null,
     granolaCheck,
+    agendaCheck: granolaNotes ? checkView(event) : null,
+    leftovers,
   };
 }
 

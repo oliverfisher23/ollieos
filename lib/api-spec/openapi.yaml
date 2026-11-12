@@ -2508,6 +2508,51 @@ paths:
         "409": { $ref: "#/components/responses/Error" }
         "502": { $ref: "#/components/responses/Error" }
 
+  /meetings/{eventId}/agenda/check:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: checkAgenda
+      tags: [preparation]
+      summary: Compare the meeting's Granola note with its agenda, marking each item covered, partly or not covered
+      responses:
+        "200":
+          description: The meeting, with the check
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeetingView" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /meetings/{eventId}/agenda/check/items/{index}:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: index
+        in: path
+        required: true
+        schema: { type: integer }
+    put:
+      operationId: setLeftoverDropped
+      tags: [preparation]
+      summary: Drop an item that was not covered so it is not offered on the next agenda, or bring it back
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AgendaItemDropInput" }
+      responses:
+        "204": { description: Saved }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /meetings/{eventId}/agenda/chat:
     parameters:
       - name: eventId
@@ -6231,7 +6276,7 @@ components:
 
     MeetingView:
       type: object
-      required: [id, title, startsAt, endsAt, platform, location, scope, companies, prep, attendees, notes, agendaChat, granola, granolaCheck]
+      required: [id, title, startsAt, endsAt, platform, location, scope, companies, prep, attendees, notes, agendaChat, granola, granolaCheck, agendaCheck, leftovers]
       properties:
         id: { type: integer }
         title: { type: string }
@@ -6292,6 +6337,16 @@ components:
                   title: { type: string }
                   status: { type: string }
         granolaCheck: { type: boolean, description: True when OllieOS reads Granola itself, so a check can fetch the note now }
+        agendaCheck:
+          description: How the meeting went against the agenda, once its Granola note has been compared with it
+          oneOf:
+            - $ref: "#/components/schemas/AgendaCheck"
+            - type: "null"
+        leftovers:
+          description: What was not covered at the last meeting like this one, offered for this agenda
+          oneOf:
+            - $ref: "#/components/schemas/AgendaLeftovers"
+            - type: "null"
 
     MeetingPersonalInput:
       type: object
@@ -6313,6 +6368,53 @@ components:
       additionalProperties: false
       properties:
         related: { type: boolean }
+
+    AgendaItemStatus:
+      type: string
+      enum: [covered, partly, not_covered]
+
+    AgendaCheck:
+      type: object
+      required: [at, stale, items]
+      properties:
+        at: { type: string, format: date-time }
+        stale: { type: boolean, description: The agenda or the note changed since the check }
+        items:
+          type: array
+          items:
+            type: object
+            required: [index, title, status, note, dropped]
+            properties:
+              index: { type: integer }
+              title: { type: string }
+              status: { $ref: "#/components/schemas/AgendaItemStatus" }
+              note: { type: string }
+              dropped: { type: boolean, description: Ollie dropped it, so it is not offered on the next agenda }
+
+    AgendaLeftovers:
+      type: object
+      required: [eventId, title, startsAt, items]
+      properties:
+        eventId: { type: integer, description: The earlier meeting they are left over from }
+        title: { type: string }
+        startsAt: { type: string, format: date-time }
+        items:
+          type: array
+          items:
+            type: object
+            required: [index, title, status, note]
+            properties:
+              index: { type: integer }
+              title: { type: string }
+              status: { $ref: "#/components/schemas/AgendaItemStatus" }
+              note: { type: string }
+
+    AgendaItemDropInput:
+      type: object
+      required: [dropped]
+      additionalProperties: false
+      properties:
+        dropped: { type: boolean }
 
     AgendaTurn:
       type: object
