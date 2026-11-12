@@ -468,6 +468,11 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-stat { border: 1px solid var(--oo-line); border-radius: var(--oo-r-card); padding: 22px 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .oo-table { width: 100%; min-width: 860px; border-collapse: collapse; font-size: 14px; }
 .oo-table th { text-align: left; font-weight: 400; font-size: 13px; color: var(--oo-ink-muted); padding: 12px 10px; border-bottom: 1px solid var(--oo-line); }
+.oo-th-sort { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.oo-th-sort:hover, .oo-th-sort[data-active="true"] { color: var(--oo-ink); }
+.oo-th-sort svg { opacity: 0; transition: opacity 120ms ease; }
+.oo-th-sort:hover svg, .oo-th-sort:focus-visible svg { opacity: 0.45; }
+.oo-th-sort[data-active="true"] svg { opacity: 1; }
 .oo-table td { padding: 14px 10px; border-bottom: 1px solid var(--oo-line-soft); }
 .oo-table th:first-child, .oo-table td:first-child { padding-left: 0; }
 .oo-row { cursor: pointer; transition: opacity 2s ease; }

@@ -19,7 +19,7 @@ import {
 import { SOURCE_LABELS, TASK_SOURCES, addDays, formatWeekRange, todayLondon, weekStartOf } from '@workspace/shared';
 import { Skel, SourceLabel, SourceMark } from '@/components/bits';
 import { DueCell, PriorityCell, StatusCell } from '@/components/task-cell-editors';
-import { IconCheck, IconLeft, IconRight, IconSearch } from '@/components/icons';
+import { IconCheck, IconDown, IconLeft, IconRight, IconSearch, IconUp } from '@/components/icons';
 import { TaskDetailPanel } from '@/components/task-detail';
 import { TaskMarks } from '@/components/task-marks';
 import { useInvalidateTasks } from '@/lib/task-cache';
@@ -52,6 +52,48 @@ const EMPTY: Record<TaskTab, string> = {
   archived: 'Nothing archived. Archive keeps a task for later without it counting as open.',
 };
 
+type SortKey = 'title' | 'source' | 'from' | 'priority' | 'due' | 'status';
+type SortDir = 'asc' | 'desc';
+type Sort = { key: SortKey; dir: SortDir } | null;
+
+const SORT_LABELS: Record<SortKey, string> = {
+  title: 'Task',
+  source: 'Source',
+  from: 'From',
+  priority: 'Priority',
+  due: 'Due',
+  status: 'Status',
+};
+const SORT_KEYS = Object.keys(SORT_LABELS) as SortKey[];
+const PRIORITY_RANK: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
+const STATUS_RANK: Record<TaskStatus, number> = { now: 0, inbox: 1, waiting: 2, backlog: 3, archived: 4, done: 5, dropped: 6, noise: 7 };
+
+/** The value a column sorts on. Null means empty, which always sorts last. */
+function sortValue(t: Task, key: SortKey): string | number | null {
+  switch (key) {
+    case 'title': return t.title.toLowerCase();
+    case 'source': return SOURCE_LABELS[t.source].toLowerCase();
+    case 'from': return (t.fromName ?? t.person?.name ?? '').toLowerCase() || null;
+    case 'priority': return PRIORITY_RANK[t.priority];
+    case 'due': return t.dueDate;
+    case 'status': return STATUS_RANK[t.status];
+  }
+}
+
+/** Sorts a copy of the list. Ties keep the server's order, and empty values go last either way. */
+function sortTasks(rows: Task[], sort: Sort): Task[] {
+  if (!sort) return rows;
+  const sign = sort.dir === 'asc' ? 1 : -1;
+  return rows
+    .map((t, i) => ({ t, i, v: sortValue(t, sort.key) }))
+    .sort((a, b) => {
+      if (a.v === null || b.v === null) return a.v === b.v ? a.i - b.i : a.v === null ? 1 : -1;
+      const c = typeof a.v === 'number' && typeof b.v === 'number' ? a.v - b.v : String(a.v).localeCompare(String(b.v));
+      return c ? c * sign : a.i - b.i;
+    })
+    .map((x) => x.t);
+}
+
 function useQueryState() {
   const search = useSearch();
   const [, setLocation] = useLocation();
@@ -78,6 +120,16 @@ export default function TasksPage() {
   const undated = sp.get('undated') === '1';
   const q = sp.get('q') ?? '';
   const taskId = Number(sp.get('task')) || null;
+  const rawSort = sp.get('sort');
+  const sort: Sort = rawSort && (SORT_KEYS as string[]).includes(rawSort)
+    ? { key: rawSort as SortKey, dir: sp.get('dir') === 'desc' ? 'desc' : 'asc' }
+    : null;
+  // Click a header to sort ascending, again for descending, and a third time to go back to the usual order.
+  const onSort = (key: SortKey) => {
+    if (sort?.key !== key) set({ sort: key, dir: null });
+    else if (sort.dir === 'asc') set({ dir: 'desc' });
+    else set({ sort: null, dir: null });
+  };
   const openTab = tab !== 'done' && tab !== 'noise' && tab !== 'dropped' && tab !== 'archived';
 
   const [search, setSearch] = useState(q);
@@ -106,7 +158,7 @@ export default function TasksPage() {
   const review = useListReview();
   const reviewCount = review.data?.actions ?? 0;
 
-  const rows = list.data ?? [];
+  const rows = useMemo(() => sortTasks(list.data ?? [], sort), [list.data, sort?.key, sort?.dir]);
   const tabs = summary.data?.tabs;
   const stats = summary.data?.stats;
 
@@ -167,6 +219,28 @@ export default function TasksPage() {
           {week && (
             <button type="button" className="oo-btn oo-btn-danger" style={{ color: 'var(--oo-ink-muted)' }} onClick={() => set({ week: null, undated: null })} data-testid="button-clear-week">Any date</button>
           )}
+          <div className="sm:hidden">
+            <label htmlFor="sort-tasks" className="oo-sr">Sort by</label>
+            <Dropdown
+              id="sort-tasks"
+              variant="control"
+              value={sort ? sort.key + ':' + sort.dir : ''}
+              onChange={(v) => {
+                const [key, dir] = v.split(':');
+                set({ sort: key || null, dir: dir === 'desc' ? 'desc' : null });
+              }}
+              options={[
+                { value: '', label: 'Usual order' },
+                { value: 'due:asc', label: 'Due, soonest first' },
+                { value: 'priority:asc', label: 'Priority, high first' },
+                { value: 'status:asc', label: 'Status' },
+                { value: 'title:asc', label: 'Task, A to Z' },
+                { value: 'source:asc', label: 'Source' },
+                { value: 'from:asc', label: 'From' },
+              ]}
+              testId="select-sort"
+            />
+          </div>
           <div style={{ flexGrow: 1 }} />
           <label htmlFor="task-search" className="oo-sr">Search tasks</label>
           <div className="oo-search" style={{ flex: '1 1 220px', maxWidth: 320 }}>
@@ -215,7 +289,7 @@ export default function TasksPage() {
             {(q || source || week) && <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>Try another week or clear the search.</p>}
           </div>
         ) : (
-          <TaskRows tab={tab} rows={rows} selected={taskId} onOpen={(id) => set({ task: String(id) })} />
+          <TaskRows tab={tab} rows={rows} selected={taskId} sort={sort} onSort={onSort} onOpen={(id) => set({ task: String(id) })} />
         )}
       </div>
 
@@ -266,7 +340,22 @@ function isTyping(el: EventTarget | null) {
   return el instanceof HTMLElement && (el.isContentEditable || ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName));
 }
 
-function TaskRows({ tab, rows: allRows, selected, onOpen }: { tab: TaskTab; rows: Task[]; selected: number | null; onOpen: (id: number) => void }) {
+function SortHeader({ col, sort, onSort }: { col: SortKey; sort: Sort; onSort: (key: SortKey) => void }) {
+  const active = sort?.key === col;
+  const Arrow = active && sort.dir === 'desc' ? IconDown : IconUp;
+  return (
+    <th scope="col" aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
+      <button type="button" className="oo-th-sort" data-active={active} onClick={() => onSort(col)} data-testid={'button-sort-' + col}>
+        {SORT_LABELS[col]}
+        <Arrow size={12} />
+      </button>
+    </th>
+  );
+}
+
+function TaskRows({ tab, rows: allRows, selected, sort, onSort, onOpen }: {
+  tab: TaskTab; rows: Task[]; selected: number | null; sort: Sort; onSort: (key: SortKey) => void; onOpen: (id: number) => void;
+}) {
   let rows = allRows;
   const update = useUpdateTask();
   const invalidate = useInvalidateTasks();
@@ -440,8 +529,7 @@ function TaskRows({ tab, rows: allRows, selected, onOpen }: { tab: TaskTab; rows
       <table className="oo-table" aria-label={label}>
         <thead>
           <tr>
-            <th scope="col">Task</th><th scope="col">Source</th><th scope="col">From</th>
-            <th scope="col">Priority</th><th scope="col">Due</th><th scope="col">Status</th>
+            {SORT_KEYS.map((k) => <SortHeader key={k} col={k} sort={sort} onSort={onSort} />)}
             {extraCol && <th scope="col">{inbox ? 'Triage' : noise ? 'Caught by' : <span className="oo-sr">Restore</span>}</th>}
           </tr>
         </thead>
