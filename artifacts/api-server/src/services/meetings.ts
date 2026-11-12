@@ -4,12 +4,13 @@
  * Granola notes. Ollie's view, so nothing is hidden. Prep pages are the briefs at /briefs/{id}.
  */
 import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
-import { calendarEventsTable, db, meetingBriefsTable, peopleTable, tasksTable, type AgendaTurn, type CalendarEvent } from "@workspace/db";
+import { calendarEventsTable, db, meetingBriefsTable, organisationsTable, peopleTable, tasksTable, type AgendaTurn, type CalendarEvent } from "@workspace/db";
 import { OPEN_STATUSES, addDays, londonDate, londonRange, todayLondon } from "@workspace/shared";
 import { eligible, loadMatchers, matchEvent } from "./briefs";
 import type { MeetingScope } from "./meetingScope";
 import { writeAudit } from "../lib/audit";
 import { readByNow } from "./connectors";
+import { suggestOrganisations, suggestionFor, type OrgSuggestion } from "./orgSuggest";
 import { NotFoundError } from "./tasks";
 
 export const MEETINGS_AHEAD_DAYS = 7;
@@ -154,7 +155,13 @@ export interface MeetingView {
   companies: string[];
   /** Same as on the Meetings list; anything but none means the prep page at /briefs/{id} exists */
   prep: PrepState;
-  attendees: { name: string; email: string | null; person: { id: number; name: string; slug: string } | null }[];
+  attendees: {
+    name: string;
+    email: string | null;
+    person: { id: number; name: string; slug: string; organisation: { name: string; slug: string } | null } | null;
+    /** Not in Contacts yet: the organisation they probably belong to, from their email domain */
+    suggestedOrganisation: OrgSuggestion | null;
+  }[];
   /** Ollie's agenda and notes */
   notes: string | null;
   /** The conversation that shaped the agenda */
@@ -182,8 +189,15 @@ export async function meetingView(eventId: number): Promise<MeetingView> {
       .select({ why: meetingBriefsTable.why, failed: meetingBriefsTable.failed, notes: meetingBriefsTable.notes, granolaNotes: meetingBriefsTable.granolaNotes, actionTaskIds: meetingBriefsTable.actionTaskIds })
       .from(meetingBriefsTable)
       .where(eq(meetingBriefsTable.calendarEventId, event.id)),
-    personIds.length ? db.select({ id: peopleTable.id, name: peopleTable.name, slug: peopleTable.slug }).from(peopleTable).where(inArray(peopleTable.id, personIds)) : [],
+    personIds.length
+      ? db
+          .select({ id: peopleTable.id, name: peopleTable.name, slug: peopleTable.slug, orgName: organisationsTable.name, orgSlug: organisationsTable.slug })
+          .from(peopleTable)
+          .leftJoin(organisationsTable, eq(organisationsTable.id, peopleTable.organisationId))
+          .where(inArray(peopleTable.id, personIds))
+      : [],
   ]);
+  const suggestions = await suggestOrganisations(match.attendees.filter((a) => a.personId == null).map((a) => a.email));
   const personOf = new Map(people.map((p) => [p.id, p]));
   // Notes attached before meetings kept their own copy are only on the brief.
   const granolaNotes = event.granolaNotes ?? brief?.granolaNotes ?? null;
@@ -206,7 +220,12 @@ export async function meetingView(eventId: number): Promise<MeetingView> {
     prep: prepOf(eligible(event, match), brief),
     attendees: match.attendees.map((a) => {
       const p = a.personId != null ? personOf.get(a.personId) : undefined;
-      return { name: p?.name ?? a.name, email: a.email ?? null, person: p ? { id: p.id, name: p.name, slug: p.slug } : null };
+      return {
+        name: p?.name ?? a.name,
+        email: a.email ?? null,
+        person: p ? { id: p.id, name: p.name, slug: p.slug, organisation: p.orgName && p.orgSlug ? { name: p.orgName, slug: p.orgSlug } : null } : null,
+        suggestedOrganisation: p ? null : suggestionFor(suggestions, a.email),
+      };
     }),
     // Older notes may still be on the brief.
     notes: event.notes ?? brief?.notes ?? null,

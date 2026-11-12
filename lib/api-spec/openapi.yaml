@@ -5709,13 +5709,14 @@ components:
 
     BriefAttendeePerson:
       type: object
-      required: [id, slug, name, role, organisation, confidential, lastContactAt, facts, cadence, decidesOn]
+      required: [id, slug, name, role, organisation, organisationSlug, confidential, lastContactAt, facts, cadence, decidesOn]
       properties:
         id: { type: integer }
         slug: { type: string }
         name: { type: string }
         role: { type: [string, "null"] }
         organisation: { type: [string, "null"] }
+        organisationSlug: { type: [string, "null"], description: For the link to the organisation's page }
         confidential: { type: boolean }
         lastContactAt: { type: [string, "null"], format: date-time }
         facts:
@@ -5759,7 +5760,7 @@ components:
 
     BriefAttendee:
       type: object
-      required: [name, email, response, organiser, person]
+      required: [name, email, response, organiser, person, suggestedOrganisation]
       properties:
         name: { type: string }
         email: { type: [string, "null"] }
@@ -5770,6 +5771,26 @@ components:
           oneOf:
             - $ref: "#/components/schemas/BriefAttendeePerson"
             - type: "null"
+        suggestedOrganisation:
+          description: Not in Contacts yet, the organisation they probably belong to from their email domain; null for personal addresses
+          oneOf:
+            - $ref: "#/components/schemas/OrgSuggestion"
+            - type: "null"
+
+    OrgSuggestion:
+      type: object
+      required: [existing, newName, internal]
+      properties:
+        existing:
+          type: [object, "null"]
+          description: An organisation already in Contacts
+          required: [id, name, slug]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            slug: { type: string }
+        newName: { type: [string, "null"], description: When none fits, a name for a new one from the domain }
+        internal: { type: boolean, description: The domain is Ollie's own company's }
 
     BriefPromise:
       type: object
@@ -6126,18 +6147,28 @@ components:
           type: array
           items:
             type: object
-            required: [name, email, person]
+            required: [name, email, person, suggestedOrganisation]
             properties:
               name: { type: string }
               email: { type: [string, "null"] }
               person:
                 type: [object, "null"]
-                description: Set when they are in People
-                required: [id, name, slug]
+                description: Set when they are in Contacts
+                required: [id, name, slug, organisation]
                 properties:
                   id: { type: integer }
                   name: { type: string }
                   slug: { type: string }
+                  organisation:
+                    type: [object, "null"]
+                    required: [name, slug]
+                    properties:
+                      name: { type: string }
+                      slug: { type: string }
+              suggestedOrganisation:
+                oneOf:
+                  - $ref: "#/components/schemas/OrgSuggestion"
+                  - type: "null"
         notes: { type: [string, "null"], description: Ollie's agenda and notes }
         agendaChat: { type: array, items: { $ref: "#/components/schemas/AgendaTurn" } }
         granola:

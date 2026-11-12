@@ -6,14 +6,16 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MeetingViewAttendeesItemPerson } from './meetingViewAttendeesItemPerson';
+import type { OrgSuggestion } from './orgSuggestion';
 
 export type MeetingViewAttendeesItem = {
   name: string;
   /** @nullable */
   email: string | null;
   /**
-     * Set when they are in People
+     * Set when they are in Contacts
      * @nullable
      */
   person: MeetingViewAttendeesItemPerson;
+  suggestedOrganisation: OrgSuggestion | null;
 };

@@ -1,21 +1,14 @@
-import { useState, type FormEvent } from 'react';
 import { Link } from 'wouter';
-import { useQueryClient } from '@tanstack/react-query';
-import {
-  createPerson,
-  getGetMeetingQueryKey,
-  getListMeetingsQueryKey,
-  useGetMeeting,
-  type MeetingView,
-} from '@workspace/api-client-react';
+import { getGetMeetingQueryKey, useGetMeeting, type MeetingView } from '@workspace/api-client-react';
 import { formatLong, formatTime } from '@workspace/shared';
 import { Avatar } from '@/components/bits';
 import { IconLeft } from '@/components/icons';
 import { LazyMeetingAgenda as MeetingAgenda } from '@/components/meeting-agenda-lazy';
 import { FromGranola } from '@/components/from-granola';
+import { AddToContacts, nameFromInvite } from '@/components/add-to-contacts';
 import { ScopePill } from '@/components/research';
 import { PageProblem, PageSkeleton } from '@/components/knowledge/parts';
-import { isNotFound, useKnowledgeWrite } from '@/lib/knowledge';
+import { isNotFound } from '@/lib/knowledge';
 
 /**
  * A work meeting without a prep page: who is coming, a way to add them to Contacts, and Ollie's
@@ -78,7 +71,7 @@ function Meeting({ m }: { m: MeetingView }) {
             <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>No one else on the invite.</p>
           ) : (
             <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {m.attendees.map((a, i) => <Attendee key={(a.email ?? a.name) + i} a={a} index={i} eventId={m.id} />)}
+              {m.attendees.map((a, i) => <Attendee key={(a.email ?? a.name) + i} a={a} index={i} />)}
             </ul>
           )}
           {!hasPrep && unknown > 1 && <p className="oo-muted" style={{ margin: 0, fontSize: 13 }}>Adding one person is enough for a brief.</p>}
@@ -91,61 +84,27 @@ function Meeting({ m }: { m: MeetingView }) {
   );
 }
 
-/** "andy.dillow@example.com" becomes "Andy Dillow", as a starting point Ollie can change. */
-function nameFrom(a: MeetingView['attendees'][number]): string {
-  if (!a.name.includes('@')) return a.name;
-  return a.name
-    .split('@')[0]
-    .split(/[._-]+/)
-    .filter(Boolean)
-    .map((w) => w[0].toUpperCase() + w.slice(1))
-    .join(' ');
-}
-
-function Attendee({ a, index, eventId }: { a: MeetingView['attendees'][number]; index: number; eventId: number }) {
-  const qc = useQueryClient();
-  const write = useKnowledgeWrite();
-  const [adding, setAdding] = useState(false);
-  const [name, setName] = useState(() => nameFrom(a));
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    const v = name.trim();
-    if (!v || busy) return;
-    setBusy(true);
-    const p = await write(() => createPerson({ name: v, email: a.email }), { done: v + ' added to Contacts', fail: 'Could not add that person' });
-    setBusy(false);
-    if (!p) return;
-    setAdding(false);
-    await Promise.all([
-      qc.invalidateQueries({ queryKey: getGetMeetingQueryKey(eventId) }),
-      qc.invalidateQueries({ queryKey: getListMeetingsQueryKey() }),
-    ]);
-  };
-
+function Attendee({ a, index }: { a: MeetingView['attendees'][number]; index: number }) {
   return (
-    <li style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--oo-line-soft)' }} data-testid={'row-attendee-' + index}>
-      <Avatar name={a.person?.name ?? nameFrom(a)} id={a.person?.slug ?? a.email ?? a.name} size={28} />
+    <li style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--oo-line-soft)' }} data-testid={'row-attendee-' + index}>
+      <Avatar name={a.person?.name ?? nameFromInvite(a.name)} id={a.person?.slug ?? a.email ?? a.name} size={28} />
       <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: '1 1 200px' }}>
         {a.person ? (
           <Link href={'/knowledge/people/' + a.person.slug} className="oo-link" style={{ fontSize: 14, fontWeight: 600 }} data-testid={'link-attendee-' + index}>{a.person.name}</Link>
         ) : (
           <span style={{ fontSize: 14, fontWeight: 600, overflowWrap: 'anywhere' }}>{a.name}</span>
         )}
+        {a.person?.organisation && (
+          <Link href={'/knowledge/organisations/' + a.person.organisation.slug} style={{ fontSize: 12, color: 'var(--oo-ink-muted)', textUnderlineOffset: 2 }} data-testid={'link-attendee-org-' + index}>{a.person.organisation.name}</Link>
+        )}
         {a.email && a.email !== a.name && <span className="oo-muted" style={{ fontSize: 12, overflowWrap: 'anywhere' }}>{a.email}</span>}
       </span>
       {a.person ? (
         <span className="oo-pill" data-tone="done">In Contacts</span>
-      ) : adding ? (
-        <form onSubmit={submit} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', flex: '1 1 280px' }}>
-          <label htmlFor={'attendee-name-' + index} className="sr-only">Their name</label>
-          <input id={'attendee-name-' + index} className="oo-input" style={{ flex: '1 1 160px' }} value={name} maxLength={200} onChange={(e) => setName(e.target.value)} autoFocus data-testid={'input-attendee-name-' + index} />
-          <button type="submit" className="oo-btn oo-btn-ink" disabled={busy || !name.trim()} data-testid={'button-attendee-save-' + index}>{busy ? 'Adding…' : 'Add'}</button>
-          <button type="button" className="oo-btn oo-btn-outline" onClick={() => setAdding(false)} disabled={busy}>Cancel</button>
-        </form>
       ) : (
-        <button type="button" className="oo-btn oo-btn-outline" onClick={() => setAdding(true)} data-testid={'button-attendee-add-' + index}>Add to Contacts</button>
+        <div style={{ flex: '0 1 320px', minWidth: 0, display: 'flex', justifyContent: 'flex-end' }}>
+          <AddToContacts name={a.name} email={a.email} suggestion={a.suggestedOrganisation ?? null} testId={String(index)} />
+        </div>
       )}
     </li>
   );

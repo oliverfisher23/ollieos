@@ -45,6 +45,7 @@ import { writeBriefFromDocs } from "./ask/model";
 import { projectsForPeople, stateFor } from "./cadence";
 import { loadScopeContext, scopeOf, type MeetingScope, type ScopeContext } from "./meetingScope";
 import { researchViews, type ResearchView } from "./research";
+import { suggestOrganisations, suggestionFor, type OrgSuggestion } from "./orgSuggest";
 import { chooseThreads, unrelatedActivityIds, type HiddenThread, type MatchContext } from "./threadMatch";
 import { ConflictError, NotFoundError } from "./tasks";
 import { linkMap } from "./library";
@@ -584,6 +585,8 @@ export interface BriefView {
       name: string;
       role: string | null;
       organisation: string | null;
+      /** For the link to the organisation's page */
+      organisationSlug: string | null;
       confidential: boolean;
       lastContactAt: Date | null;
       facts: { id: number; text: string; needsCheck: boolean }[];
@@ -591,6 +594,8 @@ export interface BriefView {
       /** Part N: the projects, products and organisations they decide on */
       decidesOn: DecidesOnItem[];
     } | null;
+    /** Not in Contacts yet: the organisation they probably belong to, from their email domain */
+    suggestedOrganisation: OrgSuggestion | null;
   }[];
   promises: { id: number; title: string; source: string; capturedAt: Date; dueDate: string | null; personName: string | null }[];
   /** Open tasks for people on the meeting (Ollie owes them), promises aside */
@@ -760,6 +765,7 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
             cadence: peopleTable.cadence,
             cadencePaused: peopleTable.cadencePaused,
             organisation: organisationsTable.name,
+            organisationSlug: organisationsTable.slug,
           })
           .from(peopleTable)
           .leftJoin(organisationsTable, eq(organisationsTable.id, peopleTable.organisationId))
@@ -792,6 +798,7 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
   const withSources = (lines: BriefLine[] | null) =>
     lines ? lines.map((l) => ({ text: l.text, sources: l.cited.map((r) => sources.get(r)).filter((s): s is BriefSource => !!s) })) : null;
   const byPerson = new Map(personRows.map((p) => [p.id, p]));
+  const orgSuggestions = await suggestOrganisations(inputs.match.attendees.filter((a) => a.personId == null).map((a) => a.email));
   const deciding = await decidesOnFor(personRows.map((p) => p.id));
   const order = (ids: number[]) => (a: { id: number }, b: { id: number }) => ids.indexOf(a.id) - ids.indexOf(b.id);
 
@@ -835,6 +842,7 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
               name: p.name,
               role: p.role,
               organisation: p.organisation,
+              organisationSlug: p.organisationSlug,
               confidential: p.confidential,
               lastContactAt: p.lastContactAt,
               facts: extra.facts.get(p.id) ?? [],
@@ -842,6 +850,7 @@ async function viewOf(event: CalendarEvent, brief: MeetingBrief, inputs: BriefIn
               decidesOn: deciding.get(p.id) ?? [],
             }
           : null,
+        suggestedOrganisation: p ? null : suggestionFor(orgSuggestions, a.email),
       };
     }),
     promises: promiseRows.map(({ t, personName }) => ({

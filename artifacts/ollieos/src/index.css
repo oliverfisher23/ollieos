@@ -614,6 +614,7 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-mini:disabled { opacity: .6; cursor: default; }
 .oo-mini kbd { font: inherit; font-size: 11px; color: var(--oo-ink-muted); margin-left: 4px; }
 @media (max-width: 639px) { .oo-mini { min-height: 40px; padding: 6px 12px; font-size: 13px; } }
+.oo-hover-underline:hover { text-decoration: underline !important; text-underline-offset: 2px; }
 /* Rich text agenda (components/rich-agenda.tsx). Tailwind's reset strips list styles, so they are set here. */
 .oo-rich-box { display: flex; flex-direction: column; flex: 1; border: 1px solid var(--oo-control-border); border-radius: var(--oo-r-input-lg); background: var(--oo-panel); min-width: 0; }
 .oo-rich-box:focus-within { border-color: var(--oo-ink); }

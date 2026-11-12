@@ -3,6 +3,7 @@ import { BriefTalkingPoints } from '@/components/talking-points';
 import { LazyMeetingAgenda as MeetingAgenda } from '@/components/meeting-agenda-lazy';
 import { FromGranola } from '@/components/from-granola';
 import { MeetingThreads } from '@/components/meeting-threads';
+import { AddToContacts } from '@/components/add-to-contacts';
 import { Thumbs } from '@/components/evals';
 import { CommercialLines } from '@/components/client-pulse';
 import { Link } from 'wouter';
@@ -449,7 +450,8 @@ function AttendeeCard({ a, index }: { a: BriefAttendee; index: number }) {
   const p = a.person;
   // With no name on the invite the name is the email address, so it is shown once.
   const nameIsEmail = !!a.email && a.name.trim().toLowerCase() === a.email.toLowerCase();
-  const role = p ? [p.role, p.organisation].filter(Boolean).join(', ') : nameIsEmail ? null : a.email;
+  // Someone not in Contacts: their address, unless it is already the name.
+  const role = p || nameIsEmail ? null : a.email;
   const meta = [
     p ? (p.lastContactAt ? 'Last contact ' + formatDayMonth(p.lastContactAt) : 'No contact logged yet') : 'No previous contact',
     a.organiser ? 'organiser' : null,
@@ -461,9 +463,26 @@ function AttendeeCard({ a, index }: { a: BriefAttendee; index: number }) {
       <Avatar name={a.name} id={p?.id ?? a.name} size={36} />
       <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
         <span style={{ fontSize: 14, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-          <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{breakable(a.name)}</span>{p?.confidential && <LockMark />}
+          {p ? (
+            <Link href={'/knowledge/people/' + p.slug} style={{ minWidth: 0, overflowWrap: 'anywhere', color: 'var(--oo-ink)', textDecoration: 'none' }} className="oo-hover-underline" data-testid={'link-attendee-' + index}>{breakable(a.name)}</Link>
+          ) : (
+            <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{breakable(a.name)}</span>
+          )}
+          {p?.confidential && <LockMark />}
         </span>
-        {role && <span style={{ fontSize: 13, color: 'var(--oo-ink-muted)', overflowWrap: 'anywhere' }}>{breakable(role)}</span>}
+        {p ? (
+          (p.role || p.organisation) && (
+            <span style={{ fontSize: 13, color: 'var(--oo-ink-muted)', overflowWrap: 'anywhere' }}>
+              {p.role}
+              {p.role && p.organisation ? ', ' : ''}
+              {p.organisation && (p.organisationSlug ? (
+                <Link href={'/knowledge/organisations/' + p.organisationSlug} style={{ color: 'inherit', textUnderlineOffset: 2 }} data-testid={'link-attendee-org-' + index}>{p.organisation}</Link>
+              ) : p.organisation)}
+            </span>
+          )
+        ) : (
+          role && <span style={{ fontSize: 13, color: 'var(--oo-ink-muted)', overflowWrap: 'anywhere' }}>{breakable(role)}</span>
+        )}
         <span style={{ fontSize: 12, color: 'var(--oo-ink-muted)' }}>{meta}</span>
         {cadence && <span style={{ fontSize: 12, color: 'var(--oo-ink-muted)' }} data-testid={'text-attendee-cadence-' + index}>Cadence: {cadence}</span>}
         {p && p.decidesOn.length > 0 && (
@@ -478,14 +497,19 @@ function AttendeeCard({ a, index }: { a: BriefAttendee; index: number }) {
             ))}
           </ul>
         )}
+        {!p && (
+          <div style={{ marginTop: 6 }}>
+            <AddToContacts name={a.name} email={a.email} suggestion={a.suggestedOrganisation ?? null} testId={String(index)} />
+          </div>
+        )}
       </span>
     </>
   );
-  const box = { display: 'flex', gap: 12, padding: '14px 16px', border: '1px solid var(--oo-line)', borderRadius: 'var(--oo-r-card-sm)', textDecoration: 'none', color: 'var(--oo-ink)' } as const;
-  return p ? (
-    <Link href={'/knowledge/people/' + p.slug} style={box} data-testid={'card-attendee-' + index}>{body}</Link>
-  ) : (
-    <div style={box} data-testid={'card-attendee-' + index}>{body}</div>
+  const box = { display: 'flex', gap: 12, padding: '14px 16px', border: '1px solid var(--oo-line)', borderRadius: 'var(--oo-r-card-sm)', color: 'var(--oo-ink)' } as const;
+  return (
+    <div style={box} data-testid={'card-attendee-' + index}>
+      {body}
+    </div>
   );
 }
 
