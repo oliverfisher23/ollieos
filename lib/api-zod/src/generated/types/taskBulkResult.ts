@@ -5,8 +5,8 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
-import type { WorkPack } from './workPack';
 
-export interface WorkPackEnvelope {
-  pack: WorkPack | null;
+export interface TaskBulkResult {
+  updated: number;
+  failed: number;
 }

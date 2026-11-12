@@ -95,17 +95,17 @@ export const tasksTable = pgTable(
     delegateCheckedAt: timestamp("delegate_checked_at", { withTimezone: true }),
     /** Ollie said "Not this one", so it is not suggested again */
     delegateDismissedAt: timestamp("delegate_dismissed_at", { withTimezone: true }),
-    /** Section 27: what the task linker linked (person, waiting on, project), so it can be undone and scored */
-    linkHint: jsonb("link_hint").$type<LinkHint | null>(),
-    /** When the task linker last looked at it */
-    linkCheckedAt: timestamp("link_checked_at", { withTimezone: true }),
-    /** Ollie pressed Undo: the linker leaves this task alone from then on */
-    linkUndoneAt: timestamp("link_undone_at", { withTimezone: true }),
-    /** Section 26: the stuck-task coach's way out for a task that keeps slipping; null when it is not stuck */
+    /** Section 27: when OllieOS looked for the person this task is with; null means not yet. Looked at once, so a link Ollie removes stays removed. */
+    personCheckedAt: timestamp("person_checked_at", { withTimezone: true }),
+    /** Section 27: why Ollie dropped it or sent it to Noise (not_mine, already_done, fyi, arranging, duplicate, not_needed); the Reader coach learns from it */
+    dropReason: text("drop_reason"),
+    /** Section 27: a Waiting on task is not flagged for a chase before this; null means three days after it started waiting */
+    chaseAfter: timestamp("chase_after", { withTimezone: true }),
+    /** Section 27: the stuck-task coach's line on why this keeps slipping and what to try */
     stuckHint: jsonb("stuck_hint").$type<StuckHint | null>(),
-    /** When the stuck-task coach last looked at it */
+    /** When the stuck-task coach last looked at it; null means not yet */
     stuckCheckedAt: timestamp("stuck_checked_at", { withTimezone: true }),
-    /** Ollie said "Not now": it is not flagged again for 30 days */
+    /** Ollie said "Not stuck", so it is not flagged again */
     stuckDismissedAt: timestamp("stuck_dismissed_at", { withTimezone: true }),
     search: tsvector("search").generatedAlwaysAs(
       sql`to_tsvector('english', coalesce(title,'') || ' ' || coalesce(snippet,'') || ' ' || coalesce(notes,'') || ' ' || coalesce(source_quote,'') || ' ' || coalesce(from_name,''))`,
@@ -138,52 +138,6 @@ export const captureLogTable = pgTable(
   (t) => [uniqueIndex("capture_log_source_ref_unique").on(t.source, t.sourceRef)],
 );
 
-/** Section 27: the links the task linker made on a task, each with the name it had then, and why. */
-export interface LinkHint {
-  person: { id: number; name: string } | null;
-  waitingOn: { id: number; name: string } | null;
-  project: { id: number; name: string } | null;
-  why: string;
-  at: string;
-}
-
-/** Section 27: a task's work pack, as the writer gave it. */
-export interface WorkPackContent {
-  /** ready_to_send: the thing to send exists; needs_work: there is something to build on; nothing_found: nothing useful held */
-  status: "ready_to_send" | "needs_work" | "nothing_found";
-  /** What OllieOS already holds for this task, in a line or two */
-  have: string;
-  /** The next concrete step */
-  next: string;
-  /** A message to send, when one helps */
-  draft: { to: string; subject: string; body: string } | null;
-  /** For work still to do: the shape of it */
-  outline: string[];
-  /** What is not known and would be needed */
-  questions: string[];
-  /** Refs of the items it rests on */
-  uses: string[];
-}
-
-/**
- * Section 26: why a task looks stuck (from its own history, in code) and the way out the coach
- * suggests. A task hidden from AI gets the signals with no suggestion.
- */
-export interface StuckHint {
-  /** "Snoozed 4 times, in Now for 5 weeks", from the history */
-  signals: string;
-  wayOut: "break_down" | "delegate" | "drop" | "repeat" | "next_step" | null;
-  why: string | null;
-  /** For break_down: the steps to add */
-  steps: string[];
-  /** For repeat: how often */
-  repeatEvery: "week" | "fortnight" | "month" | "quarter" | null;
-  /** One small, concrete thing to do first */
-  nextStep: string | null;
-  /** When Ollie took the suggestion */
-  appliedAt?: string | null;
-}
-
 /** Section 23: who could take a task off Ollie's hands, and the message he could send them. */
 export interface DelegateHint {
   personId: number;
@@ -214,24 +168,6 @@ export interface PlanItem {
   minutes: number;
   start: string | null;
 }
-
-/**
- * Section 27: the work pack for a task: what OllieOS already holds for it and the first output.
- * One per task; rebuilt on request. Only made for tasks AI may see, from items AI may see.
- */
-export const taskPacksTable = pgTable("task_packs", {
-  taskId: integer("task_id")
-    .primaryKey()
-    .references(() => tasksTable.id, { onDelete: "cascade" }),
-  content: jsonb("content").$type<WorkPackContent>().notNull(),
-  /** The Gmail draft the pack's message was saved as, if it was */
-  gmailDraftId: text("gmail_draft_id"),
-  /** Ollie copied or saved the draft */
-  usedAt: timestamp("used_at", { withTimezone: true }),
-  /** Ollie said it was not useful */
-  dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
 
 /** Plan my day: the tasks Ollie picked for a day, fitted around his meetings. */
 export const dayPlansTable = pgTable("day_plans", {
@@ -327,7 +263,7 @@ export const taskEvidenceTable = pgTable(
     /** Where it was said: the Slack conversation, email subject or meeting title */
     place: text("place"),
     quote: text("quote").notNull(),
-    /** done or progress */
+    /** done, progress, or same (section 26: the same work came up again here) */
     shows: text("shows").notNull(),
     /** same: from the task's own conversation; other: anywhere else */
     strength: text("strength").notNull(),
@@ -341,6 +277,47 @@ export const taskEvidenceTable = pgTable(
 );
 
 export type TaskEvidence = typeof taskEvidenceTable.$inferSelect;
+
+/** Section 27: what the stuck-task coach says about a task that keeps slipping. */
+export interface StuckHint {
+  /** Why it looks stuck, for example "Due date moved 3 times" */
+  why: string;
+  /** first_step, split, delegate or drop */
+  kind: string;
+  /** One line on what to try */
+  suggestion: string;
+  /** For first_step and split: the step to add to its checklist */
+  step: string | null;
+}
+
+/**
+ * Section 26: pairs of open tasks that look like the same piece of work, found by matching words
+ * and confirmed by the duplicate judge. Ollie merges them or says they are not the same; either
+ * way the pair is never suggested again. task_a is always the lower id.
+ */
+export const taskDuplicatesTable = pgTable(
+  "task_duplicates",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    taskA: integer("task_a")
+      .notNull()
+      .references(() => tasksTable.id, { onDelete: "cascade" }),
+    taskB: integer("task_b")
+      .notNull()
+      .references(() => tasksTable.id, { onDelete: "cascade" }),
+    /** suggested: waiting for Ollie; not_same: the judge said no; dismissed: Ollie said no; merged */
+    state: text("state").notNull().default("suggested"),
+    /** The judge's one line on why they are the same work */
+    reason: text("reason"),
+    /** The task kept when merged */
+    keptTaskId: integer("kept_task_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("task_duplicates_pair_idx").on(t.taskA, t.taskB), index("task_duplicates_state_idx").on(t.state)],
+);
+
+export type TaskDuplicate = typeof taskDuplicatesTable.$inferSelect;
 
 /**
  * Part L (build plan section 14): what OllieOS drafted and what Ollie changed, either by editing the

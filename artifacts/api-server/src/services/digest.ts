@@ -37,8 +37,6 @@ import { clearOutMonday, untouchedCount } from "./planning";
 import { emailRepliesOverdue } from "./messages";
 import { slackRepliesOverdue } from "./slackToAnswer";
 import { connectorWarnings } from "./connectorHealth";
-import { stuckCount } from "./stuckTasks";
-import { readyCount } from "./workPack";
 import { changedDocuments, changedText } from "./documentChanges";
 import { closedByEvidence } from "./taskEvidence";
 import { dueIdeas } from "./strategy";
@@ -222,16 +220,6 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
       refs: g.ideas.map((i) => toRef("idea", i.id)),
       confidential: false,
     });
-  }
-
-  // Section 27: tasks whose work is already done and only need sending.
-  const ready = await readyCount();
-  if (ready) needs.push({ text: `${plural(ready, "task is", "tasks are")} ready to send: what they need already exists`, href: "/tasks?ready=1", refs: [], confidential: false });
-
-  // Section 26: on Mondays, tasks that keep slipping, each with a way out on its panel.
-  if (weekday(date) === 1) {
-    const stuck = await stuckCount(now);
-    if (stuck) needs.push({ text: `${plural(stuck, "task looks", "tasks look")} stuck, each with a way out`, href: "/tasks?stuck=1", refs: [], confidential: false });
   }
 
   // Every other Monday: the Backlog clear-out (Part I).

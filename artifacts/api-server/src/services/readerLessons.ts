@@ -87,6 +87,15 @@ export interface Correction {
   example: string;
 }
 
+/** Section 27: what each of Ollie's reasons for dropping an item means, as the coach reads it. */
+const WHY: Record<string, string> = {
+  not_mine: "Not mine (it was someone else's to do)",
+  already_done: "Already done (it was dealt with before or as it arrived)",
+  fyi: "Just FYI (nothing for him to do)",
+  arranging: "Arranging a meeting (the calendar covers it)",
+  duplicate: "Duplicate (he already had a task for it)",
+  not_needed: "Not needed",
+};
 const STATUS_WORD: Record<string, string> = { noise: "You sent it to Noise", dropped: "You dropped it" };
 const FIELDS: Record<string, string> = { title: "title", priority: "priority", dueDate: "due date", kind: "kind", project: "project" };
 
@@ -106,8 +115,9 @@ export async function taskCorrections(reader: LessonReader, now = new Date()): P
   const undone = await db.select().from(tasksTable).where(and(base, inArray(tasksTable.status, ["noise", "dropped"]))).orderBy(desc(tasksTable.createdAt)).limit(60);
   const corrections: Correction[] = undone.map((t) => ({
     ref: `u${t.id}`,
-    line: `Made ${describe(t)}. ${STATUS_WORD[t.status]}.`,
-    example: `"${clip(t.title, 90)}": ${STATUS_WORD[t.status].toLowerCase().replace("you ", "")}`,
+    // Section 27: his own reason, when he gave one, says what kind of mistake it was.
+    line: `Made ${describe(t)}. ${STATUS_WORD[t.status]}${t.dropReason ? `, saying: ${WHY[t.dropReason] ?? t.dropReason}` : ""}.`,
+    example: `"${clip(t.title, 90)}": ${STATUS_WORD[t.status].toLowerCase().replace("you ", "")}${t.dropReason ? ` (${(WHY[t.dropReason] ?? t.dropReason).toLowerCase()})` : ""}`,
   }));
 
   // Fields Ollie changed by hand on items it made and he kept.

@@ -25,8 +25,8 @@ import { TaskSteps } from '@/components/task-steps';
 import { TaskEvidencePanel } from '@/components/task-evidence';
 import { KeepTestCase } from '@/components/evals';
 import { SlackDm } from '@/components/slack-dm';
-import { StuckCoach } from '@/components/stuck-coach';
-import { WorkPackPanel } from '@/components/work-pack';
+import { DropReasonChips, madeByReader } from '@/components/drop-reason';
+import { ChaseCard, ProjectSuggestChips, StuckCard } from '@/components/task-nudges';
 import { goalOptions, personOptions, projectOptions } from '@/components/dropdown-options';
 
 const STATUSES: { value: TaskStatus; label: string }[] = [
@@ -170,9 +170,8 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
               </div>
             )}
 
-            <WorkPackPanel task={task} />
-
-            <StuckCoach task={task} />
+            <ChaseCard task={task} busy={acting} />
+            <StuckCard task={task} busy={acting} onDrop={() => setStatus('dropped')} />
 
             <TaskEvidencePanel task={task} busy={acting} onMarkDone={() => setStatus('done')} />
 
@@ -183,6 +182,7 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
             {task.status === 'dropped' && (
               <div className="oo-source" style={{ gap: 10 }} data-testid="card-dropped">
                 <span style={{ fontSize: 13, fontWeight: 500 }}>Dropped. It is off your lists, and AI treats it as closed.</span>
+                {madeByReader(task) && <DropReasonChips key={'why' + task.id + (task.dropReason ?? '')} task={task} />}
                 <div>
                   <button type="button" className="oo-btn oo-btn-outline" disabled={acting} onClick={() => run(() => actions.restore(task))} data-testid="button-detail-restore-dropped">Restore to Inbox</button>
                 </div>
@@ -244,6 +244,7 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                 <Dropdown id="td-project" value={String(task.project?.id ?? '')}
                   onChange={(v) => save({ projectId: v ? Number(v) : null })} testId="select-project" searchPlaceholder="Search projects"
                   options={[{ value: '', label: 'No project' }, ...projectOptions(projects.data)]} />
+                <ProjectSuggestChips task={task} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <label htmlFor="td-person" className="oo-field-label">For</label>

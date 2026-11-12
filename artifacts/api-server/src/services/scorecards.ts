@@ -5,7 +5,7 @@
  * all count against the agent that made it.
  */
 import { and, eq, gte, isNull, lt, sql, type SQL } from "drizzle-orm";
-import { db, factReviewsTable, readerLessonsTable, reviewItemsTable, suggestionsTable, taskEvidenceTable, taskPacksTable, tasksTable } from "@workspace/db";
+import { db, factReviewsTable, readerLessonsTable, reviewItemsTable, suggestionsTable, taskEvidenceTable, tasksTable } from "@workspace/db";
 import type { AgentKey } from "../lib/agents";
 import { DOCUMENT_PROPOSER } from "./documents/counts";
 import { PRODUCT_USER_ACTOR } from "./productUsers";
@@ -213,53 +213,6 @@ function lessonsBy(learnedBy: "reader_coach" | "card_coach"): Spec["count"] {
   };
 }
 
-/** Section 26: a way out was right when Ollie took it, or the task got done; wrong on Not now. */
-const stuckWays: Spec["count"] = async (start, end) => {
-  const coached = sql`${tasksTable.stuckHint} is not null and jsonb_typeof(${tasksTable.stuckHint}) = 'object' and ${tasksTable.stuckHint}->>'wayOut' is not null`;
-  // Taken, or the task moved on (done, handed on to wait on someone, dropped or archived).
-  const taken = sql`(${tasksTable.stuckHint}->>'appliedAt' is not null or ${tasksTable.status} not in ('now','backlog','inbox'))`;
-  const [r] = await db
-    .select({
-      kept: sql<number>`count(*) filter (where ${taken})`,
-      undone: sql<number>`count(*) filter (where not ${taken} and ${tasksTable.stuckDismissedAt} is not null)`,
-      waiting: sql<number>`count(*) filter (where not ${taken} and ${tasksTable.stuckDismissedAt} is null and ${tasksTable.status} in ('now','backlog'))`,
-    })
-    .from(tasksTable)
-    .where(and(coached, gte(tasksTable.stuckCheckedAt, start), lt(tasksTable.stuckCheckedAt, end)));
-  return { kept: n(r?.kept), undone: n(r?.undone), waiting: n(r?.waiting) };
-};
-
-/** Section 27, the task linker: a link was right when it still stands; wrong when Ollie undid or changed it. */
-const taskLinks: Spec["count"] = async (start, end) => {
-  const h = tasksTable.linkHint;
-  const stands = (key: string, col: typeof tasksTable.personId | typeof tasksTable.waitingOnPersonId | typeof tasksTable.projectId) => sql`(${h}->${sql.raw(`'${key}'`)} is null or jsonb_typeof(${h}->${sql.raw(`'${key}'`)}) = 'null' or (${h}->${sql.raw(`'${key}'`)}->>'id')::int = ${col})`;
-  const allStand = sql`(${tasksTable.linkUndoneAt} is null and ${stands("person", tasksTable.personId)} and ${stands("waitingOn", tasksTable.waitingOnPersonId)} and ${stands("project", tasksTable.projectId)})`;
-  const [r] = await db
-    .select({
-      kept: sql<number>`count(*) filter (where ${allStand})`,
-      undone: sql<number>`count(*) filter (where not ${allStand})`,
-    })
-    .from(tasksTable)
-    .where(and(sql`${h} is not null and jsonb_typeof(${h}) = 'object'`, gte(tasksTable.linkCheckedAt, start), lt(tasksTable.linkCheckedAt, end)));
-  return { kept: n(r?.kept), undone: n(r?.undone), waiting: 0 };
-};
-
-/** Section 27, the work pack: used when Ollie copied or saved its message, or the task got done; wrong on Not useful. */
-const workPacks: Spec["count"] = async (start, end) => {
-  const shown = sql`${taskPacksTable.content}->>'status' <> 'nothing_found'`;
-  const used = sql`(${taskPacksTable.usedAt} is not null or ${tasksTable.status} = 'done')`;
-  const [r] = await db
-    .select({
-      kept: sql<number>`count(*) filter (where ${used} and ${taskPacksTable.dismissedAt} is null)`,
-      undone: sql<number>`count(*) filter (where ${taskPacksTable.dismissedAt} is not null)`,
-      waiting: sql<number>`count(*) filter (where not ${used} and ${taskPacksTable.dismissedAt} is null)`,
-    })
-    .from(taskPacksTable)
-    .innerJoin(tasksTable, eq(tasksTable.id, taskPacksTable.taskId))
-    .where(and(shown, gte(taskPacksTable.createdAt, start), lt(taskPacksTable.createdAt, end)));
-  return { kept: n(r?.kept), undone: n(r?.undone), waiting: n(r?.waiting) };
-};
-
 const SPECS: Spec[] = [
   { key: "gmail_tasks", agent: "gmail_sorter", label: "Inbox items kept", count: tasksFrom("email") },
   { key: "gmail_cards", agent: "gmail_sorter", label: "Knowledge cards approved", count: cardsFrom("Gmail check") },
@@ -283,9 +236,6 @@ const SPECS: Spec[] = [
   { key: "presort", agent: "presorter", label: "Hints you agreed with", count: presortHints },
   { key: "stale_evidence", agent: "stale_checker", label: "Findings you agreed with", count: staleFindings },
   { key: "delegation", agent: "delegation", label: "Suggestions you sent", count: delegations },
-  { key: "task_links", agent: "task_linker", label: "Links that stayed", count: taskLinks },
-  { key: "work_packs", agent: "work_pack", label: "Packs you used", count: workPacks },
-  { key: "stuck", agent: "stuck_coach", label: "Ways out you took", count: stuckWays },
   { key: "contacts", agent: "contact_finder", label: "People and organisations kept", count: cardsFrom(CONTACT_PROPOSER) },
   { key: "reader_lessons", agent: "reader_coach", label: "Lessons you turned on", count: lessonsBy("reader_coach") },
   { key: "card_lessons", agent: "card_coach", label: "Lessons you turned on", count: lessonsBy("card_coach") },

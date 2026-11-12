@@ -1,23 +1,21 @@
 import type { Task } from '@workspace/api-client-react';
-import { REPEAT_SHORT, repeatLabel, type RepeatRule } from '@workspace/shared';
+import { REPEAT_SHORT, SOURCE_LABELS, repeatLabel, type RepeatRule, type TaskSource } from '@workspace/shared';
 import { IconRepeat } from '@/components/icons';
 
-/** The small marks after a task title on lists: how it repeats, and how far through its checklist it is. */
-export function TaskMarks({ task }: { task: Pick<Task, 'id' | 'repeat' | 'steps'> & Partial<Pick<Task, 'stuck' | 'pack'>> }) {
+/**
+ * The small marks after a task title on lists: how it repeats, how far through its checklist it is,
+ * and (section 26) where else the same work came up.
+ */
+export function TaskMarks({ task }: { task: Pick<Task, 'id' | 'repeat' | 'steps' | 'alsoFrom'> }) {
   const steps = task.steps ?? [];
   const done = steps.filter((s) => s.done).length;
-  const ready = task.pack === 'ready_to_send';
-  if (!task.repeat && !steps.length && !task.stuck && !ready) return null;
+  const also = (task.alsoFrom ?? []).map((s) => SOURCE_LABELS[s as TaskSource] ?? s);
+  if (!task.repeat && !steps.length && !also.length) return null;
   return (
     <span className="oo-marks">
-      {ready && (
-        <span className="oo-mark-ready" title="What this needs already exists. Open it for the work pack." data-testid={'mark-ready-' + task.id}>
-          Ready to send
-        </span>
-      )}
-      {task.stuck && (
-        <span className="oo-mark-stuck" title={task.stuck.signals} data-testid={'mark-stuck-' + task.id}>
-          Stuck
+      {also.length > 0 && (
+        <span className="oo-mark-steps" title="The same work came up here too. Open the task to see where." data-testid={'mark-also-' + task.id}>
+          Also in {also.join(', ')}
         </span>
       )}
       {task.repeat && (

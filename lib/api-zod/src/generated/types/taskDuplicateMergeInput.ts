@@ -6,10 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface TaskLinkerResult {
-  looked: number;
-  linked: number;
-  people: number;
-  projects: number;
-  failed: boolean;
+export interface TaskDuplicateMergeInput {
+  /** The id of the task to keep */
+  keep: number;
 }

@@ -9,6 +9,7 @@ export interface FieldChange {
 }
 
 const FIELD_LABELS: Record<string, string> = {
+  dropReason: "Why",
   title: "Title",
   kind: "Type",
   status: "Status",

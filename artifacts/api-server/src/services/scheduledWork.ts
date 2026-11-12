@@ -26,10 +26,10 @@ import { checkStaleFacts } from "./staleCheck";
 import { suggestDelegations } from "./delegation";
 import { draftWeeklyUpdateIfDue } from "./weeklyUpdate";
 import { learnLessonsIfDue } from "./readerLessons";
+import { findDuplicatesIfDue } from "./duplicates";
+import { linkPeopleToTasks } from "./taskPeople";
+import { coachStuckIfDue } from "./stuckCoach";
 import { clearOldSightings, findContacts } from "./contactFinder";
-import { coachStuckTasks } from "./stuckTasks";
-import { linkTasks } from "./taskLinker";
-import { buildWorkPacks } from "./workPack";
 
 /** OllieOS's own checks start at 07:00, so they wait for 07:40 (when the morning sweep ran) before building the digest. */
 export const DIGEST_NOT_BEFORE = { hour: 7, minute: 40 };
@@ -80,6 +80,8 @@ async function runScheduledWork(from: "sweep" | "connectors", now: Date): Promis
     const r = await onSweepFinished(now);
     return { rejected_cleared: r.cleared, fact_check: r.check };
   });
+  // Section 27: people linked to tasks nobody is on yet (no AI). Tests run it directly.
+  if (process.env.NODE_ENV !== "test") await part("task_people", () => linkPeopleToTasks());
   // Calls the model on real Inbox items, so tests run it directly with the model stood in.
   if (process.env.NODE_ENV !== "test") await part("noise", () => checkInboxNoise());
   // Part O: new cards checked against approved knowledge. Calls the model, so tests run it directly.
@@ -87,15 +89,9 @@ async function runScheduledWork(from: "sweep" | "connectors", now: Date): Promis
   // Section 23: hints on Knowledge Inbox cards, and evidence for stale facts. Call the model, so tests run them directly.
   if (process.env.NODE_ENV !== "test") await part("presort", () => presortCards(now));
   if (process.env.NODE_ENV !== "test") await part("stale_evidence", () => checkStaleFacts(now));
-  // Section 27: link tasks to people and projects first, so everything after reads the links.
-  if (process.env.NODE_ENV !== "test") await part("links", () => linkTasks(now));
   if (process.env.NODE_ENV !== "test") await part("delegation", () => suggestDelegations(now));
   // Section 25: people in real two-way contact who are not in Contacts yet. Calls the model, so tests run it directly.
   if (process.env.NODE_ENV !== "test") await part("contacts", () => findContacts(now));
-  // Section 26: tasks that keep slipping, with a way out. Calls the model, so tests run it directly.
-  if (process.env.NODE_ENV !== "test") await part("stuck", () => coachStuckTasks(now));
-  // Section 27: work packs for Now tasks and tasks due soon. Calls the model, so tests run it directly.
-  if (process.env.NODE_ENV !== "test") await part("work_packs", () => buildWorkPacks(now));
   await part("briefs", () => buildUpcomingBriefs(now));
   // Searches the web and calls the model on real companies, so tests run it directly with the model stood in.
   if (process.env.NODE_ENV !== "test") await part("research", () => researchUpcoming(now));
@@ -108,6 +104,10 @@ async function runScheduledWork(from: "sweep" | "connectors", now: Date): Promis
   if (process.env.NODE_ENV !== "test") await part("writer_grades", () => gradeIfDue(now));
   // Section 24: the reader coach and card coach, weekly (the card coach sooner while the backlog is being cleared).
   if (process.env.NODE_ENV !== "test") await part("lessons", () => learnLessonsIfDue(now));
+  // Section 26: pairs of open tasks that are the same work, for the Duplicates page.
+  if (process.env.NODE_ENV !== "test") await part("duplicates", () => findDuplicatesIfDue(now));
+  // Section 27: tasks that keep slipping, with one thing to try on each.
+  if (process.env.NODE_ENV !== "test") await part("stuck", () => coachStuckIfDue(now));
   await part("cleared", async () => ({ digests: await clearOldDigests(now), calendar_events: await clearOldCalendar(now), roundups: await clearOldRoundups(now), ai_runs: await clearOldAiRuns(now), meeting_history: await clearOldHistory(now), ai_inputs: await clearOldInputs(now), noise: await clearOldNoise(now), contact_sightings: await clearOldSightings(now) }));
   return out;
 }

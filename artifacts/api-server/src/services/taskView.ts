@@ -1,9 +1,10 @@
-import { and, inArray, sql } from "drizzle-orm";
-import { db, goalsTable, noiseRulesTable, peopleTable, projectsTable, taskPacksTable, tasksTable, type LinkHint, type StuckHint, type Task as TaskRow } from "@workspace/db";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { db, goalsTable, noiseRulesTable, peopleTable, projectsTable, taskEvidenceTable, tasksTable, type Task as TaskRow } from "@workspace/db";
 import { taskVisible } from "../lib/ai-data/visibility";
 import { noiseRuleLabel } from "./noiseRules";
 import { looksDoneFor } from "./taskEvidence";
 import type { DbOrTx } from "../lib/audit";
+import { CHASE_AFTER_DAYS } from "@workspace/shared";
 
 export interface EntitySummary {
   id: number;
@@ -12,13 +13,9 @@ export interface EntitySummary {
   confidential: boolean;
 }
 
-export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "waitingOnPersonId" | "noiseRuleId" | "sourceChannel" | "noiseHintKept" | "noiseCheckedAt" | "repeatNextId" | "delegateCheckedAt" | "delegateDismissedAt" | "stuckHint" | "stuckCheckedAt" | "stuckDismissedAt" | "linkHint" | "linkCheckedAt" | "linkUndoneAt"> & {
-  /** Section 27: the links the task linker made that still stand, with why; null when none or undone */
-  linked: LinkHint | null;
-  /** Section 27: the task's work pack, when it has one worth showing */
-  pack: "ready_to_send" | "needs_work" | null;
-  /** Section 26: why it looks stuck and the coach's way out; null unless it shows */
-  stuck: StuckHint | null;
+export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "waitingOnPersonId" | "noiseRuleId" | "sourceChannel" | "noiseHintKept" | "noiseCheckedAt" | "repeatNextId" | "delegateCheckedAt" | "delegateDismissedAt" | "personCheckedAt" | "stuckCheckedAt" | "stuckDismissedAt" | "chaseAfter"> & {
+  /** Section 27: a Waiting on task that has waited long enough for a chase */
+  chaseDue: boolean;
   project: EntitySummary | null;
   person: EntitySummary | null;
   waitingOn: EntitySummary | null;
@@ -31,6 +28,8 @@ export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "wait
   goal: { id: number; name: string; inherited: boolean } | null;
   /** Part U: one line of evidence from elsewhere that this open task is done, or null */
   looksDone: string | null;
+  /** Section 26: the other sources the same work came up in (slack, email, meeting, session...) */
+  alsoFrom: string[];
 };
 
 /** Statuses a task can still be marked done from. */
@@ -79,14 +78,15 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
   ]);
   const hiddenSet = new Set(hidden.map((h) => h.id));
   const looks = await looksDoneFor(rows.filter((r) => OPEN_FOR_EVIDENCE.has(r.status)).map((r) => r.id));
-  // Section 27: which of these tasks have a work pack worth showing.
-  const packRows = rows.length
+  // Section 26: where else the same work came up.
+  const alsoRows = taskIds.length
     ? await conn
-        .select({ taskId: taskPacksTable.taskId, status: sql<string>`${taskPacksTable.content}->>'status'` })
-        .from(taskPacksTable)
-        .where(and(inArray(taskPacksTable.taskId, rows.map((r) => r.id)), sql`${taskPacksTable.dismissedAt} is null`, sql`${taskPacksTable.content}->>'status' <> 'nothing_found'`))
+        .selectDistinct({ taskId: taskEvidenceTable.taskId, source: taskEvidenceTable.source })
+        .from(taskEvidenceTable)
+        .where(and(inArray(taskEvidenceTable.taskId, taskIds), eq(taskEvidenceTable.shows, "same")))
     : [];
-  const packs = new Map(packRows.map((p) => [p.taskId, p.status as "ready_to_send" | "needs_work"]));
+  const also = new Map<number, string[]>();
+  for (const a of alsoRows) also.set(a.taskId, [...(also.get(a.taskId) ?? []), a.source].sort());
   const goalIds = new Set<number>();
   for (const r of rows) if (r.goalId) goalIds.add(r.goalId);
   for (const p of projects) if (p.goalId) goalIds.add(p.goalId);
@@ -111,7 +111,8 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
   };
 
   return rows.map((r) => {
-    const { search: _search, personId, projectId, waitingOnPersonId, noiseRuleId, sourceChannel: _channel, noiseHintKept, noiseCheckedAt: _checked, repeatNextId: _next, delegateCheckedAt: _dc, delegateDismissedAt, stuckHint, stuckCheckedAt: _sc, stuckDismissedAt, linkHint: _lh, linkCheckedAt: _lc, linkUndoneAt: _lu, ...rest } = r;
+    const { search: _search, personId, projectId, waitingOnPersonId, noiseRuleId, sourceChannel: _channel, noiseHintKept, noiseCheckedAt: _checked, repeatNextId: _next, delegateCheckedAt: _dc, delegateDismissedAt, personCheckedAt: _pc, stuckCheckedAt: _sc, stuckDismissedAt, chaseAfter, ...rest } = r;
+    const chaseFrom = chaseAfter ?? new Date((r.waitingSince ?? r.createdAt).getTime() + CHASE_AFTER_DAYS * 86_400_000);
     return {
       ...rest,
       project: projectId ? (projectById.get(projectId) ?? null) : null,
@@ -125,27 +126,14 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
       noiseHint: r.status === "inbox" && !noiseHintKept ? r.noiseHint : null,
       // Part U: evidence from elsewhere that an open task is done.
       looksDone: OPEN_FOR_EVIDENCE.has(r.status) ? (looks.get(r.id) ?? null) : null,
+      alsoFrom: [...new Set(also.get(r.id) ?? [])].filter((s) => s !== r.source),
       // Section 23: who could take it, while it is still Ollie's to do and he has not said "Not this one".
       delegateHint: (r.status === "now" || r.status === "backlog") && !delegateDismissedAt ? r.delegateHint : null,
-      linked: linksShown(r),
-      pack: ["inbox", "now", "backlog", "waiting"].includes(r.status) ? (packs.get(r.id) ?? null) : null,
-      // Section 26: shown while open, not taken, and not put off with Not now in the last 30 days.
-      stuck:
-        (r.status === "now" || r.status === "backlog") && stuckHint && !stuckHint.appliedAt && !(stuckDismissedAt && now - stuckDismissedAt.getTime() < 30 * 86_400_000)
-          ? stuckHint
-          : null,
+      // Section 27: chase nudges and the stuck-task coach.
+      chaseDue: r.status === "waiting" && chaseFrom.getTime() <= now,
+      stuckHint: (r.status === "now" || r.status === "backlog") && !stuckDismissedAt ? r.stuckHint : null,
     };
   });
-}
-
-/** Section 27: the links the task linker made that still stand (anything Ollie changed since is his). */
-function linksShown(t: Pick<TaskRow, "linkHint" | "linkUndoneAt" | "personId" | "waitingOnPersonId" | "projectId">): LinkHint | null {
-  const h = t.linkHint;
-  if (!h || t.linkUndoneAt) return null;
-  const person = h.person && t.personId === h.person.id ? h.person : null;
-  const waitingOn = h.waitingOn && t.waitingOnPersonId === h.waitingOn.id ? h.waitingOn : null;
-  const project = h.project && t.projectId === h.project.id ? h.project : null;
-  return person || waitingOn || project ? { ...h, person, waitingOn, project } : null;
 }
 
 export async function toTaskView(row: TaskRow, conn: DbOrTx = db): Promise<TaskView> {

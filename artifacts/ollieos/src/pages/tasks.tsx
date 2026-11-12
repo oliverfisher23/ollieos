@@ -2,16 +2,20 @@ import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from '
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useSearch } from 'wouter';
 import {
+  bulkUpdateTasks,
   getListTasksQueryKey,
   reorderTasks,
   useGetClearOut,
   useGetTaskSummary,
   useListReview,
+  useListTaskDuplicates,
   useListTasks,
   updateTask,
   useUpdateTask,
   type ListTasksParams,
   type Priority,
+  type TaskBulkInput,
+  type TaskLoad,
   type TaskStatus,
   type TaskUpdate,
   type Task,
@@ -20,13 +24,13 @@ import {
   type TriageInputAction,
 } from '@workspace/api-client-react';
 import { useListProjects } from '@workspace/api-client-react';
-import { SOURCE_LABELS, TASK_SOURCES, addDays, formatWeekRange, todayLondon, weekStartOf } from '@workspace/shared';
+import { SOURCE_LABELS, TASK_SOURCES, addDays, formatShort, formatWeekRange, todayLondon, weekStartOf } from '@workspace/shared';
 import { Skel, SourceLabel, SourceMark } from '@/components/bits';
 import { DueCell, PriorityCell, StatusCell } from '@/components/task-cell-editors';
 import { IconCheck, IconDown, IconLeft, IconRight, IconSearch, IconUp } from '@/components/icons';
 import { TaskMarks } from '@/components/task-marks';
 import { useInvalidateTasks } from '@/lib/task-cache';
-import { notify, notifyUndo } from '@/lib/notify';
+import { errorMessage, notify, notifyUndo } from '@/lib/notify';
 import { useTaskActions } from '@/lib/task-actions';
 import { Dot, Dropdown } from '@/components/dropdown';
 import { DragItemOf, DragList } from '@/components/drag-list';
@@ -166,6 +170,12 @@ export default function TasksPage() {
     if (openTab && undated) params.includeUndated = true;
   }
   if (q) params.q = q;
+  // Section 27: only what is overdue, or due on one day (from the load line above the list).
+  const rawDue = sp.get('due');
+  const due = rawDue === 'overdue' || (rawDue && /^\d{4}-\d{2}-\d{2}$/.test(rawDue)) ? rawDue : null;
+  if (due && openTab) params.due = due;
+  const rawGroup = sp.get('group');
+  const group: GroupBy = tab !== 'inbox' && (rawGroup === 'project' || rawGroup === 'person') ? rawGroup : null;
 
   const list = useListTasks(params);
   const summary = useGetTaskSummary(week ? { weekStart: week } : undefined);
@@ -173,23 +183,38 @@ export default function TasksPage() {
 
   const review = useListReview();
   const reviewCount = review.data?.actions ?? 0;
+  // Section 26: pairs of open tasks that look like the same work.
+  const duplicates = useListTaskDuplicates();
+  const duplicateCount = duplicates.data?.pairs.length ?? 0;
 
   // Client work or internal, from each task's project (filtered here, so it combines with every other filter).
   const rawWork = sp.get('work');
   const work = rawWork === 'client' || rawWork === 'internal' || rawWork === 'none' ? rawWork : null;
-  // Section 26: only tasks that look stuck.
-  const stuckOnly = sp.get('stuck') === '1';
-  // Section 27: only tasks whose work pack says they are ready to send.
-  const readyOnly = sp.get('ready') === '1';
-  const projects = useListProjects(undefined, { query: { enabled: !!work, staleTime: 60_000 } as never });
+  // Section 27: choosing several tasks to change at once.
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const projects = useListProjects(undefined, { query: { enabled: !!work || picking, staleTime: 60_000 } as never });
   const workOf = useMemo(() => new Map((projects.data ?? []).map((p) => [p.id, p.workType ?? null])), [projects.data]);
   const rows = useMemo(() => {
     const all = list.data ?? [];
-    const byWork = work ? all.filter((t) => ((t.project ? workOf.get(t.project.id) : null) ?? 'none') === work) : all;
-    const byStuck = stuckOnly ? byWork.filter((t) => !!t.stuck) : byWork;
-    const kept = readyOnly ? byStuck.filter((t) => t.pack === 'ready_to_send') : byStuck;
+    const kept = work ? all.filter((t) => ((t.project ? workOf.get(t.project.id) : null) ?? 'none') === work) : all;
     return sortTasks(kept, sort);
-  }, [list.data, sort?.key, sort?.dir, work, workOf, stuckOnly, readyOnly]);
+  }, [list.data, sort?.key, sort?.dir, work, workOf]);
+
+  const togglePick = (id: number) =>
+    setPicked((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const stopPicking = () => {
+    setPicking(false);
+    setPicked(new Set());
+  };
+  // Only tasks still on screen count as chosen.
+  const chosen = useMemo(() => rows.filter((t) => picked.has(t.id)), [rows, picked]);
+  const groups = useMemo(() => (group ? groupTasks(rows, group) : null), [rows, group]);
 
   // Dragging tasks into Ollie's own order. A column sort is a temporary view on top, so dragging waits until it is cleared.
   const qc = useQueryClient();
@@ -233,6 +258,9 @@ export default function TasksPage() {
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
             {reviewCount > 0 && (
               <Link href="/review" className="oo-link" style={{ fontSize: 14 }} data-testid="link-review">Review {reviewCount}</Link>
+            )}
+            {duplicateCount > 0 && (
+              <Link href="/duplicates" className="oo-link" style={{ fontSize: 14 }} data-testid="link-duplicates">Duplicates {duplicateCount}</Link>
             )}
             <a href="/api/export/tasks.csv" download className="oo-link" style={{ fontSize: 14 }} data-testid="link-export-tasks">Export</a>
           </span>
@@ -279,10 +307,6 @@ export default function TasksPage() {
             ]}
             testId="select-work"
           />
-          <button type="button" className="oo-control" aria-pressed={readyOnly}
-            onClick={() => set({ ready: readyOnly ? null : '1' })} data-testid="button-ready-only">Ready to send</button>
-          <button type="button" className="oo-control" aria-pressed={stuckOnly}
-            onClick={() => set({ stuck: stuckOnly ? null : '1' })} data-testid="button-stuck-only">Stuck</button>
           <button type="button" className="oo-control" aria-pressed={week === thisWeek}
             onClick={() => set({ week: week === thisWeek ? null : thisWeek })} data-testid="button-this-week">This week</button>
           <div style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid var(--oo-control-border)', borderRadius: 'var(--oo-r-input)', background: 'var(--oo-panel)' }}>
@@ -297,6 +321,29 @@ export default function TasksPage() {
           )}
           {week && (
             <button type="button" className="oo-btn oo-btn-danger" style={{ color: 'var(--oo-ink-muted)' }} onClick={() => set({ week: null, undated: null })} data-testid="button-clear-week">Any date</button>
+          )}
+          {tab !== 'inbox' && (
+            <>
+              <label htmlFor="group-tasks" className="oo-sr">Group by</label>
+              <Dropdown
+                id="group-tasks"
+                variant="control"
+                value={group ?? ''}
+                onChange={(v) => set({ group: v || null })}
+                options={[
+                  { value: '', label: 'No groups' },
+                  { value: 'project', label: 'By project' },
+                  { value: 'person', label: 'By person' },
+                ]}
+                testId="select-group"
+              />
+            </>
+          )}
+          <button type="button" className="oo-control" aria-pressed={picking} onClick={() => (picking ? stopPicking() : setPicking(true))} data-testid="button-select-mode">Select</button>
+          {due && openTab && (
+            <button type="button" className="oo-control" aria-pressed="true" onClick={() => set({ due: null })} data-testid="button-clear-due">
+              {due === 'overdue' ? 'Overdue' : `Due ${formatShort(due)}`} ✕
+            </button>
           )}
           <div className="sm:hidden">
             <label htmlFor="sort-tasks" className="oo-sr">Sort by</label>
@@ -357,6 +404,20 @@ export default function TasksPage() {
           ))}
         </div>
 
+        {openTab && !due && summary.data?.load && <LoadLine load={summary.data.load} onShow={(d) => set({ due: d, tab: null, week: null, undated: null, task: null })} onChase={() => set({ tab: 'waiting', due: null, task: null })} />}
+
+        {picking && (
+          <BulkBar
+            chosen={chosen}
+            shown={rows}
+            projects={projects.data ?? []}
+            onAll={() => setPicked(new Set(rows.map((t) => t.id)))}
+            onNone={() => setPicked(new Set())}
+            onDone={() => { stopPicking(); invalidate(); }}
+            onCancel={stopPicking}
+          />
+        )}
+
         {reorderable && rows.length > 1 && (sort || placed) && (
           <p className="oo-muted" style={{ margin: 0, fontSize: 13 }} data-testid="text-order-hint">
             {sort ? (
@@ -385,11 +446,24 @@ export default function TasksPage() {
           </div>
         ) : rows.length === 0 ? (
           <div style={{ padding: '28px 0', display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="state-tasks-empty">
-            <p className="oo-serif" style={{ margin: 0, fontSize: 20 }}>{q || source || week || work || stuckOnly || readyOnly ? (stuckOnly && !readyOnly && !q && !source && !week && !work ? 'Nothing looks stuck here.' : readyOnly && !stuckOnly && !q && !source && !week && !work ? 'Nothing is ready to send yet.' : 'Nothing matches these filters.') : EMPTY[tab]}</p>
+            <p className="oo-serif" style={{ margin: 0, fontSize: 20 }}>{q || source || week || work ? 'Nothing matches these filters.' : EMPTY[tab]}</p>
             {(q || source || week) && <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>Try another week or clear the search.</p>}
           </div>
+        ) : groups ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }} data-testid="list-task-groups">
+            {groups.map((g) => (
+              <section key={g.key} aria-label={g.label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }} data-testid={'group-' + g.key}>
+                <h2 className="oo-serif" style={{ margin: 0, fontSize: 20, fontWeight: 400 }}>
+                  {g.label} <span className="oo-count oo-num">{g.rows.length}</span>
+                </h2>
+                <TaskRows tab={tab} rows={g.rows} selected={taskId} sort={sort} onSort={onSort} reorderable={reorderable} onReorder={saveOrder} onOpen={(id) => set({ task: String(id) })}
+                  picking={picking ? { picked, toggle: togglePick } : undefined} />
+              </section>
+            ))}
+          </div>
         ) : (
-          <TaskRows tab={tab} rows={rows} selected={taskId} sort={sort} onSort={onSort} reorderable={reorderable} onReorder={saveOrder} onOpen={(id) => set({ task: String(id) })} />
+          <TaskRows tab={tab} rows={rows} selected={taskId} sort={sort} onSort={onSort} reorderable={reorderable} onReorder={saveOrder} onOpen={(id) => set({ task: String(id) })}
+            picking={picking ? { picked, toggle: togglePick } : undefined} />
         )}
       </div>
 
@@ -457,12 +531,15 @@ function SortHeader({ col, sort, onSort }: { col: SortKey; sort: Sort; onSort: (
   );
 }
 
-function TaskRows({ tab, rows: allRows, selected, sort, onSort, reorderable, onReorder, onOpen }: {
+function TaskRows({ tab, rows: allRows, selected, sort, onSort, reorderable, onReorder, onOpen: openTask, picking }: {
   tab: TaskTab; rows: Task[]; selected: number | null; sort: Sort; onSort: (key: SortKey) => void;
   /** This tab keeps a dragged order; the grips show unless a column sort is on */
   reorderable: boolean; onReorder: (ids: number[]) => void; onOpen: (id: number) => void;
+  /** Section 27: choosing several tasks; a tick box replaces the grip and a click chooses instead of opening */
+  picking?: { picked: Set<number>; toggle: (id: number) => void };
 }) {
-  const canDrag = reorderable && !sort && allRows.length > 1;
+  const canDrag = reorderable && !sort && !picking && allRows.length > 1;
+  const onOpen = (id: number) => (picking ? picking.toggle(id) : openTask(id));
   let rows = allRows;
   const update = useUpdateTask();
   const invalidate = useInvalidateTasks();
@@ -633,7 +710,20 @@ function TaskRows({ tab, rows: allRows, selected, sort, onSort, reorderable, onR
 
   const labels = Object.fromEntries(allRows.map((t) => [t.id, t.title]));
   // Reorderable tabs keep a grip-wide space even while sorted, so titles do not jump when the sort changes.
-  const gripSlot = (grip: ReactNode) => (grip ?? (reorderable ? <span className="oo-grip-space" aria-hidden="true" /> : null));
+  const gripSlot = (grip: ReactNode, t: Task) =>
+    picking ? (
+      <input type="checkbox" className="oo-pick" checked={picking.picked.has(t.id)} aria-label={'Select: ' + t.title}
+        onClick={(e) => e.stopPropagation()} onChange={() => picking.toggle(t.id)} data-testid={'check-pick-' + t.id} />
+    ) : (
+      (grip ?? (reorderable ? <span className="oo-grip-space" aria-hidden="true" /> : null))
+    );
+  const pills = (t: Task) => (
+    <>
+      {t.stale && <StalePill id={t.id} />}
+      {t.chaseDue && <span className="oo-pill" data-tone="waiting" title="You have waited long enough to chase" data-testid={'pill-chase-' + t.id}>Chase</span>}
+      {t.stuckHint && <span className="oo-pill" data-tone="stale" title={t.stuckHint.why} data-testid={'pill-stuck-' + t.id}>Stuck</span>}
+    </>
+  );
 
   const table = (list: Task[], label: string) => (
     <DragList ids={list.map((t) => t.id)} labels={labels} enabled={canDrag} onReorder={onReorder}>
@@ -652,7 +742,7 @@ function TaskRows({ tab, rows: allRows, selected, sort, onSort, reorderable, onR
             <tr ref={ref} style={style} className="oo-row" data-dragging={dragging} data-selected={t.id === selected} data-cursor={inbox && cursorTask?.id === t.id && cursor !== null} data-leaving={leaving(t)} onClick={() => onOpen(t.id)} data-testid={'row-task-' + t.id}>
               <td>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {gripSlot(grip)}
+                  {gripSlot(grip, t)}
                   {check(t)}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                     <button type="button" className="oo-row-title" data-done={doneOf(t)} onClick={(e) => { e.stopPropagation(); onOpen(t.id); }}
@@ -660,7 +750,7 @@ function TaskRows({ tab, rows: allRows, selected, sort, onSort, reorderable, onR
                     {hint(t)}
                     <TaskMarks task={t} />
                   </div>
-                  {t.stale && <StalePill id={t.id} />}
+                  {pills(t)}
                 </div>
               </td>
               <td><SourceLabel source={t.source} /></td>
@@ -686,7 +776,7 @@ function TaskRows({ tab, rows: allRows, selected, sort, onSort, reorderable, onR
         <DragItemOf key={t.id} id={t.id} title={t.title} enabled={canDrag}>
         {({ ref, style, dragging, grip }) => (
         <div ref={ref} style={style} className="oo-card-row oo-card-open" data-dragging={dragging} data-leaving={leaving(t)} data-testid={'card-task-' + t.id}>
-          <div className="oo-card-lead">{gripSlot(grip)}{check(t)}</div>
+          <div className="oo-card-lead">{gripSlot(grip, t)}{check(t)}</div>
           <div className="oo-card-body">
             <button type="button" className="oo-row-title" data-done={doneOf(t)} style={{ fontSize: 15, minHeight: 24 }} onClick={() => onOpen(t.id)}
               onFocus={() => inbox && setCursor(t.id)} data-testid={'button-open-task-mobile-' + t.id}>{t.title}</button>
@@ -697,7 +787,7 @@ function TaskRows({ tab, rows: allRows, selected, sort, onSort, reorderable, onR
               {priorityCell(t, 'select-card-priority-' + t.id)}
               {statusCell(t, 'select-card-status-' + t.id)}
               {dueCell(t, 'select-card-due-' + t.id, true)}
-              {t.stale && <StalePill id={t.id} />}
+              {pills(t)}
             </div>
             {extraCol && rowActions(t)}
           </div>
@@ -733,6 +823,109 @@ function TaskRows({ tab, rows: allRows, selected, sort, onSort, reorderable, onR
         </section>
       )}
     </>
+  );
+}
+
+type GroupBy = 'project' | 'person' | null;
+
+/** Section 27: the list split by project, or by the person each task is with (who Ollie waits on, for Waiting on tasks). The unlinked group goes last. */
+function groupTasks(rows: Task[], by: 'project' | 'person'): { key: string; label: string; rows: Task[] }[] {
+  const groups = new Map<string, { key: string; label: string; rows: Task[] }>();
+  for (const t of rows) {
+    const e = by === 'project' ? t.project : ((t.status === 'waiting' ? t.waitingOn : null) ?? t.person);
+    const key = e ? String(e.id) : 'none';
+    const label = e ? e.name : by === 'project' ? 'No project' : 'Nobody in particular';
+    const g = groups.get(key) ?? { key, label, rows: [] };
+    g.rows.push(t);
+    groups.set(key, g);
+  }
+  return [...groups.values()].sort((a, b) => (a.key === 'none' ? 1 : b.key === 'none' ? -1 : b.rows.length - a.rows.length || a.label.localeCompare(b.label)));
+}
+
+/** Section 27: where the week is too full, with a way to see just those tasks. */
+function LoadLine({ load, onShow, onChase }: { load: TaskLoad; onShow: (due: string) => void; onChase: () => void }) {
+  if (!load.overdue && !load.busiest && !load.toChase) return null;
+  const b = load.busiest;
+  return (
+    <p className="oo-load" data-testid="text-task-load">
+      {b && (
+        <span>
+          <b>{b.due} due {b.date === todayLondon() ? 'today' : formatShort(b.date)}</b>, {b.inNow === 0 ? 'none' : `only ${b.inNow}`} in Now.{' '}
+          <button type="button" className="oo-link" onClick={() => onShow(b.date)} data-testid="button-show-busiest">Show them</button>
+        </span>
+      )}
+      {load.overdue > 0 && (
+        <span>
+          <b>{load.overdue} overdue.</b>{' '}
+          <button type="button" className="oo-link" onClick={() => onShow('overdue')} data-testid="button-show-overdue">Show {load.overdue === 1 ? 'it' : 'them'}</button>
+        </span>
+      )}
+      {load.toChase > 0 && (
+        <span>
+          <b>{load.toChase} to chase.</b>{' '}
+          <button type="button" className="oo-link" onClick={onChase} data-testid="button-show-chase">Waiting on</button>
+        </span>
+      )}
+    </p>
+  );
+}
+
+const BULK_STATUSES: { status: TaskStatus; label: string }[] = [
+  { status: 'now', label: 'Now' },
+  { status: 'backlog', label: 'Backlog' },
+  { status: 'waiting', label: 'Waiting on' },
+  { status: 'done', label: 'Done' },
+  { status: 'dropped', label: 'Drop' },
+];
+
+/** Section 27: one change to every chosen task. */
+function BulkBar({ chosen, shown, projects, onAll, onNone, onDone, onCancel }: {
+  chosen: Task[]; shown: Task[]; projects: { id: number; name: string }[];
+  onAll: () => void; onNone: () => void; onDone: () => void; onCancel: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const n = chosen.length;
+  const apply = async (patch: Omit<TaskBulkInput, 'ids'>, done: string) => {
+    if (!n) return;
+    setBusy(true);
+    try {
+      const r = await bulkUpdateTasks({ ids: chosen.map((t) => t.id), ...patch });
+      notify(`${done}: ${r.updated === 1 ? '1 task' : `${r.updated} tasks`}`, r.failed ? `${r.failed} could not be changed.` : undefined);
+      onDone();
+    } catch (err) {
+      notify('That did not save', errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="oo-bulk" role="region" aria-label="Change the selected tasks" data-testid="bar-bulk">
+      <span style={{ fontSize: 14, fontWeight: 500 }} data-testid="text-bulk-count">{n} selected</span>
+      {n < shown.length ? (
+        <button type="button" className="oo-link" style={{ fontSize: 13 }} onClick={onAll} data-testid="button-bulk-all">Select all {shown.length}</button>
+      ) : (
+        <button type="button" className="oo-link" style={{ fontSize: 13 }} onClick={onNone} data-testid="button-bulk-none">Select none</button>
+      )}
+      <span role="group" aria-label="Move to" style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 4 }}>
+        {BULK_STATUSES.map((b) => (
+          <button key={b.status} type="button" className="oo-mini" disabled={busy || !n} onClick={() => void apply({ status: b.status }, b.status === 'dropped' ? 'Dropped' : `Moved to ${b.label}`)} data-testid={'button-bulk-' + b.status}>{b.label}</button>
+        ))}
+      </span>
+      <label htmlFor="bulk-priority" className="oo-sr">Priority</label>
+      <Dropdown id="bulk-priority" variant="compact" value="" placeholder="Priority" disabled={busy || !n}
+        onChange={(v) => v && void apply({ priority: v as Priority }, 'Priority set')}
+        options={[{ value: 'high', label: 'High' }, { value: 'medium', label: 'Medium' }, { value: 'low', label: 'Low' }]} testId="select-bulk-priority" />
+      <label htmlFor="bulk-project" className="oo-sr">Project</label>
+      <Dropdown id="bulk-project" variant="compact" value="" placeholder="Project" disabled={busy || !n} searchPlaceholder="Search projects"
+        onChange={(v) => v && void apply({ projectId: v === 'none' ? null : Number(v) }, 'Project set')}
+        options={[...projects.map((p) => ({ value: String(p.id), label: p.name })), { value: 'none', label: 'No project' }]} testId="select-bulk-project" />
+      <label htmlFor="bulk-due" className="oo-sr">Due date</label>
+      <input id="bulk-due" type="date" className="oo-input" style={{ width: 'auto', minHeight: 30, padding: '2px 8px', fontSize: 13 }} disabled={busy || !n}
+        onChange={(e) => e.target.value && void apply({ dueDate: e.target.value }, 'Due date set')} data-testid="input-bulk-due" />
+      <button type="button" className="oo-mini" disabled={busy || !n} onClick={() => void apply({ dueDate: null }, 'Due date cleared')} data-testid="button-bulk-no-due">No date</button>
+      <span style={{ flexGrow: 1 }} />
+      <button type="button" className="oo-btn oo-btn-outline" onClick={onCancel} data-testid="button-bulk-cancel">Done selecting</button>
+    </div>
   );
 }
 

@@ -5,8 +5,15 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { Task } from './task';
 
-export interface NamedId {
+export interface TaskDuplicatePair {
   id: number;
-  name: string;
+  /**
+     * The duplicate check's line on what work they share
+     * @nullable
+     */
+  reason: string | null;
+  a: Task;
+  b: Task;
 }

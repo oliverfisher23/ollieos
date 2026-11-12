@@ -225,8 +225,7 @@ export async function suggestDelegations(now = new Date(), limit = DELEGATION_PE
       for (const t of batch) {
         if (!hints.has(t.id)) continue;
         const h = hints.get(t.id) ?? null;
-        // An agent looking at a task is not Ollie touching it: the Backlog clear-out clock (updatedAt) stays as it was.
-        await db.update(tasksTable).set({ delegateHint: h, delegateCheckedAt: now, updatedAt: sql`${tasksTable.updatedAt}` }).where(eq(tasksTable.id, t.id));
+        await db.update(tasksTable).set({ delegateHint: h, delegateCheckedAt: now }).where(eq(tasksTable.id, t.id));
         result.looked++;
         if (h) result.suggested++;
       }

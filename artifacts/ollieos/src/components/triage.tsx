@@ -1,3 +1,5 @@
+import { DropReasonChips, madeByReader } from '@/components/drop-reason';
+import { ProjectSuggestChips } from '@/components/task-nudges';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useListPeople, useListTasks, type Task, type TriageInputAction } from '@workspace/api-client-react';
@@ -209,6 +211,7 @@ export function TriageDialog({ onClose }: { onClose: () => void }) {
                   {current.suggestedAction && (
                     <span className="oo-tri-suggest" data-testid="text-triage-suggest">Suggested: <b>{current.suggestedAction}</b></span>
                   )}
+                  <ProjectSuggestChips key={'proj' + current.id} task={current} />
                 </section>
                 <div className="oo-tri-actions" role="group" aria-label="Move this item to">
                   {BUTTONS.map((b) => (
@@ -256,6 +259,7 @@ function LastStrip({
             options={[{ value: '', label: 'Nobody chosen yet' }, ...personOptions(people)]} testId="select-triage-waiting" />
         </div>
       )}
+      {(last.action === 'noise' || last.action === 'dropped') && madeByReader(t) && <DropReasonChips key={'why' + t.id} task={t} />}
       {last.action === 'noise' && <NoiseRuleChooser key={t.id} task={t} dark toast={false} />}
     </div>
   );

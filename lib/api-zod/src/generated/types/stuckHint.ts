@@ -5,20 +5,17 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
-import type { StuckHintRepeatEvery } from './stuckHintRepeatEvery';
-import type { StuckHintWayOut } from './stuckHintWayOut';
 
 export interface StuckHint {
-  /** How it slipped, from its history */
-  signals: string;
-  /** Null for a task hidden from AI, which gets no suggestion */
-  wayOut: StuckHintWayOut;
-  /** @nullable */
-  why: string | null;
-  steps: string[];
-  repeatEvery: StuckHintRepeatEvery;
-  /** @nullable */
-  nextStep: string | null;
-  /** @nullable */
-  appliedAt?: string | null;
+  /** Why it looks stuck, for example Due date moved 3 times */
+  why: string;
+  /** first_step, split, delegate or drop */
+  kind: string;
+  /** One line on what to try */
+  suggestion: string;
+  /**
+     * For first_step and split: the step to add to the checklist
+     * @nullable
+     */
+  step: string | null;
 }

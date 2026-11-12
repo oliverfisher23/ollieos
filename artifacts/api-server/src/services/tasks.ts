@@ -28,6 +28,9 @@ import {
   type RepeatRule,
   type TaskSource,
   type TaskStatus,
+  CHASE_AFTER_DAYS,
+  DROP_REASON_LABELS,
+  type DropReason,
 } from "@workspace/shared";
 import { writeAudit } from "../lib/audit";
 import type { FieldChange } from "./history";
@@ -75,6 +78,8 @@ function tabCondition(tab: TaskTab): SQL {
 }
 
 export interface ListTasksParams {
+  /** Section 27: "overdue", or one day (YYYY-MM-DD): only tasks due then */
+  due?: string;
   tab?: TaskTab;
   source?: TaskSource;
   weekStart?: string;
@@ -98,6 +103,9 @@ export async function listTasks(params: ListTasksParams): Promise<TaskView[]> {
       conditions.push(params.includeUndated ? or(inWeek, isNull(tasksTable.dueDate))! : inWeek);
     }
   }
+
+  if (params.due === "overdue") conditions.push(lt(tasksTable.dueDate, todayLondon()));
+  else if (params.due) conditions.push(eq(tasksTable.dueDate, params.due));
 
   const q = params.q?.trim();
   if (q) {
@@ -209,7 +217,85 @@ export async function getTaskSummary(weekStartParam?: string) {
       waitingOnOthers: counts.waiting,
       doneThisWeek: counts.doneThisWeek,
     },
+    load: await taskLoad(),
   };
+}
+
+/** A day counts as overloaded from this many open tasks due, with at least OVERLOAD_NOT_NOW of them not in Now. */
+const OVERLOAD_DUE = 4;
+const OVERLOAD_NOT_NOW = 3;
+
+/**
+ * Section 27: where the coming week is too full. Overdue open tasks, the fullest day in the next
+ * seven with most of its tasks not yet in Now, and Waiting on tasks ready for a chase.
+ */
+export async function taskLoad(now = new Date()) {
+  const today = todayLondon(now);
+  const rows = await db
+    .select({ dueDate: tasksTable.dueDate, status: tasksTable.status, n: sql<number>`count(*)::int` })
+    .from(tasksTable)
+    .where(and(inArray(tasksTable.status, ["now", "backlog", "inbox"]), lte(tasksTable.dueDate, addDays(today, 6))))
+    .groupBy(tasksTable.dueDate, tasksTable.status);
+  let overdue = 0;
+  const days = new Map<string, { due: number; inNow: number }>();
+  for (const r of rows) {
+    if (!r.dueDate) continue;
+    if (r.dueDate < today) {
+      overdue += r.n;
+      continue;
+    }
+    const d = days.get(r.dueDate) ?? { due: 0, inNow: 0 };
+    d.due += r.n;
+    if (r.status === "now") d.inNow += r.n;
+    days.set(r.dueDate, d);
+  }
+  const busiest = [...days.entries()]
+    .filter(([, d]) => d.due >= OVERLOAD_DUE && d.due - d.inNow >= OVERLOAD_NOT_NOW)
+    .sort((a, b) => b[1].due - a[1].due || (a[0] < b[0] ? -1 : 1))[0];
+  const [{ toChase }] = await db
+    .select({ toChase: sql<number>`count(*)::int` })
+    .from(tasksTable)
+    .where(and(eq(tasksTable.status, "waiting"), chaseDueSql(now)));
+  return { overdue, busiest: busiest ? { date: busiest[0], due: busiest[1].due, inNow: busiest[1].inNow } : null, toChase };
+}
+
+/** True for a Waiting on task that has waited long enough for a chase. */
+export const chaseDueSql = (now = new Date()): SQL =>
+  sql`coalesce(${tasksTable.chaseAfter}, coalesce(${tasksTable.waitingSince}, ${tasksTable.createdAt}) + make_interval(days => ${CHASE_AFTER_DAYS})) <= ${now.toISOString()}::timestamptz`;
+
+/** "Not yet" on a chase nudge, or after a chase was sent: leave it alone for another few days. */
+export async function chaseLater(id: number, now = new Date()): Promise<TaskView> {
+  await loadTask(id);
+  const [row] = await db
+    .update(tasksTable)
+    .set({ chaseAfter: new Date(now.getTime() + CHASE_AFTER_DAYS * 86_400_000), updatedAt: sql`${tasksTable.updatedAt}` })
+    .where(eq(tasksTable.id, id))
+    .returning();
+  return toTaskView(row);
+}
+
+export interface BulkUpdateInput {
+  status?: TaskStatus;
+  priority?: Priority;
+  dueDate?: string | null;
+  projectId?: number | null;
+  dropReason?: DropReason | null;
+}
+
+/** Section 27: the same change to several tasks at once. Each goes through updateTask, so history and undo work as for one. */
+export async function bulkUpdate(ids: number[], input: BulkUpdateInput, actor: string): Promise<{ updated: number; failed: number }> {
+  let updated = 0;
+  let failed = 0;
+  for (const id of [...new Set(ids)]) {
+    try {
+      await updateTask(id, input, actor);
+      updated++;
+    } catch (err) {
+      if (!(err instanceof NotFoundError) && !(err instanceof ValidationError)) throw err;
+      failed++;
+    }
+  }
+  return { updated, failed };
 }
 
 export async function loadTask(id: number): Promise<TaskRow> {
@@ -241,6 +327,8 @@ export interface TaskUpdateInput {
   repeat?: { every: RepeatEvery; byWeekday?: boolean } | null;
   /** The whole checklist, in order */
   steps?: TaskStep[];
+  /** Section 27: why it was dropped or sent to Noise; null clears it */
+  dropReason?: DropReason | null;
 }
 
 export const MAX_STEPS = 50;
@@ -405,7 +493,22 @@ export async function updateTask(id: number, input: TaskUpdateInput, actor: stri
     if (to === "done" || to === "noise" || to === "dropped" || to === "archived") set.snoozedUntil = null;
   }
 
-  if (changes.length === 0) return toTaskView(current);
+  // Section 27: why it was dropped. Going back to an open status forgets the reason.
+  const leavesClosed = statusChanged && set.status !== "dropped" && set.status !== "noise";
+  const reason = input.dropReason !== undefined ? input.dropReason : leavesClosed ? null : undefined;
+  if (reason !== undefined && reason !== current.dropReason) {
+    set.dropReason = reason;
+    const label = (r: string | null) => (r ? (DROP_REASON_LABELS[r as DropReason] ?? r) : null);
+    if (input.dropReason !== undefined) changes.push({ field: "dropReason", from: label(current.dropReason), to: label(reason) });
+  }
+  // A task that starts waiting again is given the usual time before a chase.
+  if (statusChanged && set.status === "waiting") set.chaseAfter = null;
+
+  if (changes.length === 0 && Object.keys(set).length === 0) return toTaskView(current);
+  if (changes.length === 0) {
+    const [row] = await db.update(tasksTable).set(set).where(eq(tasksTable.id, id)).returning();
+    return toTaskView(row);
+  }
 
   const updated = await db.transaction(async (tx) => {
     if (statusChanged && set.status === "done" && ruleAfter && !current.repeatNextId) {

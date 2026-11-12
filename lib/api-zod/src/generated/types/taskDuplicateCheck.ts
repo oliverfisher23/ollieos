@@ -6,8 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type WorkPackDraft = {
-  to: string;
-  subject: string;
-  body: string;
-} | null;
+export interface TaskDuplicateCheck {
+  /** Pairs with similar titles the duplicate check looked at */
+  checked: number;
+  /** New pairs it says are the same work */
+  found: number;
+}

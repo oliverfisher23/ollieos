@@ -5,10 +5,12 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { TaskLoad } from './taskLoad';
 import type { TaskSummaryStats } from './taskSummaryStats';
 import type { TaskSummaryTabs } from './taskSummaryTabs';
 
 export interface TaskSummary {
+  load: TaskLoad;
   tabs: TaskSummaryTabs;
   stats: TaskSummaryStats;
 }

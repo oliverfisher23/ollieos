@@ -23,6 +23,21 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
   archived: "Archived",
 };
 
+/** Section 27: why Ollie dropped an item or sent it to Noise. The Reader coach learns from these. */
+export const DROP_REASONS = ["not_mine", "already_done", "fyi", "arranging", "duplicate", "not_needed"] as const;
+export type DropReason = (typeof DROP_REASONS)[number];
+export const DROP_REASON_LABELS: Record<DropReason, string> = {
+  not_mine: "Not mine",
+  already_done: "Already done",
+  fyi: "Just FYI",
+  arranging: "Arranging a meeting",
+  duplicate: "Duplicate",
+  not_needed: "Not needed",
+};
+
+/** Section 27: a Waiting on task is flagged for a chase after this many days. */
+export const CHASE_AFTER_DAYS = 3;
+
 export const PRIORITY_LABELS: Record<Priority, string> = {
   high: "High",
   medium: "Medium",

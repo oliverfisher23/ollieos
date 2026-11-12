@@ -35,7 +35,7 @@ export function SlackDm({ task }: { task: Task }) {
     setDismissing(true);
     try {
       await dismissTaskDelegateHint(task.id);
-      await invalidate(task.id);
+      await invalidate();
     } catch (err) {
       reportApiError(err);
       notify('That did not save', errorMessage(err));
@@ -56,7 +56,7 @@ export function SlackDm({ task }: { task: Task }) {
       setOpen(false);
       setConfirming(false);
       setText('');
-      await invalidate(task.id);
+      await invalidate();
       notify(`Sent to ${r.personName}`, `The task is now waiting on ${r.personName}.`);
     } catch (err) {
       reportApiError(err);

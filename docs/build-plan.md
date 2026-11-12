@@ -1629,133 +1629,44 @@ Ollie asked for an agent that adds people and organisations by itself. The reade
 - The full suite passes: 428 tests. Checked in a browser: Settings, Contacts with "Added by OllieOS" and Undo, and Approve with 2 people.
 - Not built: sightings from calendar invites (only Granola meetings count), and LinkedIn connections that match nobody.
 
-## 26. The stuck-task coach (asked for 12th November 2026)
+## 26. One task across channels (asked for 12th November 2026)
 
-The Backlog clear-out (Part I) catches tasks nobody has touched for 30 days. It misses the ones Ollie keeps touching without finishing. The stuck-task coach finds those and suggests one way out for each. Nothing changes until he presses **Do this**.
+Ollie asked for a way to stop the same piece of work turning into several tasks: a meeting note, the email follow-up, a Slack message and a Cowork session about the same thing made four similar tasks, because a task was only a duplicate when the same message made it twice. Three parts, built together.
 
-### Looks stuck, in code
+- **Matching words, no AI.** `services/duplicates.ts` stems titles and messages with Postgres's English dictionary (`to_tsvector`) and leaves out words most tasks share ("send", "check", "follow up", weekdays, Ollie's name). Two titles are a strong match when they share at least two words and half their words, or nearly all of the shorter one's (three words or more); they are worth asking the judge about at a lower bar.
+- **1. The readers add to a task Ollie already has.** Each Gmail, Slack and Granola exchange is now also offered up to 8 open tasks whose title words mostly appear in it, from any channel and whoever they are with, alongside the open items Part U already offers. Every reader item has `same_as`: the ref of an offered item that is the same work. Capture then adds the message to that task as **Also came up** (a `task_evidence` row with `shows: same`), logs the message as captured against it so it never makes a task later, and makes no new task. A `same_as` for a task the exchange was not offered is ignored. Connector check lines say "N added to tasks you already had".
+- **2. Claude and Cowork check first.** `save_session` adds an action to an open task with a strongly matching title (and visible to AI) as Also came up, outcome `linked`, instead of a new Inbox item. `create_task` returns `created: false` with `possible_duplicates` when an open task has a strongly matching title; Claude then calls again with `same_as` to add to it, or `not_duplicate: true` to make it anyway. Nothing is held back when the same source and ref was already captured; the usual duplicate answer applies.
+- **3. The Duplicates page** (`/duplicates`, linked from Tasks as "Duplicates N" when there are any). Once a day after the scheduled checks, or with **Check now**, open tasks AI may see (up to 500) are compared in pairs by title; up to 20 new pairs go to the new agent **Duplicate check** (Haiku), which says which are the same work and why. Each pair is judged once (`task_duplicates`, states suggested, not_same, dismissed, merged). **Keep this one** merges: the other task is dropped with a note, where it came from and anything OllieOS had seen on it move to the kept task as Also came up, later captures of its source land on the kept task, and the kept task takes the sooner due date, the higher priority, a person, project and checklist when it has none, and the other's notes. Restore brings the dropped one back. **Not the same** keeps the pair off the page for good.
+- **Where it shows.** Task rows say "Also in Email, Meeting" and the task panel's "What OllieOS has seen" lists each **Also came up** with who, where and the sentence.
+- **Built:** `task_duplicates` (`lib/db/src/schema/tasks.ts`); `services/duplicates.ts`, `services/duplicateJudge.ts`; `GET /tasks/duplicates`, `POST /tasks/duplicates/check`, `POST /tasks/duplicates/:pairId/merge`, `POST /tasks/duplicates/:pairId/dismiss`; `alsoFrom` on tasks; `pages/duplicates.tsx`.
+- **Checked by** `test/duplicates.test.ts` (9 tests).
+- **Not included:** linking across items the same reader finds in one batch, the Claude sweep's `/ingest` routes, and a scorecard for the Duplicate check.
 
-- **Slips, from the task's own history:**
-  - times snoozed;
-  - times the due date was moved (a change from one date to another);
-  - times moved from Now back to Backlog;
-  - times kept in the Backlog clear-out;
-  - days it was in a day plan (Plan my day) and still is not done.
-- **Also:** days in Now (since it last moved to Now, else since it was triaged or made) and days overdue.
-- **Stuck** when any of these hold, for an open Now or Backlog task or promise:
-  - three or more slips;
-  - three weeks in Now;
-  - two weeks overdue after at least one slip.
-- **How it shows:** "Snoozed 4 times, due date moved twice, in Now for 5 weeks", from the same numbers.
+## 27. Tasks that fit how Ollie works (asked for 12th November 2026)
 
-### The coach (Haiku)
+Ollie asked for a review of tasks. Three days of real use (109 tasks, 10th to 12th November) showed: no task was linked to a person, and no Waiting on task said who it waited on; 84 had no project; about half the finished tasks were done within 30 minutes of arriving, mostly quick Slack replies; 8 of 14 Cowork tasks were dropped, nearly all "Decide whether…" questions; one email became three tasks; and 8 tasks were due on one Friday with one of them in Now. He asked for all eleven changes below.
 
-- **Way out.** For each stuck task AI may see, it gets the title, kind, priority, due date, how it slipped, its project, the person it is with, its steps so far, where it came from, the notes, and the colleague the delegation suggester found, if any. It reasons first, then picks one way out:
-  - **break it into steps:** 3 to 5 concrete steps;
-  - **hand it on:** only when the delegation suggester has a colleague for it;
-  - **drop it;**
-  - **make it repeat:** every week, fortnight, month or quarter;
-  - **one small next step.**
+### What exists, improved
 
-  It always gives a first step of under 15 minutes.
-- **Rules enforced in code.** Anything that breaks one becomes the next step instead:
-  - never drop a promise or a high-priority task;
-  - never suggest a repeat without how often, or on a task that already repeats;
-  - steps need at least two;
-  - hand it on needs a colleague.
-- **Hidden from AI.** A task hidden from AI is flagged with how it slipped, and no model call is made.
-- **When.** After each check, up to 30 stuck tasks a pass. Each task is looked at again a week later. A task that no longer looks stuck loses its flag, unless Ollie already took the suggestion.
+- **People on tasks.** Names now match the way messages write them: a first name ("Sam"), an initial ("Sam H"), a Slack-style name ("sam.hyams", "Sam Hyams (he/him)"). A first name alone only counts when one person has it, or one of them is in the exchange; Ollie himself is never matched. Slack gives no email for most people and few have a Slack id saved, so a Slack sender is now matched by name as a fallback (`services/personNames.ts`, `personByName` and `senderOf` in `connectors/capture.ts`). A no-AI pass, `linkPeopleToTasks` (`services/taskPeople.ts`), runs with the scheduled checks and looks at each task once (`tasks.person_checked_at`): the sender by email or name; for a Waiting on task, who its title names ("Volodymyr to set up…"); otherwise a person named in the title. It does not change `updated_at`, and a link Ollie removes is not put back.
+- **Quick Slack replies stay on Messages.** Every reader item has `quick`: all Ollie has to do is answer in a line or two. A quick Slack task whose conversation is already on Messages, To answer (`reply.needs` is "reply") makes no task as well. Connector lines say "N quick replies left on Messages".
+- **One message, one task with a checklist.** Every reader item has `steps`. A message that asks for several things that are one piece of work becomes one item whose steps are the parts, saved as the task's checklist.
+- **Cowork open questions.** `save_session` takes `open_questions`, and an action that is really a question ("Decide whether…", "Confirm if…", or ending in a question mark; `isOpenQuestion`) is moved there too. They are kept on the session (`cowork_sessions.open_questions`) and shown on its page with **Add to Inbox** and **Dismiss** (`POST /sessions/:id/questions`), instead of going to the Inbox.
+- **Project suggestions.** `GET /tasks/:id/project-suggestions` gives up to three projects for a task with none, without AI: other tasks from the same thread, Slack conversation, meeting or session; the session's projects; what the person is usually about (their other tasks and links); and a project named in the task's words. Shown as one-tap chips in Triage and under Project on the task panel.
+- **Overloaded days.** The task summary has `load`: overdue open tasks, the fullest day in the next seven (4 or more due, 3 or more of them not in Now), and Waiting on tasks ready for a chase. Tasks shows it as one line with **Show them** (the list takes `due=overdue` or a day), and Home has a **Coming up** card.
 
-### Where it shows
+### New
 
-- **On the task panel:**
-  - "Looks stuck", how it slipped, the way out, why, and the first step;
-  - **Do this**: add these steps, drop it, make it repeat, or add the first step to the top of the checklist. Each goes through the ordinary task update, so it is in the task's history;
-  - for hand it on, the card points to the Slack draft already on the panel, which Ollie still sends;
-  - **Not now** keeps the task off the stuck list for 30 days.
-- **On the Tasks list:** a "Stuck" mark on the task, and a **Stuck** filter (`/tasks?stuck=1`).
-- **The Monday digest:** "N tasks look stuck, each with a way out".
-- **Scorecard:** "Ways out you took". A suggestion taken, or the task moving on (done, waiting on someone, dropped), counts as kept; Not now counts as undone.
+- **Why you dropped it.** `tasks.drop_reason`: Not mine, Already done, Just FYI, Arranging a meeting, Duplicate, Not needed. Offered as one-tap chips on the Undo toast, in Triage after Drop or Noise, and on a dropped task's panel, for items a reader or AI made. The Reader coach's corrections now carry the reason. Going back to an open status forgets it.
+- **Chase nudges.** A Waiting on task has `chaseDue` three days after it started waiting (`CHASE_AFTER_DAYS`). Rows show a Chase pill; the panel asks "Time to chase Kevin?" with **Copy a chase line** and **Not yet** (`POST /tasks/:id/chase-later`), each of which waits three more days. Messaging on Slack or moving it back to Waiting restarts the wait.
+- **Group by project or person** on Tasks (`group=project|person`), with the unlinked group last. Dragging still works inside a group.
+- **Bulk changes.** **Select** on Tasks swaps grips for tick boxes and shows a bar: move to Now, Backlog, Waiting on, Done or Drop; set priority, project or due date (`POST /tasks/bulk`, up to 200, each through `updateTask` so history is kept).
+- **Stuck-task coach.** A new agent (Haiku), once a day. Without AI it finds Now and Backlog tasks whose due date moved twice or more, were snoozed twice or more, are five or more days overdue, or have sat in Now seven or more days untouched. Up to ten go to the model, which suggests one thing: a first step, splitting it, handing it to the colleague the delegation suggester named, or dropping it. The panel shows it with **Add as first step** (adds to the checklist), **Drop it** and **Not stuck**; rows show a Stuck pill. Tasks hidden from AI are never sent, and looking does not change `updated_at`.
 
-### Built and checked
+### Built
 
-- **Schema:** `tasks.stuck_hint`, `stuck_checked_at` and `stuck_dismissed_at`.
-- **Code:** `services/stuckTasks.ts`; `POST /tasks/:id/stuck/apply` and `/stuck/dismiss`; each task carries `stuck`; the panel card is `components/stuck-coach.tsx`.
-- **Fixed on the way:** the task panel now refreshes after the delegation suggester's "Not this one" and after sending a Slack message. Both were refreshing the lists but not the open panel.
-- **Tests:** `test/section-26.test.ts` (4 tests) covers:
-  - slips counted from snoozes, moved dates, Now to Backlog and carried day plans, and the line describing them;
-  - three weeks in Now on their own;
-  - each way out, and every rule turning a bad suggestion into a next step;
-  - hidden tasks never sent;
-  - no second look within a week;
-  - Do this for steps, drop and repeat, and no second Do this;
-  - Not now holding for 30 days;
-  - the flag clearing once a task is no longer stuck;
-  - the scorecard.
-
-  The full suite passes: 442 tests.
-- **Browser check:** the Stuck filter, the card, and Add these steps, which put three steps in the checklist and cleared the card.
-
-## 27. The task linker and the work pack (asked for 12th November 2026)
-
-Ollie asked for a review of every agent, the code and his live data, with one aim: be productive, and hold knowledge and context accurate enough to ship tasks quickly. The review (through the connector, 12th November 2026) found:
-
-- None of 36 open tasks had a person, none of 6 waiting tasks said who they waited on, and 27 had no project, though the people were in Contacts.
-- Work already done in Cowork sessions (the DNE options deck, the Army pack) was sitting behind tasks in Backlog.
-
-Ollie asked for the first two of five suggested agents. Not built: the duplicate spotter, State of play, and the goal setter.
-
-| Part | What | Model | Size |
-|---|---|---|---|
-| Z11 | Task linker, with the matching fixes behind the missing links | Haiku, plus code | Medium |
-| Z12 | Work pack | Sonnet | Medium to large |
-
-### Fixes found on the way
-
-- **Names.** A name on a task only matched a person on its exact full form. Now a first name on its own ("Konrad") matches when exactly one person in Contacts has it.
-- **Slack accounts.** Nothing ever learned whose Slack account was whose, so Slack messages from colleagues never linked to them. Now someone seen on Slack whose account is on nobody yet is matched to the person with the same email, or failing that the only person with exactly the same name, and the account is saved (in the person's history).
-- **The Backlog clear-out clock.** The delegation suggester (section 23, already live) and the stuck-task coach (section 26) changed a task's `updated_at` each time they looked at it, which reset "untouched for 30 days", so the clear-out would have stopped listing those tasks. Agent writes now leave `updated_at` alone, as the noise check always did. The task linker does the same.
-
-### Part Z11: Task linker
-
-- **Which tasks.** Open tasks and promises (Inbox, Now, Backlog, Waiting on) that AI may see and that lack a person (or, when waiting, who they wait on) or a project. Up to 40 a pass, after each check and before the delegation suggester. A task it could not link is looked at again after 7 days.
-- **How.** The sender's email is matched to a person in code. Haiku gets the people and active projects AI may see and, for each task, gives its reasoning, then each link with a yes or no on whether it is sure.
-- **Rules enforced in code:**
-  - a person is only accepted when their name appears in the task itself (title, sender, quote, snippet, notes or subject);
-  - links only fill gaps and never replace what is there;
-  - nothing hidden from AI is sent or offered.
-- **Where it shows.** The task panel says "Linked by OllieOS: for Veronica Wilkinson, project DNE outreach", with why, and **Undo**. Undo takes off the links still as the linker left them, and the linker leaves that task alone from then on. Each link is in the task's history.
-- **Goals.** A task counts towards its project's goal, so a linked project brings the goal with it.
-- **Scorecard.** "Links that stayed": undone when Ollie pressed Undo or changed a linked field.
-- **Built.** `tasks.link_hint`, `link_checked_at`, `link_undone_at`; `services/taskLinker.ts`; `POST /tasks/link` and `/tasks/:id/links/undo`; each task carries `linked`.
-
-### Part Z12: Work pack
-
-- **Which tasks.** Now tasks, and Inbox or Backlog tasks due within three days or overdue, that AI may see and have no pack yet. Up to six a pass, most pressing first. Any open task can have one built from its panel (**Build a work pack**, **Build again**).
-- **What it gathers.** Ask's own search on the task's words, plus what hangs off its project and person: Cowork sessions, documents, decisions, facts, notes, related tasks, and the rules that apply. Up to 30 items, only ones AI may see. With nothing found, no model is called.
-- **What Sonnet writes.** After its reasoning:
-  - a status: **Ready to send** (the thing already exists), **Something to build on**, or nothing found;
-  - what is held and where;
-  - the next step;
-  - a message to send, in Ollie's writing style and rules, with anything missing in square brackets;
-  - for work still to do, an outline and up to three things not known yet.
-- **Rules enforced in code:**
-  - it may only cite items it was given, and a pack that cites none says nothing was found;
-  - a task that came from an email gets no message, because Draft a reply on the task writes that;
-  - the writers' code checks run on it.
-- **Where it shows.**
-  - The task panel: the pack with its sources linked, **Copy message**, **Save to Gmail drafts** (a new draft to the task's person when their email is known; never sent), **Build again** and **Not useful**.
-  - Tasks: a "Ready to send" mark and a **Ready to send** filter (`/tasks?ready=1`).
-  - The digest: "N tasks are ready to send: what they need already exists".
-- **Scorecard.** "Packs you used": the message copied or saved, or the task done; undone on Not useful.
-- **Built.** `task_packs` table; `services/workPack.ts`; `GET` and `POST /tasks/:id/work-pack`, and `/used`, `/dismiss`, `/gmail-draft`; each task carries `pack`.
-
-### How it was checked
-
-- `test/section-27.test.ts` (7 tests) covers:
-  - a Slack account learned from the sender's email, and a first name linking when only one person has it;
-  - the linker: sure and named links only, the sender's email matched in code, nothing overwritten, hidden tasks and people never sent, `updated_at` unchanged, no second look within a week, Undo and its scorecard;
-  - the delegation suggester and stuck-task coach leaving `updated_at` alone;
-  - the work pack: a session deck found and marked ready, hidden items never gathered, a ref it was not given dropped, "nothing found" when nothing valid is cited, no message for an email task, no model call with nothing held, the Gmail draft addressed to the task's person, Not useful and Build again.
-- The full suite passes: 457 tests.
-- In a browser: the Ready to send filter and mark, the panel with links and pack, Undo and Not useful, at desktop and phone width. Save to Gmail drafts was not pressed, because it would write a real draft.
+- Schema: `tasks.person_checked_at`, `drop_reason`, `chase_after`, `stuck_hint`, `stuck_checked_at`, `stuck_dismissed_at`; `cowork_sessions.open_questions`.
+- `services/personNames.ts`, `taskPeople.ts`, `projectSuggest.ts`, `stuckCoach.ts`, `stuckJudge.ts`; `taskLoad`, `chaseLater` and `bulkUpdate` in `services/tasks.ts`.
+- App: `components/drop-reason.tsx`, `components/task-nudges.tsx` (project chips, chase card, stuck card), `LoadLine`, `BulkBar` and grouping in `pages/tasks.tsx`, `BusyDayCard` on Home, open questions on the session page.
+- **Checked by** `test/section-27.test.ts` (13 tests).
+- **Not included:** saving a Slack id on a person matched by name; a hold on Slack items to see whether Ollie replies first; undo for a bulk change; a scorecard for the stuck-task coach.
