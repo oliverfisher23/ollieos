@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { BriefTalkingPoints } from '@/components/talking-points';
 import { LazyMeetingAgenda as MeetingAgenda } from '@/components/meeting-agenda-lazy';
 import { FromGranola } from '@/components/from-granola';
+import { MeetingThreads } from '@/components/meeting-threads';
 import { Thumbs } from '@/components/evals';
 import { CommercialLines } from '@/components/client-pulse';
 import { Link } from 'wouter';
@@ -267,26 +268,7 @@ function Brief({ brief }: { brief: BriefView }) {
             </Panel>
           )}
 
-          {brief.threads.length > 0 && (
-            <Panel id="b-threads" title="Recent email and Slack">
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12 }} data-testid="list-threads">
-                {brief.threads.map((t) => (
-                  <li key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 14, lineHeight: 1.5 }} data-testid={'row-thread-' + t.id}>
-                    <span className="oo-muted" style={{ fontSize: 12 }}>
-                      {t.kind === 'slack' ? 'Slack' : 'Email'} · {formatDayMonth(t.occurredAt)}
-                      {t.url && (
-                        <>
-                          {' · '}
-                          <a href={t.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--oo-ink-muted)', textUnderlineOffset: 2 }} data-testid={'link-thread-' + t.id}>Open</a>
-                        </>
-                      )}
-                    </span>
-                    <span style={{ overflowWrap: 'anywhere' }}>{t.summary}</span>
-                  </li>
-                ))}
-              </ul>
-            </Panel>
-          )}
+          <MeetingThreads eventId={e.id} threads={brief.threads} hidden={brief.threadsHidden ?? []} />
 
         </main>
 

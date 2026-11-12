@@ -2523,6 +2523,56 @@ paths:
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
+  /meetings/{eventId}/granola:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+    post:
+      operationId: linkGranolaNote
+      tags: [preparation]
+      summary: Link a Granola note to the meeting from its link, when OllieOS did not match it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GranolaLinkInput" }
+      responses:
+        "200":
+          description: The meeting, with its Granola note
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MeetingView" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+
+  /meetings/{eventId}/threads/{activityId}:
+    parameters:
+      - name: eventId
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: activityId
+        in: path
+        required: true
+        schema: { type: integer }
+    put:
+      operationId: setThreadVerdict
+      tags: [preparation]
+      summary: Ollie's verdict on whether an email or Slack thread is about the meeting; the thread matcher learns from it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ThreadVerdictInput" }
+      responses:
+        "204": { description: Saved }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /briefs/next:
     get:
       operationId: getNextBrief
@@ -5921,7 +5971,7 @@ components:
 
     BriefView:
       type: object
-      required: [id, event, research, generatedAt, failed, notMuch, sourcesLine, why, questions, questionsNote, agenda, attendees, promises, tasks, waitingOn, earlier, threads, projects, goals, documents, rules, heldBack, notes, granolaNotes, granolaRef, actions]
+      required: [id, event, research, generatedAt, failed, notMuch, sourcesLine, why, questions, questionsNote, agenda, attendees, promises, tasks, waitingOn, earlier, threads, threadsHidden, projects, goals, documents, rules, heldBack, notes, granolaNotes, granolaRef, actions]
       properties:
         id: { type: integer }
         event: { $ref: "#/components/schemas/BriefEvent" }
@@ -5999,7 +6049,7 @@ components:
               people: { type: array, items: { type: string } }
         threads:
           type: array
-          description: Recent email and Slack exchanges with people on the meeting
+          description: Recent email and Slack exchanges with people on the meeting that are about it
           items:
             type: object
             required: [id, kind, summary, occurredAt, url]
@@ -6009,6 +6059,20 @@ components:
               summary: { type: string }
               occurredAt: { type: string, format: date-time }
               url: { type: [string, "null"] }
+        threadsHidden:
+          type: array
+          description: Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher
+          items:
+            type: object
+            required: [id, kind, summary, occurredAt, url, by, reason]
+            properties:
+              id: { type: integer }
+              kind: { type: string }
+              summary: { type: string }
+              occurredAt: { type: string, format: date-time }
+              url: { type: [string, "null"] }
+              by: { type: string, enum: [ollie, ai] }
+              reason: { type: [string, "null"] }
         projects:
           type: array
           items:
@@ -6176,6 +6240,20 @@ components:
                   title: { type: string }
                   status: { type: string }
         granolaCheck: { type: boolean, description: True when OllieOS reads Granola itself, so a check can fetch the note now }
+
+    GranolaLinkInput:
+      type: object
+      required: [link]
+      additionalProperties: false
+      properties:
+        link: { type: string, minLength: 1, maxLength: 2000, description: A Granola share or note link, or a note id }
+
+    ThreadVerdictInput:
+      type: object
+      required: [related]
+      additionalProperties: false
+      properties:
+        related: { type: boolean }
 
     AgendaTurn:
       type: object

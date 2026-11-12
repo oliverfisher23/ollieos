@@ -159,6 +159,25 @@ export interface SortedMeeting extends SortedUnit {
   toneReason?: string | null;
 }
 
+/** Meeting items also name who does the action, so actions owned by someone else can be left out in code. */
+const MEETING_ITEM_SCHEMA = {
+  ...ITEM_SCHEMA,
+  required: [...ITEM_SCHEMA.required, "owner"],
+  properties: { ...ITEM_SCHEMA.properties, owner: { type: "string" } },
+} as const;
+
+/** The names meeting notes use for Ollie. */
+const OLLIE_NAMES = new Set(["ollie", "oliver", "ollie fisher", "oliver fisher", "you", "me", "i"]);
+
+/** True when the notes give the action to someone other than Ollie. Unclear ownership ("") stays his to judge. */
+export function ownedBySomeoneElse(owner: string | null | undefined): boolean {
+  const o = (owner ?? "").trim().toLowerCase().replace(/[.()]/g, "");
+  if (!o) return false;
+  // "Oliver and Konrad" or "Ollie, Sam": shared, so it is partly his.
+  if (o.split(/\s*(?:,|&|\band\b|\/)\s*/).some((part) => OLLIE_NAMES.has(part.trim()))) return false;
+  return !OLLIE_NAMES.has(o);
+}
+
 const MEETING_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -171,7 +190,7 @@ const MEETING_SCHEMA = {
     progress: { type: "array", items: PROGRESS_SCHEMA },
     summary: { type: "string" },
     project: { type: "string" },
-    items: { type: "array", items: ITEM_SCHEMA },
+    items: { type: "array", items: MEETING_ITEM_SCHEMA },
     decisions: {
       type: "array",
       items: {
@@ -192,7 +211,11 @@ function meetingPrompt(me: string, projects: string[], now: Date, lessons: reado
     `Item types:`,
     `- "task": an action for Ollie himself ("Ollie to send the proposal"), or something someone asked him to do.`,
     `- "promise": something Ollie committed to doing for a particular person.`,
-    `- "waiting": something someone else committed to do or send for Ollie, so he is waiting on them. Not actions between other people that do not involve him.`,
+    `- "waiting": someone else committed to send or hand something to Ollie himself, or Ollie cannot do one of his own items until they have done theirs. Not actions between other people, and not someone else's share of the team's work just because Ollie was in the meeting.`,
+    `Whose action it is:`,
+    `- Notes often list next steps with the owner in brackets, such as "(Oliver)" or "(Konrad)". The notes may call Ollie "Oliver", "Oliver Fisher" or "Ollie".`,
+    `- An action owned by someone else is never a "task" or "promise" for Ollie. Leave it out, unless it is a "waiting" item as described above.`,
+    `- "owner" is who will do the action, as the notes name them: "Ollie" when it is him, the person's name when it is someone else, "" when the notes do not say.`,
     `Rules:`,
     `- "ref" is the ref in square brackets on the notes, copied exactly.`,
     ...itemRules(projects),
@@ -241,7 +264,8 @@ export async function sortMeeting(n: MeetingNote, ctx: { me: string; projects: s
   return {
     summary: String(r.summary ?? "").trim(),
     project: String(r.project ?? "").trim(),
-    items: cleanItems(r.items ?? [], u, 5),
+    // Belt and braces: the notes gave this action to someone else, so it is not Ollie's to do.
+    items: cleanItems((r.items ?? []).filter((it) => it?.type === "waiting" || !ownedBySomeoneElse((it as { owner?: string } | null)?.owner)), u, 5),
     decisions: (r.decisions ?? [])
       .filter((d) => d && String(d.text ?? "").trim())
       .slice(0, 3)
@@ -252,4 +276,42 @@ export async function sortMeeting(n: MeetingNote, ctx: { me: string; projects: s
     toneReason: String(r.tone_reason ?? "").trim().slice(0, 200) || null,
     ideas: cleanIdeas(r.ideas, u),
   };
+}
+
+/* ---------- Linking a note by hand ---------- */
+
+const NOTE_ID = /\b(not_[A-Za-z0-9]+)\b/;
+const UUID = /\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/i;
+
+/** The note a pasted Granola link (or id) points at: a not_ id, or the meeting's UUID from a /d/ or /t/ link. */
+export function granolaRefFrom(text: string): string | null {
+  const t = text.trim();
+  return NOTE_ID.exec(t)?.[1] ?? UUID.exec(t)?.[1]?.toLowerCase() ?? null;
+}
+
+/**
+ * Fetches the note a pasted link points at. Granola's API knows notes by their own id; a shared or
+ * web link carries the meeting's UUID instead, so when the id does not answer, the notes updated
+ * since the meeting started are listed and the one whose web link carries that UUID is used.
+ */
+export async function findGranolaNote(ref: string, near: Date): Promise<GranolaNote | null> {
+  const direct = (await proxyJsonOrNull(CONNECTOR, NAME, `/v1/notes/${encodeURIComponent(ref)}`).catch(() => null)) as GranolaNote | null;
+  if (direct?.id) return direct;
+  if (!UUID.test(ref)) return null;
+  const after = new Date(near.getTime() - 2 * 3_600_000).toISOString();
+  let cursor: string | null = null;
+  let looked = 0;
+  for (let page = 0; page < MAX_PAGES && looked < 60; page++) {
+    const q = new URLSearchParams({ updated_after: after, page_size: "30" });
+    if (cursor) q.set("cursor", cursor);
+    const j = await proxyJson(CONNECTOR, NAME, `/v1/notes?${q}`);
+    for (const item of (j.notes as { id: string }[] | undefined) ?? []) {
+      if (looked++ >= 60) break;
+      const n = (await proxyJsonOrNull(CONNECTOR, NAME, `/v1/notes/${encodeURIComponent(item.id)}`)) as GranolaNote | null;
+      if (n && (n.id.toLowerCase() === ref || (n.web_url ?? "").toLowerCase().includes(ref))) return n;
+    }
+    cursor = typeof j.cursor === "string" ? j.cursor : null;
+    if (j.hasMore !== true || !cursor) break;
+  }
+  return null;
 }

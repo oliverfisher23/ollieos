@@ -1055,6 +1055,26 @@ export type BriefViewThreadsItem = {
   url: string | null;
 };
 
+export type BriefViewThreadsHiddenItemBy = typeof BriefViewThreadsHiddenItemBy[keyof typeof BriefViewThreadsHiddenItemBy];
+
+
+export const BriefViewThreadsHiddenItemBy = {
+  ollie: 'ollie',
+  ai: 'ai',
+} as const;
+
+export type BriefViewThreadsHiddenItem = {
+  id: number;
+  kind: string;
+  summary: string;
+  occurredAt: string;
+  /** @nullable */
+  url: string | null;
+  by: BriefViewThreadsHiddenItemBy;
+  /** @nullable */
+  reason: string | null;
+};
+
 export type BriefViewProjectsItem = {
   id: number;
   slug: string;
@@ -1194,8 +1214,10 @@ export interface BriefView {
   waitingOn: BriefViewWaitingOnItem[];
   /** Granola notes from earlier meetings with any of the same people, newest first */
   earlier: BriefViewEarlierItem[];
-  /** Recent email and Slack exchanges with people on the meeting */
+  /** Recent email and Slack exchanges with people on the meeting that are about it */
   threads: BriefViewThreadsItem[];
+  /** Exchanges with people on the meeting judged not about it, by Ollie or the thread matcher */
+  threadsHidden: BriefViewThreadsHiddenItem[];
   projects: BriefViewProjectsItem[];
   goals: BriefViewGoalsItem[];
   documents: BriefViewDocumentsItem[];
@@ -1368,6 +1390,19 @@ export interface MeetingView {
   granola: MeetingViewGranola;
   /** True when OllieOS reads Granola itself */
   granolaCheck: boolean;
+}
+
+export interface GranolaLinkInput {
+  /**
+     * A Granola share or note link
+     * @minLength 1
+     * @maxLength 2000
+     */
+  link: string;
+}
+
+export interface ThreadVerdictInput {
+  related: boolean;
 }
 
 export interface AgendaInput {
