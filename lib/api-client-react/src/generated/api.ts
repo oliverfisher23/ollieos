@@ -118,6 +118,7 @@ import type {
   GoalOption,
   GoalUpdate,
   GoalsPage,
+  GranolaLinkInput,
   GraphConnection,
   GraphResult,
   HandleBrowserLoginCallbackParams,
@@ -270,6 +271,7 @@ import type {
   TestCaseAvailability,
   TestCaseInput,
   ThreadSummary,
+  ThreadVerdictInput,
   Thumb,
   ThumbInput,
   TimeReport,
@@ -11495,6 +11497,186 @@ export const useClearAgendaChat = <TError = ErrorType<NotAuthorisedResponse | Er
         TContext
       > => {
       return useMutation(getClearAgendaChatMutationOptions(options), queryClient);
+    }
+
+export const getLinkGranolaNoteUrl = (eventId: number,) => {
+
+
+
+
+  return `/api/meetings/${eventId}/granola`
+}
+
+/**
+ * @summary Link a Granola note to the meeting from its link, when OllieOS did not match it
+ */
+export const linkGranolaNote = async (eventId: number,
+    granolaLinkInput: GranolaLinkInput, options?: Parameters<typeof customFetch>[1]): Promise<MeetingView> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<MeetingView>(getLinkGranolaNoteUrl(eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(granolaLinkInput)
+  }
+);}
+
+
+
+
+
+export const getLinkGranolaNoteMutationKey = () => ['linkGranolaNote'] as const;
+
+export const getLinkGranolaNoteMutationOptions = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof linkGranolaNote>>, TError,LinkGranolaNoteMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof linkGranolaNote>>, TError,LinkGranolaNoteMutationVariables, TContext> => {
+
+const mutationKey = getLinkGranolaNoteMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof linkGranolaNote>>, LinkGranolaNoteMutationVariables> = (props) => {
+          const {eventId,data} = props ?? {};
+
+          return  linkGranolaNote(eventId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LinkGranolaNoteMutationResult = NonNullable<Awaited<ReturnType<typeof linkGranolaNote>>>
+    export type LinkGranolaNoteMutationBody = BodyType<GranolaLinkInput>
+    export type LinkGranolaNoteMutationError = ErrorType<ErrorResponse | NotAuthorisedResponse>
+    export type LinkGranolaNoteMutationVariables = {eventId: number;data: BodyType<GranolaLinkInput>}
+
+    /**
+ * @summary Link a Granola note to the meeting from its link, when OllieOS did not match it
+ */
+export const useLinkGranolaNote = <TError = ErrorType<ErrorResponse | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof linkGranolaNote>>, TError,LinkGranolaNoteMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof linkGranolaNote>>,
+        TError,
+        LinkGranolaNoteMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLinkGranolaNoteMutationOptions(options), queryClient);
+    }
+
+export const getSetThreadVerdictUrl = (eventId: number,
+    activityId: number,) => {
+
+
+
+
+  return `/api/meetings/${eventId}/threads/${activityId}`
+}
+
+/**
+ * @summary Ollie's verdict on whether an email or Slack thread is about the meeting; the thread matcher learns from it
+ */
+export const setThreadVerdict = async (eventId: number,
+    activityId: number,
+    threadVerdictInput: ThreadVerdictInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getSetThreadVerdictUrl(eventId,activityId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(threadVerdictInput)
+  }
+);}
+
+
+
+
+
+export const getSetThreadVerdictMutationKey = () => ['setThreadVerdict'] as const;
+
+export const getSetThreadVerdictMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setThreadVerdict>>, TError,SetThreadVerdictMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setThreadVerdict>>, TError,SetThreadVerdictMutationVariables, TContext> => {
+
+const mutationKey = getSetThreadVerdictMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setThreadVerdict>>, SetThreadVerdictMutationVariables> = (props) => {
+          const {eventId,activityId,data} = props ?? {};
+
+          return  setThreadVerdict(eventId,activityId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetThreadVerdictMutationResult = NonNullable<Awaited<ReturnType<typeof setThreadVerdict>>>
+    export type SetThreadVerdictMutationBody = BodyType<ThreadVerdictInput>
+    export type SetThreadVerdictMutationError = ErrorType<NotAuthorisedResponse | ErrorResponse>
+    export type SetThreadVerdictMutationVariables = {eventId: number;activityId: number;data: BodyType<ThreadVerdictInput>}
+
+    /**
+ * @summary Ollie's verdict on whether an email or Slack thread is about the meeting; the thread matcher learns from it
+ */
+export const useSetThreadVerdict = <TError = ErrorType<NotAuthorisedResponse | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setThreadVerdict>>, TError,SetThreadVerdictMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setThreadVerdict>>,
+        TError,
+        SetThreadVerdictMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetThreadVerdictMutationOptions(options), queryClient);
     }
 
 export const getGetNextBriefUrl = () => {

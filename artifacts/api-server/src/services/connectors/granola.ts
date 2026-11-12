@@ -253,3 +253,41 @@ export async function sortMeeting(n: MeetingNote, ctx: { me: string; projects: s
     ideas: cleanIdeas(r.ideas, u),
   };
 }
+
+/* ---------- Linking a note by hand ---------- */
+
+const NOTE_ID = /\b(not_[A-Za-z0-9]+)\b/;
+const UUID = /\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/i;
+
+/** The note a pasted Granola link (or id) points at: a not_ id, or the meeting's UUID from a /d/ or /t/ link. */
+export function granolaRefFrom(text: string): string | null {
+  const t = text.trim();
+  return NOTE_ID.exec(t)?.[1] ?? UUID.exec(t)?.[1]?.toLowerCase() ?? null;
+}
+
+/**
+ * Fetches the note a pasted link points at. Granola's API knows notes by their own id; a shared or
+ * web link carries the meeting's UUID instead, so when the id does not answer, the notes updated
+ * since the meeting started are listed and the one whose web link carries that UUID is used.
+ */
+export async function findGranolaNote(ref: string, near: Date): Promise<GranolaNote | null> {
+  const direct = (await proxyJsonOrNull(CONNECTOR, NAME, `/v1/notes/${encodeURIComponent(ref)}`).catch(() => null)) as GranolaNote | null;
+  if (direct?.id) return direct;
+  if (!UUID.test(ref)) return null;
+  const after = new Date(near.getTime() - 2 * 3_600_000).toISOString();
+  let cursor: string | null = null;
+  let looked = 0;
+  for (let page = 0; page < MAX_PAGES && looked < 60; page++) {
+    const q = new URLSearchParams({ updated_after: after, page_size: "30" });
+    if (cursor) q.set("cursor", cursor);
+    const j = await proxyJson(CONNECTOR, NAME, `/v1/notes?${q}`);
+    for (const item of (j.notes as { id: string }[] | undefined) ?? []) {
+      if (looked++ >= 60) break;
+      const n = (await proxyJsonOrNull(CONNECTOR, NAME, `/v1/notes/${encodeURIComponent(item.id)}`)) as GranolaNote | null;
+      if (n && (n.id.toLowerCase() === ref || (n.web_url ?? "").toLowerCase().includes(ref))) return n;
+    }
+    cursor = typeof j.cursor === "string" ? j.cursor : null;
+    if (j.hasMore !== true || !cursor) break;
+  }
+  return null;
+}
