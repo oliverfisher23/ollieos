@@ -159,6 +159,25 @@ export interface SortedMeeting extends SortedUnit {
   toneReason?: string | null;
 }
 
+/** Meeting items also name who does the action, so actions owned by someone else can be left out in code. */
+const MEETING_ITEM_SCHEMA = {
+  ...ITEM_SCHEMA,
+  required: [...ITEM_SCHEMA.required, "owner"],
+  properties: { ...ITEM_SCHEMA.properties, owner: { type: "string" } },
+} as const;
+
+/** The names meeting notes use for Ollie. */
+const OLLIE_NAMES = new Set(["ollie", "oliver", "ollie fisher", "oliver fisher", "you", "me", "i"]);
+
+/** True when the notes give the action to someone other than Ollie. Unclear ownership ("") stays his to judge. */
+export function ownedBySomeoneElse(owner: string | null | undefined): boolean {
+  const o = (owner ?? "").trim().toLowerCase().replace(/[.()]/g, "");
+  if (!o) return false;
+  // "Oliver and Konrad" or "Ollie, Sam": shared, so it is partly his.
+  if (o.split(/\s*(?:,|&|\band\b|\/)\s*/).some((part) => OLLIE_NAMES.has(part.trim()))) return false;
+  return !OLLIE_NAMES.has(o);
+}
+
 const MEETING_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -170,7 +189,7 @@ const MEETING_SCHEMA = {
     progress: { type: "array", items: PROGRESS_SCHEMA },
     summary: { type: "string" },
     project: { type: "string" },
-    items: { type: "array", items: ITEM_SCHEMA },
+    items: { type: "array", items: MEETING_ITEM_SCHEMA },
     decisions: {
       type: "array",
       items: {
@@ -191,7 +210,11 @@ function meetingPrompt(me: string, projects: string[], now: Date): string {
     `Item types:`,
     `- "task": an action for Ollie himself ("Ollie to send the proposal"), or something someone asked him to do.`,
     `- "promise": something Ollie committed to doing for a particular person.`,
-    `- "waiting": something someone else committed to do or send for Ollie, so he is waiting on them. Not actions between other people that do not involve him.`,
+    `- "waiting": someone else committed to send or hand something to Ollie himself, or Ollie cannot do one of his own items until they have done theirs. Not actions between other people, and not someone else's share of the team's work just because Ollie was in the meeting.`,
+    `Whose action it is:`,
+    `- Notes often list next steps with the owner in brackets, such as "(Oliver)" or "(Konrad)". The notes may call Ollie "Oliver", "Oliver Fisher" or "Ollie".`,
+    `- An action owned by someone else is never a "task" or "promise" for Ollie. Leave it out, unless it is a "waiting" item as described above.`,
+    `- "owner" is who will do the action, as the notes name them: "Ollie" when it is him, the person's name when it is someone else, "" when the notes do not say.`,
     `Rules:`,
     `- "ref" is the ref in square brackets on the notes, copied exactly.`,
     ...itemRules(projects),
@@ -238,7 +261,8 @@ export async function sortMeeting(n: MeetingNote, ctx: { me: string; projects: s
   return {
     summary: String(r.summary ?? "").trim(),
     project: String(r.project ?? "").trim(),
-    items: cleanItems(r.items ?? [], u, 5),
+    // Belt and braces: the notes gave this action to someone else, so it is not Ollie's to do.
+    items: cleanItems((r.items ?? []).filter((it) => it?.type === "waiting" || !ownedBySomeoneElse((it as { owner?: string } | null)?.owner)), u, 5),
     decisions: (r.decisions ?? [])
       .filter((d) => d && String(d.text ?? "").trim())
       .slice(0, 3)
