@@ -9,6 +9,7 @@ const load = {
   triage: () => import('@/components/triage'),
   clearOut: () => import('@/components/clear-out'),
   review: () => import('@/pages/review'),
+  duplicates: () => import('@/pages/duplicates'),
   messages: () => import('@/pages/messages'),
   voice: () => import('@/pages/voice'),
   ask: () => import('@/pages/ask'),
@@ -38,6 +39,7 @@ const load = {
 export const TriageDialog = lazyPage(load.triage, 'TriageDialog');
 export const ClearOutDialog = lazyPage(load.clearOut, 'ClearOutDialog');
 export const ReviewPage = lazyPage(load.review, 'default');
+export const DuplicatesPage = lazyPage(load.duplicates, 'default');
 export const MessagesPage = lazyPage(load.messages, 'default');
 export const VoicePage = lazyPage(load.voice, 'default');
 export const AskPage = lazyPage(load.ask, 'default');
@@ -76,6 +78,7 @@ function loaderFor(path: string): (() => Promise<unknown>) | null {
   if (p === '/triage') return load.triage;
   if (p === '/clear-out') return load.clearOut;
   if (under('/review')) return load.review;
+  if (under('/duplicates')) return load.duplicates;
   if (under('/messages') || under('/email')) return load.messages;
   if (under('/voice')) return load.voice;
   if (under('/ask')) return load.ask;

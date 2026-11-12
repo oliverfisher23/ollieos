@@ -27,6 +27,9 @@ import { kickKnowledgeReader } from "./documents/reader";
 import { ACTOR, cleanText } from "./knowledge/common";
 import { propose, type ProposeResult } from "./suggestions";
 import { NotFoundError, ValidationError } from "./tasks";
+import { alreadyCaptured, closeOpenTasks, recordMention } from "./duplicates";
+import { defaultScope, visibleRefs } from "../lib/ai-data/scope";
+import { toRef } from "@workspace/shared";
 
 export { SESSION_ARCHIVE_DAYS };
 export const SESSION_LIMITS = { outcomes: 30, actions: 20, artifacts: 10 } as const;
@@ -73,7 +76,8 @@ export interface SaveSessionResult {
   updated: boolean;
   /** False when the session is hidden from AI, so it is not read for knowledge */
   visible: boolean;
-  tasks: { id: number | null; outcome: "created" | "duplicate" | "noise" }[];
+  /** linked: section 25, added to an open task with nearly the same title instead of a new one */
+  tasks: { id: number | null; outcome: "created" | "duplicate" | "noise" | "linked" }[];
   artifacts: ProposeResult[];
 }
 
@@ -135,6 +139,20 @@ export async function saveSession(writer: Writer, input: SaveSessionInput, now =
   // Tasks and promises go straight to the Inbox, once each however often the session is saved.
   const tasks: SaveSessionResult["tasks"] = [];
   for (const [i, a] of input.actions.slice(0, SESSION_LIMITS.actions).entries()) {
+    const sourceRef = `${sessionKey(id)}#${i + 1}`;
+    // Section 25: an open task with nearly the same title (and visible to AI) gets this as Also came up.
+    if (!(await alreadyCaptured("session", sourceRef))) {
+      const close = await closeOpenTasks(a.title);
+      const visible = await visibleRefs(defaultScope(), close.map((c) => toRef("task", c.id)));
+      const match = close.find((c) => visible.has(toRef("task", c.id)));
+      if (
+        match &&
+        (await recordMention(match.id, { source: "session", sourceRef, url: null, saidBy: writer.actor, saidAt: now, place: `Cowork session: ${title}`, quote: a.quote || a.title, strength: "other" }))
+      ) {
+        tasks.push({ id: match.id, outcome: "linked" });
+        continue;
+      }
+    }
     const r = await captureTask(
       writer,
       {
@@ -142,7 +160,7 @@ export async function saveSession(writer: Writer, input: SaveSessionInput, now =
         kind: a.kind,
         dueDate: a.dueDate,
         source: "session",
-        sourceRef: `${sessionKey(id)}#${i + 1}`,
+        sourceRef,
         sourceSubject: title,
         sourceQuote: a.quote,
         personId: a.personId,

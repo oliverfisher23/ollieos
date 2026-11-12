@@ -19,11 +19,14 @@ import { defaultScope, visibleRefs } from "../lib/ai-data/scope";
 import { logger } from "../lib/logger";
 import type { WorkUnit } from "./connectors/messages";
 import { NotFoundError, updateTask } from "./tasks";
+import { similarOpenTasks } from "./duplicates";
 
 /** Most open tasks offered from the people in an exchange (question 63) */
 const PEOPLE_ITEMS = 15;
 /** Most recently touched open tasks offered for a signing confirmation (question 63) */
 const CONFIRMATION_ITEMS = 20;
+/** Section 25: most open tasks offered because their title words appear in the exchange */
+const SIMILAR_ITEMS = 8;
 const OPEN = [...OPEN_STATUSES];
 
 export interface OpenItem {
@@ -96,6 +99,16 @@ export async function openItemsFor(units: WorkUnit[], personIds: number[][]): Pr
     }
     const sameIds = new Set(sameRows.map((r) => r.id));
     const rows = [...sameRows.map((r) => ({ r, same: true })), ...otherRows.filter((r) => !sameIds.has(r.id)).slice(0, u.confirmation ? CONFIRMATION_ITEMS : PEOPLE_ITEMS).map((r) => ({ r, same: false }))];
+    // Section 25: tasks about the same work from another channel, whoever they are with.
+    if (!u.confirmation) {
+      const text = [u.subject ?? "", ...u.messages.map((m) => m.text.slice(0, 1500))].join("\n");
+      const similar = await similarOpenTasks(text, { exclude: rows.map(({ r }) => r.id), limit: SIMILAR_ITEMS });
+      if (similar.length) {
+        const found = await db.select(COLS).from(tasksTable).where(inArray(tasksTable.id, similar));
+        const byId = new Map(found.map((r) => [r.id, r]));
+        for (const id of similar) if (byId.has(id)) rows.push({ r: byId.get(id)!, same: false });
+      }
+    }
     if (!rows.length) {
       out.push([]);
       continue;
@@ -231,7 +244,7 @@ export async function applyProgress(u: WorkUnit, items: OpenItem[], progress: So
   }
 }
 
-function placeOf(u: WorkUnit): string | null {
+export function placeOf(u: WorkUnit): string | null {
   if (u.source === "slack") return u.channel ? `Slack, ${u.channel}` : "Slack";
   if (u.source === "email") return u.subject ? `Email: ${u.subject}` : "Email";
   return u.subject ? `Meeting: ${u.subject}` : "Meeting";

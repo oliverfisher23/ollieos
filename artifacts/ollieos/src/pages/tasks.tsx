@@ -7,6 +7,7 @@ import {
   useGetClearOut,
   useGetTaskSummary,
   useListReview,
+  useListTaskDuplicates,
   useListTasks,
   updateTask,
   useUpdateTask,
@@ -173,6 +174,9 @@ export default function TasksPage() {
 
   const review = useListReview();
   const reviewCount = review.data?.actions ?? 0;
+  // Section 25: pairs of open tasks that look like the same work.
+  const duplicates = useListTaskDuplicates();
+  const duplicateCount = duplicates.data?.pairs.length ?? 0;
 
   // Client work or internal, from each task's project (filtered here, so it combines with every other filter).
   const rawWork = sp.get('work');
@@ -227,6 +231,9 @@ export default function TasksPage() {
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
             {reviewCount > 0 && (
               <Link href="/review" className="oo-link" style={{ fontSize: 14 }} data-testid="link-review">Review {reviewCount}</Link>
+            )}
+            {duplicateCount > 0 && (
+              <Link href="/duplicates" className="oo-link" style={{ fontSize: 14 }} data-testid="link-duplicates">Duplicates {duplicateCount}</Link>
             )}
             <a href="/api/export/tasks.csv" download className="oo-link" style={{ fontSize: 14 }} data-testid="link-export-tasks">Export</a>
           </span>

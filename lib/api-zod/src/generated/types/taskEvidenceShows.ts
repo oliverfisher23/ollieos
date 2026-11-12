@@ -6,10 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * same: section 25, the same work came up again here
+ */
 export type TaskEvidenceShows = typeof TaskEvidenceShows[keyof typeof TaskEvidenceShows];
 
 
 export const TaskEvidenceShows = {
   done: 'done',
   progress: 'progress',
+  same: 'same',
 } as const;

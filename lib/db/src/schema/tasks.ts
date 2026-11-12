@@ -251,7 +251,7 @@ export const taskEvidenceTable = pgTable(
     /** Where it was said: the Slack conversation, email subject or meeting title */
     place: text("place"),
     quote: text("quote").notNull(),
-    /** done or progress */
+    /** done, progress, or same (section 25: the same work came up again here) */
     shows: text("shows").notNull(),
     /** same: from the task's own conversation; other: anywhere else */
     strength: text("strength").notNull(),
@@ -265,6 +265,35 @@ export const taskEvidenceTable = pgTable(
 );
 
 export type TaskEvidence = typeof taskEvidenceTable.$inferSelect;
+
+/**
+ * Section 25: pairs of open tasks that look like the same piece of work, found by matching words
+ * and confirmed by the duplicate judge. Ollie merges them or says they are not the same; either
+ * way the pair is never suggested again. task_a is always the lower id.
+ */
+export const taskDuplicatesTable = pgTable(
+  "task_duplicates",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    taskA: integer("task_a")
+      .notNull()
+      .references(() => tasksTable.id, { onDelete: "cascade" }),
+    taskB: integer("task_b")
+      .notNull()
+      .references(() => tasksTable.id, { onDelete: "cascade" }),
+    /** suggested: waiting for Ollie; not_same: the judge said no; dismissed: Ollie said no; merged */
+    state: text("state").notNull().default("suggested"),
+    /** The judge's one line on why they are the same work */
+    reason: text("reason"),
+    /** The task kept when merged */
+    keptTaskId: integer("kept_task_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("task_duplicates_pair_idx").on(t.taskA, t.taskB), index("task_duplicates_state_idx").on(t.state)],
+);
+
+export type TaskDuplicate = typeof taskDuplicatesTable.$inferSelect;
 
 /**
  * Part L (build plan section 14): what OllieOS drafted and what Ollie changed, either by editing the

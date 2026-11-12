@@ -10,7 +10,7 @@ import type { TaskEvidenceStrength } from './taskEvidenceStrength';
 
 export interface TaskEvidence {
   id: number;
-  /** slack, email or meeting */
+  /** slack, email, meeting, or for the same work coming up again, session, manual and the other task sources */
   source: string;
   /** @nullable */
   url: string | null;
@@ -26,6 +26,7 @@ export interface TaskEvidence {
      */
   place: string | null;
   quote: string;
+  /** same: section 25, the same work came up again here */
   shows: TaskEvidenceShows;
   /** same: from the task's own conversation; other: anywhere else */
   strength: TaskEvidenceStrength;

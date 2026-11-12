@@ -277,6 +277,90 @@ paths:
         "403":
           $ref: "#/components/responses/NotAuthorised"
 
+  /tasks/duplicates:
+    get:
+      operationId: listTaskDuplicates
+      tags: [tasks]
+      summary: Pairs of open tasks that look like the same work, waiting for Ollie
+      responses:
+        "200":
+          description: Pairs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDuplicateList"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /tasks/duplicates/check:
+    post:
+      operationId: checkTaskDuplicates
+      tags: [tasks]
+      summary: Look for duplicate open tasks now instead of waiting for the daily check
+      responses:
+        "200":
+          description: What the check found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskDuplicateCheck"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /tasks/duplicates/{pairId}/merge:
+    post:
+      operationId: mergeTaskDuplicate
+      tags: [tasks]
+      summary: Merge a pair into the task Ollie keeps; the other is dropped and shows on it as Also came up
+      parameters:
+        - $ref: "#/components/parameters/DuplicatePairId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskDuplicateMergeInput"
+      responses:
+        "200":
+          description: The kept task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          description: Invalid input, or the pair was already decided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/duplicates/{pairId}/dismiss:
+    post:
+      operationId: dismissTaskDuplicate
+      tags: [tasks]
+      summary: Not the same; the pair is never suggested again
+      parameters:
+        - $ref: "#/components/parameters/DuplicatePairId"
+      responses:
+        "204":
+          description: Kept apart
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /tasks/reorder:
     post:
       operationId: reorderTasks
@@ -4928,6 +5012,12 @@ components:
       required: true
       schema:
         type: integer
+    DuplicatePairId:
+      name: pairId
+      in: path
+      required: true
+      schema:
+        type: integer
     ThreadId:
       name: threadId
       in: path
@@ -5304,6 +5394,10 @@ components:
         looksDone:
           type: [string, "null"]
           description: "Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null"
+        alsoFrom:
+          type: array
+          items: { type: string }
+          description: "Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task's own"
         delegateHint:
           description: "Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog."
           oneOf:
@@ -6664,13 +6758,13 @@ components:
       required: [id, source, url, saidBy, saidAt, place, quote, shows, strength, applied, dismissed]
       properties:
         id: { type: integer }
-        source: { type: string, description: "slack, email or meeting" }
+        source: { type: string, description: "slack, email, meeting, or for the same work coming up again, session, manual and the other task sources" }
         url: { type: [string, "null"] }
         saidBy: { type: [string, "null"], description: "\"You\" for Ollie, otherwise the name as written" }
         saidAt: { type: string, format: date-time }
         place: { type: [string, "null"], description: The Slack conversation, email subject or meeting }
         quote: { type: string }
-        shows: { type: string, enum: [done, progress] }
+        shows: { type: string, enum: [done, progress, same], description: "same: section 25, the same work came up again here" }
         strength: { type: string, enum: [same, other], description: "same: from the task's own conversation; other: anywhere else" }
         applied: { type: boolean, description: This evidence closed the task }
         dismissed: { type: boolean, description: Ollie said Not done }
@@ -7110,6 +7204,39 @@ components:
         cc: { type: string, maxLength: 2000 }
         subject: { type: string, maxLength: 500 }
         body: { type: string, minLength: 1, maxLength: 20000 }
+
+    TaskDuplicatePair:
+      type: object
+      required: [id, reason, a, b]
+      properties:
+        id: { type: integer }
+        reason:
+          type: [string, "null"]
+          description: The duplicate check's line on what work they share
+        a: { $ref: "#/components/schemas/Task" }
+        b: { $ref: "#/components/schemas/Task" }
+
+    TaskDuplicateList:
+      type: object
+      required: [pairs]
+      properties:
+        pairs:
+          type: array
+          items: { $ref: "#/components/schemas/TaskDuplicatePair" }
+
+    TaskDuplicateCheck:
+      type: object
+      required: [checked, found]
+      properties:
+        checked: { type: integer, description: Pairs with similar titles the duplicate check looked at }
+        found: { type: integer, description: New pairs it says are the same work }
+
+    TaskDuplicateMergeInput:
+      type: object
+      required: [keep]
+      additionalProperties: false
+      properties:
+        keep: { type: integer, description: The id of the task to keep }
 
     TaskReorderInput:
       type: object

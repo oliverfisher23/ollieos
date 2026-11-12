@@ -98,6 +98,8 @@ export interface Task {
      * @nullable
      */
   looksDone?: string | null;
+  /** Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task's own */
+  alsoFrom?: string[];
   /** Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog. */
   delegateHint?: DelegateHint | null;
 }

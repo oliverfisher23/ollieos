@@ -534,6 +534,9 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-title-input:hover { border-color: var(--oo-control-border); }
 .oo-close { width: 32px; height: 32px; border-radius: var(--oo-r-full); display: flex; align-items: center; justify-content: center; background: var(--oo-field); border: 0; cursor: pointer; color: var(--oo-ink); position: relative; }
 .oo-close::before { content: ''; position: absolute; inset: -6px; }
+.oo-dup { border: 1px solid var(--oo-line); border-radius: var(--oo-r-card); padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.oo-dup-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.oo-dup-side { border: 1px solid var(--oo-line-soft); border-radius: var(--oo-r-card-sm); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .oo-source { border: 1px solid var(--oo-line); border-radius: var(--oo-r-card-sm); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
 .oo-light a.oo-link { color: var(--oo-ink); }
 

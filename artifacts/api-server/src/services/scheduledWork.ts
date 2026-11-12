@@ -26,6 +26,7 @@ import { checkStaleFacts } from "./staleCheck";
 import { suggestDelegations } from "./delegation";
 import { draftWeeklyUpdateIfDue } from "./weeklyUpdate";
 import { learnLessonsIfDue } from "./readerLessons";
+import { findDuplicatesIfDue } from "./duplicates";
 
 /** OllieOS's own checks start at 07:00, so they wait for 07:40 (when the morning sweep ran) before building the digest. */
 export const DIGEST_NOT_BEFORE = { hour: 7, minute: 40 };
@@ -96,6 +97,8 @@ async function runScheduledWork(from: "sweep" | "connectors", now: Date): Promis
   if (process.env.NODE_ENV !== "test") await part("writer_grades", () => gradeIfDue(now));
   // Section 24: the reader coach and card coach, weekly (the card coach sooner while the backlog is being cleared).
   if (process.env.NODE_ENV !== "test") await part("lessons", () => learnLessonsIfDue(now));
+  // Section 25: pairs of open tasks that are the same work, for the Duplicates page.
+  if (process.env.NODE_ENV !== "test") await part("duplicates", () => findDuplicatesIfDue(now));
   await part("cleared", async () => ({ digests: await clearOldDigests(now), calendar_events: await clearOldCalendar(now), roundups: await clearOldRoundups(now), ai_runs: await clearOldAiRuns(now), meeting_history: await clearOldHistory(now), ai_inputs: await clearOldInputs(now), noise: await clearOldNoise(now) }));
   return out;
 }

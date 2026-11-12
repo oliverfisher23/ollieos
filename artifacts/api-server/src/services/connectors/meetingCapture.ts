@@ -73,6 +73,7 @@ export async function captureMeetings(
       applyNoise: false,
       counts,
       projectFor: () => event?.projectId ?? null,
+      open: [open],
     });
 
     for (const d of sorted.decisions) {

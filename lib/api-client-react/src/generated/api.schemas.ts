@@ -390,6 +390,8 @@ export interface Task {
      * @nullable
      */
   looksDone?: string | null;
+  /** Section 25: other sources the same work came up in (slack, email, meeting, session...), besides the task's own */
+  alsoFrom?: string[];
   /** Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog. */
   delegateHint?: DelegateHint | null;
 }
@@ -1909,12 +1911,16 @@ export interface TalkingPoints {
   raised: TalkingPoint[];
 }
 
+/**
+ * same: section 25, the same work came up again here
+ */
 export type TaskEvidenceShows = typeof TaskEvidenceShows[keyof typeof TaskEvidenceShows];
 
 
 export const TaskEvidenceShows = {
   done: 'done',
   progress: 'progress',
+  same: 'same',
 } as const;
 
 /**
@@ -1930,7 +1936,7 @@ export const TaskEvidenceStrength = {
 
 export interface TaskEvidence {
   id: number;
-  /** slack, email or meeting */
+  /** slack, email, meeting, or for the same work coming up again, session, manual and the other task sources */
   source: string;
   /** @nullable */
   url: string | null;
@@ -1946,6 +1952,7 @@ export interface TaskEvidence {
      */
   place: string | null;
   quote: string;
+  /** same: section 25, the same work came up again here */
   shows: TaskEvidenceShows;
   /** same: from the task's own conversation; other: anywhere else */
   strength: TaskEvidenceStrength;
@@ -2537,6 +2544,33 @@ export interface ReplyDraftInput {
      * @maxLength 20000
      */
   body: string;
+}
+
+export interface TaskDuplicatePair {
+  id: number;
+  /**
+     * The duplicate check's line on what work they share
+     * @nullable
+     */
+  reason: string | null;
+  a: Task;
+  b: Task;
+}
+
+export interface TaskDuplicateList {
+  pairs: TaskDuplicatePair[];
+}
+
+export interface TaskDuplicateCheck {
+  /** Pairs with similar titles the duplicate check looked at */
+  checked: number;
+  /** New pairs it says are the same work */
+  found: number;
+}
+
+export interface TaskDuplicateMergeInput {
+  /** The id of the task to keep */
+  keep: number;
 }
 
 export interface TaskReorderInput {

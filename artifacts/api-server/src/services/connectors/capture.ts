@@ -17,7 +17,8 @@ import { logger } from "../../lib/logger";
 import { captureTask, enabledRules, logActivity, matchNoiseRule, type CaptureWriter } from "../aiWrites";
 import { emailsOf, hasAnyEmail, hasAnySlackId } from "../personMatch";
 import { propose, type Proposal } from "../suggestions";
-import { applyProgress, cleanProgress, openItemsFor, openItemsBlock, type ProgressCounts } from "../taskEvidence";
+import { applyProgress, cleanProgress, openItemsFor, openItemsBlock, placeOf, type OpenItem, type ProgressCounts } from "../taskEvidence";
+import { recordMention } from "../duplicates";
 import { proposeSignature, proposeWorksAt, recordTogether } from "../peopleSignals";
 import { addSpottedIdea } from "../strategy";
 import { lessonsFor } from "../readerLessons";
@@ -45,6 +46,8 @@ export interface CaptureCounts {
   details?: number;
   /** Section 23: ideas the idea spotter added from Slack */
   ideas?: number;
+  /** Section 25: items added to a task Ollie already had, instead of a new task */
+  linked?: number;
 }
 
 /** True when one of Ollie's noise rules covers every message in the exchange from someone else. */
@@ -310,7 +313,7 @@ export async function sortAndCapture(
     // Section 24: the lessons Ollie turned on for this reader.
     lessons: await lessonsFor(ctx.agent),
   });
-  await captureSorted(keep, sorted, { choices, rules, applyNoise: true, counts });
+  await captureSorted(keep, sorted, { choices, rules, applyNoise: true, counts, open });
   const progress: ProgressCounts = { closed: 0, looks_done: 0, progress: 0 };
   for (const [i, u] of keep.entries()) {
     const p = cleanProgress(sorted[i].progress, u, open[i]);
@@ -379,7 +382,15 @@ export async function sortAndCapture(
 export async function captureSorted(
   keep: WorkUnit[],
   sorted: SortedUnit[],
-  opts: { choices: { id: number; name: string }[]; rules: NoiseRule[]; applyNoise: boolean; counts: CaptureCounts; projectFor?: (i: number) => number | null },
+  opts: {
+    choices: { id: number; name: string }[];
+    rules: NoiseRule[];
+    applyNoise: boolean;
+    counts: CaptureCounts;
+    projectFor?: (i: number) => number | null;
+    /** Section 25: the open items each exchange was offered, so "same_as" can add to one */
+    open?: OpenItem[][];
+  },
 ): Promise<number[][]> {
   const { counts, rules } = opts;
   const projects = new Map(opts.choices.map((p) => [p.name.toLowerCase(), p.id]));
@@ -409,6 +420,24 @@ export async function captureSorted(
       const n = (perMessage.get(msg.ref) ?? 0) + 1;
       perMessage.set(msg.ref, n);
       const sourceRef = n === 1 ? msg.ref : `${msg.ref}#${n}`;
+      // Section 25: the same work as an open task, so it is added to that task instead.
+      const same = it.same_as ? opts.open?.[i]?.find((o) => o.ref === it.same_as) : undefined;
+      if (same) {
+        const added = await recordMention(same.taskId, {
+          source: u.source,
+          sourceRef,
+          url: msg.url || null,
+          saidBy: msg.fromMe ? "You" : (msg.fromName ?? msg.fromAddress ?? null),
+          saidAt: msg.at,
+          place: placeOf(u),
+          quote: it.quote || it.title,
+          strength: same.same ? "same" : "other",
+        });
+        if (added) counts.linked = (counts.linked ?? 0) + 1;
+        else counts.duplicate++;
+        taskIds[i].push(same.taskId);
+        continue;
+      }
       const sender = msg.fromMe ? null : senderOf(people, msg);
       const person = personFor(it.person) ?? (it.type === "task" ? sender : null);
       const projectId = projectFor(it.project) ?? unitProject;

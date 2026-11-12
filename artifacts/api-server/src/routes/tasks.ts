@@ -18,6 +18,7 @@ import {
   updateTask,
 } from "../services/tasks";
 import { getTaskHistory } from "../services/history";
+import { dismissDuplicate, findDuplicates, listDuplicates, mergeDuplicate } from "../services/duplicates";
 import { keepTask } from "../services/noiseCheck";
 import { dismissEvidence, listEvidence } from "../services/taskEvidence";
 import { getReplyDraft, saveReplyDraftToGmail, writeReplyDraft } from "../services/replyDraft";
@@ -139,6 +140,42 @@ router.post(
   handle(async (req, res) => {
     const body = QuickAddBody.parse(req.body);
     res.status(201).json(await quickAddTask(body.text, ACTOR));
+  }),
+);
+
+const PairParams = z.object({ pairId: z.coerce.number().int().positive() });
+const MergeBody = z.object({ keep: z.number().int().positive() }).strict();
+
+// Section 25: the Duplicates page. Registered before /tasks/:id so "duplicates" is never read as an id.
+router.get(
+  "/tasks/duplicates",
+  handle(async (_req, res) => {
+    res.json({ pairs: await listDuplicates() });
+  }),
+);
+
+router.post(
+  "/tasks/duplicates/check",
+  handle(async (_req, res) => {
+    res.json(await findDuplicates());
+  }),
+);
+
+router.post(
+  "/tasks/duplicates/:pairId/merge",
+  handle(async (req, res) => {
+    const { pairId } = PairParams.parse(req.params);
+    const body = MergeBody.parse(req.body);
+    res.json(await mergeDuplicate(pairId, body.keep, ACTOR));
+  }),
+);
+
+router.post(
+  "/tasks/duplicates/:pairId/dismiss",
+  handle(async (req, res) => {
+    const { pairId } = PairParams.parse(req.params);
+    await dismissDuplicate(pairId);
+    res.status(204).end();
   }),
 );
 

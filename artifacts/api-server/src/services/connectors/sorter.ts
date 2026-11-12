@@ -32,6 +32,8 @@ export interface SortedItem {
   person: string;
   quote: string;
   confidential: boolean;
+  /** Section 25: the open item (task:<id>) this is the same work as, or "" */
+  same_as?: string;
 }
 
 export type ClaimAbout = "project" | "person" | "organisation" | "product";
@@ -170,7 +172,7 @@ export const CLAIMS_PER_UNIT = 2;
 export const ITEM_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["ref", "type", "title", "action", "priority", "due", "project", "person", "quote", "confidential"],
+  required: ["ref", "type", "title", "action", "priority", "due", "project", "person", "quote", "confidential", "same_as"],
   properties: {
     ref: { type: "string" },
     type: { type: "string", enum: ["task", "promise", "waiting"] },
@@ -182,6 +184,7 @@ export const ITEM_SCHEMA = {
     person: { type: "string" },
     quote: { type: "string" },
     confidential: { type: "boolean" },
+    same_as: { type: "string" },
   },
 } as const;
 
@@ -195,6 +198,7 @@ export function itemRules(projects: string[]): string[] {
     `- "person" is the name or email of the other person the item is with: who asked, who Ollie promised, or who he is waiting on. "" if none.`,
     `- "quote" is the exact sentence the item comes from, under 300 characters.`,
     `- "project" is one of these project names, copied exactly, when the item is clearly about it, otherwise "": ${projects.length ? projects.map((p) => `"${p}"`).join(", ") : "(none)"}.`,
+    `- "same_as": when the item is the same piece of work as one of the exchange's <open_items> (the same thing to do for the same person, even if worded differently or from another channel, or a new deadline or detail for it), that item's ref in square brackets, copied exactly. Still list the item: OllieOS adds it to that task instead of making a new one. "" when it is new work, and always "" when there are no open items.`,
     `- Agreeing a time for a meeting or call ("can you do Tuesday at 4?", "sure, hold it", "see you then") is not an item: the calendar covers it. Only add one when Ollie must do something besides turn up, such as send the invite himself or prepare something for it.`,
     `- "confidential" is true when the item is about the sale of the company, buyers, investors, the board, salaries, bonuses, HR matters or anyone's health. Otherwise false.`,
   ];
@@ -445,6 +449,7 @@ export function cleanItems(items: SortedItem[], u: WorkUnit, max = 3): SortedIte
       ref: refs.has(it.ref) ? it.ref : u.messages[u.messages.length - 1].ref,
       title: String(it.title).trim(),
       due: /^\d{4}-\d{2}-\d{2}$/.test(it.due ?? "") ? it.due : "",
+      same_as: String(it.same_as ?? "").trim(),
     }));
 }
 

@@ -6,9 +6,11 @@ import { reportApiError } from '@/lib/forbidden';
 import { errorMessage, notify } from '@/lib/notify';
 
 const when = (at: string) => (londonDate(at) === todayLondon() ? formatTime(at) + ' today' : formatShort(at));
-const SOURCE: Record<string, string> = { slack: 'Slack', email: 'Email', meeting: 'Meeting' };
+const SOURCE: Record<string, string> = { slack: 'Slack', email: 'Email', meeting: 'Meeting', session: 'Cowork', manual: 'Added by hand', voice: 'Voice', quarterly: 'Quarterly' };
+const OPEN_IN: Record<string, string> = { slack: 'Slack', email: 'Email', meeting: 'Granola' };
 
 function label(e: TaskEvidence): string {
+  if (e.shows === 'same') return 'Also came up';
   if (e.applied) return 'Closed the task';
   if (e.shows === 'progress') return 'Progress';
   if (e.dismissed) return 'You said not done';
@@ -67,7 +69,7 @@ export function TaskEvidencePanel({ task, busy, onMarkDone }: { task: Task; busy
                 <span style={{ fontSize: 13, lineHeight: 1.5 }}>"{e.quote}"</span>
                 {e.url && (
                   <a href={e.url} target="_blank" rel="noreferrer" className="oo-link" style={{ fontSize: 12 }}>
-                    Open in {SOURCE[e.source] === 'Meeting' ? 'Granola' : (SOURCE[e.source] ?? 'source')}
+                    Open in {OPEN_IN[e.source] ?? 'source'}
                   </a>
                 )}
               </li>
