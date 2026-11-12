@@ -14,7 +14,7 @@ function DarkCentre({ children }: { children: React.ReactNode }) {
 export function SignIn({ onLogin }: { onLogin: () => void }) {
   return (
     <DarkCentre>
-      <Logo size={48} radius={14} font={17} />
+      <Logo size={48} radius={14} />
       <p className="oo-serif oo-t2" style={{ margin: 0, fontSize: 18 }}>Private</p>
       <h1 style={{ margin: 0, fontSize: 28, fontWeight: 500 }}>OllieOS</h1>
       <p className="oo-t2" style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>Your tasks and work knowledge, in one quiet place.</p>
@@ -26,7 +26,7 @@ export function SignIn({ onLogin }: { onLogin: () => void }) {
 export function NotAuthorised({ onLogout }: { onLogout: () => void }) {
   return (
     <DarkCentre>
-      <Logo size={48} radius={14} font={17} />
+      <Logo size={48} radius={14} />
       <h1 style={{ margin: 0, fontSize: 28, fontWeight: 500 }} data-testid="text-not-authorised">Not authorised</h1>
       <p className="oo-t2" style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>This OllieOS belongs to someone else. Log out and sign in with the right account.</p>
       <button type="button" className="oo-btn oo-btn-white" style={{ width: '100%', minHeight: 44, fontSize: 15 }} onClick={onLogout} data-testid="button-logout">Log out</button>
@@ -38,7 +38,7 @@ export function Splash() {
   return (
     <div className="oo-dark" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-busy="true">
       <Grain />
-      <div style={{ position: 'relative', zIndex: 1 }}><Logo size={48} radius={14} font={17} /></div>
+      <div style={{ position: 'relative', zIndex: 1 }}><Logo size={48} radius={14} /></div>
       <span className="oo-sr">Loading</span>
     </div>
   );
