@@ -373,7 +373,15 @@ function sweepWhen(at: string): string {
 
 /** Work meetings with someone or something OllieOS knows about open their brief (build plan 28). */
 function BriefLink({ e, phone = false }: { e: CalendarEvent; phone?: boolean }) {
-  if (!e.hasBrief) return null;
+  if (e.personal) return null;
+  // No brief (nobody on it is in Contacts): its own page, for the agenda.
+  if (!e.hasBrief) {
+    return (
+      <Link href={'/meetings/' + e.id} style={{ color: 'inherit', opacity: 0.75, fontSize: phone ? 13 : 12, textUnderlineOffset: 2 }} aria-label={'Agenda for ' + e.title} data-testid={'link-meeting-' + e.id}>
+        Agenda
+      </Link>
+    );
+  }
   return (
     <>
     {e.notPrepped && <span className="oo-pill" data-tone="high" style={{ fontSize: 11 }} data-testid={'pill-not-prepped-' + e.id}>Not prepped</span>}

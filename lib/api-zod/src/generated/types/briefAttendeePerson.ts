@@ -17,6 +17,11 @@ export interface BriefAttendeePerson {
   role: string | null;
   /** @nullable */
   organisation: string | null;
+  /**
+     * For the link to the organisation's page
+     * @nullable
+     */
+  organisationSlug: string | null;
   confidential: boolean;
   /** @nullable */
   lastContactAt: Date | null;

@@ -5,7 +5,7 @@
  * There is deliberately nothing here that deletes Ollie's data (criterion 7); the calendar is a
  * copy of Ollie's real calendar, so events dropped from the feed are removed.
  */
-import { and, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import {
   activityTable,
   calendarEventsTable,
@@ -18,6 +18,8 @@ import {
   tasksTable,
   type CalendarAttendee,
   type NoiseRule,
+  meetingThreadChecksTable,
+  parkedMeetingNotesTable,
 } from "@workspace/db";
 import { addDays, londonRange, todayLondon, type Priority, type TaskSource, type TaskStatus } from "@workspace/shared";
 import { writeAudit } from "../lib/audit";
@@ -361,10 +363,16 @@ export async function replaceCalendar(
   let removed = 0;
   await db.transaction(async (tx) => {
     const future = await tx
-      .select({ id: calendarEventsTable.id, sourceRef: calendarEventsTable.sourceRef })
+      .select({ id: calendarEventsTable.id, sourceRef: calendarEventsTable.sourceRef, title: calendarEventsTable.title, notes: calendarEventsTable.notes, agendaChat: calendarEventsTable.agendaChat })
       .from(calendarEventsTable)
       .where(and(gte(calendarEventsTable.startsAt, now > window.start ? now : window.start), lt(calendarEventsTable.startsAt, window.end)));
-    const gone = future.filter((e) => !seen.has(e.sourceRef)).map((e) => e.id);
+    const goneRows = future.filter((e) => !seen.has(e.sourceRef));
+    const gone = goneRows.map((e) => e.id);
+    // A meeting moved out of the window (or cancelled) keeps Ollie's agenda, parked until it comes back.
+    for (const g of goneRows.filter((e) => e.notes?.trim() || e.agendaChat.length)) {
+      const kept = { title: g.title, notes: g.notes, agendaChat: g.agendaChat, parkedAt: now };
+      await tx.insert(parkedMeetingNotesTable).values({ sourceRef: g.sourceRef, ...kept }).onConflictDoUpdate({ target: parkedMeetingNotesTable.sourceRef, set: kept });
+    }
     if (gone.length) await tx.delete(calendarEventsTable).where(inArray(calendarEventsTable.id, gone));
     removed = gone.length;
     for (const e of unique) {
@@ -382,7 +390,35 @@ export async function replaceCalendar(
         location: e.location,
         recurringEventId: e.recurringEventId ?? null,
       };
-      await tx.insert(calendarEventsTable).values(values).onConflictDoUpdate({ target: calendarEventsTable.sourceRef, set: values });
+      await tx
+        .insert(calendarEventsTable)
+        .values(values)
+        .onConflictDoUpdate({
+          target: calendarEventsTable.sourceRef,
+          // What Ollie said about personal stands; the calendar's own answer is used otherwise.
+          set: { ...values, personal: sql`case when ${calendarEventsTable.personalSetByOllie} then ${calendarEventsTable.personal} else excluded.personal end` },
+        });
+    }
+    if (unique.length) {
+      // Give back any parked agenda to a meeting that has returned and has none of its own.
+      const refs = unique.map((e) => e.sourceRef);
+      const parked = await tx.select().from(parkedMeetingNotesTable).where(inArray(parkedMeetingNotesTable.sourceRef, refs));
+      for (const p of parked) {
+        await tx
+          .update(calendarEventsTable)
+          .set({ notes: p.notes, agendaChat: p.agendaChat })
+          .where(and(eq(calendarEventsTable.sourceRef, p.sourceRef), sql`${calendarEventsTable.notes} is null`, sql`jsonb_array_length(${calendarEventsTable.agendaChat}) = 0`));
+      }
+      if (parked.length) await tx.delete(parkedMeetingNotesTable).where(inArray(parkedMeetingNotesTable.sourceRef, parked.map((p) => p.sourceRef)));
+      // A repeating meeting Ollie marked personal (or not) stays that way for new meetings in the series.
+      await tx.execute(sql`
+        update calendar_events e set personal = s.personal, personal_set_by_ollie = true
+        from (
+          select distinct on (recurring_event_id) recurring_event_id, personal from calendar_events
+          where personal_set_by_ollie and recurring_event_id is not null
+          order by recurring_event_id, updated_at desc
+        ) s
+        where e.recurring_event_id = s.recurring_event_id and not e.personal_set_by_ollie`);
     }
     await writeAudit(tx, {
       actor: w.actor,
@@ -395,10 +431,36 @@ export async function replaceCalendar(
   return { replaced: unique.length, removed, outsideWindow: events.length - inWindow.length };
 }
 
-/** Clears calendar events (and their briefs) that ended more than 30 days ago. */
+/** How long a finished meeting is kept: a month, or a year when it holds something of Ollie's. */
+const KEEP_DAYS = 30;
+const KEEP_WITH_CONTENT_DAYS = 365;
+const KEEP_PARKED_DAYS = 90;
+
+/**
+ * Clears calendar events (and their briefs) that ended more than 30 days ago. Meetings with an
+ * agenda or a Granola note, and repeating meetings Ollie marked personal or not, are kept for a
+ * year. Ollie's "Not about this meeting" verdicts outlive the meeting as examples; the thread
+ * matcher's own are cleared with it.
+ */
 export async function clearOldCalendar(now = new Date()): Promise<number> {
-  const cutoff = new Date(now.getTime() - 30 * 86_400_000);
-  const rows = await db.delete(calendarEventsTable).where(lt(calendarEventsTable.endsAt, cutoff)).returning({ id: calendarEventsTable.id });
+  const cutoff = new Date(now.getTime() - KEEP_DAYS * 86_400_000);
+  const longCutoff = new Date(now.getTime() - KEEP_WITH_CONTENT_DAYS * 86_400_000);
+  const rows = await db
+    .delete(calendarEventsTable)
+    .where(
+      or(
+        lt(calendarEventsTable.endsAt, longCutoff),
+        and(
+          lt(calendarEventsTable.endsAt, cutoff),
+          sql`${calendarEventsTable.notes} is null`,
+          sql`${calendarEventsTable.granolaRef} is null`,
+          sql`not (${calendarEventsTable.personalSetByOllie} and ${calendarEventsTable.recurringEventId} is not null)`,
+        ),
+      ),
+    )
+    .returning({ id: calendarEventsTable.id });
+  await db.delete(meetingThreadChecksTable).where(and(sql`${meetingThreadChecksTable.calendarEventId} is null`, eq(meetingThreadChecksTable.source, "ai")));
+  await db.delete(parkedMeetingNotesTable).where(lt(parkedMeetingNotesTable.parkedAt, new Date(now.getTime() - KEEP_PARKED_DAYS * 86_400_000)));
   return rows.length;
 }
 

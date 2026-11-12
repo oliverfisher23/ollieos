@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   addBriefTalkingPoint,
@@ -12,6 +12,7 @@ import {
 } from '@workspace/api-client-react';
 import { formatShort } from '@workspace/shared';
 import { Dropdown } from '@/components/dropdown';
+import { AddIdea, type AgendaHandle } from '@/components/agenda-ideas';
 import { reportApiError } from '@/lib/forbidden';
 import { errorMessage, notify } from '@/lib/notify';
 
@@ -91,7 +92,7 @@ export function PersonTalkingPoints({ slug, first }: { slug: string; first: stri
   );
 }
 
-function PointRow({ p, busy, onTick, onRemove, who }: { p: TalkingPoint; busy: boolean; onTick: () => void; onRemove: () => void; who?: string | null }) {
+function PointRow({ p, busy, onTick, onRemove, who, extra }: { p: TalkingPoint; busy: boolean; onTick: () => void; onRemove: () => void; who?: string | null; extra?: ReactNode }) {
   return (
     <li style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap', fontSize: 14 }} data-testid={'item-point-' + p.id}>
       <span style={{ flex: '1 1 220px', lineHeight: 1.5 }}>
@@ -99,7 +100,8 @@ function PointRow({ p, busy, onTick, onRemove, who }: { p: TalkingPoint; busy: b
         {p.text}
         {p.createdBy !== 'ollie' && <span className="oo-muted" style={{ fontSize: 12 }}> (added by {p.createdBy})</span>}
       </span>
-      <span style={{ display: 'flex', gap: 4 }}>
+      <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        {extra}
         <button type="button" className="oo-mini" disabled={busy} onClick={onTick} data-testid={'button-point-tick-' + p.id}>Raised</button>
         <button type="button" className="oo-mini" disabled={busy} onClick={onRemove} data-testid={'button-point-remove-' + p.id}>Remove</button>
       </span>
@@ -108,7 +110,18 @@ function PointRow({ p, busy, onTick, onRemove, who }: { p: TalkingPoint; busy: b
 }
 
 /** On a meeting's prep page: open points for people in the room, and a quick add. */
-export function BriefTalkingPoints({ eventId, points, people }: { eventId: number; points: TalkingPoint[]; people: { id: number; name: string }[] }) {
+export function BriefTalkingPoints({
+  eventId,
+  points,
+  people,
+  agenda,
+}: {
+  eventId: number;
+  points: TalkingPoint[];
+  people: { id: number; name: string }[];
+  /** On the prep page: each point can be added to the meeting's agenda */
+  agenda?: AgendaHandle;
+}) {
   const qc = useQueryClient();
   const [personId, setPersonId] = useState(people.length === 1 ? String(people[0].id) : '');
   const [text, setText] = useState('');
@@ -137,7 +150,15 @@ export function BriefTalkingPoints({ eventId, points, people }: { eventId: numbe
       ) : (
         <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
           {points.map((p) => (
-            <PointRow key={p.id} p={p} who={p.personName} busy={busy} onTick={() => act(() => setTalkingPointRaised(p.id, { raised: true }))} onRemove={() => act(() => deleteTalkingPoint(p.id))} />
+            <PointRow
+              key={p.id}
+              p={p}
+              who={p.personName}
+              busy={busy}
+              onTick={() => act(() => setTalkingPointRaised(p.id, { raised: true }))}
+              onRemove={() => act(() => deleteTalkingPoint(p.id))}
+              extra={agenda && <AddIdea agenda={agenda} text={p.text} testId={'point-' + p.id} />}
+            />
           ))}
         </ul>
       )}

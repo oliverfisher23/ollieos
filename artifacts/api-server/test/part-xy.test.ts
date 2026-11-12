@@ -7,7 +7,8 @@ import { eq } from "drizzle-orm";
 import { aiInputsTable, aiRunsTable, askThreadsTable, db, evalCasesTable, evalReplaysTable, rulesTable, tasksTable, writerScoresTable } from "@workspace/db";
 import { buildDigest } from "../src/services/digest";
 import { clearOldInputs, keepTestCase, replay, testCaseFor } from "../src/services/evals";
-import { sortUnits } from "../src/services/connectors/sorter";
+import { meetingPromptVersion, sortMeeting, type MeetingNote } from "../src/services/connectors/granola";
+import { sorterPromptVersion, sortUnits } from "../src/services/connectors/sorter";
 import type { WorkUnit } from "../src/services/connectors/messages";
 import { bannedPhrases, checkWriting, gradeIfDue, gradeSample, recordCheck } from "../src/services/writerChecks";
 import { api, useServer } from "./harness";
@@ -15,14 +16,19 @@ import { api, useServer } from "./harness";
 /** What the fake model finds: the sorter returns one item while `finds` is true. */
 let finds = true;
 let systems: string[] = [];
+/** What each call was given, for checking a replay rebuilt the meeting */
+let contents: string[] = [];
 vi.mock("@workspace/integrations-anthropic-ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@workspace/integrations-anthropic-ai")>()),
   anthropic: {
     messages: {
-      create: async (params: { system: string; model: string }) => {
+      create: async (params: { system: string; model: string; messages: { content: string }[] }) => {
         systems.push(params.system);
+        contents.push(params.messages[0]?.content ?? "");
         const text = params.system.includes("You grade writing")
           ? JSON.stringify({ score: 2, reason: "It pads the answer." })
+          : params.system.includes("meeting notes for OllieOS")
+          ? JSON.stringify({ summary: "", project: "", items: finds ? [{ type: "task", title: "Send Sam the deck", ref: "granola:n1" }] : [], decisions: [], progress: [], covered: [], tone: "neutral", tone_reason: "", ideas: [] })
           : JSON.stringify({ results: [{ unit: "u1", summary: "", project: "", items: finds ? [{ type: "task", title: "Sign the contract", ref: "gmail:m1" }] : [], knowledge: [] }] });
         return { content: [{ type: "text", text }], usage: { input_tokens: 10, output_tokens: 5 } };
       },
@@ -119,6 +125,45 @@ describe("replaying test cases", () => {
     const agents = (await api("agents")).body.agents as { key: string; tests: unknown; writing: unknown }[];
     expect(agents.find((a) => a.key === "gmail_sorter")!.tests).toMatchObject({ cases: 1, lastReplay: { passed: 1, total: 1 } });
     expect(agents.find((a) => a.key === "noise_judge")!.tests).toBeNull();
+  });
+
+  it("replays a meeting case through the meeting reader, with the meeting prompt's version", async () => {
+    finds = true;
+    const note: MeetingNote = {
+      noteId: "n1",
+      title: "Deck review with Sam",
+      url: "https://notes.granola.ai/d/n1",
+      at: new Date("2026-11-10T09:00:00Z"),
+      calendarEventId: null,
+      ownedByMe: false,
+      people: [{ name: "Sam Lee", email: "sam@client.com" }],
+      notes: "Ollie to send Sam the deck by Friday.",
+    };
+    await sortMeeting(note, { me: "His email address is ollie@example.com.", projects: [], now: new Date("2026-11-10T10:00:00Z") });
+    const [input] = await db.select().from(aiInputsTable);
+    expect(input).toMatchObject({ agent: "granola_reader", unitKey: "granola:n1", refs: ["granola:n1"], output: [{ type: "task", title: "Send Sam the deck" }] });
+    const [t] = await db.insert(tasksTable).values({ title: "Send Sam the deck", status: "noise", createdBy: "ollieos", source: "meeting", sourceRef: "granola:n1" }).returning();
+    expect((await keepTestCase(t.id, {}, "ollie")).agent).toBe("granola_reader");
+
+    systems = [];
+    contents = [];
+    const res = await replay("granola_reader", {}, "ollie");
+    expect(res).toMatchObject({ agent: "granola_reader", total: 1, passed: 0 });
+    expect(res.failed[0]).toMatchObject({ expected: "no_task", got: ["Send Sam the deck"] });
+    expect(systems).toHaveLength(1);
+    expect(systems[0]).toContain("meeting notes for OllieOS");
+    expect(systems[0]).not.toContain("<exchanges>");
+    expect(contents[0]).toContain("Title: Deck review with Sam");
+    expect(contents[0]).toContain("With: Sam Lee");
+    expect(contents[0]).toContain("A colleague took these notes");
+    expect(contents[0]).toContain("[granola:n1]\nOllie to send Sam the deck by Friday.");
+
+    expect(res.promptVersion).toBe(meetingPromptVersion());
+    expect(res.promptVersion).not.toBe(sorterPromptVersion());
+    expect(meetingPromptVersion([{ about: "tasks", text: "Leave out actions for the client." }])).not.toBe(res.promptVersion);
+    // A replay keeps nothing new and runs as test_replay.
+    expect(await db.select().from(aiInputsTable)).toHaveLength(1);
+    expect((await db.select().from(aiRunsTable).where(eq(aiRunsTable.agent, "test_replay"))).length).toBe(1);
   });
 
   it("refuses an agent with no cases, or one that cannot be replayed", async () => {

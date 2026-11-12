@@ -392,7 +392,7 @@ async function sortBatch(units: WorkUnit[], ctx: SortContext, offset: number): P
 }
 
 /** Part X: what each exchange was and what was found, so a correction can be kept as a test case. */
-async function keepInputs(units: WorkUnit[], sorted: SortedUnit[], ctx: SortContext) {
+export async function keepInputs(units: WorkUnit[], sorted: SortedUnit[], ctx: { agent: AgentKey; me: string }) {
   try {
     await db.insert(aiInputsTable).values(
       units.map((u, i) => ({
