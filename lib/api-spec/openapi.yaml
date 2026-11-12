@@ -3781,6 +3781,87 @@ paths:
         "403": { $ref: "#/components/responses/NotAuthorised" }
         "404": { $ref: "#/components/responses/Error" }
 
+  /suggestions/{id}/approve-with-people:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: approveSuggestionWithPeople
+      tags: [knowledge]
+      summary: "Approve a New organisation card and the New person cards waiting on it (section 25)"
+      responses:
+        "200":
+          description: What was approved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApproveWithPeopleResult" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /settings/contact-finder:
+    get:
+      operationId: getContactFinderSettings
+      tags: [knowledge]
+      summary: "The contact finder's setting (section 25)"
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContactFinderSettings" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+    put:
+      operationId: setContactFinderSettings
+      tags: [knowledge]
+      summary: Turn adding the clearest people automatically on or off
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ContactFinderSettings" }
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContactFinderSettings" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /contacts/find:
+    post:
+      operationId: findContacts
+      tags: [knowledge]
+      summary: "Run the contact finder now (section 25)"
+      responses:
+        "200":
+          description: What it found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ContactFinderResult" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+
+  /contacts/{id}/undo-auto-add:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      operationId: undoAutoAddedContact
+      tags: [knowledge]
+      summary: "Undo someone the contact finder added by itself; refused once anything is linked to them"
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id: { type: integer }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/NotAuthorised" }
+        "404": { $ref: "#/components/responses/Error" }
+
   /suggestions/presort:
     post:
       operationId: presortSuggestions
@@ -7577,6 +7658,7 @@ components:
           type: array
           description: "Contradiction and out-of-date cards: the approved items the new card disagrees with"
           items: { $ref: "#/components/schemas/KnowledgeInboxContradicted" }
+        peopleWaiting: { type: integer, description: "Section 25: on a New organisation card, how many New person cards are waiting on it" }
         presort:
           description: "Suggested cards: the pre-sorter's hint (section 23); null when it gave none or has not looked"
           oneOf:
@@ -7706,6 +7788,45 @@ components:
               corrections: { type: integer }
               proposed: { type: integer }
               skipped: { type: string }
+
+    ContactFinderSettings:
+      type: object
+      additionalProperties: false
+      required: [autoAdd]
+      properties:
+        autoAdd: { type: boolean, description: "Add the clearest people straight to Contacts instead of as cards" }
+
+    ContactFinderResult:
+      type: object
+      required: [looked, people, organisations, emails, added, ignored, failed]
+      properties:
+        looked: { type: integer }
+        people: { type: integer, description: New person cards }
+        organisations: { type: integer, description: New organisation cards }
+        emails: { type: integer, description: Cards adding an email to someone with the same name }
+        added: { type: integer, description: Added to Contacts without a card }
+        ignored: { type: integer, description: Not a person }
+        failed: { type: boolean }
+
+    ApproveWithPeopleResult:
+      type: object
+      required: [organisation, people, skipped]
+      properties:
+        organisation:
+          type: object
+          required: [type, id]
+          properties:
+            type: { type: string }
+            id: { type: integer }
+        people: { type: integer }
+        skipped:
+          type: array
+          items:
+            type: object
+            required: [id, reason]
+            properties:
+              id: { type: integer }
+              reason: { type: string }
 
     PresortHint:
       type: object
@@ -8137,6 +8258,7 @@ components:
         lastContactAt: { type: [string, "null"], format: date-time }
         iOweCount: { type: integer }
         theyOweCount: { type: integer }
+        autoAddedAt: { type: [string, "null"], format: date-time, description: "Section 25: when the contact finder added them by itself; Contacts offers Undo" }
         cadence: { $ref: "#/components/schemas/PersonCadence" }
 
     Person:

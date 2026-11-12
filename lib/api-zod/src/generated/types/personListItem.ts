@@ -30,5 +30,10 @@ export interface PersonListItem {
   lastContactAt: Date | null;
   iOweCount: number;
   theyOweCount: number;
+  /**
+     * Section 25: when the contact finder added them by itself; Contacts offers Undo
+     * @nullable
+     */
+  autoAddedAt?: Date | null;
   cadence: PersonCadence;
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { RelationshipLookBackPanel } from '@/components/client-pulse';
+import { ContactFinderPanel } from '@/components/contact-finder';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -169,6 +170,7 @@ function RoundupSettingsAndPeople() {
   return (
     <>
       <RoundupSettings />
+      <ContactFinderPanel />
       <RelationshipLookBackPanel />
     </>
   );

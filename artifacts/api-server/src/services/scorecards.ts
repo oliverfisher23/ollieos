@@ -9,6 +9,7 @@ import { db, factReviewsTable, readerLessonsTable, reviewItemsTable, suggestions
 import type { AgentKey } from "../lib/agents";
 import { DOCUMENT_PROPOSER } from "./documents/counts";
 import { PRODUCT_USER_ACTOR } from "./productUsers";
+import { CONTACT_PROPOSER } from "./contactFinder";
 import { PROJECT_FUNCTION_ACTOR } from "./projectFunctions";
 
 const WEEK = 7 * 86_400_000;
@@ -235,6 +236,7 @@ const SPECS: Spec[] = [
   { key: "presort", agent: "presorter", label: "Hints you agreed with", count: presortHints },
   { key: "stale_evidence", agent: "stale_checker", label: "Findings you agreed with", count: staleFindings },
   { key: "delegation", agent: "delegation", label: "Suggestions you sent", count: delegations },
+  { key: "contacts", agent: "contact_finder", label: "People and organisations kept", count: cardsFrom(CONTACT_PROPOSER) },
   { key: "reader_lessons", agent: "reader_coach", label: "Lessons you turned on", count: lessonsBy("reader_coach") },
   { key: "card_lessons", agent: "card_coach", label: "Lessons you turned on", count: lessonsBy("card_coach") },
 ];

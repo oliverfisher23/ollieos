@@ -106,7 +106,7 @@ async function gather(date: string, since: Date, now: Date) {
       .where(and(eq(tasksTable.kind, "promise"), notInArray(tasksTable.status, ["noise", "dropped", "archived"]), gte(tasksTable.createdAt, since)))
       .orderBy(asc(tasksTable.createdAt)),
     db
-      .select({ id: peopleTable.id, name: peopleTable.name, slug: peopleTable.slug, role: peopleTable.role, org: organisationsTable.name })
+      .select({ id: peopleTable.id, name: peopleTable.name, slug: peopleTable.slug, role: peopleTable.role, org: organisationsTable.name, autoAddedAt: peopleTable.autoAddedAt })
       .from(peopleTable)
       .leftJoin(organisationsTable, eq(organisationsTable.id, peopleTable.organisationId))
       .where(and(gte(peopleTable.createdAt, since), eq(peopleTable.isSelf, false)))
@@ -242,7 +242,8 @@ async function buildSections(date: string, since: Date, now: Date): Promise<Dige
     })),
     ...g.promises.map((t) => ({ text: `You promised: ${clip(t.title)}`, href: `/tasks?task=${t.id}`, refs: [toRef("task", t.id)], confidential: false })),
     ...g.newPeople.map((p) => ({
-      text: `New person: ${p.name}${p.role || p.org ? `, ${[p.role, p.org].filter(Boolean).join(" at ")}` : ""}`,
+      // Section 25: someone the contact finder added by itself says so, with Undo on Contacts.
+      text: `${p.autoAddedAt ? "Added to Contacts by OllieOS" : "New person"}: ${p.name}${p.role || p.org ? `, ${[p.role, p.org].filter(Boolean).join(" at ")}` : ""}`,
       href: `/knowledge/people/${p.slug}`,
       refs: [toRef("person", p.id)],
       confidential: false,
