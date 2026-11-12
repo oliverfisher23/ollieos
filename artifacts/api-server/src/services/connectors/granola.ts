@@ -7,11 +7,12 @@
  * meeting's brief when the meeting is on his calendar.
  */
 import type { AgentKey } from "../../lib/agents";
+import { promptVersion } from "../../lib/aiRuns";
 import { PROGRESS_SCHEMA, progressRules } from "../taskEvidence";
 import { formatLong, todayLondon } from "@workspace/shared";
 import { proxyJson, proxyJsonOrNull } from "./http";
 import { trimText, type WorkUnit } from "./messages";
-import { cleanIdeas, cleanItems, haikuJson, IDEA_SCHEMA, ideaRules, itemRules, ITEM_SCHEMA, lessonRules, type LessonLine, type SortedItem, type SortedUnit } from "./sorter";
+import { cleanIdeas, cleanItems, IDEA_SCHEMA, ideaRules, itemRules, ITEM_SCHEMA, haikuJson, keepInputs, lessonRules, modelJson, type LessonLine, type SortedItem, type SortedUnit } from "./sorter";
 
 const CONNECTOR = "granola";
 const NAME = "Granola";
@@ -217,10 +218,50 @@ export function meetingUnit(n: MeetingNote): WorkUnit {
     channel: null,
     people: n.people,
     messages: [{ ref: `granola:${n.noteId}`, at: n.at, fromMe: false, fromName: null, fromAddress: null, text: n.notes, url: n.url ?? "" }],
+    ownedByMe: n.ownedByMe,
   };
 }
 
-export async function sortMeeting(n: MeetingNote, ctx: { me: string; projects: string[]; now: Date; agent?: AgentKey; openItems?: string | null; talkingPoints?: string | null; lessons?: readonly LessonLine[] }): Promise<SortedMeeting> {
+/**
+ * Part X: the note back from a kept meeting unit, so a test case is replayed through the meeting
+ * reader. The calendar link is not kept; the reader does not use it.
+ */
+export function meetingNoteFromUnit(u: WorkUnit): MeetingNote {
+  const m = u.messages[0];
+  return {
+    noteId: u.key.replace(/^granola:/, ""),
+    title: u.subject ?? "Meeting",
+    url: m?.url || null,
+    at: m?.at ?? new Date(),
+    calendarEventId: null,
+    ownedByMe: u.ownedByMe !== false,
+    people: u.people.map((p) => ({ name: p.name ?? null, email: p.email ?? null })),
+    notes: m?.text ?? "",
+  };
+}
+
+/** The fingerprint of the meeting reader's instructions as the code stands (with fixed names and date), for replays. */
+export function meetingPromptVersion(lessons: readonly LessonLine[] = []): string {
+  return promptVersion(meetingPrompt("ollie@example.com", [], new Date(0), lessons));
+}
+
+export async function sortMeeting(
+  n: MeetingNote,
+  ctx: {
+    me: string;
+    projects: string[];
+    now: Date;
+    agent?: AgentKey;
+    openItems?: string | null;
+    talkingPoints?: string | null;
+    lessons?: readonly LessonLine[];
+    /** Part X: a model other than the usual one, for replays */
+    model?: string;
+    /** Part X: whether to keep what the reader was given, for test cases. By default only the Granola reader's own reads are kept. */
+    keepInputs?: boolean;
+  },
+): Promise<SortedMeeting> {
+  const agent = ctx.agent ?? "granola_reader";
   const u = meetingUnit(n);
   const who = n.people.map((p) => p.name || p.email).filter(Boolean).join(", ");
   const content = [
@@ -237,8 +278,10 @@ export async function sortMeeting(n: MeetingNote, ctx: { me: string; projects: s
   ]
     .filter(Boolean)
     .join("\n");
-  const r = await haikuJson<{ summary?: string; project?: string; items?: SortedItem[]; decisions?: SortedMeeting["decisions"]; progress?: unknown[]; covered?: unknown[]; tone?: string; tone_reason?: string; ideas?: unknown }>(meetingPrompt(ctx.me, ctx.projects, ctx.now, ctx.lessons), content, MEETING_SCHEMA, 8192, ctx.agent ?? "granola_reader");
-  return {
+  type Raw = { summary?: string; project?: string; items?: SortedItem[]; decisions?: SortedMeeting["decisions"]; progress?: unknown[]; covered?: unknown[]; tone?: string; tone_reason?: string; ideas?: unknown };
+  const system = meetingPrompt(ctx.me, ctx.projects, ctx.now, ctx.lessons);
+  const r = ctx.model ? await modelJson<Raw>(ctx.model, system, content, MEETING_SCHEMA, 8192, agent) : await haikuJson<Raw>(system, content, MEETING_SCHEMA, 8192, agent);
+  const sorted: SortedMeeting = {
     summary: String(r.summary ?? "").trim(),
     project: String(r.project ?? "").trim(),
     items: cleanItems(r.items ?? [], u, 5),
@@ -252,4 +295,6 @@ export async function sortMeeting(n: MeetingNote, ctx: { me: string; projects: s
     toneReason: String(r.tone_reason ?? "").trim().slice(0, 200) || null,
     ideas: cleanIdeas(r.ideas, u),
   };
+  if (ctx.keepInputs ?? agent === "granola_reader") await keepInputs([u], [sorted], { agent, me: ctx.me });
+  return sorted;
 }
