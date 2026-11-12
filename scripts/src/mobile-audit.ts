@@ -89,9 +89,7 @@ const ROUTES: RouteCheck[] = [
   { pattern: "/knowledge/inbox", url: "/knowledge/inbox" },
   { pattern: "/knowledge", url: "/knowledge" },
   { pattern: "/knowledge/projects/:slug", url: (s) => (s.project ? "/knowledge/projects/" + s.project : null) },
-  { pattern: "/knowledge/people", url: "/knowledge/people" },
   { pattern: "/knowledge/people/:slug", url: (s) => (s.person ? "/knowledge/people/" + s.person : null) },
-  { pattern: "/knowledge/organisations", url: "/knowledge/organisations" },
   { pattern: "/knowledge/organisations/:slug", url: (s) => (s.organisation ? "/knowledge/organisations/" + s.organisation : null) },
   { pattern: "/knowledge/decisions", url: "/knowledge/decisions" },
   { pattern: "/knowledge/decisions/:id", url: (s) => (s.decision ? "/knowledge/decisions/" + s.decision : null) },
@@ -113,7 +111,8 @@ const ROUTES: RouteCheck[] = [
   { pattern: "/digest/:date", url: "/digest/2026-01-01" },
   { pattern: "/goals", url: "/goals" },
   { pattern: "/strategy", url: "/strategy" },
-  { pattern: "/people", url: "/people" },
+  { pattern: "/contacts", url: "/contacts" },
+  { pattern: "/contacts", url: "/contacts?view=organisations" },
   { pattern: "/settings", url: "/settings" },
   { pattern: "/settings/:section", url: "/settings/connectors" },
   { pattern: "/settings/:section", url: "/settings/email" },
@@ -125,7 +124,7 @@ const ROUTES: RouteCheck[] = [
 ];
 
 /** Routes that only redirect, so there is no page of their own to check. */
-const REDIRECT_ONLY = new Set(["/people/:slug", "/email"]);
+const REDIRECT_ONLY = new Set(["/people/:slug", "/email", "/people", "/knowledge/people", "/knowledge/organisations"]);
 
 /** Fails loudly when App.tsx gains a route this audit does not visit. */
 function checkCoverage() {

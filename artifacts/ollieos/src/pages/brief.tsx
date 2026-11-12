@@ -23,7 +23,7 @@ import { IconLeft } from '@/components/icons';
 import { LockMark, PageProblem, PageSkeleton } from '@/components/knowledge/parts';
 import { isNotFound } from '@/lib/knowledge';
 import { errorMessage, notify } from '@/lib/notify';
-import { cadenceStatusLabel } from '@/pages/people-cadence';
+import { cadenceStatusLabel } from '@/components/cadence';
 import { ResearchList, ScopePill } from '@/components/research';
 
 const CARD = { background: 'var(--oo-panel)', borderRadius: 'var(--oo-r-panel)', boxShadow: 'var(--oo-shadow-panel)' } as const;

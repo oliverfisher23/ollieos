@@ -17,4 +17,9 @@ export interface OrganisationListItem {
   /** Ollie's own company rather than a client */
   internal: boolean;
   peopleCount: number;
+  /**
+     * The latest contact with anyone who works there
+     * @nullable
+     */
+  lastContactAt: Date | null;
 }

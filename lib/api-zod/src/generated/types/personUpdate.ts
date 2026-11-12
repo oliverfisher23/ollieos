@@ -36,4 +36,10 @@ export interface PersonUpdate {
      * @nullable
      */
   slackUserId?: string | null;
+  /**
+     * Their LinkedIn profile link
+     * @maxLength 300
+     * @nullable
+     */
+  linkedinUrl?: string | null;
 }
