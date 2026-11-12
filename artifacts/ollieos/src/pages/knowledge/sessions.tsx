@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
 import {
   deleteSession,
+  decideSessionQuestion,
   readSessionKnowledge,
   updateSession,
   useGetSession,
@@ -185,6 +186,24 @@ function SessionBody({ s, onDeleted }: { s: SessionDetail; onDeleted: () => void
           <h2 id="ss-out" className="oo-h2">What was done</h2>
           <ul style={{ margin: 0, paddingLeft: 20, listStyle: 'disc', display: 'flex', flexDirection: 'column', gap: 4, fontSize: 14, lineHeight: 1.5 }} data-testid="list-session-outcomes">
             {s.outcomes.map((o, i) => <li key={i}>{o}</li>)}
+          </ul>
+        </section>
+      )}
+
+      {s.openQuestions.length > 0 && (
+        <section aria-labelledby="ss-questions" style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: '72ch' }}>
+          <h2 id="ss-questions" className="oo-h2">Open questions</h2>
+          <p className="oo-muted" style={{ margin: 0, fontSize: 13 }}>Things the session left undecided. They are kept here, not in your Inbox, until you want one as a task.</p>
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }} data-testid="list-session-questions">
+            {s.openQuestions.map((question) => (
+              <li key={question} className="oo-source" style={{ gap: 8 }}>
+                <span style={{ fontSize: 14, lineHeight: 1.5 }}>{question}</span>
+                <span style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <button type="button" className="oo-mini" onClick={() => write(() => decideSessionQuestion(s.id, { question, action: 'task' }), { done: 'Added to your Inbox' })} data-testid="button-question-task">Add to Inbox</button>
+                  <button type="button" className="oo-mini" onClick={() => write(() => decideSessionQuestion(s.id, { question, action: 'dismiss' }), { done: 'Taken off the list' })} data-testid="button-question-dismiss">Dismiss</button>
+                </span>
+              </li>
+            ))}
           </ul>
         </section>
       )}

@@ -567,6 +567,9 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-title-input:hover { border-color: var(--oo-control-border); }
 .oo-close { width: 32px; height: 32px; border-radius: var(--oo-r-full); display: flex; align-items: center; justify-content: center; background: var(--oo-field); border: 0; cursor: pointer; color: var(--oo-ink); position: relative; }
 .oo-close::before { content: ''; position: absolute; inset: -6px; }
+.oo-dup { border: 1px solid var(--oo-line); border-radius: var(--oo-r-card); padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.oo-dup-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.oo-dup-side { border: 1px solid var(--oo-line-soft); border-radius: var(--oo-r-card-sm); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .oo-source { border: 1px solid var(--oo-line); border-radius: var(--oo-r-card-sm); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
 .oo-light a.oo-link { color: var(--oo-ink); }
 
@@ -642,6 +645,16 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 }
 
 /* Small inline actions on task rows */
+.oo-load { margin: 0; font-size: 14px; line-height: 1.5; display: flex; flex-wrap: wrap; gap: 4px 18px; padding: 10px 14px; border-radius: var(--oo-r-card-sm); background: var(--oo-pill-inbox-bg); color: var(--oo-ink); }
+.oo-load b { font-weight: 600; }
+.oo-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 14px; border: 1px solid var(--oo-control-border); border-radius: var(--oo-r-card-sm); background: var(--oo-field); position: sticky; top: 8px; z-index: 3; }
+.oo-pick { flex: none; width: 16px; height: 16px; margin: 0; accent-color: var(--oo-ink); cursor: pointer; }
+.oo-tapchip { font: inherit; font-size: 12px; padding: 3px 10px; min-height: 26px; border-radius: var(--oo-r-full); border: 1px solid color-mix(in srgb, currentColor 28%, transparent); background: transparent; color: inherit; cursor: pointer; white-space: nowrap; }
+.oo-tapchip:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+.oo-tapchip[aria-pressed="true"] { background: var(--oo-ink); color: var(--oo-panel); border-color: var(--oo-ink); }
+.oo-toast .oo-tapchip[aria-pressed="true"], .oo-tri-last .oo-tapchip[aria-pressed="true"] { background: var(--oo-accent); color: var(--oo-ink); border-color: var(--oo-accent); }
+.oo-tapchip:disabled { opacity: .6; cursor: default; }
+@media (max-width: 639px) { .oo-tapchip { min-height: 34px; padding: 5px 12px; } }
 .oo-mini { font: inherit; font-size: 12px; padding: 4px 9px; min-height: 28px; border-radius: var(--oo-r-input); border: 1px solid var(--oo-control-border); background: var(--oo-panel); color: var(--oo-ink); cursor: pointer; white-space: nowrap; }
 .oo-mini:hover { background: var(--oo-row-hover); }
 .oo-mini:disabled { opacity: .6; cursor: default; }

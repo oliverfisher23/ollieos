@@ -6,10 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { DelegateHint } from './delegateHint';
+import type { DropReason } from './dropReason';
 import type { EntitySummary } from './entitySummary';
 import type { NoiseRuleSummary } from './noiseRuleSummary';
 import type { Priority } from './priority';
 import type { RepeatRule } from './repeatRule';
+import type { StuckHint } from './stuckHint';
 import type { TaskGoal } from './taskGoal';
 import type { TaskKind } from './taskKind';
 import type { TaskSource } from './taskSource';
@@ -98,6 +100,14 @@ export interface Task {
      * @nullable
      */
   looksDone?: string | null;
+  /** Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task's own */
+  alsoFrom?: string[];
   /** Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog. */
   delegateHint?: DelegateHint | null;
+  /** Section 27: why Ollie dropped it or sent it to Noise */
+  dropReason?: DropReason | null;
+  /** Section 27: a Waiting on task that has waited long enough for a chase */
+  chaseDue?: boolean;
+  /** Section 27: the stuck-task coach's line on a Now or Backlog task that keeps slipping. Null once dismissed. */
+  stuckHint?: StuckHint | null;
 }

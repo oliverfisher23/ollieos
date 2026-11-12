@@ -95,6 +95,18 @@ export const tasksTable = pgTable(
     delegateCheckedAt: timestamp("delegate_checked_at", { withTimezone: true }),
     /** Ollie said "Not this one", so it is not suggested again */
     delegateDismissedAt: timestamp("delegate_dismissed_at", { withTimezone: true }),
+    /** Section 27: when OllieOS looked for the person this task is with; null means not yet. Looked at once, so a link Ollie removes stays removed. */
+    personCheckedAt: timestamp("person_checked_at", { withTimezone: true }),
+    /** Section 27: why Ollie dropped it or sent it to Noise (not_mine, already_done, fyi, arranging, duplicate, not_needed); the Reader coach learns from it */
+    dropReason: text("drop_reason"),
+    /** Section 27: a Waiting on task is not flagged for a chase before this; null means three days after it started waiting */
+    chaseAfter: timestamp("chase_after", { withTimezone: true }),
+    /** Section 27: the stuck-task coach's line on why this keeps slipping and what to try */
+    stuckHint: jsonb("stuck_hint").$type<StuckHint | null>(),
+    /** When the stuck-task coach last looked at it; null means not yet */
+    stuckCheckedAt: timestamp("stuck_checked_at", { withTimezone: true }),
+    /** Ollie said "Not stuck", so it is not flagged again */
+    stuckDismissedAt: timestamp("stuck_dismissed_at", { withTimezone: true }),
     search: tsvector("search").generatedAlwaysAs(
       sql`to_tsvector('english', coalesce(title,'') || ' ' || coalesce(snippet,'') || ' ' || coalesce(notes,'') || ' ' || coalesce(source_quote,'') || ' ' || coalesce(from_name,''))`,
     ),
@@ -251,7 +263,7 @@ export const taskEvidenceTable = pgTable(
     /** Where it was said: the Slack conversation, email subject or meeting title */
     place: text("place"),
     quote: text("quote").notNull(),
-    /** done or progress */
+    /** done, progress, or same (section 26: the same work came up again here) */
     shows: text("shows").notNull(),
     /** same: from the task's own conversation; other: anywhere else */
     strength: text("strength").notNull(),
@@ -265,6 +277,47 @@ export const taskEvidenceTable = pgTable(
 );
 
 export type TaskEvidence = typeof taskEvidenceTable.$inferSelect;
+
+/** Section 27: what the stuck-task coach says about a task that keeps slipping. */
+export interface StuckHint {
+  /** Why it looks stuck, for example "Due date moved 3 times" */
+  why: string;
+  /** first_step, split, delegate or drop */
+  kind: string;
+  /** One line on what to try */
+  suggestion: string;
+  /** For first_step and split: the step to add to its checklist */
+  step: string | null;
+}
+
+/**
+ * Section 26: pairs of open tasks that look like the same piece of work, found by matching words
+ * and confirmed by the duplicate judge. Ollie merges them or says they are not the same; either
+ * way the pair is never suggested again. task_a is always the lower id.
+ */
+export const taskDuplicatesTable = pgTable(
+  "task_duplicates",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    taskA: integer("task_a")
+      .notNull()
+      .references(() => tasksTable.id, { onDelete: "cascade" }),
+    taskB: integer("task_b")
+      .notNull()
+      .references(() => tasksTable.id, { onDelete: "cascade" }),
+    /** suggested: waiting for Ollie; not_same: the judge said no; dismissed: Ollie said no; merged */
+    state: text("state").notNull().default("suggested"),
+    /** The judge's one line on why they are the same work */
+    reason: text("reason"),
+    /** The task kept when merged */
+    keptTaskId: integer("kept_task_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("task_duplicates_pair_idx").on(t.taskA, t.taskB), index("task_duplicates_state_idx").on(t.state)],
+);
+
+export type TaskDuplicate = typeof taskDuplicatesTable.$inferSelect;
 
 /**
  * Part L (build plan section 14): what OllieOS drafted and what Ollie changed, either by editing the

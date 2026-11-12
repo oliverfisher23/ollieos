@@ -37,6 +37,7 @@ import {
   type Writer,
 } from "../services/aiWrites";
 import { NotFoundError, updateTask, ValidationError, type TaskUpdateInput } from "../services/tasks";
+import { alreadyCaptured, closeOpenTasks, recordMention } from "../services/duplicates";
 import { AttendeeSchema, syncCalendarFeed } from "../services/calendarSync";
 import { briefForAi, resolveEventForAi } from "../services/briefs";
 import { saveSession, SESSION_LIMITS, type SessionAction } from "../services/sessions";
@@ -362,7 +363,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
     "create_task",
     {
       description: describe(
-        "Adds a task. It lands in Ollie's Inbox unless you give a status. Give source and source_ref when it came from an email, Slack message or meeting, so it is never captured twice.",
+        "Adds a task. It lands in Ollie's Inbox unless you give a status. Give source and source_ref when it came from an email, Slack message or meeting, so it is never captured twice. When an open task already has nearly the same title, nothing is created and possible_duplicates lists it: add to that task (call again with same_as, or use update_task), or call again with not_duplicate: true if it really is new work.",
       ),
       inputSchema: {
         title: z.string().min(1).max(300),
@@ -380,10 +381,42 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
         source_quote: z.string().max(2000).optional(),
         confidential: z.boolean().optional(),
         steps: z.array(z.string().min(1).max(300)).max(50).optional().describe("Checklist steps inside the task, in order"),
+        same_as: z.string().max(40).optional().describe("A task ref such as task:42 when this is the same work as an open task: it is added to that task as Also came up instead of making a new one"),
+        not_duplicate: z.boolean().optional().describe("true to create it even though an open task has nearly the same title"),
       },
     },
     async (a) =>
       guard(async () => {
+        // Section 26: the same work as an open task is added to it, not made twice.
+        if (a.same_as) {
+          const id = await visibleTaskId(scope, a.same_as);
+          if (id == null) return NOT_FOUND("task");
+          const added = await recordMention(id, {
+            source: a.source ?? "manual",
+            sourceRef: a.source_ref?.trim() || `mcp:${writer.clientId ?? writer.actor}:${Date.now()}`,
+            url: a.source_url ?? null,
+            saidBy: writer.actor,
+            saidAt: new Date(),
+            place: `Added by ${writer.actor}`,
+            quote: a.source_quote ?? a.title,
+            strength: "other",
+          });
+          return ok({ task: await taskForAi(scope, id, "create_task"), linked: true, duplicate: !added });
+        }
+        if (!a.not_duplicate && !(await alreadyCaptured(a.source ?? "manual", a.source_ref))) {
+          const close = await closeOpenTasks(a.title);
+          const found = [];
+          for (const c of close) {
+            const t = await taskForAi(scope, c.id, "create_task");
+            if (t) found.push(t);
+          }
+          if (found.length)
+            return ok({
+              created: false,
+              possible_duplicates: found,
+              message: "An open task already has nearly the same title. Add to it with same_as or update_task, or call create_task again with not_duplicate: true if this is new work.",
+            });
+        }
         const [project, person, waiting] = await Promise.all([
           pickOrNull(scope, a.project, ["project"]),
           pickOrNull(scope, a.person, ["person"]),
@@ -1049,7 +1082,12 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
           )
           .max(SESSION_LIMITS.actions)
           .optional()
-          .describe("Follow-ups still to do after the session"),
+          .describe("Things Ollie (or someone) must now do after the session. Not questions or decisions still open: those go in open_questions"),
+        open_questions: z
+          .array(z.string().min(1).max(500))
+          .max(SESSION_LIMITS.questions)
+          .optional()
+          .describe("Questions or decisions the session left open, one line each (for example \"Whether micro-internships have fixed cohort dates\"). They are kept on the session for Ollie to look at, not put in his Inbox"),
         artifacts: z
           .array(
             z.object({
@@ -1094,6 +1132,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
           title: a.title,
           summary: a.summary,
           outcomes: a.outcomes ?? [],
+          openQuestions: a.open_questions ?? [],
           transcript: a.transcript ?? null,
           happenedAt: a.happened_at ? new Date(a.happened_at) : null,
           externalRef: a.session_id ?? null,
@@ -1109,6 +1148,7 @@ export function buildMcpServer(scope: AiScope, writer: Writer, permissions: read
           session: r.visible ? `session:${r.id}` : undefined,
           updated: r.updated,
           tasks: r.tasks.map((t) => ({ ...(t.id != null && r.visible ? { ref: `task:${t.id}` } : {}), outcome: t.outcome })),
+          ...(r.questions.length ? { open_questions_kept: r.questions.length } : {}),
           artifacts: r.artifacts.map((x) => proposalReply(x)),
           message: r.visible
             ? "Saved. OllieOS will read it for facts and decisions and put them in Ollie's Knowledge Inbox."
