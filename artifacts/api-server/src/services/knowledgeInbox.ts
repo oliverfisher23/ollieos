@@ -228,8 +228,17 @@ async function suggestedCount(): Promise<number> {
   return row?.n ?? 0;
 }
 
-export async function inboxCounts() {
-  await tidyReviews();
+let lastTidy = 0;
+
+/**
+ * Counts for the Knowledge Inbox. Tidying first reads every open review, so Home, which asks on
+ * every visit, passes `tidyEveryMs` to tidy at most that often; the Knowledge Inbox tidies each time.
+ */
+export async function inboxCounts(opts: { tidyEveryMs?: number } = {}) {
+  if (!opts.tidyEveryMs || Date.now() - lastTidy > opts.tidyEveryMs) {
+    await tidyReviews();
+    lastTidy = Date.now();
+  }
   const [suggested, reviews] = await Promise.all([suggestedCount(), reviewCounts()]);
   return { suggested, conflicts: reviews.conflicts, stale: reviews.stale, outOfDate: reviews.outOfDate, total: suggested + reviews.conflicts + reviews.stale };
 }
