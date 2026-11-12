@@ -358,7 +358,7 @@ router.post(
       decisions.push({ text: d.text, ...proposalReply(r) });
     }
 
-    await attachMeetingNotes(event, { granolaRef: b.granola_ref, notes: b.notes, actionTaskIds: taskIds, actor: writer.actor, clientId: writer.clientId });
+    await attachMeetingNotes(event, { granolaRef: b.granola_ref, notes: b.notes, url: b.source_url ?? null, actionTaskIds: taskIds, actor: writer.actor, clientId: writer.clientId });
     res.json({ attached: true, actions, decisions });
   }),
 );

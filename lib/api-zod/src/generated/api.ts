@@ -4920,6 +4920,115 @@ export const ListMeetingsResponse = zod.object({
 
 
 /**
+ * @summary One work meeting, with or without a prep page, with Ollie's agenda and notes
+ */
+export const GetMeetingParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const GetMeetingResponse = zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "startsAt": zod.coerce.date(),
+  "endsAt": zod.coerce.date(),
+  "platform": zod.string().nullable(),
+  "location": zod.string().nullable(),
+  "scope": zod.enum(['internal', 'external']).describe('External when anyone on the meeting is from outside Ollie\'s own company'),
+  "companies": zod.array(zod.string()),
+  "prep": zod.enum(['ready', 'not_much', 'failed', 'not_written', 'none']).describe('Anything but none means the meeting has a prep page at /briefs/{id}'),
+  "attendees": zod.array(zod.object({
+  "name": zod.string(),
+  "email": zod.string().nullable(),
+  "person": zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string()
+}).nullable().describe('Set when they are in People')
+})),
+  "notes": zod.string().nullable().describe('Ollie\'s agenda and notes'),
+  "agendaChat": zod.array(zod.object({
+  "role": zod.enum(['ollie', 'ai']),
+  "text": zod.string(),
+  "at": zod.coerce.date()
+})),
+  "granola": zod.object({
+  "url": zod.string().nullable(),
+  "notes": zod.string(),
+  "attachedAt": zod.coerce.date().nullable(),
+  "actions": zod.array(zod.object({
+  "id": zod.int(),
+  "title": zod.string(),
+  "status": zod.string()
+})).describe('Inbox tasks made from the note\'s actions')
+}).nullable().describe('The Granola note, once one is linked to the meeting'),
+  "granolaCheck": zod.boolean().describe('True when OllieOS reads Granola itself')
+})
+
+
+/**
+ * @summary Ollie's agenda and notes for a work meeting (the same notes the prep page shows)
+ */
+export const UpdateMeetingNotesParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const updateMeetingNotesBodyNotesMax = 20000;
+
+
+
+export const UpdateMeetingNotesBody = zod.object({
+  "notes": zod.string().max(updateMeetingNotesBodyNotesMax).nullable()
+})
+
+export const updateMeetingNotesResponseNotesMax = 20000;
+
+
+
+export const UpdateMeetingNotesResponse = zod.object({
+  "notes": zod.string().max(updateMeetingNotesResponseNotesMax).nullable()
+})
+
+
+/**
+ * @summary Shape the meeting's agenda from Ollie's thoughts, starting from the agenda he sends
+ */
+export const ShapeAgendaParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const shapeAgendaBodyMessageMax = 4000;
+
+export const shapeAgendaBodyAgendaMax = 20000;
+
+
+
+export const ShapeAgendaBody = zod.object({
+  "message": zod.string().min(1).max(shapeAgendaBodyMessageMax).describe('Ollie\'s thoughts'),
+  "agenda": zod.string().max(shapeAgendaBodyAgendaMax).describe('The agenda as it stands in the box')
+})
+
+export const ShapeAgendaResponse = zod.object({
+  "agenda": zod.string(),
+  "previous": zod.string().describe('The agenda before this change'),
+  "chat": zod.array(zod.object({
+  "role": zod.enum(['ollie', 'ai']),
+  "text": zod.string(),
+  "at": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Start the agenda conversation again (the agenda itself stays)
+ */
+export const ClearAgendaChatParams = zod.object({
+  "eventId": zod.coerce.number().int()
+})
+
+export const ClearAgendaChatResponse = zod.void()
+
+
+/**
  * @summary The brief for the next work meeting, today or tomorrow
  */
 export const GetNextBriefResponse = zod.object({
@@ -5416,7 +5525,7 @@ export const GetBriefResponse = zod.object({
 
 
 /**
- * @summary Ollie's notes for after the meeting
+ * @summary Ollie's notes for the meeting (kept on the meeting, the same as PATCH /meetings/{eventId})
  */
 export const UpdateBriefNotesParams = zod.object({
   "eventId": zod.coerce.number().int()

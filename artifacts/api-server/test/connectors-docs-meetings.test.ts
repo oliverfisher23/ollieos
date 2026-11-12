@@ -251,4 +251,52 @@ describe("Granola notes", () => {
     const notesRefused = await ingest("meeting-notes", { body: { calendar_source_ref: "gcal_evt_1", granola_ref: "x", notes: "Notes" } });
     expect(notesRefused.body).toMatchObject({ ignored: true });
   });
+
+  it("links a note to a meeting with no brief, by time and people when Granola has no calendar link", async () => {
+    const at = (iso: string, mins: number) => ({ startsAt: new Date(iso), endsAt: new Date(new Date(iso).getTime() + mins * 60_000) });
+    const [huddle] = await db
+      .insert(calendarEventsTable)
+      .values({ sourceRef: "gcal_huddle", title: "Huddle", ...at("2026-11-11T14:00:00Z", 30), attendees: ["Pat"], attendeeDetails: [{ name: "Pat", email: "pat@gmail.com" }] })
+      .returning();
+    // Same time, nobody in common and a different title: never picked.
+    const [other] = await db
+      .insert(calendarEventsTable)
+      .values({ sourceRef: "gcal_other", title: "Something else", ...at("2026-11-11T14:00:00Z", 30), attendees: ["Lee"], attendeeDetails: [{ name: "Lee", email: "lee@gmail.com" }] })
+      .returning();
+
+    notesList = [{ id: "nolink", updated_at: "2026-11-11T14:40:00Z" }];
+    notes = {
+      nolink: note({
+        id: "nolink",
+        title: "Quick chat",
+        owner: { email: OLLIE },
+        attendees: [{ name: "Pat", email: "pat@gmail.com" }, { email: OLLIE }],
+        calendar_event: { scheduled_start_time: "2026-11-11T14:05:00Z" },
+        summary_markdown: "## Next steps\n- Pat to share the deck",
+      }),
+    };
+    meetingAnswer = {
+      summary: "Quick chat with Pat",
+      project: "",
+      items: [{ ref: "granola:nolink", type: "task", title: "Read Pat's deck", action: "Read it.", priority: "medium", due: "", project: "", person: "", quote: "Pat to share the deck", confidential: false }],
+      decisions: [],
+    };
+    const r = await api("connectors/granola/check", { method: "POST" });
+    expect(r.body.counts).toMatchObject({ meetings: 1, attached: 1 });
+
+    const [row] = await db.select().from(calendarEventsTable).where(eq(calendarEventsTable.id, huddle.id));
+    expect(row).toMatchObject({ granolaRef: "nolink", granolaUrl: "https://notes.granola.ai/d/nolink" });
+    expect(row.granolaAttachedAt).not.toBeNull();
+    expect(await db.select().from(meetingBriefsTable)).toHaveLength(0);
+    const [untouched] = await db.select().from(calendarEventsTable).where(eq(calendarEventsTable.id, other.id));
+    expect(untouched.granolaRef).toBeNull();
+
+    const v = (await api(`meetings/${huddle.id}`)).body;
+    expect(v.prep).toBe("none");
+    expect(v.granola).toMatchObject({ url: "https://notes.granola.ai/d/nolink" });
+    expect(v.granola.notes).toContain("Pat to share the deck");
+    expect(v.granola.actions.map((t: { title: string }) => t.title)).toEqual(["Read Pat's deck"]);
+    expect(v.granolaCheck).toBe(true);
+    expect((await api("meetings/" + other.id)).body.granola).toBeNull();
+  });
 });

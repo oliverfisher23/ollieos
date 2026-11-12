@@ -38,14 +38,14 @@ export interface VoiceParse {
   usedAi: boolean;
 }
 
-interface Named {
+export interface Named {
   type: "project" | "person" | "organisation";
   id: number;
   name: string;
   visible: boolean;
 }
 
-async function namedThings(): Promise<Named[]> {
+export async function namedThings(): Promise<Named[]> {
   const [projects, people, orgs] = await Promise.all([
     db.select({ id: projectsTable.id, name: projectsTable.name }).from(projectsTable),
     db.select({ id: peopleTable.id, name: peopleTable.name }).from(peopleTable),
@@ -62,7 +62,7 @@ async function namedThings(): Promise<Named[]> {
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 /** Whole-name match, and the first name alone for people ("Emma" for "Emma Duck"). */
-function mentions(text: string, n: Named): boolean {
+export function mentions(text: string, n: Named): boolean {
   const names = [n.name, ...(n.type === "person" && n.name.includes(" ") ? [n.name.split(" ")[0]] : [])].filter((x) => x.length >= 3);
   return names.some((x) => new RegExp(`\\b${escape(x)}\\b`, "i").test(text));
 }
