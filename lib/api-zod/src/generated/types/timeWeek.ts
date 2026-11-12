@@ -12,6 +12,8 @@ export interface TimeWeek {
   meetingHours: number;
   byGoal: TimeSlice[];
   byFunction: TimeSlice[];
+  /** Client work, Internal, and meetings with no sorted project */
+  byWork: TimeSlice[];
   internalHours: number;
   externalHours: number;
   plannedTaskHours: number;

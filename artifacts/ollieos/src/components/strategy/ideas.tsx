@@ -39,7 +39,7 @@ const EMPTY: Record<IdeaStatus, string> = {
   dropped: 'Nothing dropped.',
 };
 
-const SOURCE_WORDS: Record<Idea['source'], string | null> = { ollie: null, claude: 'From Claude', session: 'From a Cowork session' };
+const SOURCE_WORDS: Record<Idea['source'], string | null> = { ollie: null, claude: 'From Claude', session: 'From a Cowork session', ollieos: 'Spotted by OllieOS' };
 
 /** The ideas list: quick add, one tab per status, newest first, searchable. ?tab= and ?idea= pick one. */
 export function IdeasPanel() {
@@ -206,7 +206,19 @@ function IdeaRow({ idea: i, focused }: { idea: Idea; focused: boolean }) {
             </span>
           )}
           {i.hiddenFromAi && <HiddenFromAi confidential={i.confidential} />}
-          <span data-testid={`text-idea-${i.id}-meta`}>{meta}</span>
+          <span data-testid={`text-idea-${i.id}-meta`}>
+            {meta}
+            {i.source === 'ollieos' && i.sourceLabel && (
+              <>
+                {' · from '}
+                {i.sourceUrl ? (
+                  <a href={i.sourceUrl} target="_blank" rel="noreferrer" className="oo-link" data-testid={`link-idea-${i.id}-from`}>{i.sourceLabel}</a>
+                ) : (
+                  i.sourceLabel
+                )}
+              </>
+            )}
+          </span>
         </span>
       </div>
 

@@ -3,6 +3,9 @@ import { Link, useLocation, useSearch } from 'wouter';
 import {
   approveSuggestion,
   bulkDecideSuggestions,
+  checkStaleEvidence,
+  confirmFoundStillTrue,
+  presortSuggestions,
   mergeSuggestion,
   rejectSuggestion,
   rejectSuggestionsFromSource,
@@ -14,6 +17,7 @@ import {
   type KnowledgeInboxItem,
   type KnowledgeInboxItemKind,
   type KnowledgeInboxPlaybook,
+  type ListKnowledgeInboxHint,
 } from '@workspace/api-client-react';
 import { daysBetween, formatDayMonth, formatLong, formatTime, londonDate, todayLondon } from '@workspace/shared';
 import { CharCount, Skel } from '@/components/bits';
@@ -72,6 +76,18 @@ const EMPTY: Record<Tab, string> = {
   stale: 'Nothing needs a check. The weekly check looks for facts nobody has confirmed in a while, and anything a newer card contradicts shows here too.',
 };
 
+/** Section 23: the pre-sorter's hints, as filter options and as the line on each card. */
+const HINTS: { value: ListKnowledgeInboxHint; label: string }[] = [
+  { value: 'keep', label: 'Looks worth keeping' },
+  { value: 'reject', label: 'Looks like a reject' },
+  { value: 'same', label: 'Same as existing' },
+  { value: 'duplicate', label: 'Repeats another card' },
+  { value: 'none', label: 'No hint' },
+  { value: 'unsorted', label: 'Not sorted yet' },
+];
+const isHint = (v: string | null): v is ListKnowledgeInboxHint => !!v && HINTS.some((h) => h.value === v);
+const HINT_TONE: Record<string, string> = { keep: 'done', same: 'done', reject: 'noise', duplicate: 'noise' };
+
 /** What happened to a card, shown in place until the page is left. */
 interface Done {
   item: KnowledgeInboxItem;
@@ -87,7 +103,32 @@ export default function KnowledgeInboxPage() {
   const from = tab === 'suggested' ? new URLSearchParams(search).get('from') : null;
   const lookBackOnly = from === 'look-back';
   const documentsOnly = from === 'documents';
-  const inbox = useListKnowledgeInbox({ tab, origin: lookBackOnly ? 'look_back' : documentsOnly ? 'documents' : 'all' });
+  const rawHint = tab === 'suggested' ? new URLSearchParams(search).get('hint') : null;
+  const hint = isHint(rawHint) ? rawHint : null;
+  const inbox = useListKnowledgeInbox({ tab, origin: lookBackOnly ? 'look_back' : documentsOnly ? 'documents' : 'all', ...(hint ? { hint } : {}) });
+  const setHint = (v: string) => {
+    const p = new URLSearchParams(search);
+    p.delete('tab');
+    if (v) p.set('hint', v);
+    else p.delete('hint');
+    const qs = p.toString();
+    navigate(qs ? `/knowledge/inbox?${qs}` : '/knowledge/inbox', { replace: true });
+  };
+  const presortCounts = inbox.data?.presort ?? {};
+  const [sorting, setSorting] = useState(false);
+  const sortNow = async () => {
+    setSorting(true);
+    try {
+      const r = await presortSuggestions();
+      notify(r.failed ? 'Pre-sort stopped early' : `Pre-sorted ${r.looked}`, r.failed ? 'The model did not answer. The rest are tried at the next check.' : `${r.hinted} with a hint and ${r.repeats} repeats.`);
+      await inbox.refetch();
+    } catch (err) {
+      reportApiError(err);
+      notify('Could not pre-sort', errorMessage(err));
+    } finally {
+      setSorting(false);
+    }
+  };
   const [done, setDone] = useState<Record<string, Done>>({});
 
   const counts = inbox.data?.counts;
@@ -101,7 +142,7 @@ export default function KnowledgeInboxPage() {
   const [kindFilter, setKindFilter] = useState('');
   const [byFilter, setByFilter] = useState('');
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [confirming, setConfirming] = useState<'approve' | 'reject' | null>(null);
+  const [confirming, setConfirming] = useState<'approve' | 'reject' | 'same' | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkResult, setBulkResult] = useState<string | null>(null);
   const items = bulk ? all.filter((i) => (!kindFilter || i.kind === kindFilter) && (!byFilter || i.by === byFilter)) : all;
@@ -124,19 +165,21 @@ export default function KnowledgeInboxPage() {
     });
   const toggleAll = () => setSelected(allPicked ? new Set() : new Set(pickable.map((i) => i.id)));
 
-  const decideSelected = async (action: 'approve' | 'reject') => {
+  const decideSelected = async (action: 'approve' | 'reject' | 'same') => {
     const ids = pickedHere.map((i) => i.id);
     if (!ids.length) return;
     setBulkBusy(true);
     setConfirming(null);
     let approved = 0;
     let rejected = 0;
+    let merged = 0;
     const reasons = new Map<string, number>();
     try {
       for (let i = 0; i < ids.length; i += 500) {
         const r = await bulkDecideSuggestions({ action, ids: ids.slice(i, i + 500) });
         approved += r.approved;
         rejected += r.rejected;
+        merged += r.merged;
         for (const k of r.skipped) reasons.set(k.reason, (reasons.get(k.reason) ?? 0) + 1);
       }
     } catch (err) {
@@ -144,7 +187,7 @@ export default function KnowledgeInboxPage() {
       notify('Not all of them saved', errorMessage(err));
     }
     const skipped = [...reasons.values()].reduce((a, b) => a + b, 0);
-    const doneText = action === 'approve' ? `Approved ${approved}` : `Rejected ${rejected}`;
+    const doneText = action === 'approve' ? `Approved ${approved}` : action === 'same' ? `Merged ${merged} into what you already have` : `Rejected ${rejected}`;
     setBulkResult(skipped ? `${doneText}. ${skipped} left to review one by one: ${[...reasons].map(([r, n]) => `${r} (${n})`).join('; ')}` : `${doneText}.`);
     setSelected(new Set());
     setBulkBusy(false);
@@ -200,14 +243,27 @@ export default function KnowledgeInboxPage() {
         </div>
       )}
 
-      {bulk && live.length > 0 && (
+      {bulk && (live.length > 0 || hint) && (
         <div className="oo-inbox-bulk" data-testid="bar-inbox-bulk">
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
             <Dropdown variant="control" ariaLabel="Show one kind" value={kindFilter} onChange={(v) => { setKindFilter(v); setConfirming(null); }} options={[{ value: '', label: 'Every kind' }, ...kindOptions]} testId="select-inbox-kind" />
             <Dropdown variant="control" ariaLabel="Show what one source proposed" value={byFilter} onChange={(v) => { setByFilter(v); setConfirming(null); }} options={[{ value: '', label: 'From anyone' }, ...byOptions]} searchable testId="select-inbox-by" />
-            {(counts?.suggested ?? 0) > live.length && (
+            <Dropdown
+              variant="control"
+              ariaLabel="Show one pre-sort hint"
+              value={hint ?? ''}
+              onChange={(v) => { setHint(v); setSelected(new Set()); setConfirming(null); }}
+              options={[{ value: '', label: 'Any hint' }, ...HINTS.map((h) => ({ value: h.value, label: h.label, hint: String(presortCounts[h.value] ?? 0) }))]}
+              testId="select-inbox-hint"
+            />
+            {(presortCounts.unsorted ?? 0) > 0 && (
+              <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" disabled={sorting} onClick={() => void sortNow()} data-testid="button-presort-now">
+                {sorting ? 'Pre-sorting…' : `Pre-sort ${Math.min(presortCounts.unsorted ?? 0, 120)} now`}
+              </button>
+            )}
+            {(hint ? (presortCounts[hint] ?? 0) : (counts?.suggested ?? 0)) > live.length && (
               <span className="oo-muted" style={{ fontSize: 13 }} data-testid="text-inbox-showing">
-                Showing the oldest {live.length} of {counts!.suggested}. The next ones load as you clear these.
+                Showing the oldest {live.length} of {hint ? presortCounts[hint] : counts!.suggested}. The next ones load as you clear these.
               </span>
             )}
           </div>
@@ -220,17 +276,26 @@ export default function KnowledgeInboxPage() {
             {pickedHere.length > 0 && !confirming && (
               <>
                 <button type="button" className="oo-btn oo-btn-ink" disabled={bulkBusy} onClick={() => setConfirming('approve')} data-testid="button-bulk-approve">Approve {pickedHere.length}</button>
+                {pickedHere.some((i) => i.presort?.verdict === 'same') && (
+                  <button type="button" className="oo-btn oo-btn-outline" disabled={bulkBusy} onClick={() => setConfirming('same')} data-testid="button-bulk-same">
+                    Merge {pickedHere.filter((i) => i.presort?.verdict === 'same').length} into existing
+                  </button>
+                )}
                 <button type="button" className="oo-btn oo-btn-danger" disabled={bulkBusy} onClick={() => setConfirming('reject')} data-testid="button-bulk-reject">Reject {pickedHere.length}</button>
               </>
             )}
             {confirming && (
               <span style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }} data-testid="confirm-bulk">
                 <span style={{ fontSize: 14 }}>
-                  {confirming === 'approve' ? `Approve ${pickedHere.length} as they stand?` : `Reject ${pickedHere.length}?`}
+                  {confirming === 'approve'
+                    ? `Approve ${pickedHere.length} as they stand?`
+                    : confirming === 'same'
+                      ? `Mark ${pickedHere.filter((i) => i.presort?.verdict === 'same').length} as the same as the item each one names?`
+                      : `Reject ${pickedHere.length}?`}
                   <span className="oo-muted"> Each is saved as if you pressed the button on it.</span>
                 </span>
                 <button type="button" className={confirming === 'approve' ? 'oo-btn oo-btn-ink' : 'oo-btn oo-btn-danger'} onClick={() => void decideSelected(confirming)} data-testid="button-bulk-confirm">
-                  Yes, {confirming} {pickedHere.length}
+                  {confirming === 'same' ? `Yes, merge ${pickedHere.filter((i) => i.presort?.verdict === 'same').length}` : `Yes, ${confirming} ${pickedHere.length}`}
                 </button>
                 <button type="button" className="oo-btn oo-btn-outline" onClick={() => setConfirming(null)} data-testid="button-bulk-cancel">Cancel</button>
               </span>
@@ -240,6 +305,8 @@ export default function KnowledgeInboxPage() {
           {bulkResult && !bulkBusy && <p role="status" style={{ margin: 0, fontSize: 13 }} data-testid="text-bulk-result">{bulkResult}</p>}
         </div>
       )}
+
+      {tab === 'stale' && live.length > 0 && <StaleBar items={live} onDone={() => void inbox.refetch()} />}
 
       <div role="tabpanel" aria-label={TABS.find((t) => t.id === tab)!.label} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: -6 }}>
         {inbox.isLoading ? (
@@ -251,7 +318,9 @@ export default function KnowledgeInboxPage() {
           </div>
         ) : items.length === 0 ? (
           <p className="oo-muted" style={{ margin: 0, fontSize: 14, padding: '8px 0' }} data-testid="text-inbox-empty">
-            {bulk && (kindFilter || byFilter) && live.length > 0
+            {hint && !live.length
+              ? 'Nothing waiting has this hint.'
+              : bulk && (kindFilter || byFilter) && live.length > 0
               ? 'Nothing waiting matches these filters.'
               : lookBackOnly
               ? 'Nothing from a look back is waiting. Start one from Settings, Connectors, Granola.'
@@ -392,6 +461,10 @@ function InboxCard({ item: it, done, onDone, picked, onPick }: { item: Knowledge
       )}
 
       {!contradiction && <SaidBy it={it} testKey={testKey} />}
+      {it.group === 'suggested' && it.presort && !done && <PresortLine it={it} testKey={testKey} />}
+      {it.kind === 'stale_fact' && it.evidence && !done && (
+        <Evidence it={it} testKey={testKey} busy={busy} onUse={(text) => resolve({ action: 'edit', text }, 'Updated to what OllieOS found and confirmed today', true)} />
+      )}
       {source && !contradiction && (
         <p style={{ margin: 0, fontSize: 13 }} className="oo-soft">
           <span className="oo-muted">Source:</span>{' '}
@@ -476,6 +549,100 @@ function InboxCard({ item: it, done, onDone, picked, onPick }: { item: Knowledge
         </div>
       ) : null}
     </article>
+  );
+}
+
+/** Section 23: the pre-sorter's hint on a card, with why. */
+function PresortLine({ it, testKey }: { it: KnowledgeInboxItem; testKey: string }) {
+  const p = it.presort!;
+  const label = HINTS.find((h) => h.value === p.verdict)?.label ?? p.verdict;
+  return (
+    <p style={{ margin: 0, fontSize: 13 }} className="oo-soft" data-testid={'text-presort-' + testKey}>
+      <span className="oo-pill" data-tone={HINT_TONE[p.verdict]}>{label}</span>{' '}
+      {p.verdict === 'same' && p.sameAs ? <>“{p.sameAs.text}”. </> : null}
+      {p.why}
+      {p.verdict === 'duplicate' && p.duplicateOf ? ` (card ${p.duplicateOf})` : ''}
+    </p>
+  );
+}
+
+const EVIDENCE_LABEL = { confirmed: 'Looks still true', changed: 'Looks changed', none: 'Nothing new seen' } as const;
+
+/** Section 23: what the stale fact checker found since the fact was last confirmed. */
+function Evidence({ it, testKey, busy, onUse }: { it: KnowledgeInboxItem; testKey: string; busy: boolean; onUse: (text: string) => void }) {
+  const e = it.evidence!;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13 }} className="oo-soft" data-testid={'evidence-' + testKey}>
+      <p style={{ margin: 0 }}>
+        <span className="oo-pill" data-tone={e.verdict === 'confirmed' ? 'done' : e.verdict === 'changed' ? 'waiting' : undefined}>{EVIDENCE_LABEL[e.verdict]}</span> {e.why}
+      </p>
+      {e.verdict === 'changed' && e.newText && (
+        <p style={{ margin: 0, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          <span><span className="oo-muted">Now seems to be:</span> {e.newText}</span>
+          <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" disabled={busy} onClick={() => onUse(e.newText!)} data-testid={'button-use-evidence-' + testKey}>Use this</button>
+        </p>
+      )}
+      {e.sources.length > 0 && (
+        <p style={{ margin: 0 }} className="oo-muted">
+          Seen in: {e.sources.map((s) => `${s.label}, ${formatDayMonth(s.at)}`).join('; ')}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Section 23: run the stale fact checker now, and confirm every fact it found still true. */
+function StaleBar({ items, onDone }: { items: KnowledgeInboxItem[]; onDone: () => void }) {
+  const [busy, setBusy] = useState<'check' | 'confirm' | null>(null);
+  const [asking, setAsking] = useState(false);
+  const stale = items.filter((i) => i.kind === 'stale_fact');
+  const unchecked = stale.filter((i) => !i.evidence).length;
+  const found = stale.filter((i) => i.evidence?.verdict === 'confirmed').length;
+  if (!stale.length) return null;
+  const go = async (what: 'check' | 'confirm') => {
+    setBusy(what);
+    setAsking(false);
+    try {
+      if (what === 'check') {
+        const r = await checkStaleEvidence();
+        notify(r.failed ? 'The check stopped early' : `Checked ${r.looked}`, `${r.confirmed} look still true, ${r.changed} look changed, ${r.none} with nothing new.`);
+      } else {
+        const r = await confirmFoundStillTrue();
+        notify(`Confirmed ${r.confirmed}`, 'Each is marked as checked today.');
+      }
+      onDone();
+    } catch (err) {
+      reportApiError(err);
+      notify('That did not work', errorMessage(err));
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <div className="oo-inbox-bulk" data-testid="bar-stale">
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+        <span className="oo-muted" style={{ fontSize: 13 }}>
+          OllieOS looks at what it has seen since each fact was last confirmed. {found ? `${found} ${found === 1 ? 'looks' : 'look'} still true.` : ''}
+        </span>
+        {unchecked > 0 && (
+          <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" disabled={!!busy} onClick={() => void go('check')} data-testid="button-stale-check">
+            {busy === 'check' ? 'Checking…' : `Check ${unchecked} now`}
+          </button>
+        )}
+        {found > 0 && !asking && (
+          <button type="button" className="oo-btn oo-btn-ink oo-btn-sm" disabled={!!busy} onClick={() => setAsking(true)} data-testid="button-stale-confirm">
+            Confirm {found === 1 ? 'the 1 that looks' : `${found} that look`} still true
+          </button>
+        )}
+        {asking && (
+          <span style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, fontSize: 14 }}>
+            Mark {found} as still true today?
+            <button type="button" className="oo-btn oo-btn-ink oo-btn-sm" onClick={() => void go('confirm')} data-testid="button-stale-confirm-yes">Yes, confirm {found}</button>
+            <button type="button" className="oo-btn oo-btn-outline oo-btn-sm" onClick={() => setAsking(false)}>Cancel</button>
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 

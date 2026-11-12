@@ -12,6 +12,7 @@ import { projectChoices } from "./connectors/capture";
 import type { WorkUnit } from "./connectors/messages";
 import { SORT_MODEL, sorterPromptVersion, sortUnits } from "./connectors/sorter";
 import { NotFoundError, ValidationError } from "./tasks";
+import { lessonsFor } from "./readerLessons";
 
 /** Inputs older than this are cleared; a test case keeps its own copy. */
 export const KEEP_INPUTS_DAYS = 30;
@@ -146,13 +147,20 @@ function revive(unit: unknown): WorkUnit {
   return { ...u, messages: u.messages.map((m) => ({ ...m, at: new Date(m.at) })) };
 }
 
-/** Runs one reader, as the code now stands, against its saved cases. */
-export async function replay(agent: string, opts: { model?: string | null } = {}, by = "ollie"): Promise<ReplayResult> {
+/**
+ * Runs one reader, as the code now stands and with the lessons turned on for it, against its saved
+ * cases. Section 24: extraLessonIds adds proposed lessons for a try, and keep: false records nothing
+ * (no replay row, and the cases keep their last results).
+ */
+export async function replay(agent: string, opts: { model?: string | null; extraLessonIds?: number[]; keep?: boolean; by?: string } = {}, by = "ollie"): Promise<ReplayResult> {
+  const keep = opts.keep !== false;
+  const who = opts.by ?? by;
   if (!REPLAY_AGENTS.includes(agent)) throw new ValidationError("Replays are for the Gmail, Slack and Granola readers");
   const model = opts.model?.trim() || SORT_MODEL;
   const cases = await db.select().from(evalCasesTable).where(eq(evalCasesTable.agent, agent)).orderBy(asc(evalCasesTable.id)).limit(MAX_REPLAY_CASES);
   if (!cases.length) throw new ValidationError("There are no test cases for this agent yet. Keep one from an Inbox item first.");
-  const version = sorterPromptVersion();
+  const lessons = await lessonsFor(agent, opts.extraLessonIds ?? []);
+  const version = sorterPromptVersion(lessons);
   const projects = (await projectChoices()).map((p) => p.name);
   const [previous] = await db.select().from(evalReplaysTable).where(eq(evalReplaysTable.agent, agent)).orderBy(desc(evalReplaysTable.at)).limit(1);
 
@@ -163,20 +171,22 @@ export async function replay(agent: string, opts: { model?: string | null } = {}
     const now = unit.messages[unit.messages.length - 1]?.at ?? new Date();
     let got: string[];
     try {
-      const [sorted] = await sortUnits([unit], { me: c.me, projects, now, known: null, agent: "test_replay", model, keepInputs: false });
+      const [sorted] = await sortUnits([unit], { me: c.me, projects, now, known: null, agent: "test_replay", model, keepInputs: false, lessons });
       got = sorted.items.map((i) => i.title);
     } catch (err) {
       got = [`(the reader failed: ${err instanceof Error ? err.message : String(err)})`.slice(0, 200)];
       failed.push({ caseId: c.id, title: c.title, expected: c.expected, got });
-      await db.update(evalCasesTable).set({ lastResult: { at: new Date().toISOString(), model, promptVersion: version, passed: false, got } }).where(eq(evalCasesTable.id, c.id));
+      if (keep) await db.update(evalCasesTable).set({ lastResult: { at: new Date().toISOString(), model, promptVersion: version, passed: false, got } }).where(eq(evalCasesTable.id, c.id));
       continue;
     }
     const ok = c.expected === "task" ? got.length > 0 : got.length === 0;
     if (ok) passed++;
     else failed.push({ caseId: c.id, title: c.title, expected: c.expected, got });
-    await db.update(evalCasesTable).set({ lastResult: { at: new Date().toISOString(), model, promptVersion: version, passed: ok, got } }).where(eq(evalCasesTable.id, c.id));
+    if (keep) await db.update(evalCasesTable).set({ lastResult: { at: new Date().toISOString(), model, promptVersion: version, passed: ok, got } }).where(eq(evalCasesTable.id, c.id));
   }
-  const [row] = await db.insert(evalReplaysTable).values({ agent, model, promptVersion: version, total: cases.length, passed, failed, by }).returning();
+  const [row] = keep
+    ? await db.insert(evalReplaysTable).values({ agent, model, promptVersion: version, total: cases.length, passed, failed, by: who }).returning()
+    : [{ id: 0, at: new Date() }];
   return {
     id: row.id,
     agent,

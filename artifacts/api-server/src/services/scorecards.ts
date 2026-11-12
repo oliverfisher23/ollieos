@@ -5,7 +5,7 @@
  * all count against the agent that made it.
  */
 import { and, eq, gte, isNull, lt, sql, type SQL } from "drizzle-orm";
-import { db, factReviewsTable, reviewItemsTable, suggestionsTable, taskEvidenceTable, tasksTable } from "@workspace/db";
+import { db, factReviewsTable, readerLessonsTable, reviewItemsTable, suggestionsTable, taskEvidenceTable, tasksTable } from "@workspace/db";
 import type { AgentKey } from "../lib/agents";
 import { DOCUMENT_PROPOSER } from "./documents/counts";
 import { PRODUCT_USER_ACTOR } from "./productUsers";
@@ -153,6 +153,65 @@ function looksDone(source: string): Spec["count"] {
   };
 }
 
+/** Section 23, the pre-sorter: a hint was right when Ollie did what it said. */
+const presortHints: Spec["count"] = async (start, end) => {
+  const v = sql`${suggestionsTable.presort}->>'verdict'`;
+  const [r] = await db
+    .select({
+      kept: sql<number>`count(*) filter (where (${v} = 'keep' and ${suggestionsTable.status} in ('approved','merged')) or (${v} = 'same' and ${suggestionsTable.status} = 'merged') or (${v} in ('reject','duplicate') and ${suggestionsTable.status} = 'rejected'))`,
+      undone: sql<number>`count(*) filter (where ${suggestionsTable.status} <> 'pending' and not ((${v} = 'keep' and ${suggestionsTable.status} in ('approved','merged')) or (${v} = 'same' and ${suggestionsTable.status} = 'merged') or (${v} in ('reject','duplicate') and ${suggestionsTable.status} = 'rejected')))`,
+      waiting: sql<number>`count(*) filter (where ${suggestionsTable.status} = 'pending')`,
+    })
+    .from(suggestionsTable)
+    .where(and(sql`${v} is not null`, gte(suggestionsTable.presortedAt, start), lt(suggestionsTable.presortedAt, end)));
+  return { kept: n(r?.kept), undone: n(r?.undone), waiting: n(r?.waiting) };
+};
+
+/** Section 23, the stale fact checker: "still true" was right when Ollie confirmed it; "changed" when he edited it or marked it out of date. */
+const staleFindings: Spec["count"] = async (start, end) => {
+  const v = sql`${factReviewsTable.evidence}->>'verdict'`;
+  const a = sql`coalesce(${factReviewsTable.resolution}->>'action', '')`;
+  const right = sql`((${v} = 'confirmed' and ${a} = 'still_true') or (${v} = 'changed' and ${a} in ('edit','no_longer_true')))`;
+  const [r] = await db
+    .select({
+      kept: sql<number>`count(*) filter (where ${factReviewsTable.status} <> 'pending' and ${right})`,
+      undone: sql<number>`count(*) filter (where ${factReviewsTable.status} <> 'pending' and not ${right})`,
+      waiting: sql<number>`count(*) filter (where ${factReviewsTable.status} = 'pending')`,
+    })
+    .from(factReviewsTable)
+    .where(and(eq(factReviewsTable.kind, "stale"), sql`${v} in ('confirmed','changed')`, gte(factReviewsTable.evidenceCheckedAt, start), lt(factReviewsTable.evidenceCheckedAt, end)));
+  return { kept: n(r?.kept), undone: n(r?.undone), waiting: n(r?.waiting) };
+};
+
+/** Section 23, the delegation suggester: used when the task went to that colleague, undone on "Not this one". */
+const delegations: Spec["count"] = async (start, end) => {
+  const used = sql`${tasksTable.waitingOnPersonId} = (${tasksTable.delegateHint}->>'personId')::int`;
+  const [r] = await db
+    .select({
+      kept: sql<number>`count(*) filter (where ${used})`,
+      undone: sql<number>`count(*) filter (where ${tasksTable.delegateDismissedAt} is not null and not coalesce(${used}, false))`,
+      waiting: sql<number>`count(*) filter (where ${tasksTable.delegateDismissedAt} is null and not coalesce(${used}, false) and ${tasksTable.status} in ('now','backlog'))`,
+    })
+    .from(tasksTable)
+    .where(and(sql`${tasksTable.delegateHint} is not null and jsonb_typeof(${tasksTable.delegateHint}) = 'object'`, gte(tasksTable.delegateCheckedAt, start), lt(tasksTable.delegateCheckedAt, end)));
+  return { kept: n(r?.kept), undone: n(r?.undone), waiting: n(r?.waiting) };
+};
+
+/** Section 24: a coach's lessons; kept when Ollie turned one on and left it on, undone when he said no or turned it off. */
+function lessonsBy(learnedBy: "reader_coach" | "card_coach"): Spec["count"] {
+  return async (start, end) => {
+    const [r] = await db
+      .select({
+        kept: sql<number>`count(*) filter (where ${readerLessonsTable.status} = 'on')`,
+        undone: sql<number>`count(*) filter (where ${readerLessonsTable.status} in ('rejected','off'))`,
+        waiting: sql<number>`count(*) filter (where ${readerLessonsTable.status} = 'proposed')`,
+      })
+      .from(readerLessonsTable)
+      .where(and(eq(readerLessonsTable.learnedBy, learnedBy), gte(readerLessonsTable.createdAt, start), lt(readerLessonsTable.createdAt, end)));
+    return { kept: n(r?.kept), undone: n(r?.undone), waiting: n(r?.waiting) };
+  };
+}
+
 const SPECS: Spec[] = [
   { key: "gmail_tasks", agent: "gmail_sorter", label: "Inbox items kept", count: tasksFrom("email") },
   { key: "gmail_cards", agent: "gmail_sorter", label: "Knowledge cards approved", count: cardsFrom("Gmail check") },
@@ -173,6 +232,11 @@ const SPECS: Spec[] = [
   { key: "documents", agent: "document_reader", label: "Knowledge cards approved", count: cardsFrom(DOCUMENT_PROPOSER) },
   { key: "functions", agent: "function_suggester", label: "Suggestions approved", count: cardsFrom(PROJECT_FUNCTION_ACTOR) },
   { key: "product_users", agent: "product_user_suggester", label: "Suggestions approved", count: cardsFrom(PRODUCT_USER_ACTOR) },
+  { key: "presort", agent: "presorter", label: "Hints you agreed with", count: presortHints },
+  { key: "stale_evidence", agent: "stale_checker", label: "Findings you agreed with", count: staleFindings },
+  { key: "delegation", agent: "delegation", label: "Suggestions you sent", count: delegations },
+  { key: "reader_lessons", agent: "reader_coach", label: "Lessons you turned on", count: lessonsBy("reader_coach") },
+  { key: "card_lessons", agent: "card_coach", label: "Lessons you turned on", count: lessonsBy("card_coach") },
 ];
 
 /** Every measure for the week to `now`, with last week's rate beside it. */

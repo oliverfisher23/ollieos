@@ -118,3 +118,6 @@ export const RELATIONSHIP_KINDS = [
   "decides_on",
 ] as const;
 export const relationshipEnum = pgEnum("relationship", RELATIONSHIP_KINDS);
+
+/** Client work or internal; null on a project means "not sure yet" unless a client is linked. */
+export const projectWorkTypeEnum = pgEnum("project_work_type", ["client", "internal"]);

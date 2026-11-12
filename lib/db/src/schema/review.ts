@@ -35,6 +35,10 @@ export const suggestionsTable = pgTable(
     saidById: integer("said_by_id"),
     saidAt: timestamp("said_at", { withTimezone: true }),
     clientId: integer("client_id").references(() => aiClientsTable.id),
+    /** Section 23: the pre-sorter's hint for Ollie (keep, reject, same as existing, a repeat); null when it gave none */
+    presort: jsonb("presort").$type<PresortHint | null>(),
+    /** Section 23: when the pre-sorter looked at this card; null until it has */
+    presortedAt: timestamp("presorted_at", { withTimezone: true }),
     status: suggestionStatusEnum("status").notNull().default("pending"),
     /** What approval created */
     resultType: entityTypeEnum("result_type"),
@@ -49,6 +53,31 @@ export const suggestionsTable = pgTable(
     index("suggestions_text_idx").on(t.normalisedText),
   ],
 );
+
+/**
+ * Section 23, the Knowledge Inbox pre-sorter: what it thinks Ollie will do with a card. "duplicate"
+ * is found in code (another card waiting says the same); the rest come from the model.
+ */
+export interface PresortHint {
+  verdict: "keep" | "reject" | "same" | "duplicate";
+  /** One line on why */
+  why: string;
+  /** For "same": the approved item the card already says */
+  sameAs?: { type: "fact" | "decision" | "rule"; id: number; text: string } | null;
+  /** For "duplicate": the older card waiting that says the same */
+  duplicateOf?: number | null;
+}
+
+/** Section 23, the stale fact checker: what OllieOS has seen since a stale fact was last confirmed. */
+export interface StaleEvidence {
+  /** confirmed: something since says it still holds; changed: something since says otherwise; none: nothing either way */
+  verdict: "confirmed" | "changed" | "none";
+  why: string;
+  /** For "changed": the fact as it now seems to stand */
+  newText: string | null;
+  /** What it read, newest first: a ref ("note:3"), a label and when */
+  sources: { ref: string; label: string; at: string }[];
+}
 
 /** An approved item a card contradicts (Part O). */
 export interface ContradictedItem {
@@ -68,6 +97,9 @@ export const factReviewsTable = pgTable(
     suggestionId: integer("suggestion_id").references(() => suggestionsTable.id, { onDelete: "set null" }),
     /** Part O, kind contradiction: the approved items the card disagrees with, and how, in a line */
     contradicts: jsonb("contradicts").$type<ContradictedItem[] | null>(),
+    /** Section 23: for a stale review, what the stale fact checker found; null until it has looked */
+    evidence: jsonb("evidence").$type<StaleEvidence | null>(),
+    evidenceCheckedAt: timestamp("evidence_checked_at", { withTimezone: true }),
     status: reviewStatusEnum("status").notNull().default("pending"),
     /** { action, keptFactId?, newFactId? } */
     resolution: jsonb("resolution"),
@@ -103,6 +135,34 @@ export const weeklyRoundupsTable = pgTable("weekly_roundups", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Section 23, the Friday update drafter: Ollie's weekly leadership update for Slack, drafted from
+ * the week in OllieOS. One row per week, keyed by the Friday it ends on. Never posted by OllieOS.
+ */
+export interface WeeklyUpdateSections {
+  wins: string[];
+  blockers: string[];
+  ai: string[];
+  quarterly: string[];
+}
+
+export const weeklyUpdatesTable = pgTable("weekly_updates", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  /** The Friday (London) the week ends on, YYYY-MM-DD */
+  weekEnding: text("week_ending").notNull().unique(),
+  sections: jsonb("sections").$type<WeeklyUpdateSections>().notNull(),
+  /** How many items of each kind it was drafted from, and how many were hidden from AI */
+  basis: jsonb("basis").notNull(),
+  /** Ollie's own edits to the post, when he has made any; the post as drafted otherwise */
+  editedText: text("edited_text"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+export type WeeklyUpdate = typeof weeklyUpdatesTable.$inferSelect;
 export type Suggestion = typeof suggestionsTable.$inferSelect;
 export type WeeklyRoundup = typeof weeklyRoundupsTable.$inferSelect;
 export type FactReview = typeof factReviewsTable.$inferSelect;

@@ -7,6 +7,7 @@
  */
 import type { BusinessFunction } from './businessFunction';
 import type { ProjectLifecycle } from './projectLifecycle';
+import type { WorkType } from './workType';
 
 export interface ProjectUpdate {
   /**
@@ -27,4 +28,5 @@ export interface ProjectUpdate {
   /** @nullable */
   goalId?: number | null;
   lifecycle?: ProjectLifecycle;
+  workType?: WorkType | null;
 }

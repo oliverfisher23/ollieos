@@ -8,6 +8,7 @@
 import type { BulkDecideInputAction } from './bulkDecideInputAction';
 
 export interface BulkDecideInput {
+  /** same merges each card into the approved item its pre-sort hint names */
   action: BulkDecideInputAction;
   /**
      * @minItems 1

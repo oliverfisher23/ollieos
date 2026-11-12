@@ -30,7 +30,8 @@ export const strategySectionsTable = pgTable(
 
 export const IDEA_STATUSES = ["new", "come_back", "taken_forward", "dropped"] as const;
 export const ideaStatusEnum = pgEnum("idea_status", IDEA_STATUSES);
-export const IDEA_SOURCES = ["ollie", "claude", "session"] as const;
+/** Section 23: "ollieos" is the idea spotter, from meetings and Slack. */
+export const IDEA_SOURCES = ["ollie", "claude", "session", "ollieos"] as const;
 export const ideaSourceEnum = pgEnum("idea_source", IDEA_SOURCES);
 
 export const ideasTable = pgTable(
@@ -53,6 +54,10 @@ export const ideasTable = pgTable(
     source: ideaSourceEnum("source").notNull().default("ollie"),
     clientId: integer("client_id"),
     sessionId: integer("session_id"),
+    /** Section 23, the idea spotter: where the idea came up ("granola:<note>", "slack:<channel>:<ts>"), with a label and link */
+    sourceRef: text("source_ref"),
+    sourceLabel: text("source_label"),
+    sourceUrl: text("source_url"),
     createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

@@ -13,7 +13,9 @@ import { propose } from "../suggestions";
 import { applyProgress, cleanProgress, openItemsBlock, openItemsFor, type ProgressCounts } from "../taskEvidence";
 import { markCovered, openPointsFor, pointsBlock } from "../talkingPoints";
 import { writeFollowUp } from "../meetingFollowUp";
-import { captureSorted, emptyCounts, loadPeople, peopleIdsIn, projectChoices, type CaptureCounts } from "./capture";
+import { captureSorted, emptyCounts, loadPeople, mayReadForKnowledge, peopleIdsIn, projectChoices, type CaptureCounts } from "./capture";
+import { addSpottedIdea } from "../strategy";
+import { lessonsFor } from "../readerLessons";
 import { meetingUnit, sortMeeting, type MeetingNote } from "./granola";
 
 export const MEETING_PROPOSER = "OllieOS";
@@ -30,6 +32,8 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
   const counts: MeetingCounts = { ...emptyCounts(), decisions: 0, attached: 0 };
   if (!notes.length) return counts;
   const choices = await projectChoices();
+  // Section 24: the lessons Ollie turned on for the Granola reader.
+  const lessons = await lessonsFor("granola_reader");
   const projectIdByName = new Map(choices.map((p) => [p.name.toLowerCase(), p.id]));
 
   for (const n of notes) {
@@ -37,11 +41,12 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
     const event = (n.calendarEventId ? await findEventBySourceRef(n.calendarEventId) : null) ?? (await findEventForNote(n, ctx.myEmails));
     // Part U: open tasks with the people in the meeting, checked in the same read; always Looks done.
     const unit = meetingUnit(n);
-    const personIds = peopleIdsIn(unit, await loadPeople([unit], []));
+    const loaded = await loadPeople([unit], []);
+    const personIds = peopleIdsIn(unit, loaded);
     const [open] = await openItemsFor([unit], [personIds]);
     // Part K: points Ollie wanted to raise with the people in the meeting.
     const points = await openPointsFor([...new Set([...personIds, ...(event?.personIds ?? [])])]);
-    const sorted = await sortMeeting(n, { me: ctx.me, projects: choices.map((p) => p.name), now: ctx.now, openItems: openItemsBlock(open), talkingPoints: pointsBlock(points) });
+    const sorted = await sortMeeting(n, { me: ctx.me, projects: choices.map((p) => p.name), now: ctx.now, openItems: openItemsBlock(open), talkingPoints: pointsBlock(points), lessons });
     // Part S: the tone of the meeting, for the client pulse.
     await db
       .insert(meetingTonesTable)
@@ -80,6 +85,26 @@ export async function captureMeetings(notes: MeetingNote[], ctx: { me: string; n
         ctx.now,
       );
       if (r.status === "suggested" || r.status === "conflict") counts.decisions++;
+    }
+
+    // Section 23, the idea spotter: never from a meeting with anyone hidden from AI. A problem never stops the check.
+    if (sorted.ideas?.length && mayReadForKnowledge(unit, loaded)) {
+      for (const [k, idea] of sorted.ideas.entries()) {
+        try {
+          const added = await addSpottedIdea({
+            title: idea.title,
+            notes: idea.notes || null,
+            projectId: projectIdByName.get(idea.project.toLowerCase().trim()) ?? event?.projectId ?? null,
+            confidential: idea.confidential,
+            sourceRef: `granola:${n.noteId}#idea:${k + 1}`,
+            sourceLabel: `Granola: ${event?.title ?? n.title}`,
+            sourceUrl: n.url ?? null,
+          });
+          if (added) counts.ideas = (counts.ideas ?? 0) + 1;
+        } catch (err) {
+          logger.warn({ err, note: n.noteId }, "Could not add a spotted idea");
+        }
+      }
     }
 
     // Part K: a follow-up draft for external meetings, saved to Gmail; never sent. A problem never stops the check.

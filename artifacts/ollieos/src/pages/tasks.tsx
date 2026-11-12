@@ -19,6 +19,7 @@ import {
   type TaskTab,
   type TriageInputAction,
 } from '@workspace/api-client-react';
+import { useListProjects } from '@workspace/api-client-react';
 import { SOURCE_LABELS, TASK_SOURCES, addDays, formatWeekRange, todayLondon, weekStartOf } from '@workspace/shared';
 import { Skel, SourceLabel, SourceMark } from '@/components/bits';
 import { DueCell, PriorityCell, StatusCell } from '@/components/task-cell-editors';
@@ -173,7 +174,16 @@ export default function TasksPage() {
   const review = useListReview();
   const reviewCount = review.data?.actions ?? 0;
 
-  const rows = useMemo(() => sortTasks(list.data ?? [], sort), [list.data, sort?.key, sort?.dir]);
+  // Client work or internal, from each task's project (filtered here, so it combines with every other filter).
+  const rawWork = sp.get('work');
+  const work = rawWork === 'client' || rawWork === 'internal' || rawWork === 'none' ? rawWork : null;
+  const projects = useListProjects(undefined, { query: { enabled: !!work, staleTime: 60_000 } as never });
+  const workOf = useMemo(() => new Map((projects.data ?? []).map((p) => [p.id, p.workType ?? null])), [projects.data]);
+  const rows = useMemo(() => {
+    const all = list.data ?? [];
+    const kept = work ? all.filter((t) => ((t.project ? workOf.get(t.project.id) : null) ?? 'none') === work) : all;
+    return sortTasks(kept, sort);
+  }, [list.data, sort?.key, sort?.dir, work, workOf]);
 
   // Dragging tasks into Ollie's own order. A column sort is a temporary view on top, so dragging waits until it is cleared.
   const qc = useQueryClient();
@@ -248,6 +258,20 @@ export default function TasksPage() {
               ...TASK_SOURCES.map((s) => ({ value: s, label: SOURCE_LABELS[s], leading: <Dot color={`var(--oo-src-${s}-fg)`} /> })),
             ]}
             testId="select-source"
+          />
+          <label htmlFor="filter-work" className="oo-sr">Client or internal</label>
+          <Dropdown
+            id="filter-work"
+            variant="control"
+            value={work ?? ''}
+            onChange={(v) => set({ work: v || null })}
+            options={[
+              { value: '', label: 'Client and internal' },
+              { value: 'client', label: 'Client work' },
+              { value: 'internal', label: 'Internal' },
+              { value: 'none', label: 'No sorted project' },
+            ]}
+            testId="select-work"
           />
           <button type="button" className="oo-control" aria-pressed={week === thisWeek}
             onClick={() => set({ week: week === thisWeek ? null : thisWeek })} data-testid="button-this-week">This week</button>
@@ -351,7 +375,7 @@ export default function TasksPage() {
           </div>
         ) : rows.length === 0 ? (
           <div style={{ padding: '28px 0', display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="state-tasks-empty">
-            <p className="oo-serif" style={{ margin: 0, fontSize: 20 }}>{q || source || week ? 'Nothing matches these filters.' : EMPTY[tab]}</p>
+            <p className="oo-serif" style={{ margin: 0, fontSize: 20 }}>{q || source || week || work ? 'Nothing matches these filters.' : EMPTY[tab]}</p>
             {(q || source || week) && <p className="oo-muted" style={{ margin: 0, fontSize: 14 }}>Try another week or clear the search.</p>}
           </div>
         ) : (

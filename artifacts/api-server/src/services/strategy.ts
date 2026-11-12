@@ -21,6 +21,7 @@ import { writeAudit } from "../lib/audit";
 import { ideaVisible, strategyVisible } from "../lib/ai-data/visibility";
 import { captureTask, type CaptureWriter } from "./aiWrites";
 import { ACTOR, cleanText } from "./knowledge/common";
+import { closeMatch, wordsOf } from "./similar";
 import { createProject } from "./knowledge/entities";
 import { NotFoundError, ValidationError } from "./tasks";
 
@@ -62,6 +63,9 @@ export interface IdeaView {
   aiAccess: boolean;
   hiddenFromAi: boolean;
   source: IdeaSource;
+  /** Section 23, idea spotter: the meeting or Slack conversation it came up in */
+  sourceLabel: string | null;
+  sourceUrl: string | null;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -126,6 +130,8 @@ async function toIdeaViews(rows: Idea[], today = todayLondon()): Promise<IdeaVie
     aiAccess: r.aiAccess,
     hiddenFromAi: !visible.has(r.id),
     source: r.source,
+    sourceLabel: r.sourceLabel,
+    sourceUrl: r.sourceUrl,
     createdBy: r.createdBy,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
@@ -386,6 +392,55 @@ export async function addIdeaFromAi(
   );
   const visible = await aiVisibleIds("ideas", [row.id]);
   return { id: row.id, visible: visible.has(row.id) };
+}
+
+/** Section 23: what the idea spotter adds the idea as, and where it came up. */
+export const SPOTTER_ACTOR = "Idea spotter";
+
+export interface SpottedIdea {
+  title: string;
+  notes: string | null;
+  projectId: number | null;
+  confidential: boolean;
+  /** "granola:<note>#idea:1", "slack:<channel>:<ts>#idea:1": an idea is only added once from the same place */
+  sourceRef: string;
+  sourceLabel: string;
+  sourceUrl: string | null;
+}
+
+/**
+ * The idea spotter (section 23, Part Z5): an idea that came up in a meeting or on Slack goes onto the
+ * list as New, marked as spotted by OllieOS, like Claude's add_idea. Skipped when it was already
+ * added from the same place, or an idea not deleted already says much the same thing.
+ */
+export async function addSpottedIdea(input: SpottedIdea): Promise<Idea | null> {
+  const title = cleanText(input.title)?.slice(0, 200);
+  if (!title) return null;
+  const [seen] = await db.select({ id: ideasTable.id }).from(ideasTable).where(eq(ideasTable.sourceRef, input.sourceRef)).limit(1);
+  if (seen) return null;
+  const existing = await db.select({ title: ideasTable.title }).from(ideasTable).where(isNull(ideasTable.deletedAt));
+  const words = wordsOf(title);
+  if (existing.some((e) => closeMatch(words, e.title))) return null;
+  return db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(ideasTable)
+      .values({
+        title,
+        notes: cleanText(input.notes),
+        status: "new",
+        projectId: input.projectId,
+        confidential: input.confidential,
+        aiAccess: true,
+        source: "ollieos",
+        sourceRef: input.sourceRef,
+        sourceLabel: input.sourceLabel,
+        sourceUrl: input.sourceUrl,
+        createdBy: SPOTTER_ACTOR,
+      })
+      .returning();
+    await writeAudit(tx, { actor: SPOTTER_ACTOR, action: "create", entityType: "idea", entityId: created.id, payload: { source: "ollieos", from: input.sourceRef } });
+    return created;
+  });
 }
 
 export type IdeaUpdate = Partial<IdeaInput>;

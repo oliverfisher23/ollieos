@@ -6,7 +6,7 @@
  */
 import { and, eq, sql } from "drizzle-orm";
 import { db, factsTable, organisationsTable, projectsTable, suggestionsTable, decisionsTable } from "@workspace/db";
-import { BUSINESS_FUNCTIONS, BUSINESS_FUNCTION_LABELS, isBusinessFunction, toRef, type BusinessFunction, type RefType } from "@workspace/shared";
+import { BUSINESS_FUNCTIONS, BUSINESS_FUNCTION_LABELS, isBusinessFunction, isWorkType, toRef, type BusinessFunction, type RefType, type WorkType } from "@workspace/shared";
 import { organisationVisible, projectVisible } from "../lib/ai-data/visibility";
 import { loadVisibleDocs } from "../lib/ai-data/retrieve";
 import { defaultScope } from "../lib/ai-data/scope";
@@ -31,6 +31,18 @@ export async function proposeProjectFunction(meta: ProposeMeta, projectId: numbe
     entityType: "project",
     entityId: projectId,
     payload: { fields: { function: fn }, before: { function: row.function }, reason: reason?.trim().slice(0, 300) || null },
+  });
+}
+
+/** Sends "client work" or "internal" for a project to the Knowledge Inbox, unless it is already set. */
+export async function proposeProjectWorkType(meta: ProposeMeta, projectId: number, work: WorkType, reason: string | null): Promise<ProposeResult | { status: "unchanged" }> {
+  const [row] = await db.select({ workType: projectsTable.workType, isFunction: projectsTable.isFunction }).from(projectsTable).where(eq(projectsTable.id, projectId));
+  if (!row || row.isFunction || row.workType === work) return { status: "unchanged" };
+  return propose(meta, {
+    kind: "summary_change",
+    entityType: "project",
+    entityId: projectId,
+    payload: { fields: { work_type: work }, before: { work_type: row.workType }, reason: reason?.trim().slice(0, 300) || null },
   });
 }
 
@@ -87,7 +99,7 @@ export async function proposeProjectClient(
 const SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["reasoning", "function", "function_why", "client", "client_why", "client_summary"],
+  required: ["reasoning", "function", "function_why", "client", "client_why", "client_summary", "work", "work_why"],
   properties: {
     reasoning: { type: "string" },
     function: { type: "string", enum: [...BUSINESS_FUNCTIONS, "unclear"] },
@@ -95,6 +107,8 @@ const SCHEMA = {
     client: { type: "string" },
     client_why: { type: "string" },
     client_summary: { type: "string" },
+    work: { type: "string", enum: ["client", "internal", "unclear"] },
+    work_why: { type: "string" },
   },
 } as const;
 
@@ -110,6 +124,7 @@ function system(orgs: string[]): string {
     "- marketing: brand, campaigns, website, content and reaching students, schools or employers.",
     'Use "unclear" when the items do not say, only guess, or point equally at two. Never pick from the name alone.',
     '"client" is the outside organisation the project is for or with (a customer or partner), named as the items name it. Use an exact name from <organisations> when it is one of them. Give "" when the project is internal, or the items do not name one.',
+    '"work" is "client" when the project is work for or with an outside customer or partner (delivering for them, selling to them, a partnership), "internal" when it is Springpod\'s own work (its products, operations, hiring, finance, marketing, the business itself), or "unclear" when the items do not show which. "work_why" is one short line on what shows it.',
     '"reasoning" comes first: a line or two on what the items say. "function_why" and "client_why" are one short line each, under 160 characters, saying what shows it, or "" when not given. "client_summary" is one sentence on who the client is to Springpod when it is not in <organisations>, otherwise "".',
     "Plain British English, no em dashes.",
     `<organisations>${orgs.length ? orgs.map((o) => `"${o}"`).join(", ") : "none yet"}</organisations>`,
@@ -141,6 +156,8 @@ export interface SuggestProjectFunctionsResult {
   checked: number;
   functions: number;
   clients: number;
+  /** "Client work" or "Internal" cards */
+  workTypes: number;
   unclear: number;
 }
 
@@ -158,14 +175,18 @@ export async function suggestProjectFunctions(): Promise<SuggestProjectFunctions
       name: projectsTable.name,
       summary: projectsTable.summary,
       needsFunction: sql<boolean>`${projectsTable.function} is null and not ${pendingField("function")}`,
+      // A client card waiting already says client work.
+      needsWorkType: sql<boolean>`${projectsTable.workType} is null and cardinality(${clientNamesSql(PROJECT_ID)}) = 0 and not ${pendingField("work_type")}
+        and not ${pendingField("client")} and not exists (select 1 from ${suggestionsTable} s where s.kind = 'organisation' and s.status = 'pending'
+          and s.payload->'client_of_project_ids' @> to_jsonb(${PROJECT_ID}))`,
       needsClient: sql<boolean>`cardinality(${clientNamesSql(PROJECT_ID)}) = 0 and not ${pendingField("client")}
         and not exists (select 1 from ${suggestionsTable} s where s.kind = 'organisation' and s.status = 'pending'
           and s.payload->'client_of_project_ids' @> to_jsonb(${PROJECT_ID}))`,
     })
     .from(projectsTable)
     .where(and(eq(projectsTable.isFunction, false), eq(projectsTable.archived, false), sql.raw(projectVisible("projects"))));
-  const projects = rows.filter((r) => r.needsFunction || r.needsClient);
-  const result: SuggestProjectFunctionsResult = { checked: projects.length, functions: 0, clients: 0, unclear: 0 };
+  const projects = rows.filter((r) => r.needsFunction || r.needsClient || r.needsWorkType);
+  const result: SuggestProjectFunctionsResult = { checked: projects.length, functions: 0, clients: 0, workTypes: 0, unclear: 0 };
   if (!projects.length) return result;
 
   const orgs = await db
@@ -192,7 +213,7 @@ export async function suggestProjectFunctions(): Promise<SuggestProjectFunctions
         const known = await knownAbout(p);
         if (known) {
           const content = [`<project>`, `${p.name}${p.summary ? `: ${p.summary.slice(0, 500)}` : ""}`, `</project>`, `<known>`, known, `</known>`].join("\n");
-          const r = await haikuJson<{ function?: string; function_why?: string; client?: string; client_why?: string; client_summary?: string }>(sys, content, SCHEMA, 1200, "function_suggester");
+          const r = await haikuJson<{ function?: string; function_why?: string; client?: string; client_why?: string; client_summary?: string; work?: string; work_why?: string }>(sys, content, SCHEMA, 1200, "function_suggester");
           const tidy = (s: string | undefined) => (s ?? "").replace(/\s*—\s*/g, ", ").trim();
           if (p.needsFunction && isBusinessFunction(r.function)) {
             const out = await proposeProjectFunction(meta, p.id, r.function, tidy(r.function_why));
@@ -203,6 +224,10 @@ export async function suggestProjectFunctions(): Promise<SuggestProjectFunctions
             const project = p;
             const out = await oneAtATime(() => proposeProjectClient(meta, project, client, tidy(r.client_why), tidy(r.client_summary)));
             if (out.status === "suggested") (result.clients++, (found = true));
+          } else if (p.needsWorkType && isWorkType(r.work)) {
+            // A client card already says client work; otherwise say which kind of work it is.
+            const out = await proposeProjectWorkType(meta, p.id, r.work, tidy(r.work_why));
+            if (out.status === "suggested") (result.workTypes++, (found = true));
           }
         }
       } catch (err) {

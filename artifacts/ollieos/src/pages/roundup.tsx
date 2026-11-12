@@ -94,6 +94,7 @@ export default function RoundupPage() {
                 <button type="button" className={r ? 'oo-btn oo-btn-outline' : 'oo-btn oo-btn-ink'} disabled={busy !== null} onClick={make} data-testid="button-roundup-make">
                   {busy === 'make' ? 'Making…' : 'Make one now'}
                 </button>
+                <Link href="/digest/friday" className="oo-btn oo-btn-quiet" data-testid="link-roundup-friday">Your Friday update</Link>
               </div>
               <p className="oo-muted" style={{ margin: 0, fontSize: 13, maxWidth: '64ch' }}>
                 The Gmail draft has no recipient and is never sent. It leaves out anything confidential or hidden from AI, marked here with a lock.

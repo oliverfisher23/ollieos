@@ -3,14 +3,16 @@ import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { handle } from "../lib/handle";
 import { getKnowledgeSettings, resolveFactReview, runFactCheck, updateShelfLives } from "../services/factReviews";
-import { listInbox } from "../services/knowledgeInbox";
+import { listInbox, PRESORT_FILTERS } from "../services/knowledgeInbox";
+import { mergeHinted, presortCards } from "../services/presort";
+import { checkStaleFacts, confirmFoundStillTrue } from "../services/staleCheck";
 import { approveSuggestion, bulkDecide, rejectFromSource, rejectSuggestion } from "../services/suggestions";
 import { MERGE_ITEM_TYPES, mergeOptions, mergeSuggestion } from "../services/inboxMerge";
 
 const router: IRouter = Router();
 
 const IdParams = z.object({ id: z.coerce.number().int().positive() });
-const TabQuery = z.object({ tab: z.enum(["suggested", "conflicts", "stale"]).default("suggested"), origin: z.enum(["all", "look_back", "documents"]).default("all") });
+const TabQuery = z.object({ tab: z.enum(["suggested", "conflicts", "stale"]).default("suggested"), origin: z.enum(["all", "look_back", "documents"]).default("all"), hint: z.enum(PRESORT_FILTERS).default("all") });
 const RejectSourceBody = z.object({ sourceRef: z.string().min(1).max(1200) }).strict();
 const ApproveBody = z
   .object({
@@ -45,7 +47,7 @@ router.get(
   "/suggestions",
   handle(async (req, res) => {
     const q = TabQuery.parse(req.query);
-    res.json(await listInbox(q.tab, q.origin));
+    res.json(await listInbox(q.tab, q.origin, q.hint));
   }),
 );
 router.post(
@@ -58,10 +60,18 @@ router.post(
 router.post(
   "/suggestions/bulk",
   handle(async (req, res) => {
-    const b = z.object({ action: z.enum(["approve", "reject"]), ids: z.array(z.number().int().positive()).min(1).max(500) }).strict().parse(req.body ?? {});
-    res.json(await bulkDecide(b.action, b.ids));
+    const b = z.object({ action: z.enum(["approve", "reject", "same"]), ids: z.array(z.number().int().positive()).min(1).max(500) }).strict().parse(req.body ?? {});
+    if (b.action === "same") {
+      // Section 23: each card merged into the approved item its pre-sort hint names.
+      const r = await mergeHinted(b.ids);
+      res.json({ approved: 0, rejected: 0, merged: r.merged, skipped: r.skipped });
+      return;
+    }
+    res.json({ ...(await bulkDecide(b.action, b.ids)), merged: 0 });
   }),
 );
+// Section 23: pre-sort the next cards now rather than waiting for the next check.
+router.post("/suggestions/presort", handle(async (_req, res) => void res.json(await presortCards())));
 router.post(
   "/suggestions/reject-source",
   handle(async (req, res) => void res.json({ rejected: await rejectFromSource(RejectSourceBody.parse(req.body).sourceRef) })),
@@ -75,6 +85,9 @@ router.post(
   }),
 );
 router.post("/suggestions/:id/reject", handle(async (req, res) => void res.json(await rejectSuggestion(IdParams.parse(req.params).id))));
+// Section 23: the stale fact checker, run now; and confirm every fact it found still true.
+router.post("/fact-reviews/check-evidence", handle(async (_req, res) => void res.json(await checkStaleFacts())));
+router.post("/fact-reviews/confirm-found", handle(async (_req, res) => void res.json(await confirmFoundStillTrue())));
 router.post(
   "/fact-reviews/:id/resolve",
   handle(async (req, res) => {

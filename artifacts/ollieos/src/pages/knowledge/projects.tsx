@@ -3,7 +3,7 @@ import { Link, Redirect, useParams } from 'wouter';
 import { PHONE_QUERY, useMedia } from '@/lib/use-media';
 import { PhoneFold } from '@/components/phone-fold';
 import { updateProject, useGetProject, useListGoalOptions, useListProjects, type BusinessFunction, type FunctionProject, type ProjectLifecycle, type ProjectUpdate } from '@workspace/api-client-react';
-import { BUSINESS_FUNCTION_LABELS, LIFECYCLE_LABELS, PROJECT_LIFECYCLES, formatDayMonth, formatDayMonthShort, DOC_LOCATION_LABELS } from '@workspace/shared';
+import { BUSINESS_FUNCTION_LABELS, LIFECYCLE_LABELS, PROJECT_LIFECYCLES, WORK_TYPE_LABELS, formatDayMonth, formatDayMonthShort, DOC_LOCATION_LABELS, type WorkType } from '@workspace/shared';
 import { FUNCTION_OPTIONS } from '@/components/dropdown-options';
 import { ContextPackButton } from '@/components/knowledge/context-pack';
 import { KnowledgeLayout } from '@/components/knowledge/layout';
@@ -118,6 +118,21 @@ export function ProjectPage() {
           </div>
           {!isFn && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', fontSize: 13 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <label htmlFor="project-work" className="oo-muted">Kind of work</label>
+                <Dropdown
+                  id="project-work"
+                  variant="compact"
+                  value={project.workType ?? ''}
+                  onChange={(v) => void save({ workType: (v || null) as WorkType | null }, v ? `Marked ${WORK_TYPE_LABELS[v as WorkType].toLowerCase()}` : clients.length ? 'Counts as client work, since a client is linked' : 'Not sorted now')}
+                  options={[
+                    { value: '', label: clients.length ? 'Client work (a client is linked)' : 'Not sorted yet' },
+                    { value: 'client', label: WORK_TYPE_LABELS.client },
+                    { value: 'internal', label: WORK_TYPE_LABELS.internal },
+                  ]}
+                  testId="select-project-work"
+                />
+              </span>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <label htmlFor="project-function" className="oo-muted">Function</label>
                 <Dropdown

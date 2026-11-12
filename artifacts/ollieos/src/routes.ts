@@ -27,6 +27,7 @@ const load = {
   brief: () => import('@/pages/brief'),
   digest: () => import('@/pages/digest'),
   roundup: () => import('@/pages/roundup'),
+  friday: () => import('@/pages/friday-update'),
   goals: () => import('@/pages/goals'),
   strategy: () => import('@/pages/strategy'),
   contacts: () => import('@/pages/contacts'),
@@ -61,6 +62,7 @@ export const BriefPage = lazyPage(load.brief, 'BriefPage');
 export const NextBriefPage = lazyPage(load.brief, 'NextBriefPage');
 export const DigestPage = lazyPage(load.digest, 'default');
 export const RoundupPage = lazyPage(load.roundup, 'default');
+export const FridayUpdatePage = lazyPage(load.friday, 'default');
 export const GoalsPage = lazyPage(load.goals, 'default');
 export const StrategyPage = lazyPage(load.strategy, 'default');
 export const ContactsPage = lazyPage(load.contacts, 'default');
@@ -92,6 +94,7 @@ function loaderFor(path: string): (() => Promise<unknown>) | null {
   if (under('/meetings')) return load.meetings;
   if (under('/briefs')) return load.brief;
   if (under('/digest/week')) return load.roundup;
+  if (under('/digest/friday')) return load.friday;
   if (under('/digest')) return load.digest;
   if (under('/goals')) return load.goals;
   if (under('/strategy')) return load.strategy;

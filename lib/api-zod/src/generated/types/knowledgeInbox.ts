@@ -7,8 +7,11 @@
  */
 import type { KnowledgeInboxCounts } from './knowledgeInboxCounts';
 import type { KnowledgeInboxItem } from './knowledgeInboxItem';
+import type { KnowledgeInboxPresort } from './knowledgeInboxPresort';
 
 export interface KnowledgeInbox {
   counts: KnowledgeInboxCounts;
   items: KnowledgeInboxItem[];
+  /** Suggested tab: cards waiting by pre-sort hint (keep, reject, same, duplicate, none, unsorted) */
+  presort?: KnowledgeInboxPresort;
 }
