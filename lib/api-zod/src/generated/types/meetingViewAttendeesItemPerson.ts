@@ -5,13 +5,16 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { MeetingViewAttendeesItemPersonOrganisation } from './meetingViewAttendeesItemPersonOrganisation';
 
 /**
- * Set when they are in People
+ * Set when they are in Contacts
  * @nullable
  */
 export type MeetingViewAttendeesItemPerson = {
   id: number;
   name: string;
   slug: string;
+  /** @nullable */
+  organisation: MeetingViewAttendeesItemPersonOrganisation;
 } | null;

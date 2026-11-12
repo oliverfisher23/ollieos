@@ -1,7 +1,8 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
-import { checkConnector, getGetMeetingQueryKey, getListMeetingsQueryKey, linkGranolaNote, useGetMeeting, type MeetingView } from '@workspace/api-client-react';
+import { checkAgenda, checkConnector, getGetMeetingQueryKey, getListMeetingsQueryKey, linkGranolaNote, setLeftoverDropped, useGetMeeting, type AgendaCheck, type MeetingView } from '@workspace/api-client-react';
+import { Check, Circle, CircleDot } from 'lucide-react';
 import { errorMessage, notify } from '@/lib/notify';
 
 const CARD = { background: 'var(--oo-panel)', borderRadius: 'var(--oo-r-panel)', boxShadow: 'var(--oo-shadow-panel)' } as const;
@@ -21,6 +22,29 @@ export function FromGranola({ eventId, endsAt }: { eventId: number; endsAt: stri
   const [link, setLink] = useState('');
   const ended = Date.now() >= new Date(endsAt).getTime();
   const g = q.data?.granola ?? null;
+  const outcome = q.data?.agendaCheck ?? null;
+  const [checking, setChecking] = useState(false);
+  const hasAgenda = !!q.data?.notes?.trim();
+
+  const runCheck = async (quiet: boolean) => {
+    setChecking(true);
+    try {
+      qc.setQueryData(getGetMeetingQueryKey(eventId), await checkAgenda(eventId));
+    } catch (err) {
+      if (!quiet) notify('Could not check the agenda', errorMessage(err));
+    } finally {
+      setChecking(false);
+    }
+  };
+  // A note and an agenda but no check yet (the agenda was written after the note arrived): check once.
+  const tried = useRef(false);
+  useEffect(() => {
+    if (!g || !hasAgenda || outcome || tried.current) return;
+    tried.current = true;
+    void runCheck(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!g, hasAgenda, !!outcome]);
+
   if (!q.data || (!ended && !g)) return null;
 
   const check = async () => {
@@ -110,6 +134,9 @@ export function FromGranola({ eventId, endsAt }: { eventId: number; endsAt: stri
         </div>
       ) : (
         <>
+          {hasAgenda && (outcome || checking) && (
+            <AgendaOutcome eventId={eventId} check={outcome} checking={checking} onAgain={() => runCheck(false)} />
+          )}
           {g.actions.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }} data-testid="list-granola-actions">
               <p style={{ margin: 0, fontSize: 14 }}>{g.actions.length === 1 ? '1 action went to your Inbox' : `${g.actions.length} actions went to your Inbox`}</p>
@@ -163,5 +190,78 @@ function NoteText({ text }: { text: string }) {
         return <p key={i} style={{ margin: 0 }}>{inline(line)}</p>;
       })}
     </>
+  );
+}
+
+const STATUS = {
+  covered: { label: 'Covered', Icon: Check, color: 'var(--oo-ok)' },
+  partly: { label: 'Partly covered', Icon: CircleDot, color: 'var(--oo-ink-soft)' },
+  not_covered: { label: 'Not covered', Icon: Circle, color: 'var(--oo-ink-muted)' },
+} as const;
+
+/**
+ * How the meeting went against Ollie's agenda: each item covered, partly or not, from the Granola
+ * note. What was not covered is offered on the next agenda for this meeting unless he drops it.
+ */
+function AgendaOutcome({ eventId, check, checking, onAgain }: { eventId: number; check: AgendaCheck | null; checking: boolean; onAgain: () => void }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState<number | null>(null);
+  if (!check) return <p className="oo-muted" style={{ margin: 0, fontSize: 14 }} data-testid="state-agenda-checking">Checking the notes against your agenda…</p>;
+  const covered = check.items.filter((i) => i.status === 'covered').length;
+  const open = check.items.filter((i) => i.status !== 'covered' && !i.dropped).length;
+
+  const drop = async (index: number, dropped: boolean) => {
+    setBusy(index);
+    try {
+      await setLeftoverDropped(eventId, index, { dropped });
+      qc.setQueryData(getGetMeetingQueryKey(eventId), (old: MeetingView | undefined) =>
+        old?.agendaCheck ? { ...old, agendaCheck: { ...old.agendaCheck, items: old.agendaCheck.items.map((i) => (i.index === index ? { ...i, dropped } : i)) } } : old,
+      );
+    } catch (err) {
+      notify('That did not save', errorMessage(err));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 14, borderBottom: '1px solid var(--oo-line-soft)' }} data-testid="section-agenda-outcome">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }} data-testid="text-agenda-outcome">
+          Against your agenda: {covered} of {check.items.length} covered
+        </p>
+        {(check.stale || checking) && (
+          <button type="button" className="oo-mini" onClick={onAgain} disabled={checking} data-testid="button-agenda-check-again">
+            {checking ? 'Checking…' : 'Check again'}
+          </button>
+        )}
+      </div>
+      {check.stale && !checking && <p className="oo-muted" style={{ margin: 0, fontSize: 12 }}>The agenda or the note has changed since this was checked.</p>}
+      <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {check.items.map((it) => {
+          const st = STATUS[it.status];
+          return (
+            <li key={it.index} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, lineHeight: 1.5, opacity: it.dropped ? 0.55 : 1 }} data-testid={'item-outcome-' + it.index} data-status={it.status}>
+              <st.Icon size={16} aria-hidden="true" style={{ flex: 'none', marginTop: 3, color: st.color }} />
+              <span style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
+                <span style={{ fontWeight: 500, textDecoration: it.dropped ? 'line-through' : undefined }}>{it.title}</span>
+                <span className="oo-muted"> · {st.label}</span>
+                {it.note && <span style={{ display: 'block', fontSize: 13, color: 'var(--oo-ink-soft)' }}>{it.note}</span>}
+              </span>
+              {it.status !== 'covered' && (
+                <button type="button" className="oo-mini" onClick={() => drop(it.index, !it.dropped)} disabled={busy === it.index} data-testid={'button-outcome-drop-' + it.index}>
+                  {it.dropped ? 'Carry forward' : 'Drop'}
+                </button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {open > 0 && (
+        <p className="oo-muted" style={{ margin: 0, fontSize: 12 }} data-testid="text-outcome-carry">
+          {open === 1 ? 'The item not fully covered' : `The ${open} items not fully covered`} will be offered on the next agenda for this meeting.
+        </p>
+      )}
+    </div>
   );
 }
