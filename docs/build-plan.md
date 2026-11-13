@@ -1744,3 +1744,140 @@ After section 27 went live, three of Ollie's six Waiting on tasks still had nobo
 - At `GET /tasks/review?days=7`, and to Claude as the `get_task_review` tool. `list_tasks` now gives each task's `drop_reason`.
 - **Checked by** `test/section-28.test.ts` (7 tests).
 - **Not included:** a page for the review numbers in the app; guessing a due date for tasks added by hand; nicknames worked out automatically.
+
+## 30. Simpler every hour, and the first steps to running itself (asked for 13th November 2026, not built yet)
+
+Ollie asked for an audit of the whole app: what he will use most, what does not earn its place, what is missing, how to make it simple to use every hour, how to raise adoption, and how to move towards a company that runs itself. The audit read the code and his live numbers through the connector (`get_task_review`, 14 days, which is everything since go-live on 10th November). This section is the plan that came out of it. Nothing here is built.
+
+**What the numbers said.** 127 tasks made (58 Slack, 25 Cowork sessions, 17 email, 16 meetings, 11 typed by Ollie); 65 done, 27 dropped, 33 open. Of the 33 open, 4 have a project, 6 a person and 14 a due date. No dropped item has a reason. Of the 11 tasks Ollie typed himself, 1 is done. The three goals have no statement and no project linked.
+
+**What this plan does not redo.** Sections 26, 27 and 29 went live on 12th November, so most of the window above is from before them. Quick Slack replies becoming tasks, Cowork questions becoming tasks and the people gaps are already addressed there; the counts for "quick replies left on Messages" and "added to tasks you already had" are still 0 because the features are a day old. Part A below measures them before anything in the readers is changed again.
+
+**Decided by Ollie, 13th November.** Goals, Strategy, Map, Products, Decisions and Notes all stay. They are empty because there has been no time to fill them, not because they are not needed. Part G is about filling them.
+
+### Build order
+
+| Part | What | Size | Needs AI |
+|---|---|---|---|
+| A | Measure sections 26, 27 and 29 after a week | Small | No |
+| B | Home as one queue | Medium | No |
+| C | Navigation: the daily five first, and Messages on the phone bar | Small | No |
+| D | Command bar | Medium | No |
+| E | A day plan that proposes itself | Medium | No |
+| F | Nudges on Slack | Medium | No |
+| G | Filling Goals, Strategy, Products and Decisions | Medium | Through Claude |
+| H | Filled in for you: project, person, due date and drop reason | Medium | No |
+| I | Autonomy levels | Large | Uses existing agents |
+
+B, C and D are one release: they change what every hour looks like and touch no data. E and F are the second. G can run alongside either, because most of it is Claude working through the connector. H and I come last, since I depends on a week or more of scorecard numbers.
+
+### Part A: Measure first
+
+- On or after 19th November, run `get_task_review` for 7 days and compare with the numbers above: Slack tasks done within 30 minutes (18 of 58), session tasks dropped (13 of 25), open tasks with a person, project and due date, and the two counters that read 0.
+- **A page for it.** Section 29 left out a page for the review numbers. Add one line per measure on Settings, Agents ("Tasks this week"), from `GET /tasks/review?days=7`, so the check does not need Claude.
+- Only if quick replies are still becoming tasks: build the hold section 27 left out (a Slack item waits 20 minutes to see whether Ollie replies first).
+
+### Part B: Home as one queue
+
+Home now shows, on desktop: the Today strip, the day plan, the week check, the busy-day card, the clear-out card, Do next, Inbox, Waiting on, Promises, Ideas and Done, under a status line with up to eight links. Everything is there and nothing leads.
+
+- **Above the fold, in this order:** the next meeting (one line, with Prep or Not prepped), Do next, To answer (count, opens Messages), Triage (count, opens Triage). The add box stays at the top on desktop.
+- **Below, behind "More today" (closed by default, remembered):** the rest of the Today strip, the day plan once it is set, Waiting on, Promises, Ideas, Done.
+- **Shown only when they have something to say:** the week check, the busy-day card and the clear-out card become one line each under the queue, not cards.
+- **Status line:** last sweep, connector warnings and access requests only. "N to review" moves into the queue as a fourth row when the Knowledge Inbox has cards. Today's digest, Weekly round-up and Friday update become one link, **Updates**, to a page with three tabs (`/digest`, `/digest/week`, `/digest/friday` keep working).
+- **Files:** `pages/home.tsx`, `components/time-and-meetings.tsx`, `pages/digest.tsx`, `pages/roundup.tsx`, `pages/friday-update.tsx`. No API change: `GET /home` already carries all of it.
+- **Checked by:** a browser pass at desktop and phone width, and the existing Home tests.
+
+### Part C: Navigation
+
+- **Desktop rail.** Same eight pages, in two groups with the separator between them: Home, Tasks, Messages, Meetings, Contacts; then Goals, Strategy, Knowledge. Nothing is removed.
+- **Phone bar.** Home, Tasks, add, **Messages**, More. Contacts moves into More. Slack is the largest source of work and Messages is where it is answered, and it is currently two taps away. The Messages tab carries the to-answer badge.
+- **Settings.** Connectors, AI access, Email, Knowledge, Noise rules and Planning stay in the list. Agents, Sweep, Look back, Imports and Export go under a second heading, **Under the bonnet**.
+- **Files:** `components/main-nav.tsx` (`RAIL`, `MORE`, the tab bar), `pages/settings.tsx` (`SECTIONS`).
+
+### Part D: Command bar
+
+There is no way to get anywhere, or find anything, from the keyboard; search exists only in the Knowledge sidebar.
+
+- **Cmd+K (Ctrl+K), and a search button on the phone header.** One box that:
+  - adds a task (the add box's own parser, so "Chase Sam Wednesday high" works);
+  - searches tasks, people, organisations, projects, decisions, notes and documents (`GET /knowledge/search`, plus tasks by title);
+  - jumps to any page, including every Settings section;
+  - hands the words to Ask ("Ask OllieOS: …").
+- **Single keys on Home and Tasks:** `g` then `t`, `m`, `c` to go to Tasks, Messages, Contacts; `/` opens the bar. Never while typing in a field.
+- **Built with** `components/ui/command.tsx`, which is already in the app and unused. New `components/command-bar.tsx`, mounted in `App.tsx`.
+- **New API:** `GET /tasks/search?q=` (title and notes, open first, 8 results).
+
+### Part E: A day plan that proposes itself
+
+The day plan on Home works, but Ollie has to pick the tasks and give each a length. On 12th November seven tasks were due the next day with three in Now and two high-priority ones overdue in Backlog.
+
+- **`POST /plan/suggest`**, no AI. Picks up to five in this order: overdue promises, overdue tasks, due today, Now by priority, then anything a meeting today needs. Lengths come from the task's own length when set, else 30 minutes. It fits them between today's meetings with the existing `refitPlan`.
+- **On Home:** before a plan is set, the card says "Five for today" with the list, **Use this**, and Swap on each row. Use this saves the plan and moves anything in Backlog to Now.
+- **Built on the first check of the day**, so it is waiting at 07:40 with the digest.
+- **Files:** `services/planning.ts`, `routes/plan.ts`, `components/day-plan.tsx`.
+- **Checked by** tests on the order, on a day with no free time, and on tasks hidden from AI (they may be planned; nothing is sent to a model).
+
+### Part F: Nudges on Slack
+
+OllieOS sends nothing to Ollie: no push, no email, no Slack message. It only works when he opens it.
+
+- **Three direct messages to Ollie himself, from OllieOS:**
+  - **Morning** (after the digest): the five for today, meetings not prepared, and what is waiting to be answered.
+  - **Before a meeting** (15 minutes ahead, work meetings with a prep page): one line on why it matters and a link to the prep page.
+  - **End of day** (working hours end): what was done, what is still due today, and Waiting on tasks ready to chase.
+- Each is a switch in Settings, Planning, all off until turned on. Nothing is sent on a day with nothing to say, at weekends, or about anything hidden from AI.
+- **Files:** a new `services/nudges.ts`, called from `timerTick` in `services/connectors/index.ts`; `app_settings` keys for the switches and for "sent today".
+- **Not included:** replying to the message to act ("done", "tomorrow"). That needs OllieOS to read its own conversation with Ollie and is a section of its own.
+
+### Part G: Filling Goals, Strategy, Products and Decisions
+
+These pages are needed and empty. Typing into six pages is why. Most of it already exists in Drive, Notion, Granola and the KPI Portal, and Claude can read those.
+
+- **Two new connector tools**, both as suggestions in the Knowledge Inbox like `propose_product`:
+  - `propose_goal`: a statement, a target, a period and the projects that serve it, for a new goal or an existing one.
+  - `propose_strategy_section`: a heading and text for the strategy page, with the source.
+- **A first pass by Claude**, from a Cowork session, reading the documents Ollie names: statements and targets for the three goals; which existing projects serve each; strategy sections; one `propose_product` per product; and decisions from older meetings by running the Granola look back that already exists.
+- **Goal chips on projects.** A project with no goal offers the goals as one-tap chips on its page and on Goals, the same pattern as project chips on tasks.
+- **Open questions.** 24 open questions sit on saved sessions. A **Loose ends** list on Sessions shows them all in one place with Add to Inbox and Dismiss.
+- **A "Still to set up" card on Knowledge** lists what is empty (goals with no statement, projects with no goal, no strategy, no products) with a link to each, and goes when they are filled.
+- **Map and Notes** need nothing: the map draws itself from the rest, and notes build up from voice and sessions.
+
+### Part H: Filled in for you
+
+Suggestions are offered as chips and mostly not pressed: 29 of 33 open tasks have no project.
+
+- **Project, person and due date are set, not offered,** when there is exactly one strong suggestion: one project from the same thread, meeting or session; one person the name can mean; a due date the message states or clearly implies. The field shows "set by OllieOS" with Undo, and an undone value is never set again. With two or more candidates the chips stay as they are.
+- **Drop reason guessed.** After a drop, the toast shows the likeliest reason already chosen (from the sender, the reader's own flags and what Ollie did with similar items) with Change. No reason is saved without the toast being seen, so the Reader coach is not taught from guesses Ollie never saw.
+- **Files:** `services/projectSuggest.ts`, `services/taskPeople.ts`, `connectors/capture.ts`, `components/drop-reason.tsx`.
+
+### Part I: Autonomy levels
+
+Today every agent proposes and Ollie approves. The Agents page already records how often he kept what each one did. This part lets an agent act by itself once it has earned it.
+
+- **Three levels for each agent that proposes something:** **Suggest** (as now), **Do and tell me**, **Do quietly**. Set on Settings, Agents. Everything starts at Suggest.
+- **Earned, not chosen blind.** A level above Suggest can only be turned on when the agent's scorecard shows 20 or more decisions and 90% or more kept. If the kept rate falls below 80% over the last 20, it goes back to Suggest by itself and says so in the digest.
+- **Only where it can be undone.** The first four:
+  - **Probably noise:** items it is sure of go straight to Noise (kept 90 days, as now).
+  - **Looks done:** the task is closed, with Not done to reopen it.
+  - **Duplicate check:** strong matches are merged, with Restore.
+  - **Knowledge Inbox pre-sort:** cards marked "same as one you have" are merged into it. Nothing new becomes knowledge without Ollie.
+- **"What OllieOS did by itself"**, a list on Updates and a line in the digest and the morning nudge, each row with Undo. Do quietly leaves out the line but keeps the list.
+- **Never automatic:** anything sent to another person, anything hidden from AI, approving a new fact, decision, rule, person or organisation, and deleting.
+- **Schema:** `agent_levels` (agent key, level, set at, dropped back at) and `auto_actions` (agent, what, ref, at, undone at). **Files:** `lib/agents.ts`, `services/agents.ts`, `services/scorecards.ts`, and the four agents' own services.
+- **Checked by** tests on the gate, the drop back to Suggest, Undo on each of the four, and hidden items never being acted on.
+
+### Later, not in this plan
+
+- **Work packs that write the first draft.** For the tasks Ollie types himself ("Build the ADS demo"), the pack would start a Claude session with the context and bring back a draft, not a summary. Worth doing once Part G has given it goals and products to work from.
+- **Ranking by goal.** With projects linked to goals, Do next and the day plan can weigh a task by the goal it serves, and the digest can say what served no goal.
+- **Colleagues.** A view for each colleague, so actions from meetings land with their owner and are chased without Ollie. This changes the single-user model and the confidentiality rules, and needs its own PRD.
+- **Push notifications** on the phone. The app has a manifest but no service worker; Slack reaches the phone already.
+
+### Questions for section 30
+
+1. **Slack messages on a timer (Part F).** Section 27 agreed that the Slack direct message is "the one thing OllieOS sends", only when Ollie presses Send, and never by AI or on a timer. Part F sends on a timer, but only to Ollie himself. Proposed: allow it, with the rule reworded to "never to anyone else on a timer".
+2. **Contacts off the phone bar (Part C).** Proposed: yes, Messages takes its place and Contacts is first in More.
+3. **Backlog to Now on Use this (Part E).** Proposed: yes, so Now always matches the day's plan.
+4. **The 90% and 20 bar (Part I).** Proposed as written; both numbers would be settings in code, not on a page.
+5. **Which documents hold the current strategy and goals (Part G).** Needed before the first pass can run.
