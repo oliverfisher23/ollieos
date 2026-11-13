@@ -1745,9 +1745,9 @@ After section 27 went live, three of Ollie's six Waiting on tasks still had nobo
 - **Checked by** `test/section-28.test.ts` (7 tests).
 - **Not included:** a page for the review numbers in the app; guessing a due date for tasks added by hand; nicknames worked out automatically.
 
-## 30. Simpler every hour, and the first steps to running itself (asked for 13th November 2026; Parts B, C, D and E built 13th November 2026)
+## 30. Simpler every hour, and the first steps to running itself (asked for 13th November 2026; Parts B, C, D, E and F built 13th November 2026)
 
-Ollie asked for an audit of the whole app: what he will use most, what does not earn its place, what is missing, how to make it simple to use every hour, how to raise adoption, and how to move towards a company that runs itself. The audit read the code and his live numbers through the connector (`get_task_review`, 14 days, which is everything since go-live on 10th November). This section is the plan that came out of it. Parts B, C, D and E are built (see the two "Built" headings below); the rest is not.
+Ollie asked for an audit of the whole app: what he will use most, what does not earn its place, what is missing, how to make it simple to use every hour, how to raise adoption, and how to move towards a company that runs itself. The audit read the code and his live numbers through the connector (`get_task_review`, 14 days, which is everything since go-live on 10th November). This section is the plan that came out of it. Parts B, C, D, E and F are built (see the "Built" headings below); the rest is not.
 
 **What the numbers said.** 127 tasks made (58 Slack, 25 Cowork sessions, 17 email, 16 meetings, 11 typed by Ollie); 65 done, 27 dropped, 33 open. Of the 33 open, 4 have a project, 6 a person and 14 a due date. No dropped item has a reason. Of the 11 tasks Ollie typed himself, 1 is done. The three goals have no statement and no project linked.
 
@@ -1891,9 +1891,22 @@ The day plan already suggested up to five tasks with a reason each (`suggestFor`
 - **Different from the plan:** no `POST /plan/suggest`, because `GET /plan` already returns the suggestions; no API changed. Lengths are 30 minutes for every suggestion, since tasks hold no length of their own. Nothing is built ahead at 07:40: the suggestions are worked out when Home asks, in one query.
 - **Checked by** `test/tasks-part-i.test.ts` (17 tests, one new: promises first, Backlog to Now, Waiting on left alone, a task moved back to Backlog not pulled in again), the full API suite (509 of 509 passed), both typechecks, the production build (first load 146.0 KB against 152), and a browser pass at desktop and phone width with stand-in data: the proposed plan, taking one out, Use this plan, the line, and See the plan.
 
-### Part F: stopped before building (13th November 2026)
+### Built: Part F (13th November 2026)
 
-OllieOS's Slack connection is Ollie's own user token (`.agents/memory/slack-gmail-reading.md`), so a message from OllieOS to Ollie is a message from Ollie to himself. Slack does not notify you of your own messages, so the three nudges would arrive silently in his notes-to-self conversation, and the Slack reader would then read them back as messages. Not built until Ollie chooses how they should reach him: see question 6.
+**Why it is not the Slack connection.** OllieOS's Slack connection is Ollie's own user token (`.agents/memory/slack-gmail-reading.md`), so a message from OllieOS to Ollie would be a message from Ollie to himself, and Slack does not notify you of your own messages. Ollie chose a small Slack app for OllieOS instead (question 6): messages come from "OllieOS" and notify like any direct message.
+
+- **The app.** Its bot token is the secret `SLACK_BOT_TOKEN`. It needs one permission, `chat:write`, so it can message Ollie and read nothing. Ollie's Slack id is asked of the existing Slack connection once (`slackMe`) and kept. The Slack reader already leaves out messages from apps, so nudges never come back as tasks.
+- **Three messages**, each a switch on Settings, Planning, all off until turned on (`services/nudges.ts`, no AI):
+  - **Morning**, from 07:40 (the digest time) and not after 11:00: today's plan or the tasks OllieOS proposes, meetings still to come and how many are not prepared, and messages to answer.
+  - **Before a meeting**, 5 to 16 minutes ahead: work meetings with a prep page that AI may see, with the time, a link to the prep page and whether it has been opened.
+  - **End of day**, for 90 minutes from the end of working hours: tasks done today, tasks due today or overdue, and Waiting on tasks ready for a chase, as counts.
+- **Rules in code.** Only to Ollie's own Slack id. Weekdays only. Each goes once a day (once per meeting). A morning or evening with nothing to say sends nothing and is not looked at again that day. Tasks that are confidential or hidden from AI are counted ("and 1 more"), never named. A message is marked as sent only after Slack accepts it, so a failure is tried again on the next minute.
+- **Links.** The app's own address is kept from the browser when the switches are saved or a test is sent, and used for links in the messages; before that, messages carry no links.
+- **Send a test** on Settings, Planning sends one message now and says what went wrong if Slack refuses. Until the token is in place the switches are locked and the page lists the three steps to make the app.
+- **Built.** `services/nudges.ts`; `nudgeTickSafely` runs each minute from the connector timer, before the connector check and whether or not one is due; `GET` and `PUT /settings/nudges`, `POST /settings/nudges/test`; `app_settings` keys `nudges` and `nudges_sent` (no schema change); the Nudges section in `pages/settings-planning.tsx`.
+- **Checked by** `test/nudges.test.ts` (7 tests: off by default and nothing at weekends; the morning message once, to Ollie only, with a hidden task counted and not named; nothing on an empty morning or after 11:00; one message for a work meeting and none for personal or unknown ones; the end of day with counts only; a retry after Slack refuses; the settings routes and the test message). The full API suite: 516 of 516 passed. Both typechecks and the build (first load 146.1 KB against 152). The Settings section in a browser with stand-in data, with and without the app.
+- **Not checked:** a real message through Slack. There is no Slack app or token in the build environment, so the call to Slack itself (`chat.postMessage` with Ollie's user id as the channel) has only run against a stand-in. Send a test is the first real check.
+- **Not included:** replying to a nudge to act on it ("done", "tomorrow"); that needs the app to read its conversation with Ollie and is a section of its own.
 
 ### Later, not in this plan
 
@@ -1909,4 +1922,4 @@ OllieOS's Slack connection is Ollie's own user token (`.agents/memory/slack-gmai
 3. **Backlog to Now on Use this (Part E).** **Agreed 13th November:** yes, so Now always matches the day's plan.
 4. **The 90% and 20 bar (Part I).** Proposed as written; both numbers would be settings in code, not on a page. Not answered yet.
 5. **Which documents hold the current strategy and goals (Part G).** Needed before the first pass can run. Not answered yet.
-6. **How nudges reach Ollie (Part F).** A Slack message through the current connection would not notify him (see "Part F: stopped before building"). Options: (a) a small Slack app for OllieOS with its own bot token, so messages come from "OllieOS", notify like any direct message, and can later be replied to; it needs creating in the Springpod workspace and one secret in Replit. (b) Phone and desktop push notifications from the installed app: no Slack involved, but needs a service worker and notification permission on each device. Proposed: (a). Not answered yet.
+6. **How nudges reach Ollie (Part F).** A Slack message through the current connection would not notify him, because it is his own account. **Agreed 13th November:** a small Slack app for OllieOS with its own bot token.

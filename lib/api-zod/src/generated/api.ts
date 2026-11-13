@@ -2683,6 +2683,42 @@ export const UpdateWorkingHoursResponse = zod.object({
 
 
 /**
+ * @summary Which Slack nudges are on, and whether the OllieOS Slack app is connected
+ */
+export const GetNudgeSettingsResponse = zod.object({
+  "morning": zod.boolean().describe('Weekday mornings after the digest: today\'s plan, meetings not prepared, messages to answer'),
+  "meeting": zod.boolean().describe('15 minutes before a work meeting with a prep page'),
+  "evening": zod.boolean().describe('When the working day ends: done, still due, ready to chase'),
+  "appConnected": zod.boolean().describe('True when the OllieOS Slack app\'s token (SLACK_BOT_TOKEN) is set')
+})
+
+
+/**
+ * @summary Turn nudges on or off
+ */
+export const UpdateNudgeSettingsBody = zod.object({
+  "morning": zod.boolean().optional(),
+  "meeting": zod.boolean().optional(),
+  "evening": zod.boolean().optional()
+})
+
+export const UpdateNudgeSettingsResponse = zod.object({
+  "morning": zod.boolean().describe('Weekday mornings after the digest: today\'s plan, meetings not prepared, messages to answer'),
+  "meeting": zod.boolean().describe('15 minutes before a work meeting with a prep page'),
+  "evening": zod.boolean().describe('When the working day ends: done, still due, ready to chase'),
+  "appConnected": zod.boolean().describe('True when the OllieOS Slack app\'s token (SLACK_BOT_TOKEN) is set')
+})
+
+
+/**
+ * @summary Send a test message to Ollie from the OllieOS Slack app
+ */
+export const SendTestNudgeResponse = zod.object({
+  "ok": zod.boolean()
+})
+
+
+/**
  * @summary Backlog tasks untouched for 30 days, and whether to offer the clear-out this week
  */
 export const GetClearOutResponse = zod.object({

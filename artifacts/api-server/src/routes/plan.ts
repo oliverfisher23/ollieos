@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { z } from "zod";
 import { handle } from "../lib/handle";
 import { keepInBacklog } from "../services/tasks";
+import { getNudgeSettings, sendTestNudge, setNudgeSettings } from "../services/nudges";
 import { PLAN_LENGTHS, dismissClearOut, getClearOut, getPlan, getWorkingHours, refitPlan, savePlan, setWorkingHours } from "../services/planning";
 
 /** Plan my day, the Backlog clear-out and working hours (build plan 14, Part I). */
@@ -36,6 +37,13 @@ router.post("/plan/fit", handle(async (_req, res) => void res.json(await refitPl
 
 router.get("/settings/working-hours", handle(async (_req, res) => void res.json(await getWorkingHours())));
 router.put("/settings/working-hours", handle(async (req, res) => void res.json(await setWorkingHours(HoursBody.parse(req.body)))));
+
+/* Section 30, Part F: nudges on Slack. The address the browser used is kept for links in the messages. */
+const NudgeBody = z.object({ morning: z.boolean().optional(), meeting: z.boolean().optional(), evening: z.boolean().optional() }).strict();
+const originOf = (req: { protocol: string; get(name: string): string | undefined }) => (req.get("host") ? `${req.protocol}://${req.get("host")}` : undefined);
+router.get("/settings/nudges", handle(async (_req, res) => void res.json(await getNudgeSettings())));
+router.put("/settings/nudges", handle(async (req, res) => void res.json(await setNudgeSettings(NudgeBody.parse(req.body), originOf(req)))));
+router.post("/settings/nudges/test", handle(async (req, res) => void res.json(await sendTestNudge(originOf(req)))));
 
 router.get("/backlog/clear-out", handle(async (_req, res) => void res.json(await getClearOut())));
 router.post("/backlog/clear-out/dismiss", handle(async (_req, res) => void res.json(await dismissClearOut())));

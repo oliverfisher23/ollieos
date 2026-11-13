@@ -599,6 +599,23 @@ export interface WorkingHours {
   end: string;
 }
 
+export interface NudgeSettings {
+  /** Weekday mornings after the digest: today's plan, meetings not prepared, messages to answer */
+  morning: boolean;
+  /** 15 minutes before a work meeting with a prep page */
+  meeting: boolean;
+  /** When the working day ends: done, still due, ready to chase */
+  evening: boolean;
+  /** True when the OllieOS Slack app's token (SLACK_BOT_TOKEN) is set */
+  appConnected: boolean;
+}
+
+export interface NudgeSettingsInput {
+  morning?: boolean;
+  meeting?: boolean;
+  evening?: boolean;
+}
+
 export interface PlanItemInput {
   taskId: number;
   /** 15, 30, 60 or 120 */
@@ -6780,6 +6797,10 @@ weekStart?: string;
 
 export type GetWeeklyUpdateParams = {
 weekStart?: string;
+};
+
+export type SendTestNudge200 = {
+  ok: boolean;
 };
 
 export type ListTestCasesParams = {

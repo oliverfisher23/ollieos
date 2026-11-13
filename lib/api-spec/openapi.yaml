@@ -725,6 +725,76 @@ paths:
         "403":
           $ref: "#/components/responses/NotAuthorised"
 
+  /settings/nudges:
+    get:
+      operationId: getNudgeSettings
+      tags: [plan]
+      summary: Which Slack nudges are on, and whether the OllieOS Slack app is connected
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NudgeSettings"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+    put:
+      operationId: updateNudgeSettings
+      tags: [plan]
+      summary: Turn nudges on or off
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NudgeSettingsInput"
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NudgeSettings"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /settings/nudges/test:
+    post:
+      operationId: sendTestNudge
+      tags: [plan]
+      summary: Send a test message to Ollie from the OllieOS Slack app
+      responses:
+        "200":
+          description: Sent
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+        "400":
+          description: The Slack app is not connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "502":
+          description: Slack refused or could not be reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /backlog/clear-out:
     get:
       operationId: getClearOut
@@ -6280,6 +6350,22 @@ components:
       properties:
         start: { type: string, description: "HH:MM, London time" }
         end: { type: string, description: "HH:MM, London time" }
+
+    NudgeSettings:
+      type: object
+      required: [morning, meeting, evening, appConnected]
+      properties:
+        morning: { type: boolean, description: "Weekday mornings after the digest: today's plan, meetings not prepared, messages to answer" }
+        meeting: { type: boolean, description: "15 minutes before a work meeting with a prep page" }
+        evening: { type: boolean, description: "When the working day ends: done, still due, ready to chase" }
+        appConnected: { type: boolean, description: "True when the OllieOS Slack app's token (SLACK_BOT_TOKEN) is set" }
+
+    NudgeSettingsInput:
+      type: object
+      properties:
+        morning: { type: boolean }
+        meeting: { type: boolean }
+        evening: { type: boolean }
 
     PlanItemInput:
       type: object
