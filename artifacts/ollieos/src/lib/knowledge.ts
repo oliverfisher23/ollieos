@@ -63,6 +63,13 @@ export function entityPath(type: string, slug: string | null | undefined, id: nu
   return null;
 }
 
+/** Where a search result opens: a fact opens what it is about, a document opens in the Library. */
+export function searchHitPath(h: { type: string; id: number; slug: string | null; parent: { type: string; slug?: string | null; id: number } | null }): string | null {
+  if (h.type === 'document') return '/knowledge/library?document=' + h.id;
+  if (h.type === 'fact') return h.parent ? entityPath(h.parent.type, h.parent.slug, h.parent.id) : null;
+  return entityPath(h.type, h.slug, h.id);
+}
+
 /** "task:12" to an app path; facts open their parent so they have no path of their own here. */
 export function refPath(ref: string | null): string | null {
   if (!ref) return null;

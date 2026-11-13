@@ -74,52 +74,55 @@ export function WhereTimeWent() {
   );
 }
 
-/** Part R: shown on Home when what is due this week is more than fits. */
-export function WeekCheckCard({ phone = false }: { phone?: boolean }) {
+/**
+ * Home, when the week has more due than free time (Part R). Section 30, Part B: one line under the
+ * queue, with what could move behind it, and nothing at all when the week fits.
+ */
+export function WeekCheckLine() {
   const q = useGetWeekCheck({ query: { staleTime: 60_000 } });
   const w = q.data;
   if (!w || !w.over) return null;
+  const line = (
+    <span data-testid="text-week-over">
+      This week is over by about {h(w.overBy)}: {h(w.dueHours)} due against {h(w.freeHours)} free outside meetings.
+    </span>
+  );
+  if (!w.movable.length) return <li className="oo-notice" data-testid="card-week-check">{line}</li>;
   return (
-    <section aria-labelledby="h-week" className="oo-dark-card oo-white-card" style={{ width: '100%', gap: 10, ...(phone ? { padding: 16 } : {}) }} data-testid="card-week-check">
-      <h2 id="h-week" className="oo-label">This week</h2>
-      <p style={{ margin: 0, fontSize: 15 }} data-testid="text-week-over">
-        Over by about {h(w.overBy)}: {h(w.dueHours)} due against {h(w.freeHours)} free outside meetings.
-      </p>
-      {w.movable.length > 0 && (
-        <>
-          <span className="oo-soft" style={{ fontSize: 13 }}>These could move, if you choose:</span>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, lineHeight: 1.6 }}>
-            {w.movable.map((t) => (
-              <li key={t.id}><Link href={'/tasks?task=' + t.id} style={{ color: 'inherit' }}>{t.title}</Link>{t.dueDate && <span className="oo-muted"> · {formatShort(t.dueDate)}</span>}</li>
-            ))}
-          </ul>
-        </>
-      )}
-    </section>
+    <li className="oo-notice" data-testid="card-week-check">
+      <details>
+        <summary>{line} <span className="oo-notice-more">What could move</span></summary>
+        <ul>
+          {w.movable.map((t) => (
+            <li key={t.id}><Link href={'/tasks?task=' + t.id}>{t.title}</Link>{t.dueDate && <span className="oo-t3"> · {formatShort(t.dueDate)}</span>}</li>
+          ))}
+        </ul>
+      </details>
+    </li>
   );
 }
 
-/** Section 27: a day in the next week with too much due and little of it in Now, and anything overdue. */
-export function BusyDayCard({ phone = false }: { phone?: boolean }) {
+/** Section 27: a day in the next week with too much due and little of it in Now, and anything overdue. One line each on Home. */
+export function BusyDayLines() {
   const q = useGetTaskSummary(undefined, { query: { queryKey: getGetTaskSummaryQueryKey(), staleTime: 30_000 } });
   const load = q.data?.load;
   if (!load || (!load.busiest && !load.overdue)) return null;
   const b = load.busiest;
   return (
-    <section aria-labelledby="h-busy" className="oo-dark-card oo-white-card" style={{ width: '100%', gap: 8, ...(phone ? { padding: 16 } : {}) }} data-testid="card-busy-day">
-      <h2 id="h-busy" className="oo-label">Coming up</h2>
-      {b && (
-        <p style={{ margin: 0, fontSize: 15 }} data-testid="text-busy-day">
-          {b.due} tasks due {b.date === todayLondon() ? 'today' : formatShort(b.date)}, {b.inNow === 0 ? 'none' : `only ${b.inNow}`} in Now.{' '}
-          <Link href={'/tasks?due=' + b.date} style={{ color: 'inherit', textDecoration: 'underline' }}>See them</Link>
-        </p>
-      )}
+    <>
       {load.overdue > 0 && (
-        <p style={{ margin: 0, fontSize: 15 }} data-testid="text-overdue">
-          {load.overdue} overdue. <Link href="/tasks?due=overdue" style={{ color: 'inherit', textDecoration: 'underline' }}>See {load.overdue === 1 ? 'it' : 'them'}</Link>
-        </p>
+        <li className="oo-notice" data-testid="text-overdue">
+          <span>{load.overdue} overdue.</span>
+          <Link href="/tasks?due=overdue">See {load.overdue === 1 ? 'it' : 'them'}</Link>
+        </li>
       )}
-    </section>
+      {b && (
+        <li className="oo-notice" data-testid="text-busy-day">
+          <span>{b.due} tasks due {b.date === todayLondon() ? 'today' : formatShort(b.date)}, {b.inNow === 0 ? 'none' : `only ${b.inNow}`} in Now.</span>
+          <Link href={'/tasks?due=' + b.date}>See them</Link>
+        </li>
+      )}
+    </>
   );
 }
 

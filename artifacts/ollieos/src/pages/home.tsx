@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { TasksPage } from '@/routes';
-import { BusyDayCard, WeekCheckCard } from '@/components/time-and-meetings';
+import { BusyDayLines, WeekCheckLine } from '@/components/time-and-meetings';
 import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   dismissClearOut,
   getGetClearOutQueryKey,
   getGetHomeQueryKey,
+  getGetMessageCountsQueryKey,
   useGetClearOut,
   useGetHome,
+  useGetMessageCounts,
   type CalendarEvent,
   type DoNextItem,
   type HomeSummary,
@@ -20,7 +22,8 @@ import { DayPlanCard } from '@/components/day-plan';
 import { errorMessage, notify } from '@/lib/notify';
 import { reportApiError } from '@/lib/forbidden';
 import { Avatar, PriorityPill, Skel } from '@/components/bits';
-import { IconArrowOut, IconCheck, IconLock, IconSettings } from '@/components/icons';
+import { IconArrowOut, IconCheck, IconDown, IconLock, IconRight, IconSearch, IconSettings } from '@/components/icons';
+import { openCommandBar } from '@/lib/command-bar';
 import { requestItemName, useAccessActions, whenLabel } from '@/lib/access';
 import { useSession } from '@/lib/auth-context';
 import { useTaskActions } from '@/lib/task-actions';
@@ -143,30 +146,8 @@ export default function HomePage() {
         </>
       )}
       <span aria-hidden="true" className="oo-t4">·</span>
-      <span data-testid="text-inbox-new">{home.data.inbox.count} new</span>
-      {home.data.knowledgeInbox.total > 0 && (
-        <>
-          <span aria-hidden="true" className="oo-t4">·</span>
-          <Link href="/knowledge/inbox" style={{ color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-knowledge-review">
-            {home.data.knowledgeInbox.total} to review
-          </Link>
-        </>
-      )}
-      {home.data.digestDate && (
-        <>
-          <span aria-hidden="true" className="oo-t4">·</span>
-          <Link href="/digest" style={{ color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-digest">
-            Today's digest
-          </Link>
-        </>
-      )}
-      <span aria-hidden="true" className="oo-t4">·</span>
-      <Link href="/digest/week" className="oo-tap" style={{ color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-roundup">
-        Weekly round-up
-      </Link>
-      <span aria-hidden="true" className="oo-t4">·</span>
-      <Link href="/digest/friday" style={{ color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-friday-update">
-        Friday update
+      <Link href="/digest" style={{ color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-updates">
+        Updates
       </Link>
       <AccessStatus access={home.data.access} />
     </>
@@ -181,9 +162,14 @@ export default function HomePage() {
         <h1 style={{ margin: 0, fontSize: 28, fontWeight: 500 }} data-testid="text-greeting">{greeting(now)}, {name}</h1>
         <p role="status" className="oo-t2" style={{ margin: 0, fontSize: 13, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>{statusLine}</p>
       </div>
-      <Link href="/settings" aria-label="Settings" className="oo-btn oo-btn-ghost" style={{ width: 44, padding: 0, flex: 'none' }} data-testid="link-settings-phone">
-        <IconSettings />
-      </Link>
+      <span style={{ display: 'flex', gap: 8, flex: 'none' }}>
+        <button type="button" aria-label="Search, add or go to a page" className="oo-btn oo-btn-ghost" style={{ width: 44, padding: 0 }} onClick={openCommandBar} data-testid="button-search-phone">
+          <IconSearch size={18} />
+        </button>
+        <Link href="/settings" aria-label="Settings" className="oo-btn oo-btn-ghost" style={{ width: 44, padding: 0 }} data-testid="link-settings-phone">
+          <IconSettings />
+        </Link>
+      </span>
     </div>
   ) : (
     <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
@@ -210,61 +196,43 @@ export default function HomePage() {
         <button type="button" className="oo-btn oo-btn-white" onClick={() => home.refetch()} data-testid="button-retry-home">Try again</button>
       </div>
     );
-  } else if (phone) {
+  } else {
+    // Section 30, Part B: the queue first (next meeting, do next, to answer, triage), then anything
+    // worth a line, and the rest of the day behind "More today".
     const d = home.data;
-    body = (
+    body = phone ? (
       <>
         <DoNextCard items={d.doNext} phone />
-        <DayPlanCard phone />
-        <WeekCheckCard phone />
-        <BusyDayCard phone />
-        <Link href={d.inbox.count ? '/triage' : '/tasks?tab=inbox'} className="oo-dark-card oo-glass" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-inbox-phone">
-          <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span className="oo-label" style={{ fontSize: 12 }}>Inbox</span>
-            <span className="oo-t2" style={{ fontSize: 13 }}>{breakdown(d)}</span>
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span className="oo-serif-roman" style={{ fontSize: 34, lineHeight: 1 }} data-testid="text-inbox-count">{d.inbox.count}</span>
-            <span className="oo-btn oo-btn-white" style={{ borderRadius: 999, minHeight: 40 }}>{d.inbox.count ? 'Triage' : 'Open'}</span>
-          </span>
-        </Link>
-        {d.slackToAnswer + d.emailToAnswer > 0 && <MessagesWaitingLink emails={d.emailToAnswer} slack={d.slackToAnswer} phone />}
-        <ClearOutCard phone />
-        <TodayPhone events={d.today} />
-        <WaitingCard items={d.waitingOn} phone />
-        <PromisesCard home={d} />
-        {d.ideasDue.length > 0 && <IdeasCard home={d} />}
-        <DoneCard home={d} />
-        <Link href="/strategy" className="oo-dark-card oo-glass-quiet" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-strategy-phone">
-          <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span className="oo-label" style={{ fontSize: 12 }}>Strategy and ideas</span>
-            <span className="oo-t2" style={{ fontSize: 13 }}>Your strategy, and ideas to come back to</span>
-          </span>
-          <IconArrowOut size={18} />
-        </Link>
-      </>
-    );
-  } else {
-    const d = home.data;
-    body = (
-      <>
-        <TodayStrip events={d.today} />
-        <DayPlanCard />
-        <WeekCheckCard />
-        <BusyDayCard />
-        <ClearOutCard />
-        <div className="oo-home-grid">
-          <DoNextCard items={d.doNext} />
-          <div className="oo-home-stack">
-            <InboxCard home={d} />
-            <WaitingCard items={d.waitingOn} />
-          </div>
-        </div>
-        <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+        <NextMeeting events={d.today} phone />
+        <QueueCard home={d} phone />
+        <Notices />
+        <MoreToday home={d} phone>
+          <TodayPhone events={d.today} />
+          <DayPlanCard phone />
+          <WaitingCard items={d.waitingOn} phone />
           <PromisesCard home={d} />
           {d.ideasDue.length > 0 && <IdeasCard home={d} />}
           <DoneCard home={d} />
+        </MoreToday>
+      </>
+    ) : (
+      <>
+        <NextMeeting events={d.today} />
+        <div className="oo-home-grid">
+          <DoNextCard items={d.doNext} />
+          <QueueCard home={d} />
         </div>
+        <Notices />
+        <MoreToday home={d}>
+          <TodayStrip events={d.today} />
+          <DayPlanCard />
+          <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+            <WaitingCard items={d.waitingOn} />
+            <PromisesCard home={d} />
+            {d.ideasDue.length > 0 && <IdeasCard home={d} />}
+            <DoneCard home={d} />
+          </div>
+        </MoreToday>
       </>
     );
   }
@@ -360,34 +328,75 @@ function AfterThat({ items, phone }: { items: DoNextItem[]; phone: boolean }) {
   );
 }
 
-function InboxCard({ home: d }: { home: HomeSummary }) {
-  const clear = d.inbox.count === 0;
+/**
+ * What is waiting on Ollie, one row each: messages to answer, the Inbox to triage and, when there are
+ * any, Knowledge Inbox cards to review. Each row is one tap to the place it is dealt with.
+ */
+function QueueCard({ home: d, phone = false }: { home: HomeSummary; phone?: boolean }) {
+  // The same count as the Messages badge, so Home and the rail never disagree.
+  const counts = useGetMessageCounts({ query: { queryKey: getGetMessageCountsQueryKey(), refetchInterval: 120_000, staleTime: 60_000, retry: false } });
+  const toAnswer = counts.data?.needsReply ?? 0;
+  const late = d.emailToAnswer + d.slackToAnswer;
+  const review = d.knowledgeInbox.total;
   return (
-    <section aria-labelledby="h-inbox" className="oo-dark-card oo-glass" data-testid="card-inbox">
-      <div className="oo-inbox-card">
-        <span style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
-          <span className="oo-serif-roman oo-inbox-count oo-num" data-clear={clear} data-testid="text-inbox-count">{d.inbox.count}</span>
-          <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-            <h2 id="h-inbox" className="oo-label">Inbox</h2>
-            <span className="oo-t2" style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }} data-testid="text-inbox-breakdown">
-              {clear && <IconCheck size={14} className="oo-tick" />}
-              {breakdown(d)}
-            </span>
-          </span>
-        </span>
-        {clear ? (
-          <Link href="/tasks?tab=inbox" className="oo-btn oo-btn-ghost" data-testid="link-inbox">Open Inbox</Link>
-        ) : (
-          <Link href="/triage" className="oo-btn oo-btn-white" data-testid="link-triage">Triage {d.inbox.count}</Link>
+    <section aria-labelledby="h-queue" className="oo-dark-card oo-glass" style={phone ? { padding: 16 } : undefined} data-testid="card-queue">
+      <h2 id="h-queue" className="oo-label" style={{ fontSize: phone ? 12 : 13 }}>Waiting on you</h2>
+      <ul className="oo-queue">
+        <QueueRow
+          href="/messages"
+          count={counts.data ? toAnswer : null}
+          label="To answer"
+          line={counts.data && toAnswer === 0 ? 'Nothing to answer' : late > 0 ? `${late} waiting over a working day` : 'Emails and Slack messages'}
+          amber={late > 0}
+          testId="messages"
+        />
+        <QueueRow
+          href={d.inbox.count ? '/triage' : '/tasks?tab=inbox'}
+          count={d.inbox.count}
+          label="Triage"
+          line={breakdown(d)}
+          testId="inbox"
+        />
+        {review > 0 && (
+          <QueueRow href="/knowledge/inbox" count={review} label="To review" line="Knowledge Inbox cards" testId="knowledge" />
         )}
-      </div>
-      {d.slackToAnswer + d.emailToAnswer > 0 && <MessagesWaitingLink emails={d.emailToAnswer} slack={d.slackToAnswer} />}
+      </ul>
     </section>
   );
 }
 
+function QueueRow({ href, count, label, line, amber = false, testId }: { href: string; count: number | null; label: string; line: string; amber?: boolean; testId: string }) {
+  const clear = count === 0;
+  return (
+    <li>
+      <Link href={href} className="oo-queue-row" aria-label={`${label}: ${count ?? ''} ${line}`} data-testid={'link-queue-' + testId}>
+        <span className="oo-serif-roman oo-queue-count oo-num" data-clear={clear} data-testid={'text-queue-count-' + testId}>{count ?? ''}</span>
+        <span className="oo-queue-text">
+          <span className="oo-queue-label">{label}</span>
+          <span className={amber ? 'oo-amber' : 'oo-t2'} style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }} data-testid={'text-queue-line-' + testId}>
+            {clear && <IconCheck size={14} className="oo-tick" />}
+            {line}
+          </span>
+        </span>
+        <IconRight size={16} className="oo-queue-chev" />
+      </Link>
+    </li>
+  );
+}
+
+/** Lines under the queue, each shown only when it has something to say: overdue, a full day, a week that does not fit, the Backlog clear-out. */
+function Notices() {
+  return (
+    <ul className="oo-notices" data-testid="list-notices">
+      <BusyDayLines />
+      <WeekCheckLine />
+      <ClearOutLine />
+    </ul>
+  );
+}
+
 /** Every other Monday: a nudge to go through Backlog tasks nobody has touched for 30 days. */
-function ClearOutCard({ phone = false }: { phone?: boolean }) {
+function ClearOutLine() {
   const qc = useQueryClient();
   const clearOut = useGetClearOut();
   const [busy, setBusy] = useState(false);
@@ -407,17 +416,57 @@ function ClearOutCard({ phone = false }: { phone?: boolean }) {
     }
   };
   return (
-    <section aria-labelledby="h-clear-out" className="oo-dark-card oo-glass" style={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, padding: phone ? 16 : 18 }} data-testid="card-clear-out">
-      <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-        <h2 id="h-clear-out" className="oo-label" style={{ fontSize: phone ? 12 : 13 }}>Clear out your Backlog</h2>
-        <span className="oo-t2" style={{ fontSize: 13 }} data-testid="text-clear-out-home">
-          {d.count === 1 ? '1 task untouched' : `${d.count} tasks untouched`} for 30 days or more
-        </span>
+    <li className="oo-notice" data-testid="card-clear-out">
+      <span data-testid="text-clear-out-home">
+        {d.count === 1 ? '1 Backlog task untouched' : `${d.count} Backlog tasks untouched`} for 30 days or more.
       </span>
-      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <Link href="/clear-out" className="oo-btn oo-btn-white" data-testid="link-clear-out-start">Start</Link>
-        <button type="button" className="oo-btn oo-btn-ghost" disabled={busy} onClick={dismiss} data-testid="button-clear-out-dismiss">Not this time</button>
-      </span>
+      <Link href="/clear-out" data-testid="link-clear-out-start">Clear out</Link>
+      <button type="button" disabled={busy} onClick={dismiss} data-testid="button-clear-out-dismiss">Not this time</button>
+    </li>
+  );
+}
+
+const MORE_KEY = 'oo-home-more';
+
+/** The rest of the day, closed until asked for and remembered on this device. The heading says what is inside. */
+function MoreToday({ home: d, phone = false, children }: { home: HomeSummary; phone?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(() => {
+    try {
+      return window.localStorage.getItem(MORE_KEY) === 'open';
+    } catch {
+      return false;
+    }
+  });
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    try {
+      window.localStorage.setItem(MORE_KEY, next ? 'open' : 'closed');
+    } catch {
+      // Private windows may refuse storage; the fold still works for this visit.
+    }
+  };
+  const inside = [
+    d.today.length ? (d.today.length === 1 ? '1 meeting' : `${d.today.length} meetings`) : '',
+    d.waitingOn.length ? `${d.waitingOn.length} waiting on others` : '',
+    d.promises.length ? (d.promises.length === 1 ? '1 promise' : `${d.promises.length} promises`) : '',
+    d.ideasDue.length ? (d.ideasDue.length === 1 ? '1 idea to come back to' : `${d.ideasDue.length} ideas to come back to`) : '',
+    `${d.doneThisWeek.count} done this week`,
+  ].filter(Boolean).join(' · ');
+  return (
+    <section aria-labelledby="h-more" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: phone ? 14 : 22 }} data-testid="section-more-today">
+      <h2 id="h-more" style={{ margin: 0 }}>
+        <button type="button" className="oo-more-toggle" aria-expanded={open} aria-controls="more-today" onClick={toggle} data-testid="button-more-today">
+          <span className="oo-label">More today</span>
+          <span className="oo-t2 oo-more-inside" data-testid="text-more-inside">{inside}</span>
+          <IconDown size={16} className="oo-more-chev" />
+        </button>
+      </h2>
+      {open && (
+        <div id="more-today" className="oo-fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: phone ? 14 : 22, width: '100%' }}>
+          {children}
+        </div>
+      )}
     </section>
   );
 }
@@ -448,7 +497,7 @@ function BriefLink({ e, phone = false }: { e: CalendarEvent; phone?: boolean }) 
   }
   return (
     <>
-    {e.notPrepped && <span className="oo-pill" data-tone="high" style={{ fontSize: 11 }} data-testid={'pill-not-prepped-' + e.id}>Not prepped</span>}
+    {e.notPrepped && <span className="oo-pill" data-tone="high" style={{ fontSize: 11, alignSelf: 'flex-start' }} data-testid={'pill-not-prepped-' + e.id}>Not prepped</span>}
     <Link
       href={'/briefs/' + e.id}
       className="oo-amber"
@@ -459,6 +508,32 @@ function BriefLink({ e, phone = false }: { e: CalendarEvent; phone?: boolean }) 
       Brief me{!phone && <IconArrowOut size={12} />}
     </Link>
     </>
+  );
+}
+
+/** The next meeting today on one line, with its prep link; the full day is under More today. */
+function NextMeeting({ events, phone = false }: { events: CalendarEvent[]; phone?: boolean }) {
+  const nextId = nextEventId(events);
+  const e = events.find((x) => x.id === nextId);
+  const after = e ? events.filter((x) => new Date(x.startsAt).getTime() > new Date(e.startsAt).getTime()) : [];
+  const unprepped = after.filter((x) => x.notPrepped).length;
+  const rest = after.length ? `${after.length} more today${unprepped ? `, ${unprepped} not prepped` : ''}` : 'All meetings';
+  return (
+    <section aria-label="Next meeting" className="oo-today oo-next-meeting" data-next={!!e} style={phone ? { padding: '14px 16px' } : undefined} data-testid="section-next-meeting">
+      {e ? (
+        <>
+          <span className="oo-next-badge">Next</span>
+          <span className="oo-num oo-t2" style={{ fontSize: 13, flex: 'none' }}>{formatTime(e.startsAt)} to {formatTime(e.endsAt)}</span>
+          <span style={{ fontSize: 14, fontWeight: 500, minWidth: 0, flex: '1 1 160px' }} data-testid="text-next-meeting">{e.title}</span>
+          <BriefLink e={e} phone={phone} />
+        </>
+      ) : (
+        <span className="oo-t2" style={{ fontSize: 13, flex: '1 1 160px' }} data-testid="text-next-meeting-none">
+          {events.length === 0 ? EMPTY_CAL : 'No more meetings today.'}
+        </span>
+      )}
+      <Link href="/meetings" className="oo-t2 oo-tap" style={{ fontSize: 12, textUnderlineOffset: 2, flex: 'none' }} data-testid="link-next-meetings">{e ? rest : 'All meetings'}</Link>
+    </section>
   );
 }
 
@@ -674,25 +749,5 @@ function DoneCard({ home }: { home: HomeSummary }) {
         <Link href="/tasks?tab=done" className="oo-tap" style={{ fontSize: 13 }} data-testid="link-done-all">See everything done</Link>
       </div>
     </section>
-  );
-}
-
-/** Messages to answer: emails and Slack messages that need a reply and have waited over a working day. */
-function MessagesWaitingLink({ emails, slack, phone = false }: { emails: number; slack: number; phone?: boolean }) {
-  const parts = [emails ? (emails === 1 ? '1 email' : `${emails} emails`) : '', slack ? (slack === 1 ? '1 Slack message' : `${slack} Slack messages`) : ''].filter(Boolean);
-  const label = `${parts.join(' and ')} to answer`;
-  const href = emails && slack ? '/messages' : emails ? '/messages?tab=to-answer&from=email' : '/messages?tab=to-answer&from=slack';
-  if (phone) {
-    return (
-      <Link href={href} className="oo-dark-card oo-glass-quiet" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', padding: 16 }} data-testid="link-slack-to-answer">
-        <span className="oo-t2" style={{ fontSize: 13 }}>{label}, waiting over a working day</span>
-        <IconArrowOut size={18} />
-      </Link>
-    );
-  }
-  return (
-    <Link href={href} className="oo-t2" style={{ fontSize: 13, color: 'inherit', textUnderlineOffset: 2 }} data-testid="link-slack-to-answer">
-      {label}
-    </Link>
   );
 }

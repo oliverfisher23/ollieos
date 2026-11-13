@@ -5,6 +5,7 @@ import { useAuth } from '@workspace/replit-auth-web';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { PageLoading } from '@/components/page-loading';
 import { Toaster } from '@/components/ui/toaster';
+import { CommandKeys } from '@/components/command-keys';
 import { DarkShell } from '@/components/dark-shell';
 import { LightShell } from '@/components/light-shell';
 import NotFound from '@/pages/not-found';
@@ -178,6 +179,7 @@ function Gate() {
       <Shell>
         <Router />
       </Shell>
+      <CommandKeys />
     </AuthProvider>
   );
 }

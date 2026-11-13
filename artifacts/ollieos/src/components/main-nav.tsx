@@ -1,19 +1,21 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Logo } from '@/components/bits';
 import { AddBox } from '@/components/add-box';
-import { IconBook, IconCalendar, IconCompass, IconGoal, IconHome, IconLogout, IconMessages, IconMore, IconPeople, IconPlus, IconRight, IconSettings, IconTasks } from '@/components/icons';
+import { IconBook, IconCalendar, IconCompass, IconGoal, IconHome, IconLogout, IconMessages, IconMore, IconPeople, IconPlus, IconRight, IconSearch, IconSettings, IconTasks } from '@/components/icons';
+import { IS_MAC, openCommandBar } from '@/lib/command-bar';
 import { getGetMessageCountsQueryKey, useGetMessageCounts } from '@workspace/api-client-react';
 import { useSession } from '@/lib/auth-context';
 import { preloadRoute } from '@/routes';
 
+/** Section 30, Part C: the five pages used every hour come first, then a line, then the rest. */
 const RAIL = [
   { href: '/', label: 'Home', Icon: IconHome },
   { href: '/tasks', label: 'Tasks', Icon: IconTasks },
   { href: '/messages', label: 'Messages', Icon: IconMessages },
   { href: '/meetings', label: 'Meetings', Icon: IconCalendar },
   { href: '/contacts', label: 'Contacts', Icon: IconPeople },
-  { href: '/goals', label: 'Goals', Icon: IconGoal },
+  { href: '/goals', label: 'Goals', Icon: IconGoal, sep: true },
   { href: '/strategy', label: 'Strategy', Icon: IconCompass },
   { href: '/knowledge', label: 'Knowledge', Icon: IconBook },
 ];
@@ -82,12 +84,19 @@ export function MainNav({ children }: { children: ReactNode }) {
           <Link href="/" aria-label="OllieOS home" style={{ marginBottom: 8, width: 'auto', height: 'auto' }} data-testid="link-rail-logo">
             <Logo size={32} />
           </Link>
-          {RAIL.map(({ href, label, Icon }) => (
-            <Link key={href} href={href} aria-label={badge(href) ? `${label}, ${badge(href)} to answer` : label} aria-current={cur(href)} {...preload(href)} data-testid={'link-rail-' + label.toLowerCase()}>
+          <button type="button" aria-label="Search, add or go to a page" aria-keyshortcuts="Meta+K Control+K" onClick={openCommandBar} data-testid="button-rail-search">
+            <IconSearch size={20} />
+            <RailTip label={'Search and go to  ' + (IS_MAC ? '⌘K' : 'Ctrl K')} />
+          </button>
+          {RAIL.map(({ href, label, Icon, sep }) => (
+            <Fragment key={href}>
+            {sep && <div aria-hidden="true" className="oo-rail-sep" />}
+            <Link href={href} aria-label={badge(href) ? `${label}, ${badge(href)} to answer` : label} aria-current={cur(href)} {...preload(href)} data-testid={'link-rail-' + label.toLowerCase()}>
               <Icon />
               {badge(href) > 0 && <span className="oo-rail-badge oo-num" aria-hidden="true" data-testid="badge-rail-messages">{badge(href) > 99 ? '99+' : badge(href)}</span>}
               <RailTip label={badge(href) ? `${label}: ${badge(href)} to answer` : label} />
             </Link>
+            </Fragment>
           ))}
           <div aria-hidden="true" className="oo-rail-sep" />
           <Link href="/settings" aria-label="Settings" aria-current={cur('/settings')} {...preload('/settings')} data-testid="link-rail-settings">
@@ -108,7 +117,13 @@ export function MainNav({ children }: { children: ReactNode }) {
         <button type="button" aria-label="Add a task. Hold to speak." onClick={() => { if (!held.current) setSheet('add'); held.current = false; }} {...holdToSpeak} data-testid="button-tab-add">
           <span className="oo-add"><IconPlus size={22} /></span>
         </button>
-        <Link href="/contacts" aria-current={cur('/contacts')} {...preload('/contacts')} data-testid="link-tab-contacts"><IconPeople size={22} />Contacts</Link>
+        <Link href="/messages" aria-label={toAnswer > 0 ? `Messages, ${toAnswer} to answer` : undefined} aria-current={cur('/messages')} {...preload('/messages')} data-testid="link-tab-messages">
+          <span style={{ position: 'relative', display: 'flex' }}>
+            <IconMessages size={22} />
+            {toAnswer > 0 && <span className="oo-tab-badge oo-num" aria-hidden="true" data-testid="badge-tab-messages">{toAnswer > 99 ? '99+' : toAnswer}</span>}
+          </span>
+          Messages
+        </Link>
         <button type="button" aria-haspopup="dialog" aria-expanded={sheet === 'more'} aria-current={inMore ? 'page' : undefined} onClick={() => setSheet('more')} data-testid="button-tab-more">
           <IconMore size={22} />
           More
@@ -123,7 +138,6 @@ export function MainNav({ children }: { children: ReactNode }) {
               <Link key={href} href={href} aria-current={cur(href)} data-autofocus={i === 0 || undefined} {...preload(href)} data-testid={'link-more-' + label.toLowerCase()}>
                 <Icon size={20} />
                 <span>{label}</span>
-                {badge(href) > 0 && <span className="oo-pill oo-num" data-testid="badge-more-messages">{badge(href)} to answer</span>}
                 <IconRight size={16} className="oo-sheet-chev" />
               </Link>
             ))}
@@ -141,12 +155,12 @@ export function MainNav({ children }: { children: ReactNode }) {
 
 /**
  * Pages the phone tab bar has no room for (docs/mobile-plan.md, Part D): Home, Tasks, add and
- * Contacts are tabs, everything else is in the More sheet.
+ * Messages are tabs (section 30, Part C: Messages took Contacts' place), everything else is in the More sheet.
  */
 const MORE = [
-  { href: '/knowledge', label: 'Knowledge', Icon: IconBook },
+  { href: '/contacts', label: 'Contacts', Icon: IconPeople },
   { href: '/meetings', label: 'Meetings', Icon: IconCalendar },
-  { href: '/messages', label: 'Messages', Icon: IconMessages },
+  { href: '/knowledge', label: 'Knowledge', Icon: IconBook },
   { href: '/goals', label: 'Goals', Icon: IconGoal },
   { href: '/strategy', label: 'Strategy', Icon: IconCompass },
   { href: '/settings', label: 'Settings', Icon: IconSettings },

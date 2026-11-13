@@ -2,13 +2,30 @@
 
 OllieOS is where your work lives: tasks, the people and organisations you work with, projects, decisions and what you know about them. It reads Gmail, Slack, Google Calendar, Granola, Drive and Dropbox for you, and Claude, ChatGPT and Gemini can read and write it through its connector. Nothing it learns becomes knowledge until you approve it, and it never sends an email for you: it drafts, you send. The one exception is a Slack direct message to a colleague, which it sends only when you press Send on a task and confirm.
 
-This guide follows the app from left to right. On a phone the bar at the bottom has Home, Tasks, the yellow add button, Contacts and Knowledge; everything else is reached from those pages.
+This guide follows the app from left to right. On a phone the bar at the bottom has Home, Tasks, the yellow add button, Messages and More; Contacts, Meetings, Knowledge, Goals, Strategy and Settings are under More.
 
 ## Home
 
-- **Today strip.** Your meetings today, with a link to each prep page. A meeting you have not prepared for shows "Not prepped".
+Home is one queue: what is next, and what is waiting on you.
+
 - **Add box.** Type a task in plain words: "Chase Sam on the contract Wednesday high" sets the due date and priority and links the person and project it finds. On a phone, the yellow add button opens the same box; hold it down to speak instead (see Voice capture).
-- **Cards.** Inbox, Now, Waiting on, Slack to answer, Not prepped, the week check ("This week is over by about 2 hours") and where your time went.
+- **Next meeting.** One line with the time, the meeting and a link to its prep page. A meeting you have not prepared for shows "Not prepped".
+- **Do next.** The one task to do now, with Done and Snooze, and what comes after it.
+- **Waiting on you.** To answer (emails and Slack messages, the same count as the Messages icon), Triage (your Inbox) and, when there are any, To review (Knowledge Inbox cards). Each row opens the place it is dealt with.
+- **Lines under the queue.** Shown only when they have something to say: tasks overdue, a day with too much due, a week that does not fit ("This week is over by about 2 hours", with What could move) and the Backlog clear-out.
+- **More today.** Closed until you open it, and it stays how you left it: all of today's meetings, today's plan, Waiting on, Promises, ideas to come back to and what you finished this week.
+- **Updates.** The link under the greeting opens the digest, the weekly round-up and the Friday update as three tabs of one page.
+
+## Search and go to (Cmd+K)
+
+Press Cmd+K (Ctrl+K on Windows), "/" or the magnifying glass at the top of the rail (top right on a phone). One box:
+
+- **Go to** any page or Settings section: type part of its name and press Enter.
+- **Found:** tasks, people, organisations, projects, decisions, notes, facts, documents, sessions, ideas, products and playbooks that match.
+- **Add a task** with the words you typed, the same way as the add box. Cmd+Enter adds it whatever is selected.
+- **Ask OllieOS** hands the words to Ask.
+
+G then H, T, M, E, C or K goes straight to Home, Tasks, Messages, Meetings, Contacts or Knowledge. Single keys never fire while you are typing.
 
 ## Triage
 
@@ -97,6 +114,7 @@ On a person page, **Who can introduce me?** appears when you are not in regular 
 - **Agents.** Every AI job inside OllieOS: what it reads, its runs, cost and errors this week, how often you kept what it did, the writers' checks and grades, and the readers' test cases with Replay.
 - **Lessons for the readers.** On Agents, the reader coach and card coach propose lessons for the Gmail, Slack and Granola readers from what you keep correcting the same way (items sent to Noise, dropped, renamed or reprioritised, and cards you rejected). Nothing changes until you turn a lesson on. Try against test cases shows whether it helps first; Not this one stops it being proposed again.
 - **Email, Knowledge, Planning, Look back, Dropbox, Sweep.** Settings for each of those.
+- **Under the bonnet.** Agents, Imports and Export sit below the settings you change day to day.
 
 ## Voice capture
 

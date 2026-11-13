@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { Link } from 'wouter';
 import { Logo } from '@/components/bits';
 import { MainNav } from '@/components/main-nav';
+import { IconSearch } from '@/components/icons';
+import { openCommandBar } from '@/lib/command-bar';
 
 export function LightShell({ children }: { children: ReactNode }) {
   return (
@@ -14,6 +16,9 @@ export function LightShell({ children }: { children: ReactNode }) {
               <Logo />
               <span style={{ fontWeight: 600, fontSize: 15 }}>OllieOS</span>
             </Link>
+            <button type="button" aria-label="Search, add or go to a page" className="oo-btn oo-btn-quiet" style={{ width: 44, padding: 0 }} onClick={openCommandBar} data-testid="button-search-phone">
+              <IconSearch size={18} />
+            </button>
           </header>
           {children}
         </div>

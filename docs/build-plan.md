@@ -1745,9 +1745,9 @@ After section 27 went live, three of Ollie's six Waiting on tasks still had nobo
 - **Checked by** `test/section-28.test.ts` (7 tests).
 - **Not included:** a page for the review numbers in the app; guessing a due date for tasks added by hand; nicknames worked out automatically.
 
-## 30. Simpler every hour, and the first steps to running itself (asked for 13th November 2026, not built yet)
+## 30. Simpler every hour, and the first steps to running itself (asked for 13th November 2026; Parts B, C and D built 13th November 2026)
 
-Ollie asked for an audit of the whole app: what he will use most, what does not earn its place, what is missing, how to make it simple to use every hour, how to raise adoption, and how to move towards a company that runs itself. The audit read the code and his live numbers through the connector (`get_task_review`, 14 days, which is everything since go-live on 10th November). This section is the plan that came out of it. Nothing here is built.
+Ollie asked for an audit of the whole app: what he will use most, what does not earn its place, what is missing, how to make it simple to use every hour, how to raise adoption, and how to move towards a company that runs itself. The audit read the code and his live numbers through the connector (`get_task_review`, 14 days, which is everything since go-live on 10th November). This section is the plan that came out of it. Parts B, C and D are built (see "Built: Parts B, C and D" below); the rest is not.
 
 **What the numbers said.** 127 tasks made (58 Slack, 25 Cowork sessions, 17 email, 16 meetings, 11 typed by Ollie); 65 done, 27 dropped, 33 open. Of the 33 open, 4 have a project, 6 a person and 14 a due date. No dropped item has a reason. Of the 11 tasks Ollie typed himself, 1 is done. The three goals have no statement and no project linked.
 
@@ -1867,6 +1867,19 @@ Today every agent proposes and Ollie approves. The Agents page already records h
 - **Schema:** `agent_levels` (agent key, level, set at, dropped back at) and `auto_actions` (agent, what, ref, at, undone at). **Files:** `lib/agents.ts`, `services/agents.ts`, `services/scorecards.ts`, and the four agents' own services.
 - **Checked by** tests on the gate, the drop back to Suggest, Undo on each of the four, and hidden items never being acted on.
 
+### Built: Parts B, C and D (13th November 2026)
+
+Ollie agreed questions 1 to 3 as proposed and asked for B, C and D.
+
+- **Part B.** `pages/home.tsx`: `NextMeeting`, `QueueCard` (To answer uses the Messages badge's count, so the two never disagree), `Notices` and `MoreToday` (open or closed is remembered in the browser). `WeekCheckCard` and `BusyDayCard` became `WeekCheckLine` and `BusyDayLines` in `components/time-and-meetings.tsx`. The status line keeps the last sweep, connector warnings and access requests, plus **Updates**. `components/updates-tabs.tsx` is on the digest, round-up and Friday update pages.
+- **Part C.** `components/main-nav.tsx`: the rail's separator after Contacts, Messages on the phone bar with its count, Contacts first in More. `pages/settings.tsx`: **Under the bonnet** holds Agents, Imports and Export. Sweep and Look back were already inside Connectors, so they did not move.
+- **Part D.** `components/command-bar.tsx` (loaded on first use), `components/command-keys.tsx`, `lib/command-bar.ts`. Order is always pages, then what was found, then Add a task and Ask, and the top row stays selected as results arrive. Cmd+Enter adds the words as a task. G then H, T, M, E, C or K goes to a page; "/" opens the bar.
+- **Different from the plan:**
+  - No `GET /tasks/search`. `GET /search` already searches tasks with everything else, so the bar uses it and no API changed.
+  - On a phone the "Strategy and ideas" card at the foot of Home is gone; Strategy is in More and in the bar.
+  - The day plan is under More today until Part E makes it propose itself.
+- **Checked by:** the app's typecheck and production build (first load 145.5 KB against a budget of 152), and a browser pass at desktop and phone width with stand-in data for the API: Home closed and open, the bar empty and with results, Enter on a page, G then T, "/", Settings and Updates. Not checked against the live server or real data, and there are no automated tests for these screens. No server code changed, so the API tests were not rerun.
+
 ### Later, not in this plan
 
 - **Work packs that write the first draft.** For the tasks Ollie types himself ("Build the ADS demo"), the pack would start a Claude session with the context and bring back a draft, not a summary. Worth doing once Part G has given it goals and products to work from.
@@ -1876,8 +1889,8 @@ Today every agent proposes and Ollie approves. The Agents page already records h
 
 ### Questions for section 30
 
-1. **Slack messages on a timer (Part F).** It was agreed on 12th November (`services/slackDm.ts`) that the Slack direct message is "the one thing OllieOS sends", only when Ollie presses Send, and never by AI or on a timer. Part F sends on a timer, but only to Ollie himself. Proposed: allow it, with the rule reworded to "never to anyone else on a timer".
-2. **Contacts off the phone bar (Part C).** Proposed: yes, Messages takes its place and Contacts is first in More.
-3. **Backlog to Now on Use this (Part E).** Proposed: yes, so Now always matches the day's plan.
-4. **The 90% and 20 bar (Part I).** Proposed as written; both numbers would be settings in code, not on a page.
-5. **Which documents hold the current strategy and goals (Part G).** Needed before the first pass can run.
+1. **Slack messages on a timer (Part F).** It was agreed on 12th November (`services/slackDm.ts`) that the Slack direct message is "the one thing OllieOS sends", only when Ollie presses Send, and never by AI or on a timer. Part F sends on a timer, but only to Ollie himself. **Agreed 13th November:** allowed, with the rule reworded to "never to anyone else on a timer".
+2. **Contacts off the phone bar (Part C).** **Agreed 13th November:** Messages takes its place and Contacts is first in More.
+3. **Backlog to Now on Use this (Part E).** **Agreed 13th November:** yes, so Now always matches the day's plan.
+4. **The 90% and 20 bar (Part I).** Proposed as written; both numbers would be settings in code, not on a page. Not answered yet.
+5. **Which documents hold the current strategy and goals (Part G).** Needed before the first pass can run. Not answered yet.
