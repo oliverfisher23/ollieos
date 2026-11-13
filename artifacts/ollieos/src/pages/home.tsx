@@ -9,9 +9,11 @@ import {
   getGetHomeQueryKey,
   getGetMessageCountsQueryKey,
   useGetClearOut,
+  useGetDayPlan,
   useGetHome,
   useGetMessageCounts,
   type CalendarEvent,
+  type DayPlan,
   type DoNextItem,
   type HomeSummary,
   type WaitingItem,
@@ -125,6 +127,8 @@ export default function HomePage() {
       retryDelay: (n) => Math.min(1000 * 2 ** n, 8000),
     },
   });
+  const plan = useGetDayPlan();
+  const more = useMoreOpen();
   const now = new Date();
   const name = user?.firstName || 'Ollie';
 
@@ -200,15 +204,20 @@ export default function HomePage() {
     // Section 30, Part B: the queue first (next meeting, do next, to answer, triage), then anything
     // worth a line, and the rest of the day behind "More today".
     const d = home.data;
+    // Section 30, Part E: until today's plan is made, the plan OllieOS proposes sits with the queue;
+    // once made, it is with the rest of the day.
+    const proposed = !!plan.data && !plan.data.made && plan.data.suggestions.length > 0;
+    const notices = <Notices plan={plan.data?.made ? plan.data : null} onSeePlan={more.show} />;
     body = phone ? (
       <>
         <DoNextCard items={d.doNext} phone />
         <NextMeeting events={d.today} phone />
         <QueueCard home={d} phone />
-        <Notices />
-        <MoreToday home={d} phone>
+        {proposed && <DayPlanCard phone />}
+        {notices}
+        <MoreToday home={d} phone open={more.open} onToggle={more.toggle}>
           <TodayPhone events={d.today} />
-          <DayPlanCard phone />
+          {!proposed && <DayPlanCard phone />}
           <WaitingCard items={d.waitingOn} phone />
           <PromisesCard home={d} />
           {d.ideasDue.length > 0 && <IdeasCard home={d} />}
@@ -222,10 +231,11 @@ export default function HomePage() {
           <DoNextCard items={d.doNext} />
           <QueueCard home={d} />
         </div>
-        <Notices />
-        <MoreToday home={d}>
+        {proposed && <DayPlanCard />}
+        {notices}
+        <MoreToday home={d} open={more.open} onToggle={more.toggle}>
           <TodayStrip events={d.today} />
-          <DayPlanCard />
+          {!proposed && <DayPlanCard />}
           <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
             <WaitingCard items={d.waitingOn} />
             <PromisesCard home={d} />
@@ -385,13 +395,29 @@ function QueueRow({ href, count, label, line, amber = false, testId }: { href: s
 }
 
 /** Lines under the queue, each shown only when it has something to say: overdue, a full day, a week that does not fit, the Backlog clear-out. */
-function Notices() {
+function Notices({ plan, onSeePlan }: { plan: DayPlan | null; onSeePlan: () => void }) {
   return (
     <ul className="oo-notices" data-testid="list-notices">
+      {plan && plan.items.length > 0 && <PlanLine plan={plan} onSee={onSeePlan} />}
       <BusyDayLines />
       <WeekCheckLine />
       <ClearOutLine />
     </ul>
+  );
+}
+
+/** Once today's plan is made: how far through it is and what is next, with the plan itself under More today. */
+function PlanLine({ plan, onSee }: { plan: DayPlan; onSee: () => void }) {
+  const done = plan.items.filter((i) => i.task.status === 'done').length;
+  const next = plan.items.filter((i) => i.task.status !== 'done' && i.start).sort((a, b) => a.start!.localeCompare(b.start!))[0];
+  return (
+    <li className="oo-notice" data-testid="line-plan">
+      <span>
+        Today's plan: {done} of {plan.items.length} done.
+        {next ? ` Next at ${next.start}: ${next.task.title}.` : done === plan.items.length ? ' All done.' : ''}
+      </span>
+      <button type="button" onClick={onSee} data-testid="button-see-plan">See the plan</button>
+    </li>
   );
 }
 
@@ -428,8 +454,8 @@ function ClearOutLine() {
 
 const MORE_KEY = 'oo-home-more';
 
-/** The rest of the day, closed until asked for and remembered on this device. The heading says what is inside. */
-function MoreToday({ home: d, phone = false, children }: { home: HomeSummary; phone?: boolean; children: ReactNode }) {
+/** Whether More today is open, remembered on this device. `show` opens it and brings today's plan into view. */
+function useMoreOpen() {
   const [open, setOpen] = useState(() => {
     try {
       return window.localStorage.getItem(MORE_KEY) === 'open';
@@ -437,8 +463,7 @@ function MoreToday({ home: d, phone = false, children }: { home: HomeSummary; ph
       return false;
     }
   });
-  const toggle = () => {
-    const next = !open;
+  const set = (next: boolean) => {
     setOpen(next);
     try {
       window.localStorage.setItem(MORE_KEY, next ? 'open' : 'closed');
@@ -446,6 +471,15 @@ function MoreToday({ home: d, phone = false, children }: { home: HomeSummary; ph
       // Private windows may refuse storage; the fold still works for this visit.
     }
   };
+  const show = () => {
+    set(true);
+    window.setTimeout(() => document.querySelector('[data-testid="card-day-plan"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+  };
+  return { open, toggle: () => set(!open), show };
+}
+
+/** The rest of the day, closed until asked for. The heading says what is inside. */
+function MoreToday({ home: d, phone = false, open, onToggle: toggle, children }: { home: HomeSummary; phone?: boolean; open: boolean; onToggle: () => void; children: ReactNode }) {
   const inside = [
     d.today.length ? (d.today.length === 1 ? '1 meeting' : `${d.today.length} meetings`) : '',
     d.waitingOn.length ? `${d.waitingOn.length} waiting on others` : '',

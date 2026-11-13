@@ -13,6 +13,7 @@ Home is one queue: what is next, and what is waiting on you.
 - **Do next.** The one task to do now, with Done and Snooze, and what comes after it.
 - **Waiting on you.** To answer (emails and Slack messages, the same count as the Messages icon), Triage (your Inbox) and, when there are any, To review (Knowledge Inbox cards). Each row opens the place it is dealt with.
 - **Lines under the queue.** Shown only when they have something to say: tasks overdue, a day with too much due, a week that does not fit ("This week is over by about 2 hours", with What could move) and the Backlog clear-out.
+- **Today's plan.** Each morning OllieOS proposes up to five tasks for the day (overdue first, promises before other tasks, then due today, Now and high priority), each with why. Take any out, change a length or add another, then press **Use this plan**: it fits them between your meetings inside your working hours, and any that were in Backlog move to Now. Nothing is written to your calendar. After that a line under the queue says how far through you are and what is next, with See the plan.
 - **More today.** Closed until you open it, and it stays how you left it: all of today's meetings, today's plan, Waiting on, Promises, ideas to come back to and what you finished this week.
 - **Updates.** The link under the greeting opens the digest, the weekly round-up and the Friday update as three tabs of one page.
 

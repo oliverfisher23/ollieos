@@ -1745,9 +1745,9 @@ After section 27 went live, three of Ollie's six Waiting on tasks still had nobo
 - **Checked by** `test/section-28.test.ts` (7 tests).
 - **Not included:** a page for the review numbers in the app; guessing a due date for tasks added by hand; nicknames worked out automatically.
 
-## 30. Simpler every hour, and the first steps to running itself (asked for 13th November 2026; Parts B, C and D built 13th November 2026)
+## 30. Simpler every hour, and the first steps to running itself (asked for 13th November 2026; Parts B, C, D and E built 13th November 2026)
 
-Ollie asked for an audit of the whole app: what he will use most, what does not earn its place, what is missing, how to make it simple to use every hour, how to raise adoption, and how to move towards a company that runs itself. The audit read the code and his live numbers through the connector (`get_task_review`, 14 days, which is everything since go-live on 10th November). This section is the plan that came out of it. Parts B, C and D are built (see "Built: Parts B, C and D" below); the rest is not.
+Ollie asked for an audit of the whole app: what he will use most, what does not earn its place, what is missing, how to make it simple to use every hour, how to raise adoption, and how to move towards a company that runs itself. The audit read the code and his live numbers through the connector (`get_task_review`, 14 days, which is everything since go-live on 10th November). This section is the plan that came out of it. Parts B, C, D and E are built (see the two "Built" headings below); the rest is not.
 
 **What the numbers said.** 127 tasks made (58 Slack, 25 Cowork sessions, 17 email, 16 meetings, 11 typed by Ollie); 65 done, 27 dropped, 33 open. Of the 33 open, 4 have a project, 6 a person and 14 a due date. No dropped item has a reason. Of the 11 tasks Ollie typed himself, 1 is done. The three goals have no statement and no project linked.
 
@@ -1880,6 +1880,21 @@ Ollie agreed questions 1 to 3 as proposed and asked for B, C and D.
   - The day plan is under More today until Part E makes it propose itself.
 - **Checked by:** the app's typecheck and production build (first load 145.5 KB against a budget of 152), and a browser pass at desktop and phone width with stand-in data for the API: Home closed and open, the bar empty and with results, Enter on a page, G then T, "/", Settings and Updates. Not checked against the live server or real data, and there are no automated tests for these screens. No server code changed, so the API tests were not rerun.
 
+### Built: Part E (13th November 2026)
+
+The day plan already suggested up to five tasks with a reason each (`suggestFor` and `carryOvers` in `services/planning.ts`); what was missing was using them without picking each one.
+
+- **Proposed, not picked.** Before today's plan is made, the suggestions are already in it (30 minutes each). The card is headed "5 for today" and its button is **Use this plan**. Taking one out, changing a length and adding another work as before.
+- **Where it sits.** Until the plan is made, the card is with the queue on Home, under Do next and Waiting on you. Once made, it is under More today, and a line under the queue says "Today's plan: 1 of 4 done. Next at 10:30: …" with **See the plan**, which opens More today at the plan.
+- **Promises first.** Among overdue and due-today tasks, promises are suggested before other tasks.
+- **Backlog to Now** (question 3). A Backlog or Inbox task newly put in a plan moves to Now, through `updateTask` so its history shows it. A task already in the plan is left where Ollie has since moved it, so Fit again never pulls one back into Now. Waiting on tasks stay waiting.
+- **Different from the plan:** no `POST /plan/suggest`, because `GET /plan` already returns the suggestions; no API changed. Lengths are 30 minutes for every suggestion, since tasks hold no length of their own. Nothing is built ahead at 07:40: the suggestions are worked out when Home asks, in one query.
+- **Checked by** `test/tasks-part-i.test.ts` (17 tests, one new: promises first, Backlog to Now, Waiting on left alone, a task moved back to Backlog not pulled in again), the full API suite (509 of 509 passed), both typechecks, the production build (first load 146.0 KB against 152), and a browser pass at desktop and phone width with stand-in data: the proposed plan, taking one out, Use this plan, the line, and See the plan.
+
+### Part F: stopped before building (13th November 2026)
+
+OllieOS's Slack connection is Ollie's own user token (`.agents/memory/slack-gmail-reading.md`), so a message from OllieOS to Ollie is a message from Ollie to himself. Slack does not notify you of your own messages, so the three nudges would arrive silently in his notes-to-self conversation, and the Slack reader would then read them back as messages. Not built until Ollie chooses how they should reach him: see question 6.
+
 ### Later, not in this plan
 
 - **Work packs that write the first draft.** For the tasks Ollie types himself ("Build the ADS demo"), the pack would start a Claude session with the context and bring back a draft, not a summary. Worth doing once Part G has given it goals and products to work from.
@@ -1894,3 +1909,4 @@ Ollie agreed questions 1 to 3 as proposed and asked for B, C and D.
 3. **Backlog to Now on Use this (Part E).** **Agreed 13th November:** yes, so Now always matches the day's plan.
 4. **The 90% and 20 bar (Part I).** Proposed as written; both numbers would be settings in code, not on a page. Not answered yet.
 5. **Which documents hold the current strategy and goals (Part G).** Needed before the first pass can run. Not answered yet.
+6. **How nudges reach Ollie (Part F).** A Slack message through the current connection would not notify him (see "Part F: stopped before building"). Options: (a) a small Slack app for OllieOS with its own bot token, so messages come from "OllieOS", notify like any direct message, and can later be replied to; it needs creating in the Springpod workspace and one secret in Replit. (b) Phone and desktop push notifications from the installed app: no Slack involved, but needs a service worker and notification permission on each device. Proposed: (a). Not answered yet.
