@@ -1756,7 +1756,19 @@ Ollie reported pages failing ("Could not load…") and being signed out. Finding
 - **Indexes added.** `fact_reviews.suggestion_id` (Knowledge Inbox counts with about 2,000 cards), and GIN indexes on `calendar_events.person_ids` and `meeting_tones.person_ids` (client pulse).
 - **Not changed yet:** Home still matches calendar events against every person three times per load (`loadMatchers`), `tidyReviews` runs on each Knowledge Inbox visit, and the people list returns every contact in one response. Worth revisiting if Home or Contacts are still slow with real data.
 
-## 30. Simpler every hour, and the first steps to running itself (asked for 13th November 2026; Parts B, C, D, E, F and H built 13th November 2026)
+## 30. What Ollie asks someone else for is never his task (asked for 13th November 2026)
+
+Ollie sent Kurt a Slack message, "Can you share what holidays product team have in December", and got an Inbox task for himself: "Send Ollie the product team's December holiday dates", for Kurt. The reader had read the ask from the other side and called it a task.
+
+- **Instructions.** The Gmail and Slack sorter is told whose action it is: when Ollie asks someone for something it is "waiting", written as who and what ("Kurt to share the product team's December holidays"), and never an item to send, share, give or tell to Ollie.
+- **In code, whatever the reader says** (`ownAsk`, `askedOfOllie` in `connectors/capture.ts`, no AI). A "task" from one of Ollie's own messages whose title is something to do for him ("Send Ollie…", "Share … with Ollie", "Let Ollie know…", "Send me…"), or is already written as someone else's action ("Kurt to share…"), becomes a Waiting on item named for who he asked: "Kurt to send you the product team's December holiday dates". "Oliver" followed by another surname is someone else and is left alone. His own work in his own message ("Draft the December plan") stays his task.
+- **No task when he is only waiting for a reply.** As for email, what Ollie last asked in a Slack direct message is already on Messages, Waiting for a reply (the sorter's "awaiting"), so no task is made as well. Connector lines say "N things you asked for left on Messages, Waiting for a reply". When it is more than a reply he waits for (they said "will do", or it was in a channel), the Waiting on item is made.
+- **Checked by** `test/own-ask.test.ts` (5 tests).
+- **Not included:** changing items already made; the Granola reader, which has its own owner rule (section 27).
+
+## 31. Simpler every hour, and the first steps to running itself (asked for 13th November 2026; Parts B, C, D, E, F and H built 13th November 2026)
+
+_Written as section 30 on its branch and numbered 31 when merged alongside main's section 30 (what Ollie asks someone else for). Code comments, test names and the pull request that say "section 30, Part B" to "Part H" mean this section._
 
 Ollie asked for an audit of the whole app: what he will use most, what does not earn its place, what is missing, how to make it simple to use every hour, how to raise adoption, and how to move towards a company that runs itself. The audit read the code and his live numbers through the connector (`get_task_review`, 14 days, which is everything since go-live on 10th November). This section is the plan that came out of it. Parts B, C, D, E, F and H are built (see the "Built" headings below); A, G and I are not.
 
@@ -1939,7 +1951,7 @@ The day plan already suggested up to five tasks with a reason each (`suggestFor`
 - **Colleagues.** A view for each colleague, so actions from meetings land with their owner and are chased without Ollie. This changes the single-user model and the confidentiality rules, and needs its own PRD.
 - **Push notifications** on the phone. The app has a manifest but no service worker; Slack reaches the phone already.
 
-### Questions for section 30
+### Questions for section 31
 
 1. **Slack messages on a timer (Part F).** It was agreed on 12th November (`services/slackDm.ts`) that the Slack direct message is "the one thing OllieOS sends", only when Ollie presses Send, and never by AI or on a timer. Part F sends on a timer, but only to Ollie himself. **Agreed 13th November:** allowed, with the rule reworded to "never to anyone else on a timer".
 2. **Contacts off the phone bar (Part C).** **Agreed 13th November:** Messages takes its place and Contacts is first in More.
