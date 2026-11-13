@@ -283,6 +283,7 @@ function systemPrompt(me: string, projects: string[], now: Date, known: KnownNam
     `- "task": someone asks Ollie to do, decide, reply to, review or approve something, or there is a clear action for him. Not FYI messages, newsletters, notifications, receipts, automated mail, calendar invites, thanks, or things already done or answered later in the same exchange.`,
     `- "promise": in a message FROM Ollie, he commits to doing something for someone ("I'll send it over", "will get back to you by Friday").`,
     `- "waiting": in a message FROM Ollie, he asks someone else to do or send something and is now waiting for them.`,
+    `- Whose action it is: when Ollie asks someone for something ("Can you share the holiday dates?", "Could you send me the deck?"), the action is theirs, so it is "waiting", never a "task". Write it as who and what, from Ollie's side: "Kurt to share the product team's December holidays". Never write an item as something to send, share, give or tell TO Ollie ("Send Ollie the dates"): he is the one waiting, not the one doing it.`,
     `Rules:`,
     `- "ref" is the ref of the message the item comes from, copied exactly from the square brackets.`,
     ...itemRules(projects),

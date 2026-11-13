@@ -1755,3 +1755,13 @@ Ollie reported pages failing ("Could not load…") and being signed out. Finding
 - **Contacts with thousands of people (fixed).** The project lookup put every id into four IN lists and would fail past about 16,000 contacts; it now passes one array (`test/scale.test.ts`).
 - **Indexes added.** `fact_reviews.suggestion_id` (Knowledge Inbox counts with about 2,000 cards), and GIN indexes on `calendar_events.person_ids` and `meeting_tones.person_ids` (client pulse).
 - **Not changed yet:** Home still matches calendar events against every person three times per load (`loadMatchers`), `tidyReviews` runs on each Knowledge Inbox visit, and the people list returns every contact in one response. Worth revisiting if Home or Contacts are still slow with real data.
+
+## 30. What Ollie asks someone else for is never his task (asked for 13th November 2026)
+
+Ollie sent Kurt a Slack message, "Can you share what holidays product team have in December", and got an Inbox task for himself: "Send Ollie the product team's December holiday dates", for Kurt. The reader had read the ask from the other side and called it a task.
+
+- **Instructions.** The Gmail and Slack sorter is told whose action it is: when Ollie asks someone for something it is "waiting", written as who and what ("Kurt to share the product team's December holidays"), and never an item to send, share, give or tell to Ollie.
+- **In code, whatever the reader says** (`ownAsk`, `askedOfOllie` in `connectors/capture.ts`, no AI). A "task" from one of Ollie's own messages whose title is something to do for him ("Send Ollie…", "Share … with Ollie", "Let Ollie know…", "Send me…"), or is already written as someone else's action ("Kurt to share…"), becomes a Waiting on item named for who he asked: "Kurt to send you the product team's December holiday dates". "Oliver" followed by another surname is someone else and is left alone. His own work in his own message ("Draft the December plan") stays his task.
+- **No task when he is only waiting for a reply.** As for email, what Ollie last asked in a Slack direct message is already on Messages, Waiting for a reply (the sorter's "awaiting"), so no task is made as well. Connector lines say "N things you asked for left on Messages, Waiting for a reply". When it is more than a reply he waits for (they said "will do", or it was in a channel), the Waiting on item is made.
+- **Checked by** `test/own-ask.test.ts` (5 tests).
+- **Not included:** changing items already made; the Granola reader, which has its own owner rule (section 27).
