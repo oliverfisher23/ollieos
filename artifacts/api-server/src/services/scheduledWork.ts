@@ -31,6 +31,7 @@ import { linkPeopleToTasks } from "./taskPeople";
 import { coachStuckIfDue } from "./stuckCoach";
 import { buildWorkPacks } from "./workPack";
 import { clearOldSightings, findContacts } from "./contactFinder";
+import { fillTasks } from "./autoFill";
 
 /** OllieOS's own checks start at 07:00, so they wait for 07:40 (when the morning sweep ran) before building the digest. */
 export const DIGEST_NOT_BEFORE = { hour: 7, minute: 40 };
@@ -83,6 +84,8 @@ async function runScheduledWork(from: "sweep" | "connectors", now: Date): Promis
   });
   // Section 27: people linked to tasks nobody is on yet (no AI). Tests run it directly.
   if (process.env.NODE_ENV !== "test") await part("task_people", () => linkPeopleToTasks());
+  // Section 30, Part H: a project or due date filled in where there is one clear answer (no AI). Tests run it directly.
+  if (process.env.NODE_ENV !== "test") await part("auto_fill", () => fillTasks(now));
   // Calls the model on real Inbox items, so tests run it directly with the model stood in.
   if (process.env.NODE_ENV !== "test") await part("noise", () => checkInboxNoise());
   // Part O: new cards checked against approved knowledge. Calls the model, so tests run it directly.

@@ -1,4 +1,5 @@
 import { dismissDelegateHint } from "../services/delegation";
+import { saveDropReasonGuess, undoAuto } from "../services/autoFill";
 import { dmOptions, MAX_DM, sendSlackDm } from "../services/slackDm";
 import { Router, type IRouter } from "express";
 import { checkDraft, taskContextRefs } from "../services/draftLearning";
@@ -365,6 +366,23 @@ router.get(
   handle(async (req, res) => {
     const { id } = IdParams.parse(req.params);
     res.json({ projects: await projectSuggestionsFor(id) });
+  }),
+);
+
+/* Section 30, Part H: Undo on a field OllieOS filled in, and its guess at why an item was dropped. */
+const AutoUndoBody = z.object({ field: z.enum(["project", "due", "person", "waitingOn", "dropReason"]) }).strict();
+router.post(
+  "/tasks/:id/auto-undo",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    res.json(await undoAuto(id, AutoUndoBody.parse(req.body).field, ACTOR));
+  }),
+);
+router.post(
+  "/tasks/:id/drop-reason-guess",
+  handle(async (req, res) => {
+    const { id } = IdParams.parse(req.params);
+    res.json(await saveDropReasonGuess(id));
   }),
 );
 

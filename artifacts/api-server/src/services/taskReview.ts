@@ -35,6 +35,20 @@ export async function taskReview(days = 7, now = new Date()) {
     .from(tasksTable)
     .where(and(inArray(tasksTable.status, ["dropped", "noise"]), gte(tasksTable.updatedAt, from)))
     .groupBy(tasksTable.dropReason);
+  // Section 30, Part H: what OllieOS filled in by itself on tasks made in the window, and how much of it Ollie undid.
+  const [auto] = await db
+    .select({
+      project: sql<number>`count(*) filter (where ${tasksTable.autoSet}->>'project' = 'set')::int`,
+      projectUndone: sql<number>`count(*) filter (where ${tasksTable.autoSet}->>'project' = 'undone')::int`,
+      due: sql<number>`count(*) filter (where ${tasksTable.autoSet}->>'due' = 'set')::int`,
+      dueUndone: sql<number>`count(*) filter (where ${tasksTable.autoSet}->>'due' = 'undone')::int`,
+      person: sql<number>`count(*) filter (where ${tasksTable.autoSet}->>'person' = 'set' or ${tasksTable.autoSet}->>'waitingOn' = 'set')::int`,
+      personUndone: sql<number>`count(*) filter (where ${tasksTable.autoSet}->>'person' = 'undone' or ${tasksTable.autoSet}->>'waitingOn' = 'undone')::int`,
+      dropReason: sql<number>`count(*) filter (where ${tasksTable.autoSet}->>'dropReason' = 'set')::int`,
+      dropReasonUndone: sql<number>`count(*) filter (where ${tasksTable.autoSet}->>'dropReason' = 'undone')::int`,
+    })
+    .from(tasksTable)
+    .where(made);
   const dropReasons: Record<string, number> = { none_given: 0 };
   for (const r of DROP_REASONS) dropReasons[r] = 0;
   for (const r of reasons) dropReasons[r.reason ?? "none_given"] = (dropReasons[r.reason ?? "none_given"] ?? 0) + r.count;
@@ -106,6 +120,12 @@ export async function taskReview(days = 7, now = new Date()) {
       bySource: Object.fromEntries(bySource.map((r) => [r.source, { total: r.total, done: r.done, dropped: r.dropped, open: r.open, doneWithin30Min: r.doneWithin30Min }])),
     },
     dropReasons,
+    filledIn: {
+      project: { kept: n(auto?.project), undone: n(auto?.projectUndone) },
+      dueDate: { kept: n(auto?.due), undone: n(auto?.dueUndone) },
+      person: { kept: n(auto?.person), undone: n(auto?.personUndone) },
+      dropReason: { kept: n(auto?.dropReason), undone: n(auto?.dropReasonUndone) },
+    },
     readers: { quickRepliesLeftOnMessages: n(runs?.quickReplies), addedToExistingTasks: Math.max(n(runs?.addedToExisting), n(also?.count)) },
     cowork: { sessionsSaved: n(sessions?.saved), openQuestionsStillListed: n(sessions?.openQuestions) },
     openNow: {

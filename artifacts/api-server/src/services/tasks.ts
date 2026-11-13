@@ -6,6 +6,7 @@ import {
   projectsTable,
   tasksTable,
   type InsertTask,
+  type AutoField,
   type Task as TaskRow,
   type TaskStep,
 } from "@workspace/db";
@@ -375,6 +376,9 @@ async function projectName(id: number | null): Promise<string | null> {
 }
 
 /** Applies an edit, keeps the lifecycle timestamps right, and records each change in the audit trail. */
+/** The actor on changes OllieOS makes by itself (section 30, Part H). */
+export const AUTO_ACTOR = "ollieos";
+
 export async function updateTask(id: number, input: TaskUpdateInput, actor: string, clientId: number | null = null): Promise<TaskView> {
   const current = await loadTask(id);
   const set: Partial<InsertTask> = {};
@@ -503,6 +507,26 @@ export async function updateTask(id: number, input: TaskUpdateInput, actor: stri
   }
   // A task that starts waiting again is given the usual time before a chase.
   if (statusChanged && set.status === "waiting") set.chaseAfter = null;
+
+  // Section 30, Part H: a field Ollie (or an AI on his behalf) changes is his now, not "Set by OllieOS".
+  if (actor !== AUTO_ACTOR) {
+    const auto = { ...current.autoSet };
+    const mine: [AutoField, boolean][] = [
+      ["due", set.dueDate !== undefined],
+      ["project", set.projectId !== undefined],
+      ["person", set.personId !== undefined],
+      ["waitingOn", set.waitingOnPersonId !== undefined],
+      ["dropReason", set.dropReason !== undefined],
+    ];
+    let cleared = false;
+    for (const [field, changed] of mine) {
+      if (changed && auto[field] === "set") {
+        delete auto[field];
+        cleared = true;
+      }
+    }
+    if (cleared) set.autoSet = auto;
+  }
 
   if (changes.length === 0 && Object.keys(set).length === 0) return toTaskView(current);
   if (changes.length === 0) {

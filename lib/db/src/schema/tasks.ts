@@ -26,6 +26,9 @@ export const noiseRulesTable = pgTable("noise_rules", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export type AutoField = "project" | "due" | "person" | "waitingOn" | "dropReason";
+export type AutoSet = Partial<Record<AutoField, "set" | "undone">>;
+
 export const tasksTable = pgTable(
   "tasks",
   {
@@ -103,6 +106,14 @@ export const tasksTable = pgTable(
     chaseAfter: timestamp("chase_after", { withTimezone: true }),
     /** Section 28: a due date the reader guessed from the message ("this week", "before the board") when none was stated; offered with one tap, never applied by itself */
     suggestedDue: date("suggested_due", { mode: "string" }),
+    /**
+     * Section 30, Part H: which of project, due, person, waitingOn and dropReason OllieOS filled in by itself.
+     * "set" shows "Set by OllieOS" with Undo, and goes when Ollie changes the field himself; "undone" means he
+     * undid it, and OllieOS never fills that field on this task again.
+     */
+    autoSet: jsonb("auto_set").$type<AutoSet>().notNull().default({}),
+    /** When OllieOS last looked for a project to fill in; null means not yet */
+    autoCheckedAt: timestamp("auto_checked_at", { withTimezone: true }),
     /** Section 27: the stuck-task coach's line on why this keeps slipping and what to try */
     stuckHint: jsonb("stuck_hint").$type<StuckHint | null>(),
     /** When the stuck-task coach last looked at it; null means not yet */

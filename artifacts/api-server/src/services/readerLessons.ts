@@ -116,7 +116,8 @@ export async function taskCorrections(reader: LessonReader, now = new Date()): P
   const corrections: Correction[] = undone.map((t) => ({
     ref: `u${t.id}`,
     // Section 27: his own reason, when he gave one, says what kind of mistake it was.
-    line: `Made ${describe(t)}. ${STATUS_WORD[t.status]}${t.dropReason ? `, saying: ${WHY[t.dropReason] ?? t.dropReason}` : ""}.`,
+    // Section 30, Part H: a reason OllieOS guessed and Ollie left is weaker than one he chose, and is said as such.
+    line: `Made ${describe(t)}. ${STATUS_WORD[t.status]}${t.dropReason ? (t.autoSet.dropReason === "set" ? `. OllieOS's guess at why, which he left as it was: ${WHY[t.dropReason] ?? t.dropReason}` : `, saying: ${WHY[t.dropReason] ?? t.dropReason}`) : ""}.`,
     example: `"${clip(t.title, 90)}": ${STATUS_WORD[t.status].toLowerCase().replace("you ", "")}${t.dropReason ? ` (${(WHY[t.dropReason] ?? t.dropReason).toLowerCase()})` : ""}`,
   }));
 

@@ -15,8 +15,27 @@ import { loadTask } from "./tasks";
 import type { EntitySummary } from "./taskView";
 
 const MAX = 3;
+/** Section 30, Part H: a project is filled in by itself at this score or more, and only when it is this far ahead of the next. */
+const STRONG = 3;
+const CLEAR_BY = 2;
 
 export async function projectSuggestionsFor(taskId: number): Promise<EntitySummary[]> {
+  return (await scoredProjectsFor(taskId)).slice(0, MAX).map((x) => x.project);
+}
+
+/**
+ * The one project a task clearly belongs to, or null: other tasks from the same thread, meeting or
+ * session are on it, or the session is, or the task names it and the person is usually about it;
+ * and no other project comes close. Two candidates of similar weight are left as chips for Ollie.
+ */
+export async function strongProjectFor(taskId: number): Promise<EntitySummary | null> {
+  const [top, next] = await scoredProjectsFor(taskId);
+  if (!top || top.score < STRONG) return null;
+  if (next && top.score - next.score < CLEAR_BY) return null;
+  return top.project;
+}
+
+async function scoredProjectsFor(taskId: number): Promise<{ project: EntitySummary; score: number }[]> {
   const t = await loadTask(taskId);
   if (t.projectId != null) return [];
   const score = new Map<number, number>();
@@ -94,7 +113,6 @@ export async function projectSuggestionsFor(taskId: number): Promise<EntitySumma
   const byId = new Map(projects.map((p) => [p.id, p]));
   return [...score.entries()]
     .filter(([id]) => byId.has(id))
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, MAX)
-    .map(([id]) => byId.get(id)!);
+    .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+    .map(([id, score]) => ({ project: byId.get(id)!, score }));
 }

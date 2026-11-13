@@ -13,7 +13,7 @@ export interface EntitySummary {
   confidential: boolean;
 }
 
-export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "waitingOnPersonId" | "noiseRuleId" | "sourceChannel" | "noiseHintKept" | "noiseCheckedAt" | "repeatNextId" | "delegateCheckedAt" | "delegateDismissedAt" | "personCheckedAt" | "stuckCheckedAt" | "stuckDismissedAt" | "chaseAfter"> & {
+export type TaskView = Omit<TaskRow, "search" | "personId" | "projectId" | "waitingOnPersonId" | "noiseRuleId" | "sourceChannel" | "noiseHintKept" | "noiseCheckedAt" | "repeatNextId" | "delegateCheckedAt" | "delegateDismissedAt" | "personCheckedAt" | "stuckCheckedAt" | "stuckDismissedAt" | "chaseAfter" | "autoCheckedAt"> & {
   /** Section 28: the task's work pack, when it has one worth showing */
   pack: "ready_to_send" | "needs_work" | null;
   /** Section 27: a Waiting on task that has waited long enough for a chase */
@@ -121,7 +121,7 @@ export async function toTaskViews(rows: TaskRow[], conn: DbOrTx = db): Promise<T
   };
 
   return rows.map((r) => {
-    const { search: _search, personId, projectId, waitingOnPersonId, noiseRuleId, sourceChannel: _channel, noiseHintKept, noiseCheckedAt: _checked, repeatNextId: _next, delegateCheckedAt: _dc, delegateDismissedAt, personCheckedAt: _pc, stuckCheckedAt: _sc, stuckDismissedAt, chaseAfter, ...rest } = r;
+    const { search: _search, personId, projectId, waitingOnPersonId, noiseRuleId, sourceChannel: _channel, noiseHintKept, noiseCheckedAt: _checked, repeatNextId: _next, delegateCheckedAt: _dc, delegateDismissedAt, personCheckedAt: _pc, stuckCheckedAt: _sc, stuckDismissedAt, chaseAfter, autoCheckedAt: _ac, ...rest } = r;
     const chaseFrom = chaseAfter ?? new Date((r.waitingSince ?? r.createdAt).getTime() + CHASE_AFTER_DAYS * 86_400_000);
     return {
       ...rest,

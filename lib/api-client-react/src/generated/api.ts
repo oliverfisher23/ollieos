@@ -42,6 +42,7 @@ import type {
   AskThread,
   AskThreadSummary,
   AuthUserEnvelope,
+  AutoUndoInput,
   BeginBrowserLoginParams,
   BriefNotesInput,
   BriefTalkingPointInput,
@@ -128,6 +129,7 @@ import type {
   GranolaLinkInput,
   GraphConnection,
   GraphResult,
+  GuessTaskDropReason200,
   HandleBrowserLoginCallbackParams,
   HealthStatus,
   HomeSummary,
@@ -10437,6 +10439,169 @@ export const useBulkUpdateTasks = <TError = ErrorType<ErrorEnvelope | NotAuthori
         TContext
       > => {
       return useMutation(getBulkUpdateTasksMutationOptions(options), queryClient);
+    }
+
+export const getUndoTaskAutoSetUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/auto-undo`
+}
+
+/**
+ * @summary Undo a field OllieOS filled in by itself; it is cleared and never filled on this task again
+ */
+export const undoTaskAutoSet = async (id: number,
+    autoUndoInput: AutoUndoInput, options?: Parameters<typeof customFetch>[1]): Promise<Task> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Task>(getUndoTaskAutoSetUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(autoUndoInput)
+  }
+);}
+
+
+
+
+
+export const getUndoTaskAutoSetMutationKey = () => ['undoTaskAutoSet'] as const;
+
+export const getUndoTaskAutoSetMutationOptions = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoTaskAutoSet>>, TError,UndoTaskAutoSetMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof undoTaskAutoSet>>, TError,UndoTaskAutoSetMutationVariables, TContext> => {
+
+const mutationKey = getUndoTaskAutoSetMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof undoTaskAutoSet>>, UndoTaskAutoSetMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  undoTaskAutoSet(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UndoTaskAutoSetMutationResult = NonNullable<Awaited<ReturnType<typeof undoTaskAutoSet>>>
+    export type UndoTaskAutoSetMutationBody = BodyType<AutoUndoInput>
+    export type UndoTaskAutoSetMutationError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>
+    export type UndoTaskAutoSetMutationVariables = {id: number;data: BodyType<AutoUndoInput>}
+
+    /**
+ * @summary Undo a field OllieOS filled in by itself; it is cleared and never filled on this task again
+ */
+export const useUndoTaskAutoSet = <TError = ErrorType<ErrorEnvelope | NotAuthorisedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof undoTaskAutoSet>>, TError,UndoTaskAutoSetMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof undoTaskAutoSet>>,
+        TError,
+        UndoTaskAutoSetMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUndoTaskAutoSetMutationOptions(options), queryClient);
+    }
+
+export const getGuessTaskDropReasonUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/drop-reason-guess`
+}
+
+/**
+ * @summary Called when the Why? chips are shown for a dropped item with no reason: saves OllieOS's guess, when it has a clear one
+ */
+export const guessTaskDropReason = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<GuessTaskDropReason200> => {
+
+  return customFetch<GuessTaskDropReason200>(getGuessTaskDropReasonUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getGuessTaskDropReasonMutationKey = () => ['guessTaskDropReason'] as const;
+
+export const getGuessTaskDropReasonMutationOptions = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof guessTaskDropReason>>, TError,GuessTaskDropReasonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof guessTaskDropReason>>, TError,GuessTaskDropReasonMutationVariables, TContext> => {
+
+const mutationKey = getGuessTaskDropReasonMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof guessTaskDropReason>>, GuessTaskDropReasonMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  guessTaskDropReason(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GuessTaskDropReasonMutationResult = NonNullable<Awaited<ReturnType<typeof guessTaskDropReason>>>
+
+    export type GuessTaskDropReasonMutationError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>
+    export type GuessTaskDropReasonMutationVariables = {id: number}
+
+    /**
+ * @summary Called when the Why? chips are shown for a dropped item with no reason: saves OllieOS's guess, when it has a clear one
+ */
+export const useGuessTaskDropReason = <TError = ErrorType<NotAuthorisedResponse | ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof guessTaskDropReason>>, TError,GuessTaskDropReasonMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof guessTaskDropReason>>,
+        TError,
+        GuessTaskDropReasonMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGuessTaskDropReasonMutationOptions(options), queryClient);
     }
 
 export const getGetTaskProjectSuggestionsUrl = (id: number,) => {

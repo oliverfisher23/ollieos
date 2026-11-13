@@ -2357,6 +2357,72 @@ paths:
         "403":
           $ref: "#/components/responses/NotAuthorised"
 
+  /tasks/{id}/auto-undo:
+    post:
+      operationId: undoTaskAutoSet
+      tags: [tasks]
+      summary: "Undo a field OllieOS filled in by itself; it is cleared and never filled on this task again"
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutoUndoInput"
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          description: OllieOS did not set that field
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/drop-reason-guess:
+    post:
+      operationId: guessTaskDropReason
+      tags: [tasks]
+      summary: "Called when the Why? chips are shown for a dropped item with no reason: saves OllieOS's guess, when it has a clear one"
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: The guess (null when there is none) and the task
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reason, task]
+                properties:
+                  reason:
+                    oneOf:
+                      - $ref: "#/components/schemas/DropReason"
+                      - type: "null"
+                  task:
+                    $ref: "#/components/schemas/Task"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /tasks/{id}/project-suggestions:
     get:
       operationId: getTaskProjectSuggestions
@@ -5998,10 +6064,27 @@ components:
         confidential:
           type: boolean
 
+    AutoSet:
+      type: object
+      description: "Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again."
+      properties:
+        project: { type: string, enum: [set, undone] }
+        due: { type: string, enum: [set, undone] }
+        person: { type: string, enum: [set, undone] }
+        waitingOn: { type: string, enum: [set, undone] }
+        dropReason: { type: string, enum: [set, undone] }
+
+    AutoUndoInput:
+      type: object
+      required: [field]
+      properties:
+        field: { type: string, enum: [project, due, person, waitingOn, dropReason] }
+
     Task:
       type: object
       required:
         - id
+        - autoSet
         - title
         - kind
         - status
@@ -6165,6 +6248,8 @@ components:
           oneOf:
             - $ref: "#/components/schemas/DropReason"
             - type: "null"
+        autoSet:
+          $ref: "#/components/schemas/AutoSet"
         suggestedDue:
           type: [string, "null"]
           format: date
