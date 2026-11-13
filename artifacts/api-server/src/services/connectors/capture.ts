@@ -24,7 +24,7 @@ import { addSpottedIdea } from "../strategy";
 import { lessonsFor } from "../readerLessons";
 import { recordSightings, sightingsFromUnits } from "../contactFinder";
 import type { WorkMessage, WorkUnit } from "./messages";
-import { firstNameKey, matchName, nameKey, nameKeysOf } from "../personNames";
+import { firstNameKey, matchName, nameKey, nameKeysOf, waitingOnInTitle } from "../personNames";
 import type { AgentKey } from "../../lib/agents";
 import { sortUnits, type KnownNames, type SortedClaim, type SortedUnit } from "./sorter";
 
@@ -52,6 +52,8 @@ export interface CaptureCounts {
   linked?: number;
   /** Section 27: Slack asks that only need a quick reply, left on Messages instead of also becoming a task */
   quick_replies?: number;
+  /** Section 30: things Ollie asked someone on Slack, left on Messages, Waiting for a reply, instead of also becoming a task */
+  asked?: number;
   /** Section 25: people seen who are not in Contacts */
   sightings?: number;
 }
@@ -199,6 +201,45 @@ export function itemPerson(people: LoadedPeople, u: WorkUnit, it: { type: string
   if (it.type === "task") return sender;
   if (it.type === "waiting") return sender ?? onlyOtherPerson(u, people);
   return null;
+}
+
+const ASK_VERBS = "send|share|give|tell|show|email|forward|bring|update|remind|ping|message|call|brief|let|get back to|come back to|reply to|respond to|report back to|confirm to|confirm with";
+const ASK_TO_OLLIE = new RegExp(`^(${ASK_VERBS})\\s+(ollie|oliver(?:\\s+fisher)?|me)\\b[,:]?\\s*(.*)$`, "i");
+const FOR_OLLIE = /^(.+?)\s+(to|with|for)\s+(ollie|oliver(?:\s+fisher)?|me)\.?$/i;
+
+/**
+ * Section 30: when a title is something to do FOR Ollie ("Send Ollie the holiday dates", "Share the
+ * dates with Ollie"), the rest of it from his side ("send you the holiday dates"); otherwise null.
+ * "Oliver" followed by another surname is someone else, so it is left alone.
+ */
+export function askedOfOllie(title: string): string | null {
+  const t = title.trim();
+  const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+  const a = ASK_TO_OLLIE.exec(t);
+  if (a) {
+    if (/^oliver$/i.test(a[2]) && /^\p{Lu}\p{Ll}+/u.test(a[3])) return null;
+    return `${a[1].toLowerCase()} you${a[3] ? " " + a[3] : ""}`;
+  }
+  const f = FOR_OLLIE.exec(t);
+  return f ? `${lower(f[1])} ${f[2].toLowerCase()} you` : null;
+}
+
+/**
+ * Section 30: an item from one of Ollie's own messages that is really the other person's to do.
+ * The reader sometimes writes "Can you share the holiday dates?" as a task, "Send Ollie the holiday
+ * dates", as if from the other side. It becomes a Waiting on item named for who he asked, so it is
+ * never a task for him. No AI.
+ */
+export function ownAsk(it: SortedUnit["items"][number], msg: WorkMessage, u: WorkUnit, people: LoadedPeople): SortedUnit["items"][number] {
+  if (!msg.fromMe || it.type !== "task") return it;
+  const rest = askedOfOllie(it.title);
+  // "Kurt to share the dates" is already written as someone else's action.
+  const named = rest ? null : waitingOnInTitle(it.title);
+  if (!rest && (!named || /^(ollie|oliver)\b/i.test(named))) return it;
+  if (!rest) return { ...it, type: "waiting", quick: false };
+  const who = itemPerson(people, u, { type: "waiting", person: it.person }, msg);
+  const first = who?.name.trim().split(/\s+/)[0];
+  return { ...it, type: "waiting", quick: false, title: first ? `${first} to ${rest}` : it.title };
 }
 
 /**
@@ -526,10 +567,18 @@ export async function captureSorted(
 
     // One message can hold several items; each needs its own ref or the second looks like a duplicate.
     const perMessage = new Map<string, number>();
-    for (const it of s.items) {
-      const msg = u.messages.find((m) => m.ref === it.ref) ?? u.messages[u.messages.length - 1];
+    for (const raw of s.items) {
+      const msg = u.messages.find((m) => m.ref === raw.ref) ?? u.messages[u.messages.length - 1];
+      // Section 30: something Ollie asked someone else for is theirs to do, however the reader wrote it.
+      const it = ownAsk(raw, msg, u, people);
       // Emails Ollie sends that wait on someone are on Email, Waiting for a reply; no task as well.
       if (u.source === "email" && it.type === "waiting" && msg.fromMe) continue;
+      // Section 30: the same for Slack. What Ollie last asked in a direct message is on Messages, Waiting for a reply.
+      const last = u.messages[u.messages.length - 1];
+      if (u.source === "slack" && it.type === "waiting" && msg.fromMe && msg.ref === last.ref && s.reply?.needs === "awaiting" && u.conversation?.kind !== "channel" && !it.same_as) {
+        counts.asked = (counts.asked ?? 0) + 1;
+        continue;
+      }
       // Section 27: a Slack ask that only needs a line in reply is already on Messages, To answer; no task as well.
       if (u.source === "slack" && it.type === "task" && it.quick && !msg.fromMe && s.reply?.needs === "reply" && !it.same_as) {
         counts.quick_replies = (counts.quick_replies ?? 0) + 1;
