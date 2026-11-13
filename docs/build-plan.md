@@ -1876,7 +1876,7 @@ Today every agent proposes and Ollie approves. The Agents page already records h
 
 ### Questions for section 30
 
-1. **Slack messages on a timer (Part F).** Section 27 agreed that the Slack direct message is "the one thing OllieOS sends", only when Ollie presses Send, and never by AI or on a timer. Part F sends on a timer, but only to Ollie himself. Proposed: allow it, with the rule reworded to "never to anyone else on a timer".
+1. **Slack messages on a timer (Part F).** It was agreed on 12th November (`services/slackDm.ts`) that the Slack direct message is "the one thing OllieOS sends", only when Ollie presses Send, and never by AI or on a timer. Part F sends on a timer, but only to Ollie himself. Proposed: allow it, with the rule reworded to "never to anyone else on a timer".
 2. **Contacts off the phone bar (Part C).** Proposed: yes, Messages takes its place and Contacts is first in More.
 3. **Backlog to Now on Use this (Part E).** Proposed: yes, so Now always matches the day's plan.
 4. **The 90% and 20 bar (Part I).** Proposed as written; both numbers would be settings in code, not on a page.
