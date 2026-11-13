@@ -12,7 +12,9 @@ if (!process.env.DATABASE_URL) {
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: 10,
+  // Background work (scheduled preparation, connector checks, the knowledge reader) holds a few
+  // connections for long stretches; 20 leaves pages plenty. Hosted Postgres allows far more.
+  max: 20,
   // Hosted Postgres closes connections left idle for a few minutes. Close them first, so a request
   // never picks up one that is already dead, and keep live ones open with TCP keepalive.
   idleTimeoutMillis: 30_000,
