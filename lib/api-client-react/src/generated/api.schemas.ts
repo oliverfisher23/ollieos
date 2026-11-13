@@ -245,6 +245,72 @@ export interface EntitySummary {
   confidential: boolean;
 }
 
+export type AutoSetProject = typeof AutoSetProject[keyof typeof AutoSetProject];
+
+
+export const AutoSetProject = {
+  set: 'set',
+  undone: 'undone',
+} as const;
+
+export type AutoSetDue = typeof AutoSetDue[keyof typeof AutoSetDue];
+
+
+export const AutoSetDue = {
+  set: 'set',
+  undone: 'undone',
+} as const;
+
+export type AutoSetPerson = typeof AutoSetPerson[keyof typeof AutoSetPerson];
+
+
+export const AutoSetPerson = {
+  set: 'set',
+  undone: 'undone',
+} as const;
+
+export type AutoSetWaitingOn = typeof AutoSetWaitingOn[keyof typeof AutoSetWaitingOn];
+
+
+export const AutoSetWaitingOn = {
+  set: 'set',
+  undone: 'undone',
+} as const;
+
+export type AutoSetDropReason = typeof AutoSetDropReason[keyof typeof AutoSetDropReason];
+
+
+export const AutoSetDropReason = {
+  set: 'set',
+  undone: 'undone',
+} as const;
+
+/**
+ * Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.
+ */
+export interface AutoSet {
+  project?: AutoSetProject;
+  due?: AutoSetDue;
+  person?: AutoSetPerson;
+  waitingOn?: AutoSetWaitingOn;
+  dropReason?: AutoSetDropReason;
+}
+
+export type AutoUndoInputField = typeof AutoUndoInputField[keyof typeof AutoUndoInputField];
+
+
+export const AutoUndoInputField = {
+  project: 'project',
+  due: 'due',
+  person: 'person',
+  waitingOn: 'waitingOn',
+  dropReason: 'dropReason',
+} as const;
+
+export interface AutoUndoInput {
+  field: AutoUndoInputField;
+}
+
 /**
  * Section 28: the task's work pack status, when it has one worth showing
  */
@@ -435,6 +501,7 @@ export interface Task {
   delegateHint?: DelegateHint | null;
   /** Section 27: why Ollie dropped it or sent it to Noise */
   dropReason?: DropReason | null;
+  autoSet: AutoSet;
   /**
      * Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed
      * @nullable
@@ -597,6 +664,23 @@ export interface WorkingHours {
   start: string;
   /** HH:MM, London time */
   end: string;
+}
+
+export interface NudgeSettings {
+  /** Weekday mornings after the digest: today's plan, meetings not prepared, messages to answer */
+  morning: boolean;
+  /** 15 minutes before a work meeting with a prep page */
+  meeting: boolean;
+  /** When the working day ends: done, still due, ready to chase */
+  evening: boolean;
+  /** True when the OllieOS Slack app's token (SLACK_BOT_TOKEN) is set */
+  appConnected: boolean;
+}
+
+export interface NudgeSettingsInput {
+  morning?: boolean;
+  meeting?: boolean;
+  evening?: boolean;
 }
 
 export interface PlanItemInput {
@@ -6782,6 +6866,10 @@ export type GetWeeklyUpdateParams = {
 weekStart?: string;
 };
 
+export type SendTestNudge200 = {
+  ok: boolean;
+};
+
 export type ListTestCasesParams = {
 agent?: string;
 };
@@ -6827,6 +6915,11 @@ export type GetTaskReviewParams = {
  * @maximum 60
  */
 days?: number;
+};
+
+export type GuessTaskDropReason200 = {
+  reason: DropReason | null;
+  task: Task;
 };
 
 export type ListProjectsParams = {

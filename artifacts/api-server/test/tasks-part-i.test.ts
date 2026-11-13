@@ -228,6 +228,26 @@ describe("Plan my day", () => {
     ]);
   });
 
+  it("puts promises first among what is due, and leaves a planned task where Ollie later moves it", async () => {
+    const early = new Date(londonWallTimeToInstant(today, 7, 0));
+    const task = await newTask({ dueDate: today, priority: "high" });
+    const promise = await newTask({ dueDate: today, kind: "promise" });
+    const overdue = await newTask({ dueDate: addDays(today, -1) });
+    const waiting = await newTask({ status: "waiting", dueDate: today });
+    const got = await getPlan(early);
+    expect(got.suggestions.map((s) => s.task.id)).toEqual([overdue.id, promise.id, task.id, waiting.id]);
+    expect(got.suggestions[1].reason).toBe("Promise, due today");
+
+    const plan = await savePlan(got.suggestions.map((s) => ({ taskId: s.task.id, minutes: 30 })), early);
+    // Backlog went to Now; Waiting on stays waiting on them.
+    expect(plan.items.map((i) => i.task.status)).toEqual(["now", "now", "now", "waiting"]);
+
+    // Moved back to Backlog by hand, then Fit again: it is not pulled into Now a second time.
+    await api(`tasks/${task.id}`, { method: "PATCH", body: { status: "backlog" } });
+    const again = await savePlan(plan.items.map((i) => ({ taskId: i.task.id, minutes: i.minutes })), early);
+    expect(again.items.find((i) => i.task.id === task.id)!.task.status).toBe("backlog");
+  });
+
   it("suggests tasks, saves a plan around a meeting, and checks the inputs", async () => {
     const due = await newTask({ dueDate: today, status: "now" });
     const high = await newTask({ priority: "high" });
@@ -255,6 +275,8 @@ describe("Plan my day", () => {
     );
     expect(plan.made).toBe(true);
     expect(plan.suggestions).toEqual([]);
+    // Section 30, Part E: the Backlog task put in the plan is now in Now.
+    expect(plan.items.map((i) => i.task.status)).toEqual(["now", "now"]);
     expect(plan.items.map((i) => [i.start, i.end])).toEqual([
       ["10:30", "11:30"],
       ["09:00", "09:30"],

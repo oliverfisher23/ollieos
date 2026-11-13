@@ -246,6 +246,13 @@ export const GetHomeResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -349,6 +356,13 @@ export const GetHomeResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -444,6 +458,13 @@ export const GetHomeResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -539,6 +560,13 @@ export const GetHomeResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -705,6 +733,13 @@ export const ListTasksResponseItem = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -849,6 +884,13 @@ export const QuickAddTaskResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -953,6 +995,13 @@ export const ListTaskDuplicatesResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -1046,6 +1095,13 @@ export const ListTaskDuplicatesResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -1163,6 +1219,13 @@ export const MergeTaskDuplicateResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -1291,6 +1354,13 @@ export const GetTaskResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -1429,6 +1499,13 @@ export const UpdateTaskResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -1531,6 +1608,13 @@ export const SnoozeTaskResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -1672,6 +1756,13 @@ export const TriageTaskResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -1787,6 +1878,13 @@ export const UndoTaskResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -1889,6 +1987,13 @@ export const RestoreTaskResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -1991,6 +2096,13 @@ export const ContinueRepeatResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -2097,6 +2209,13 @@ export const GetDayPlanResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -2203,6 +2322,13 @@ export const GetDayPlanResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -2320,6 +2446,13 @@ export const SaveDayPlanResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -2426,6 +2559,13 @@ export const SaveDayPlanResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -2536,6 +2676,13 @@ export const RefitDayPlanResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -2642,6 +2789,13 @@ export const RefitDayPlanResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -2679,6 +2833,42 @@ export const UpdateWorkingHoursBody = zod.object({
 export const UpdateWorkingHoursResponse = zod.object({
   "start": zod.string().describe('HH:MM, London time'),
   "end": zod.string().describe('HH:MM, London time')
+})
+
+
+/**
+ * @summary Which Slack nudges are on, and whether the OllieOS Slack app is connected
+ */
+export const GetNudgeSettingsResponse = zod.object({
+  "morning": zod.boolean().describe('Weekday mornings after the digest: today\'s plan, meetings not prepared, messages to answer'),
+  "meeting": zod.boolean().describe('15 minutes before a work meeting with a prep page'),
+  "evening": zod.boolean().describe('When the working day ends: done, still due, ready to chase'),
+  "appConnected": zod.boolean().describe('True when the OllieOS Slack app\'s token (SLACK_BOT_TOKEN) is set')
+})
+
+
+/**
+ * @summary Turn nudges on or off
+ */
+export const UpdateNudgeSettingsBody = zod.object({
+  "morning": zod.boolean().optional(),
+  "meeting": zod.boolean().optional(),
+  "evening": zod.boolean().optional()
+})
+
+export const UpdateNudgeSettingsResponse = zod.object({
+  "morning": zod.boolean().describe('Weekday mornings after the digest: today\'s plan, meetings not prepared, messages to answer'),
+  "meeting": zod.boolean().describe('15 minutes before a work meeting with a prep page'),
+  "evening": zod.boolean().describe('When the working day ends: done, still due, ready to chase'),
+  "appConnected": zod.boolean().describe('True when the OllieOS Slack app\'s token (SLACK_BOT_TOKEN) is set')
+})
+
+
+/**
+ * @summary Send a test message to Ollie from the OllieOS Slack app
+ */
+export const SendTestNudgeResponse = zod.object({
+  "ok": zod.boolean()
 })
 
 
@@ -2770,6 +2960,13 @@ export const GetClearOutResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -2882,6 +3079,13 @@ export const KeepInBacklogResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -2984,6 +3188,13 @@ export const KeepTaskResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -4072,6 +4283,13 @@ export const GetWeekCheckResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -4826,6 +5044,231 @@ export const BulkUpdateTasksResponse = zod.object({
 
 
 /**
+ * @summary Undo a field OllieOS filled in by itself; it is cleared and never filled on this task again
+ */
+export const UndoTaskAutoSetParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const UndoTaskAutoSetBody = zod.object({
+  "field": zod.enum(['project', 'due', 'person', 'waitingOn', 'dropReason'])
+})
+
+export const UndoTaskAutoSetResponse = zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
+  "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist'),
+  "outcome": zod.string().optional().describe('Section 28: used or not_stuck, once Ollie has dealt with it')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
+})
+
+
+/**
+ * @summary Called when the Why? chips are shown for a dropped item with no reason: saves OllieOS's guess, when it has a clear one
+ */
+export const GuessTaskDropReasonParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GuessTaskDropReasonResponse = zod.object({
+  "reason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]),
+  "task": zod.object({
+  "position": zod.int().nullable().describe('Where Ollie dragged it in the list; lower comes first. Null when never placed by hand.'),
+  "repeat": zod.union([zod.object({
+  "every": zod.enum(['day', 'weekday', 'week', 'fortnight', 'month', 'quarter', 'year']),
+  "day": zod.int().optional().describe('Day of the month, for month, quarter and year by date'),
+  "month": zod.int().optional().describe('Month of the year'),
+  "weekday": zod.int().optional().describe('Day of the week (0 is Sunday), for week, fortnight and month by weekday'),
+  "nth": zod.int().optional().describe('Which one in the month, 1 to 4, or 5 for the last')
+}),zod.null()]).describe('How it repeats, anchored on its due date. Null when it does not.'),
+  "steps": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "done": zod.boolean()
+})).describe('Checklist steps, in order'),
+  "id": zod.int(),
+  "title": zod.string(),
+  "kind": zod.enum(['task', 'promise']),
+  "status": zod.enum(['inbox', 'now', 'backlog', 'waiting', 'done', 'noise', 'dropped', 'archived']),
+  "priority": zod.enum(['high', 'medium', 'low']),
+  "dueDate": zod.coerce.date().nullable(),
+  "snoozedUntil": zod.coerce.date().nullable(),
+  "source": zod.enum(['email', 'slack', 'meeting', 'quarterly', 'manual', 'session', 'voice']),
+  "sourceRef": zod.string().nullable(),
+  "sourceUrl": zod.string().nullable(),
+  "sourceQuote": zod.string().nullable(),
+  "sourceSubject": zod.string().nullable(),
+  "fromName": zod.string().nullable(),
+  "fromAddress": zod.string().nullable(),
+  "snippet": zod.string().nullable(),
+  "suggestedAction": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "project": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "person": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingOn": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "confidential": zod.boolean()
+}),zod.null()]),
+  "waitingSince": zod.coerce.date().nullable(),
+  "confidential": zod.boolean().nullable().describe('null means inherit from linked items'),
+  "capturedAt": zod.coerce.date().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "completedAt": zod.coerce.date().nullable(),
+  "triagedAt": zod.coerce.date().nullable(),
+  "stale": zod.boolean().describe('Backlog item untouched for 30 days or more'),
+  "noiseRule": zod.union([zod.object({
+  "id": zod.int(),
+  "matchType": zod.enum(['from_address_equals', 'from_domain_equals', 'slack_channel_equals', 'title_contains']),
+  "matchValue": zod.string(),
+  "label": zod.string().describe('Plain description, e.g. "Emails from news@example.com"')
+}),zod.null()]).describe('The rule that caught this item, if any'),
+  "hiddenFromAi": zod.boolean().describe('AI tools cannot read this task without an approval (own flag or inherited)'),
+  "goal": zod.union([zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "inherited": zod.boolean().describe('True when it comes from the task\'s project')
+}),zod.null()]).describe('The goal it counts towards, its own link or else its project\'s (inherited)'),
+  "goalId": zod.int().nullable().describe('A direct goal link; overrides the project\'s goal'),
+  "notGoalWork": zod.boolean().describe('Ollie marked it as not goal work'),
+  "noiseHint": zod.string().nullable().describe('Why this Inbox item is probably noise. Null when it looks real, once kept, or outside the Inbox.'),
+  "looksDone": zod.string().nullish().describe('Part U: one line of evidence from elsewhere that this open task is done (who said it, where, and the sentence), or null'),
+  "alsoFrom": zod.array(zod.string()).optional().describe('Section 26: other sources the same work came up in (slack, email, meeting, session...), besides the task\'s own'),
+  "delegateHint": zod.union([zod.object({
+  "personId": zod.int(),
+  "personName": zod.string(),
+  "why": zod.string(),
+  "message": zod.string()
+}),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
+  "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
+  "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
+  "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
+  "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
+  "stuckHint": zod.union([zod.object({
+  "why": zod.string().describe('Why it looks stuck, for example Due date moved 3 times'),
+  "kind": zod.string().describe('first_step, split, delegate or drop'),
+  "suggestion": zod.string().describe('One line on what to try'),
+  "step": zod.string().nullable().describe('For first_step and split: the step to add to the checklist'),
+  "outcome": zod.string().optional().describe('Section 28: used or not_stuck, once Ollie has dealt with it')
+}),zod.null()]).optional().describe('Section 27: the stuck-task coach\'s line on a Now or Backlog task that keeps slipping. Null once dismissed.')
+})
+})
+
+
+/**
  * @summary Up to three projects a task with no project probably belongs to
  */
 export const GetTaskProjectSuggestionsParams = zod.object({
@@ -4961,6 +5404,13 @@ export const ChaseTaskLaterResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -5234,6 +5684,13 @@ export const DismissTaskStuckHintResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -5696,6 +6153,13 @@ export const GetProjectResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -6039,6 +6503,13 @@ export const GetPersonResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -6132,6 +6603,13 @@ export const GetPersonResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -11917,6 +12395,13 @@ export const AskOllieOSResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -12074,6 +12559,13 @@ export const GetAskThreadResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -12231,6 +12723,13 @@ export const DraftAskReplyResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -12388,6 +12887,13 @@ export const AllowAskTurnResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -12554,6 +13060,13 @@ export const BundleAskTasksResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),
@@ -12711,6 +13224,13 @@ export const UndoAskBundleResponse = zod.object({
   "message": zod.string()
 }),zod.null()]).optional().describe('Section 23: a colleague who could take this Now or Backlog task, why, and a draft Slack message. Null once dismissed or outside Now and Backlog.'),
   "dropReason": zod.union([zod.enum(['not_mine', 'already_done', 'fyi', 'arranging', 'duplicate', 'not_needed']),zod.null()]).optional().describe('Section 27: why Ollie dropped it or sent it to Noise'),
+  "autoSet": zod.object({
+  "project": zod.enum(['set', 'undone']).optional(),
+  "due": zod.enum(['set', 'undone']).optional(),
+  "person": zod.enum(['set', 'undone']).optional(),
+  "waitingOn": zod.enum(['set', 'undone']).optional(),
+  "dropReason": zod.enum(['set', 'undone']).optional()
+}).describe('Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again.'),
   "suggestedDue": zod.coerce.date().nullish().describe('Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed'),
   "chaseDue": zod.boolean().optional().describe('Section 27: a Waiting on task that has waited long enough for a chase'),
   "pack": zod.union([zod.enum(['ready_to_send', 'needs_work']),zod.null()]).optional().describe('Section 28: the task\'s work pack status, when it has one worth showing'),

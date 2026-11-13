@@ -9,6 +9,7 @@
  * chosen interval). A run is claimed in the database first, so two server instances never run
  * the same check.
  */
+import { nudgeTickSafely } from "../nudges";
 import { and, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
 import { appSettingsTable, calendarEventsTable, connectorRunsTable, db, peopleTable, tasksTable, type ConnectorRun } from "@workspace/db";
 import { addDays, londonParts, londonWallTimeToInstant, todayLondon } from "@workspace/shared";
@@ -523,7 +524,9 @@ export function startConnectorTimer() {
   timer = setInterval(() => {
     if (busy) return;
     busy = true;
-    timerTick()
+    // Section 30, Part F: nudges are due by the clock, whether or not a check runs this minute.
+    nudgeTickSafely()
+      .then(() => timerTick())
       .catch((err) => logger.error({ err }, "Connector timer failed"))
       .finally(() => {
         busy = false;

@@ -1765,3 +1765,197 @@ Ollie sent Kurt a Slack message, "Can you share what holidays product team have 
 - **No task when he is only waiting for a reply.** As for email, what Ollie last asked in a Slack direct message is already on Messages, Waiting for a reply (the sorter's "awaiting"), so no task is made as well. Connector lines say "N things you asked for left on Messages, Waiting for a reply". When it is more than a reply he waits for (they said "will do", or it was in a channel), the Waiting on item is made.
 - **Checked by** `test/own-ask.test.ts` (5 tests).
 - **Not included:** changing items already made; the Granola reader, which has its own owner rule (section 27).
+
+## 31. Simpler every hour, and the first steps to running itself (asked for 13th November 2026; Parts B, C, D, E, F and H built 13th November 2026)
+
+_Written as section 30 on its branch and numbered 31 when merged alongside main's section 30 (what Ollie asks someone else for). Code comments, test names and the pull request that say "section 30, Part B" to "Part H" mean this section._
+
+Ollie asked for an audit of the whole app: what he will use most, what does not earn its place, what is missing, how to make it simple to use every hour, how to raise adoption, and how to move towards a company that runs itself. The audit read the code and his live numbers through the connector (`get_task_review`, 14 days, which is everything since go-live on 10th November). This section is the plan that came out of it. Parts B, C, D, E, F and H are built (see the "Built" headings below); A, G and I are not.
+
+**What the numbers said.** 127 tasks made (58 Slack, 25 Cowork sessions, 17 email, 16 meetings, 11 typed by Ollie); 65 done, 27 dropped, 33 open. Of the 33 open, 4 have a project, 6 a person and 14 a due date. No dropped item has a reason. Of the 11 tasks Ollie typed himself, 1 is done. The three goals have no statement and no project linked.
+
+**What this plan does not redo.** Sections 26, 27 and 29 went live on 12th November, so most of the window above is from before them. Quick Slack replies becoming tasks, Cowork questions becoming tasks and the people gaps are already addressed there; the counts for "quick replies left on Messages" and "added to tasks you already had" are still 0 because the features are a day old. Part A below measures them before anything in the readers is changed again.
+
+**Decided by Ollie, 13th November.** Goals, Strategy, Map, Products, Decisions and Notes all stay. They are empty because there has been no time to fill them, not because they are not needed. Part G is about filling them.
+
+### Build order
+
+| Part | What | Size | Needs AI |
+|---|---|---|---|
+| A | Measure sections 26, 27 and 29 after a week | Small | No |
+| B | Home as one queue | Medium | No |
+| C | Navigation: the daily five first, and Messages on the phone bar | Small | No |
+| D | Command bar | Medium | No |
+| E | A day plan that proposes itself | Medium | No |
+| F | Nudges on Slack | Medium | No |
+| G | Filling Goals, Strategy, Products and Decisions | Medium | Through Claude |
+| H | Filled in for you: project, person, due date and drop reason | Medium | No |
+| I | Autonomy levels | Large | Uses existing agents |
+
+B, C and D are one release: they change what every hour looks like and touch no data. E and F are the second. G can run alongside either, because most of it is Claude working through the connector. H and I come last, since I depends on a week or more of scorecard numbers.
+
+### Part A: Measure first
+
+- On or after 19th November, run `get_task_review` for 7 days and compare with the numbers above: Slack tasks done within 30 minutes (18 of 58), session tasks dropped (13 of 25), open tasks with a person, project and due date, and the two counters that read 0.
+- **A page for it.** Section 29 left out a page for the review numbers. Add one line per measure on Settings, Agents ("Tasks this week"), from `GET /tasks/review?days=7`, so the check does not need Claude.
+- Only if quick replies are still becoming tasks: build the hold section 27 left out (a Slack item waits 20 minutes to see whether Ollie replies first).
+
+### Part B: Home as one queue
+
+Home now shows, on desktop: the Today strip, the day plan, the week check, the busy-day card, the clear-out card, Do next, Inbox, Waiting on, Promises, Ideas and Done, under a status line with up to eight links. Everything is there and nothing leads.
+
+- **Above the fold, in this order:** the next meeting (one line, with Prep or Not prepped), Do next, To answer (count, opens Messages), Triage (count, opens Triage). The add box stays at the top on desktop.
+- **Below, behind "More today" (closed by default, remembered):** the rest of the Today strip, the day plan once it is set, Waiting on, Promises, Ideas, Done.
+- **Shown only when they have something to say:** the week check, the busy-day card and the clear-out card become one line each under the queue, not cards.
+- **Status line:** last sweep, connector warnings and access requests only. "N to review" moves into the queue as a fourth row when the Knowledge Inbox has cards. Today's digest, Weekly round-up and Friday update become one link, **Updates**, to a page with three tabs (`/digest`, `/digest/week`, `/digest/friday` keep working).
+- **Files:** `pages/home.tsx`, `components/time-and-meetings.tsx`, `pages/digest.tsx`, `pages/roundup.tsx`, `pages/friday-update.tsx`. No API change: `GET /home` already carries all of it.
+- **Checked by:** a browser pass at desktop and phone width, and the existing Home tests.
+
+### Part C: Navigation
+
+- **Desktop rail.** Same eight pages, in two groups with the separator between them: Home, Tasks, Messages, Meetings, Contacts; then Goals, Strategy, Knowledge. Nothing is removed.
+- **Phone bar.** Home, Tasks, add, **Messages**, More. Contacts moves into More. Slack is the largest source of work and Messages is where it is answered, and it is currently two taps away. The Messages tab carries the to-answer badge.
+- **Settings.** Connectors, AI access, Email, Knowledge, Noise rules and Planning stay in the list. Agents, Sweep, Look back, Imports and Export go under a second heading, **Under the bonnet**.
+- **Files:** `components/main-nav.tsx` (`RAIL`, `MORE`, the tab bar), `pages/settings.tsx` (`SECTIONS`).
+
+### Part D: Command bar
+
+There is no way to get anywhere, or find anything, from the keyboard; search exists only in the Knowledge sidebar.
+
+- **Cmd+K (Ctrl+K), and a search button on the phone header.** One box that:
+  - adds a task (the add box's own parser, so "Chase Sam Wednesday high" works);
+  - searches tasks, people, organisations, projects, decisions, notes and documents (`GET /knowledge/search`, plus tasks by title);
+  - jumps to any page, including every Settings section;
+  - hands the words to Ask ("Ask OllieOS: …").
+- **Single keys on Home and Tasks:** `g` then `t`, `m`, `c` to go to Tasks, Messages, Contacts; `/` opens the bar. Never while typing in a field.
+- **Built with** `components/ui/command.tsx`, which is already in the app and unused. New `components/command-bar.tsx`, mounted in `App.tsx`.
+- **New API:** `GET /tasks/search?q=` (title and notes, open first, 8 results).
+
+### Part E: A day plan that proposes itself
+
+The day plan on Home works, but Ollie has to pick the tasks and give each a length. On 12th November seven tasks were due the next day with three in Now and two high-priority ones overdue in Backlog.
+
+- **`POST /plan/suggest`**, no AI. Picks up to five in this order: overdue promises, overdue tasks, due today, Now by priority, then anything a meeting today needs. Lengths come from the task's own length when set, else 30 minutes. It fits them between today's meetings with the existing `refitPlan`.
+- **On Home:** before a plan is set, the card says "Five for today" with the list, **Use this**, and Swap on each row. Use this saves the plan and moves anything in Backlog to Now.
+- **Built on the first check of the day**, so it is waiting at 07:40 with the digest.
+- **Files:** `services/planning.ts`, `routes/plan.ts`, `components/day-plan.tsx`.
+- **Checked by** tests on the order, on a day with no free time, and on tasks hidden from AI (they may be planned; nothing is sent to a model).
+
+### Part F: Nudges on Slack
+
+OllieOS sends nothing to Ollie: no push, no email, no Slack message. It only works when he opens it.
+
+- **Three direct messages to Ollie himself, from OllieOS:**
+  - **Morning** (after the digest): the five for today, meetings not prepared, and what is waiting to be answered.
+  - **Before a meeting** (15 minutes ahead, work meetings with a prep page): one line on why it matters and a link to the prep page.
+  - **End of day** (working hours end): what was done, what is still due today, and Waiting on tasks ready to chase.
+- Each is a switch in Settings, Planning, all off until turned on. Nothing is sent on a day with nothing to say, at weekends, or about anything hidden from AI.
+- **Files:** a new `services/nudges.ts`, called from `timerTick` in `services/connectors/index.ts`; `app_settings` keys for the switches and for "sent today".
+- **Not included:** replying to the message to act ("done", "tomorrow"). That needs OllieOS to read its own conversation with Ollie and is a section of its own.
+
+### Part G: Filling Goals, Strategy, Products and Decisions
+
+These pages are needed and empty. Typing into six pages is why. Most of it already exists in Drive, Notion, Granola and the KPI Portal, and Claude can read those.
+
+- **Two new connector tools**, both as suggestions in the Knowledge Inbox like `propose_product`:
+  - `propose_goal`: a statement, a target, a period and the projects that serve it, for a new goal or an existing one.
+  - `propose_strategy_section`: a heading and text for the strategy page, with the source.
+- **A first pass by Claude**, from a Cowork session, reading the documents Ollie names: statements and targets for the three goals; which existing projects serve each; strategy sections; one `propose_product` per product; and decisions from older meetings by running the Granola look back that already exists.
+- **Goal chips on projects.** A project with no goal offers the goals as one-tap chips on its page and on Goals, the same pattern as project chips on tasks.
+- **Open questions.** 24 open questions sit on saved sessions. A **Loose ends** list on Sessions shows them all in one place with Add to Inbox and Dismiss.
+- **A "Still to set up" card on Knowledge** lists what is empty (goals with no statement, projects with no goal, no strategy, no products) with a link to each, and goes when they are filled.
+- **Map and Notes** need nothing: the map draws itself from the rest, and notes build up from voice and sessions.
+
+### Part H: Filled in for you
+
+Suggestions are offered as chips and mostly not pressed: 29 of 33 open tasks have no project.
+
+- **Project, person and due date are set, not offered,** when there is exactly one strong suggestion: one project from the same thread, meeting or session; one person the name can mean; a due date the message states or clearly implies. The field shows "set by OllieOS" with Undo, and an undone value is never set again. With two or more candidates the chips stay as they are.
+- **Drop reason guessed.** After a drop, the toast shows the likeliest reason already chosen (from the sender, the reader's own flags and what Ollie did with similar items) with Change. No reason is saved without the toast being seen, so the Reader coach is not taught from guesses Ollie never saw.
+- **Files:** `services/projectSuggest.ts`, `services/taskPeople.ts`, `connectors/capture.ts`, `components/drop-reason.tsx`.
+
+### Part I: Autonomy levels
+
+Today every agent proposes and Ollie approves. The Agents page already records how often he kept what each one did. This part lets an agent act by itself once it has earned it.
+
+- **Three levels for each agent that proposes something:** **Suggest** (as now), **Do and tell me**, **Do quietly**. Set on Settings, Agents. Everything starts at Suggest.
+- **Earned, not chosen blind.** A level above Suggest can only be turned on when the agent's scorecard shows 20 or more decisions and 90% or more kept. If the kept rate falls below 80% over the last 20, it goes back to Suggest by itself and says so in the digest.
+- **Only where it can be undone.** The first four:
+  - **Probably noise:** items it is sure of go straight to Noise (kept 90 days, as now).
+  - **Looks done:** the task is closed, with Not done to reopen it.
+  - **Duplicate check:** strong matches are merged, with Restore.
+  - **Knowledge Inbox pre-sort:** cards marked "same as one you have" are merged into it. Nothing new becomes knowledge without Ollie.
+- **"What OllieOS did by itself"**, a list on Updates and a line in the digest and the morning nudge, each row with Undo. Do quietly leaves out the line but keeps the list.
+- **Never automatic:** anything sent to another person, anything hidden from AI, approving a new fact, decision, rule, person or organisation, and deleting.
+- **Schema:** `agent_levels` (agent key, level, set at, dropped back at) and `auto_actions` (agent, what, ref, at, undone at). **Files:** `lib/agents.ts`, `services/agents.ts`, `services/scorecards.ts`, and the four agents' own services.
+- **Checked by** tests on the gate, the drop back to Suggest, Undo on each of the four, and hidden items never being acted on.
+
+### Built: Parts B, C and D (13th November 2026)
+
+Ollie agreed questions 1 to 3 as proposed and asked for B, C and D.
+
+- **Part B.** `pages/home.tsx`: `NextMeeting`, `QueueCard` (To answer uses the Messages badge's count, so the two never disagree), `Notices` and `MoreToday` (open or closed is remembered in the browser). `WeekCheckCard` and `BusyDayCard` became `WeekCheckLine` and `BusyDayLines` in `components/time-and-meetings.tsx`. The status line keeps the last sweep, connector warnings and access requests, plus **Updates**. `components/updates-tabs.tsx` is on the digest, round-up and Friday update pages.
+- **Part C.** `components/main-nav.tsx`: the rail's separator after Contacts, Messages on the phone bar with its count, Contacts first in More. `pages/settings.tsx`: **Under the bonnet** holds Agents, Imports and Export. Sweep and Look back were already inside Connectors, so they did not move.
+- **Part D.** `components/command-bar.tsx` (loaded on first use), `components/command-keys.tsx`, `lib/command-bar.ts`. Order is always pages, then what was found, then Add a task and Ask, and the top row stays selected as results arrive. Cmd+Enter adds the words as a task. G then H, T, M, E, C or K goes to a page; "/" opens the bar.
+- **Different from the plan:**
+  - No `GET /tasks/search`. `GET /search` already searches tasks with everything else, so the bar uses it and no API changed.
+  - On a phone the "Strategy and ideas" card at the foot of Home is gone; Strategy is in More and in the bar.
+  - The day plan is under More today until Part E makes it propose itself.
+- **Checked by:** the app's typecheck and production build (first load 145.5 KB against a budget of 152), and a browser pass at desktop and phone width with stand-in data for the API: Home closed and open, the bar empty and with results, Enter on a page, G then T, "/", Settings and Updates. Not checked against the live server or real data, and there are no automated tests for these screens. No server code changed, so the API tests were not rerun.
+
+### Built: Part E (13th November 2026)
+
+The day plan already suggested up to five tasks with a reason each (`suggestFor` and `carryOvers` in `services/planning.ts`); what was missing was using them without picking each one.
+
+- **Proposed, not picked.** Before today's plan is made, the suggestions are already in it (30 minutes each). The card is headed "5 for today" and its button is **Use this plan**. Taking one out, changing a length and adding another work as before.
+- **Where it sits.** Until the plan is made, the card is with the queue on Home, under Do next and Waiting on you. Once made, it is under More today, and a line under the queue says "Today's plan: 1 of 4 done. Next at 10:30: …" with **See the plan**, which opens More today at the plan.
+- **Promises first.** Among overdue and due-today tasks, promises are suggested before other tasks.
+- **Backlog to Now** (question 3). A Backlog or Inbox task newly put in a plan moves to Now, through `updateTask` so its history shows it. A task already in the plan is left where Ollie has since moved it, so Fit again never pulls one back into Now. Waiting on tasks stay waiting.
+- **Different from the plan:** no `POST /plan/suggest`, because `GET /plan` already returns the suggestions; no API changed. Lengths are 30 minutes for every suggestion, since tasks hold no length of their own. Nothing is built ahead at 07:40: the suggestions are worked out when Home asks, in one query.
+- **Checked by** `test/tasks-part-i.test.ts` (17 tests, one new: promises first, Backlog to Now, Waiting on left alone, a task moved back to Backlog not pulled in again), the full API suite (509 of 509 passed), both typechecks, the production build (first load 146.0 KB against 152), and a browser pass at desktop and phone width with stand-in data: the proposed plan, taking one out, Use this plan, the line, and See the plan.
+
+### Built: Part F (13th November 2026)
+
+**Why it is not the Slack connection.** OllieOS's Slack connection is Ollie's own user token (`.agents/memory/slack-gmail-reading.md`), so a message from OllieOS to Ollie would be a message from Ollie to himself, and Slack does not notify you of your own messages. Ollie chose a small Slack app for OllieOS instead (question 6): messages come from "OllieOS" and notify like any direct message.
+
+- **The app.** Its bot token is the secret `SLACK_BOT_TOKEN`. It needs one permission, `chat:write`, so it can message Ollie and read nothing. Ollie's Slack id is asked of the existing Slack connection once (`slackMe`) and kept. The Slack reader already leaves out messages from apps, so nudges never come back as tasks.
+- **Three messages**, each a switch on Settings, Planning, all off until turned on (`services/nudges.ts`, no AI):
+  - **Morning**, from 07:40 (the digest time) and not after 11:00: today's plan or the tasks OllieOS proposes, meetings still to come and how many are not prepared, and messages to answer.
+  - **Before a meeting**, 5 to 16 minutes ahead: work meetings with a prep page that AI may see, with the time, a link to the prep page and whether it has been opened.
+  - **End of day**, for 90 minutes from the end of working hours: tasks done today, tasks due today or overdue, and Waiting on tasks ready for a chase, as counts.
+- **Rules in code.** Only to Ollie's own Slack id. Weekdays only. Each goes once a day (once per meeting). A morning or evening with nothing to say sends nothing and is not looked at again that day. Tasks that are confidential or hidden from AI are counted ("and 1 more"), never named. A message is marked as sent only after Slack accepts it, so a failure is tried again on the next minute.
+- **Links.** The app's own address is kept from the browser when the switches are saved or a test is sent, and used for links in the messages; before that, messages carry no links.
+- **Send a test** on Settings, Planning sends one message now and says what went wrong if Slack refuses. Until the token is in place the switches are locked and the page lists the three steps to make the app.
+- **Built.** `services/nudges.ts`; `nudgeTickSafely` runs each minute from the connector timer, before the connector check and whether or not one is due; `GET` and `PUT /settings/nudges`, `POST /settings/nudges/test`; `app_settings` keys `nudges` and `nudges_sent` (no schema change); the Nudges section in `pages/settings-planning.tsx`.
+- **Checked by** `test/nudges.test.ts` (7 tests: off by default and nothing at weekends; the morning message once, to Ollie only, with a hidden task counted and not named; nothing on an empty morning or after 11:00; one message for a work meeting and none for personal or unknown ones; the end of day with counts only; a retry after Slack refuses; the settings routes and the test message). The full API suite: 516 of 516 passed. Both typechecks and the build (first load 146.1 KB against 152). The Settings section in a browser with stand-in data, with and without the app.
+- **Not checked:** a real message through Slack. There is no Slack app or token in the build environment, so the call to Slack itself (`chat.postMessage` with Ollie's user id as the channel) has only run against a stand-in. Send a test is the first real check.
+- **Not included:** replying to a nudge to act on it ("done", "tomorrow"); that needs the app to read its conversation with Ollie and is a section of its own.
+
+### Built: Part H (13th November 2026)
+
+- **Project.** `strongProjectFor` (`services/projectSuggest.ts`) names the one project a task clearly belongs to: the existing suggestion score is 3 or more (another task from the same thread, meeting or session is on it, or its Cowork session is, or the task names it and the person is usually about it) and it is at least 2 ahead of the next candidate. `fillTasks` (`services/autoFill.ts`) sets it on open tasks made in the last 30 days, looking at each at most once a day, 60 a pass. Two close candidates are left as chips.
+- **Due date.** The date the reader worked out from the message (`suggested_due`, section 29) is now set as the due date while it is today or ahead. A guess already in the past stays a chip. **This changes section 29's rule** that the guess "is never applied by itself": it is applied, marked and can be undone.
+- **People.** `linkPeopleToTasks` already linked a person when one fits; the link is now marked as OllieOS's.
+- **Set by OllieOS, with Undo.** `tasks.auto_set` records which of project, due, person, waitingOn and dropReason OllieOS filled in. The task panel shows "Set by OllieOS" with Undo under each (`AutoSetNote`). Undo (`POST /tasks/:id/auto-undo`) clears the value and marks the field `undone`, so it is never filled on that task again. Changing a field by hand removes the mark: it is Ollie's then. Filling in leaves `updated_at` alone, so it does not reset "untouched for 30 days", and each change is in the task's history as made by OllieOS.
+- **Why it was dropped.** When the "Why?" chips appear for a dropped or Noise item with no reason, `POST /tasks/:id/drop-reason-guess` saves the likeliest one and the chip shows chosen, headed "OllieOS's guess. Change:". Nothing is saved for a drop whose chips were never shown, or when there is no clear guess. In order: a later message showed it done (Already done); an open task has nearly the same title (Duplicate); it is about fixing a time (Arranging a meeting); it reads as for information (Just FYI); the title says someone else is to do it (Not mine); otherwise the reason Ollie himself chose at least twice for items from the same sender, and at least twice as often as any other. Guesses never count towards that habit.
+- **The Reader coach** is told when a reason was OllieOS's guess that Ollie left, so it is weighed as weaker than one he chose.
+- **The review.** `get_task_review` has `filledIn`: for project, due date, person and drop reason, how many OllieOS set that still stand and how many were undone. Part I's bar can be judged from it.
+- **Schema:** `tasks.auto_set` (jsonb, default `{}`) and `tasks.auto_checked_at`. **Built:** `services/autoFill.ts`; `strongProjectFor`; the `auto_fill` part in `services/scheduledWork.ts`; `components/task-nudges.tsx` (`AutoSetNote`), `components/drop-reason.tsx`.
+- **Checked by** `test/section-30-h.test.ts` (6 tests: the clear project set and two close ones left, `updated_at` untouched and no second look within a day; Undo for good and Ollie's own choice; the due date ahead set, the past one not, Undo bringing the chip back; people marked and an undone link not put back; each drop-reason guess, saved only when asked and replaced by Ollie's choice; a sender's habit learned only from reasons he chose). The full API suite: 522 of 522. Both typechecks, the build (first load 146.2 KB against 152), and the task panel in a browser with stand-in data: the three notes, Undo, the guessed reason and changing it.
+- **Not included:** the note in Triage and on task rows (the panel only); filling in a project for tasks older than 30 days; a setting to turn filling in off.
+
+### Later, not in this plan
+
+- **Work packs that write the first draft.** For the tasks Ollie types himself ("Build the ADS demo"), the pack would start a Claude session with the context and bring back a draft, not a summary. Worth doing once Part G has given it goals and products to work from.
+- **Ranking by goal.** With projects linked to goals, Do next and the day plan can weigh a task by the goal it serves, and the digest can say what served no goal.
+- **Colleagues.** A view for each colleague, so actions from meetings land with their owner and are chased without Ollie. This changes the single-user model and the confidentiality rules, and needs its own PRD.
+- **Push notifications** on the phone. The app has a manifest but no service worker; Slack reaches the phone already.
+
+### Questions for section 31
+
+1. **Slack messages on a timer (Part F).** It was agreed on 12th November (`services/slackDm.ts`) that the Slack direct message is "the one thing OllieOS sends", only when Ollie presses Send, and never by AI or on a timer. Part F sends on a timer, but only to Ollie himself. **Agreed 13th November:** allowed, with the rule reworded to "never to anyone else on a timer".
+2. **Contacts off the phone bar (Part C).** **Agreed 13th November:** Messages takes its place and Contacts is first in More.
+3. **Backlog to Now on Use this (Part E).** **Agreed 13th November:** yes, so Now always matches the day's plan.
+4. **The 90% and 20 bar (Part I).** Proposed as written; both numbers would be settings in code, not on a page. Not answered yet.
+5. **Which documents hold the current strategy and goals (Part G).** Needed before the first pass can run. Not answered yet.
+6. **How nudges reach Ollie (Part F).** A Slack message through the current connection would not notify him, because it is his own account. **Agreed 13th November:** a small Slack app for OllieOS with its own bot token.

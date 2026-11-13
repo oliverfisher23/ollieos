@@ -29,6 +29,8 @@ const LENGTHS = [
   { value: '120', label: '2 hours' },
 ];
 const MAX_ITEMS = 12;
+/** How many suggestions go into the plan OllieOS proposes. */
+const PROPOSED = 5;
 
 type Pick = { task: Task; minutes: number; reason?: string };
 
@@ -83,7 +85,14 @@ function hoursLine(plan: DayPlan) {
 function PlanPicker({ plan, phone, onDone, onCancel }: { plan: DayPlan; phone: boolean; onDone: () => void; onCancel?: () => void }) {
   const qc = useQueryClient();
   const open = useListTasks({ tab: 'open' });
-  const [picked, setPicked] = useState<Pick[]>(() => plan.items.filter((i) => i.task.status !== 'done').map((i) => ({ task: i.task, minutes: i.minutes })));
+  // Section 30, Part E: before a plan is made, OllieOS's suggestions are already in it, so one press
+  // of "Use this plan" is enough. Taking one out, changing a length or adding another all still work.
+  const [picked, setPicked] = useState<Pick[]>(() =>
+    plan.made
+      ? plan.items.filter((i) => i.task.status !== 'done').map((i) => ({ task: i.task, minutes: i.minutes }))
+      : plan.suggestions.slice(0, PROPOSED).map((s) => ({ task: s.task, minutes: 30 })),
+  );
+  const invalidate = useInvalidateTasks();
   const [saving, setSaving] = useState(false);
 
   const pickedIds = new Set(picked.map((p) => p.task.id));
@@ -108,7 +117,11 @@ function PlanPicker({ plan, phone, onDone, onCancel }: { plan: DayPlan; phone: b
       const res = await saveDayPlan({ items: [...kept, ...picked.map((p) => ({ taskId: p.task.id, minutes: p.minutes }))] });
       qc.setQueryData(getGetDayPlanQueryKey(), res);
       const missed = res.items.filter((i) => !i.start).length;
-      notify(missed ? 'Plan made, but not everything fits' : 'Plan made', missed ? `${missed} did not fit before ${res.workingHours.end}.` : `Fitted around your meetings, ${hoursLine(res)}.`);
+      // Backlog and Inbox tasks put in the plan are moved to Now by the server.
+      const moved = picked.filter((p) => p.task.status === 'backlog' || p.task.status === 'inbox').length;
+      const toNow = moved ? ` ${moved === 1 ? '1 task' : `${moved} tasks`} moved to Now.` : '';
+      if (moved) invalidate();
+      notify(missed ? 'Plan made, but not everything fits' : 'Plan made', (missed ? `${missed} did not fit before ${res.workingHours.end}.` : `Fitted around your meetings, ${hoursLine(res)}.`) + toNow);
       onDone();
     } catch (err) {
       reportApiError(err);
@@ -124,7 +137,7 @@ function PlanPicker({ plan, phone, onDone, onCancel }: { plan: DayPlan; phone: b
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-        <h2 id="h-plan" className="oo-label" style={{ fontSize: phone ? 12 : 13 }}>{plan.made ? 'Change today\'s plan' : 'Plan your day'}</h2>
+        <h2 id="h-plan" className="oo-label" style={{ fontSize: phone ? 12 : 13 }}>{plan.made ? 'Change today\'s plan' : picked.length ? `${picked.length} for today` : 'Plan your day'}</h2>
         <span className="oo-muted" style={{ fontSize: 12 }}>
           Fitted between meetings, {hoursLine(plan)}. <Link href="/settings/planning" className="oo-link" data-testid="link-plan-hours">Change hours</Link>
         </span>
@@ -184,7 +197,7 @@ function PlanPicker({ plan, phone, onDone, onCancel }: { plan: DayPlan; phone: b
         <div style={{ flexGrow: 1 }} />
         {onCancel && <button type="button" className="oo-btn oo-btn-outline" onClick={onCancel} disabled={saving} data-testid="button-plan-cancel">Cancel</button>}
         <button type="button" className="oo-btn oo-btn-ink" disabled={!picked.length || saving} onClick={make} data-testid="button-plan-make">
-          {saving ? 'Fitting…' : plan.made ? 'Save the plan' : 'Make the plan'}
+          {saving ? 'Fitting…' : plan.made ? 'Save the plan' : 'Use this plan'}
         </button>
       </div>
     </>

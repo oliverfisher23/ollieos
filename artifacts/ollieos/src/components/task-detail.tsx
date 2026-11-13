@@ -26,7 +26,7 @@ import { TaskEvidencePanel } from '@/components/task-evidence';
 import { KeepTestCase } from '@/components/evals';
 import { SlackDm } from '@/components/slack-dm';
 import { DropReasonChips, madeByReader } from '@/components/drop-reason';
-import { ChaseCard, DueChips, PersonSuggestChips, ProjectSuggestChips, StuckCard } from '@/components/task-nudges';
+import { AutoSetNote, ChaseCard, DueChips, PersonSuggestChips, ProjectSuggestChips, StuckCard } from '@/components/task-nudges';
 import { WorkPackPanel } from '@/components/work-pack';
 import { goalOptions, personOptions, projectOptions } from '@/components/dropdown-options';
 
@@ -185,7 +185,7 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
             {task.status === 'dropped' && (
               <div className="oo-source" style={{ gap: 10 }} data-testid="card-dropped">
                 <span style={{ fontSize: 13, fontWeight: 500 }}>Dropped. It is off your lists, and AI treats it as closed.</span>
-                {madeByReader(task) && <DropReasonChips key={'why' + task.id + (task.dropReason ?? '')} task={task} />}
+                {madeByReader(task) && <DropReasonChips key={'why' + task.id + (task.dropReason ?? '')} task={task} guessed={task.autoSet?.dropReason === 'set'} />}
                 <div>
                   <button type="button" className="oo-btn oo-btn-outline" disabled={acting} onClick={() => run(() => actions.restore(task))} data-testid="button-detail-restore-dropped">Restore to Inbox</button>
                 </div>
@@ -234,6 +234,7 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                     onChange={(e) => save({ dueDate: e.target.value || null })} data-testid="input-due-date" />
                   {task.dueDate && <button type="button" className="oo-btn oo-btn-outline" style={{ padding: '0 10px' }} onClick={() => save({ dueDate: null })} data-testid="button-clear-due">Clear</button>}
                 </div>
+                <AutoSetNote task={task} field="due" />
               </div>
             </div>
             <DueChips task={task} />
@@ -248,6 +249,7 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                 <Dropdown id="td-project" value={String(task.project?.id ?? '')}
                   onChange={(v) => save({ projectId: v ? Number(v) : null })} testId="select-project" searchPlaceholder="Search projects"
                   options={[{ value: '', label: 'No project' }, ...projectOptions(projects.data)]} />
+                <AutoSetNote task={task} field="project" />
                 <ProjectSuggestChips task={task} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -255,6 +257,7 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                 <Dropdown id="td-person" value={String(task.person?.id ?? '')}
                   onChange={(v) => save({ personId: v ? Number(v) : null })} testId="select-person" searchPlaceholder="Search people"
                   options={[{ value: '', label: 'Nobody in particular' }, ...personOptions(people.data)]} />
+                <AutoSetNote task={task} field="person" />
                 {task.status !== 'waiting' && <PersonSuggestChips task={task} slot="person" />}
               </div>
             </div>
@@ -281,6 +284,7 @@ export function TaskDetailPanel({ id, onClose }: { id: number; onClose: () => vo
                 <Dropdown id="td-waiting" value={String(task.waitingOn?.id ?? '')}
                   onChange={(v) => save({ waitingOnPersonId: v ? Number(v) : null })} testId="select-waiting-on" searchPlaceholder="Search people"
                   options={[{ value: '', label: 'Choose a person' }, ...personOptions(people.data)]} />
+                <AutoSetNote task={task} field="waitingOn" />
                 <PersonSuggestChips task={task} slot="waitingOn" />
                 <div>
                   <button type="button" className="oo-btn oo-btn-outline" disabled={acting} onClick={() => run(() => actions.copyChase(task))} data-testid="button-detail-chase">Copy chase line</button>

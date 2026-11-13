@@ -1177,3 +1177,53 @@ button.oo-chip:hover { background: var(--oo-white-16); }
 .oo-orgchart, .oo-orgchart ul { list-style: none; margin: 0; padding: 0; }
 .oo-orgchart ul { margin-left: 15px; padding-left: 16px; border-left: 1px solid var(--oo-line); }
 .oo-orgchart li { padding: 4px 0; }
+
+/* Section 30, Part B: Home as one queue */
+.oo-next-meeting { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.oo-queue { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.oo-queue li + li { border-top: 1px solid var(--oo-white-12); }
+.oo-queue-row { display: flex; align-items: center; gap: 14px; padding: 12px 6px; margin: 0 -6px; border-radius: var(--oo-r-input); color: var(--oo-text-on-dark); text-decoration: none; min-height: 48px; }
+.oo-queue-row:hover { background: var(--oo-white-08); }
+.oo-queue-count { font-size: 36px; line-height: 1; min-width: 44px; text-align: center; flex: none; }
+.oo-queue-count[data-clear="true"] { color: var(--oo-text-on-dark-4); }
+.oo-queue-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.oo-queue-label { font-size: 15px; font-weight: 500; }
+.oo-queue-chev { flex: none; color: var(--oo-text-on-dark-3); }
+.oo-notices { list-style: none; margin: 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 6px; }
+.oo-notices:empty { display: none; }
+.oo-notice { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 8px 14px; border-radius: var(--oo-r-card); background: var(--oo-glass-quiet); border: 1px solid var(--oo-glass-quiet-border); font-size: 13px; color: var(--oo-text-on-dark-2); }
+.oo-notice a, .oo-notice button, .oo-notice-more { color: var(--oo-text-on-dark); font: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.oo-notice details { width: 100%; }
+.oo-notice summary { cursor: pointer; list-style: none; }
+.oo-notice summary::-webkit-details-marker { display: none; }
+.oo-notice details ul { margin: 8px 0 2px; padding-left: 18px; line-height: 1.7; }
+.oo-more-toggle { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: var(--oo-r-card); background: none; border: 1px solid var(--oo-glass-quiet-border); color: var(--oo-text-on-dark); font: inherit; cursor: pointer; text-align: left; min-height: 44px; }
+.oo-more-toggle:hover { background: var(--oo-white-08); }
+.oo-more-inside { flex: 1; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oo-more-chev { flex: none; transition: transform .15s ease; }
+.oo-more-toggle[aria-expanded="true"] .oo-more-chev { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .oo-more-chev { transition: none; } }
+
+/* Section 30, Part C: the Messages tab's count on the phone bar */
+.oo-tab-badge { position: absolute; top: -5px; right: -10px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 8px; background: var(--oo-accent); color: var(--oo-ink); font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }
+
+/* Section 30, Part B: Digest, Weekly round-up and Friday update as tabs of one page */
+a.oo-tab { text-decoration: none; display: inline-flex; align-items: center; box-sizing: border-box; }
+a.oo-tab[aria-current="page"] { color: var(--oo-ink); font-weight: 500; border-bottom-color: var(--oo-ink); }
+
+/* Section 30, Part D: the command bar */
+.oo-cmd-scrim { position: fixed; inset: 0; z-index: 70; background: var(--oo-scrim-light); display: flex; align-items: flex-start; justify-content: center; padding: 12vh 16px 32px; box-sizing: border-box; animation: oo-fade .12s ease; }
+.oo-cmd { width: 100%; max-width: 600px; max-height: 70vh; box-sizing: border-box; display: flex; flex-direction: column; background: var(--oo-panel); color: var(--oo-ink); border-radius: var(--oo-r-panel); box-shadow: var(--oo-shadow-detail); font-family: var(--oo-font-sans); overflow: hidden; outline: none; }
+.oo-cmd-input { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--oo-line-soft); color: var(--oo-ink-faint); }
+.oo-cmd-input input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 16px; color: var(--oo-ink); }
+.oo-cmd-list { overflow-y: auto; padding: 6px; scroll-padding: 6px; }
+.oo-cmd [cmdk-group-heading] { padding: 10px 12px 4px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--oo-ink-faint); }
+.oo-cmd-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--oo-r-btn); font-size: 14px; cursor: pointer; min-height: 40px; box-sizing: border-box; }
+.oo-cmd-item[data-selected="true"] { background: var(--oo-field); }
+.oo-cmd-item svg { flex: none; color: var(--oo-ink-faint); }
+.oo-cmd-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oo-cmd-kind { flex: none; font-size: 12px; color: var(--oo-ink-faint); }
+.oo-cmd-empty { padding: 18px 12px; font-size: 13px; color: var(--oo-ink-muted); }
+.oo-cmd-foot { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 8px 18px; border-top: 1px solid var(--oo-line-soft); font-size: 12px; color: var(--oo-ink-faint); }
+.oo-cmd-foot kbd { font: inherit; padding: 1px 5px; border-radius: 4px; background: var(--oo-field); color: var(--oo-ink-muted); }
+@media (max-width: 639px) { .oo-cmd-scrim { padding-top: 16px; } .oo-cmd-foot { display: none; } }

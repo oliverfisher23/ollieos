@@ -10,7 +10,7 @@
 import { and, asc, desc, eq, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { appSettingsTable, calendarEventsTable, dayPlansTable, db, tasksTable, type PlanItem, type Task as TaskRow } from "@workspace/db";
 import { STALE_BACKLOG_DAYS, addDays, daysBetween, londonParts, londonRange, todayLondon, weekStartOf } from "@workspace/shared";
-import { ValidationError } from "./tasks";
+import { ValidationError, updateTask } from "./tasks";
 import { toTaskViews, type TaskView } from "./taskView";
 
 /* ---------- Settings ---------- */
@@ -188,7 +188,11 @@ function reasonFor(t: TaskView, today: string): string {
   return "Suggested";
 }
 
-/** Up to five open tasks worth doing today: overdue, due today, promises due, Now, then high priority. */
+/**
+ * Up to five open tasks worth doing today: overdue, due today, Now, then high priority. Within overdue
+ * and due today, promises come first (section 30, Part E): something Ollie told someone he would do
+ * outranks a task of the same age.
+ */
 async function suggestFor(today: string, now: Date, exclude: Set<number>): Promise<TaskView[]> {
   const rows = await db
     .select()
@@ -202,6 +206,7 @@ async function suggestFor(today: string, now: Date, exclude: Set<number>): Promi
     )
     .orderBy(
       sql`case when ${tasksTable.dueDate} < ${today} then 0 when ${tasksTable.dueDate} = ${today} then 1 when ${tasksTable.status} = 'now' then 2 else 3 end`,
+      sql`case when ${tasksTable.dueDate} <= ${today} and ${tasksTable.kind} = 'promise' then 0 else 1 end`,
       sql`case ${tasksTable.priority} when 'high' then 0 when 'medium' then 1 else 2 end`,
       sql`${tasksTable.dueDate} asc nulls last`,
       asc(tasksTable.createdAt),
@@ -266,8 +271,12 @@ export async function getPlan(now = new Date()) {
   };
 }
 
-/** Saves today's plan and fits it around the meetings, from now (or the start of the day) onwards. */
-export async function savePlan(input: { taskId: number; minutes: number }[], now = new Date()) {
+/**
+ * Saves today's plan and fits it around the meetings, from now (or the start of the day) onwards.
+ * A Backlog or Inbox task newly put in the plan moves to Now (section 30, Part E, agreed 13th November
+ * 2026), so Now always matches the day's plan. One already in the plan is left where Ollie has since put it.
+ */
+export async function savePlan(input: { taskId: number; minutes: number }[], now = new Date(), actor = "ollie") {
   if (input.length > MAX_PLAN_ITEMS) throw new ValidationError(`Plan up to ${MAX_PLAN_ITEMS} tasks a day`);
   const seen = new Set<number>();
   for (const i of input) {
@@ -294,6 +303,8 @@ export async function savePlan(input: { taskId: number; minutes: number }[], now
     .insert(dayPlansTable)
     .values({ date, items: fitted })
     .onConflictDoUpdate({ target: dayPlansTable.date, set: { items: fitted, updatedAt: new Date() } });
+  const toNow = rows.filter((r) => (r.status === "backlog" || r.status === "inbox") && keep.has(r.id) && !before.has(r.id));
+  for (const r of toNow) await updateTask(r.id, { status: "now" }, actor);
   return getPlan(now);
 }
 

@@ -82,7 +82,17 @@ export async function linkPeopleToTasks(): Promise<LinkPeopleCounts> {
       .update(tasksTable)
       .set({ ...set, personCheckedAt: now, updatedAt: sql`${tasksTable.updatedAt}` })
       .where(and(eq(tasksTable.id, t.id), isNull(tasksTable.personCheckedAt)));
-    if (set.personId != null || set.waitingOnPersonId != null) linked++;
+    if (set.personId != null || set.waitingOnPersonId != null) {
+      linked++;
+      // Section 30, Part H: the panel says "Set by OllieOS" with Undo.
+      await db
+        .update(tasksTable)
+        .set({
+          autoSet: sql`${tasksTable.autoSet} || ${JSON.stringify({ ...(set.personId != null ? { person: "set" } : {}), ...(set.waitingOnPersonId != null ? { waitingOn: "set" } : {}) })}::jsonb`,
+          updatedAt: sql`${tasksTable.updatedAt}`,
+        })
+        .where(eq(tasksTable.id, t.id));
+    }
   }
   return { checked: tasks.length, linked };
 }

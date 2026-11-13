@@ -2,13 +2,31 @@
 
 OllieOS is where your work lives: tasks, the people and organisations you work with, projects, decisions and what you know about them. It reads Gmail, Slack, Google Calendar, Granola, Drive and Dropbox for you, and Claude, ChatGPT and Gemini can read and write it through its connector. Nothing it learns becomes knowledge until you approve it, and it never sends an email for you: it drafts, you send. The one exception is a Slack direct message to a colleague, which it sends only when you press Send on a task and confirm.
 
-This guide follows the app from left to right. On a phone the bar at the bottom has Home, Tasks, the yellow add button, Contacts and Knowledge; everything else is reached from those pages.
+This guide follows the app from left to right. On a phone the bar at the bottom has Home, Tasks, the yellow add button, Messages and More; Contacts, Meetings, Knowledge, Goals, Strategy and Settings are under More.
 
 ## Home
 
-- **Today strip.** Your meetings today, with a link to each prep page. A meeting you have not prepared for shows "Not prepped".
+Home is one queue: what is next, and what is waiting on you.
+
 - **Add box.** Type a task in plain words: "Chase Sam on the contract Wednesday high" sets the due date and priority and links the person and project it finds. On a phone, the yellow add button opens the same box; hold it down to speak instead (see Voice capture).
-- **Cards.** Inbox, Now, Waiting on, Slack to answer, Not prepped, the week check ("This week is over by about 2 hours") and where your time went.
+- **Next meeting.** One line with the time, the meeting and a link to its prep page. A meeting you have not prepared for shows "Not prepped".
+- **Do next.** The one task to do now, with Done and Snooze, and what comes after it.
+- **Waiting on you.** To answer (emails and Slack messages, the same count as the Messages icon), Triage (your Inbox) and, when there are any, To review (Knowledge Inbox cards). Each row opens the place it is dealt with.
+- **Lines under the queue.** Shown only when they have something to say: tasks overdue, a day with too much due, a week that does not fit ("This week is over by about 2 hours", with What could move) and the Backlog clear-out.
+- **Today's plan.** Each morning OllieOS proposes up to five tasks for the day (overdue first, promises before other tasks, then due today, Now and high priority), each with why. Take any out, change a length or add another, then press **Use this plan**: it fits them between your meetings inside your working hours, and any that were in Backlog move to Now. Nothing is written to your calendar. After that a line under the queue says how far through you are and what is next, with See the plan.
+- **More today.** Closed until you open it, and it stays how you left it: all of today's meetings, today's plan, Waiting on, Promises, ideas to come back to and what you finished this week.
+- **Updates.** The link under the greeting opens the digest, the weekly round-up and the Friday update as three tabs of one page.
+
+## Search and go to (Cmd+K)
+
+Press Cmd+K (Ctrl+K on Windows), "/" or the magnifying glass at the top of the rail (top right on a phone). One box:
+
+- **Go to** any page or Settings section: type part of its name and press Enter.
+- **Found:** tasks, people, organisations, projects, decisions, notes, facts, documents, sessions, ideas, products and playbooks that match.
+- **Add a task** with the words you typed, the same way as the add box. Cmd+Enter adds it whatever is selected.
+- **Ask OllieOS** hands the words to Ask.
+
+G then H, T, M, E, C or K goes straight to Home, Tasks, Messages, Meetings, Contacts or Knowledge. Single keys never fire while you are typing.
 
 ## Triage
 
@@ -30,8 +48,9 @@ The full list by tab (Inbox, Now, Backlog, Waiting on, Done, Noise). Click a tas
 - **People.** OllieOS links each task to the person it is with: who sent it, who a Waiting on task names ("Kevin to confirm…"), or a name in the title. A first name only counts when one person has it.
 - **Which Paul?** When a task's name fits more than one contact, the panel offers them under For or Waiting on. When it fits nobody, Add to Contacts makes the contact and links the task. When you link someone the title names differently, one tap remembers that name for them. A contact's other names are under Also known as on their page.
 - **Due?** A task with no due date offers Today, Tomorrow, Friday and Next week with one tap, in Triage and on the panel. When the message implied a date, that comes first, marked suggested.
+- **Set by OllieOS.** Where there is one clear answer, OllieOS fills it in and says so: the project (other tasks from the same thread, meeting or session are on it), the due date (the one the message implied, while it is still ahead) and the person. The task panel shows "Set by OllieOS" with Undo under the field. Undo clears it and OllieOS will not fill that field on that task again; changing it yourself makes it yours. When two answers are close it sets nothing and offers the chips below.
 - **Project?** A task with no project offers up to three likely ones to set with one tap, in Triage and on the task panel.
-- **Why?** After you drop an item or send it to Noise, one tap says why: Not mine, Already done, Just FYI, Duplicate or Arranging a meeting. The Reader coach learns from it.
+- **Why?** After you drop an item or send it to Noise, one tap says why: Not mine, Already done, Just FYI, Duplicate or Arranging a meeting. The Reader coach learns from it. When OllieOS can tell why (it was already done, it repeats an open task, it is about fixing a time, it was for information, it was someone else's to do, or it is what you usually say about that sender), the reason is already chosen, marked "OllieOS's guess"; tap another to change it.
 - **Chase.** A Waiting on task shows Chase after three days. The panel offers Copy a chase line, or Not yet for three more days.
 - **Stuck.** Once a day OllieOS looks for tasks that keep slipping (due date moved, snoozed, long overdue, untouched in Now) and suggests one thing to try. Add as first step puts it on the checklist; Not stuck ends it.
 - **Quick replies and checklists.** A Slack message that only needs a line in reply stays on Messages instead of also becoming a task. A message that asks for several things becomes one task with a checklist. Something you ask someone else for on Slack is never a task for you: it sits on Messages, Waiting for a reply, or becomes a Waiting on item named for them.
@@ -97,6 +116,8 @@ On a person page, **Who can introduce me?** appears when you are not in regular 
 - **Agents.** Every AI job inside OllieOS: what it reads, its runs, cost and errors this week, how often you kept what it did, the writers' checks and grades, and the readers' test cases with Replay.
 - **Lessons for the readers.** On Agents, the reader coach and card coach propose lessons for the Gmail, Slack and Granola readers from what you keep correcting the same way (items sent to Noise, dropped, renamed or reprioritised, and cards you rejected). Nothing changes until you turn a lesson on. Try against test cases shows whether it helps first; Not this one stops it being proposed again.
 - **Email, Knowledge, Planning, Look back, Dropbox, Sweep.** Settings for each of those.
+- **Nudges on Slack** (under Planning). Short messages to you from the OllieOS Slack app on weekdays: a morning one (today's plan, meetings not prepared, messages to answer), one 15 minutes before a work meeting that has a prep page, and one at the end of your working day (done, still due, ready to chase). Each is a switch and all start off. They only ever go to you, nothing is sent on a day with nothing to say, and tasks and meetings hidden from AI are never named. To set it up once: create an app called OllieOS at api.slack.com/apps in the Springpod workspace, turn on the Messages tab under App Home, add the bot scope `chat:write`, install it, and put its Bot User OAuth Token in a Replit secret named `SLACK_BOT_TOKEN`. Send a test checks it reaches you.
+- **Under the bonnet.** Agents, Imports and Export sit below the settings you change day to day.
 
 ## Voice capture
 

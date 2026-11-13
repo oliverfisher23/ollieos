@@ -5,6 +5,7 @@
  * OllieOS app API. Every route except health and auth requires the signed-in, allowlisted user.
  * OpenAPI spec version: 0.1.0
  */
+import type { AutoSet } from './autoSet';
 import type { DelegateHint } from './delegateHint';
 import type { DropReason } from './dropReason';
 import type { EntitySummary } from './entitySummary';
@@ -107,6 +108,7 @@ export interface Task {
   delegateHint?: DelegateHint | null;
   /** Section 27: why Ollie dropped it or sent it to Noise */
   dropReason?: DropReason | null;
+  autoSet: AutoSet;
   /**
      * Section 28: a due date the reader guessed from the message when none was stated; null once the task has a date or is closed
      * @nullable

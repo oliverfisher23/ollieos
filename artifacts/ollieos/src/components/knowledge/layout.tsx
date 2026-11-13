@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation, useSearch } from 'wouter';
-import { suggestProjectFunctions, useListKnowledgeInbox, useListProjects, useSearchKnowledge, type ProjectListItem, type SearchHit } from '@workspace/api-client-react';
+import { suggestProjectFunctions, useListKnowledgeInbox, useListProjects, useSearchKnowledge, type ProjectListItem } from '@workspace/api-client-react';
 import { BUSINESS_FUNCTIONS, BUSINESS_FUNCTION_LABELS } from '@workspace/shared';
 import { notify } from '@/lib/notify';
 import { Skel } from '@/components/bits';
@@ -8,7 +8,7 @@ import { IconLeft, IconSearch } from '@/components/icons';
 import { PHONE_QUERY, useMedia } from '@/lib/use-media';
 import { HiddenFromAi } from '@/components/knowledge/parts';
 import { CreateDialog } from '@/components/knowledge/create-dialog';
-import { TYPE_LABELS, entityPath, useKnowledgeWrite } from '@/lib/knowledge';
+import { TYPE_LABELS, entityPath, searchHitPath, useKnowledgeWrite } from '@/lib/knowledge';
 
 const LIBRARY = [
   { href: '/knowledge/library', label: 'Documents' },
@@ -50,12 +50,6 @@ export function KnowledgeLayout({ children, testId }: { children: ReactNode; tes
       <main className="oo-panel oo-kmain" data-testid={testId}>{children}</main>
     </div>
   );
-}
-
-function hitPath(h: SearchHit): string | null {
-  if (h.type === 'document') return '/knowledge/library?document=' + h.id;
-  if (h.type === 'fact') return h.parent ? entityPath(h.parent.type, h.parent.slug, h.parent.id) : null;
-  return entityPath(h.type, h.slug, h.id);
 }
 
 function ProjectLink({ p, current }: { p: ProjectListItem; current: boolean }) {
@@ -158,7 +152,7 @@ function KnowledgeSidebar() {
             <p className="oo-muted" style={{ margin: 0, fontSize: 13, padding: '0 12px' }} data-testid="text-search-empty">Nothing matches "{q}".</p>
           ) : (
             search.data.hits.map((h) => {
-              const path = hitPath(h);
+              const path = searchHitPath(h);
               const body = (
                 <>
                   <span className="oo-hit-type">

@@ -4,6 +4,7 @@ import {
   createPerson,
   dismissTaskStuckHint,
   getGetTaskPersonSuggestionsQueryKey,
+  undoTaskAutoSet,
   updatePerson,
   updateTask,
   useGetTaskPersonSuggestions,
@@ -16,6 +17,40 @@ import { useInvalidateTasks } from '@/lib/task-cache';
 import { useTaskActions } from '@/lib/task-actions';
 import { reportApiError } from '@/lib/forbidden';
 import { errorMessage, notify } from '@/lib/notify';
+
+type AutoField = 'project' | 'due' | 'person' | 'waitingOn';
+
+/**
+ * Section 30, Part H: under a field OllieOS filled in by itself. Undo clears it, and OllieOS does not
+ * fill that field on this task again. Changing the field by hand makes the note go: it is Ollie's then.
+ */
+export function AutoSetNote({ task, field }: { task: Pick<Task, 'id' | 'autoSet'>; field: AutoField }) {
+  const invalidate = useInvalidateTasks();
+  const [busy, setBusy] = useState(false);
+  if (task.autoSet?.[field] !== 'set') return null;
+  const undo = async () => {
+    setBusy(true);
+    try {
+      await undoTaskAutoSet(task.id, { field });
+      invalidate(task.id);
+      notify('Undone', 'OllieOS will not fill this in again on this task.');
+    } catch (err) {
+      reportApiError(err);
+      notify('That did not undo', errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <span className="oo-muted" style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 8 }} data-testid={`note-auto-${field}-${task.id}`}>
+      Set by OllieOS
+      <button type="button" className="oo-link" style={{ font: 'inherit', background: 'none', border: 0, padding: 0, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 2 }}
+        disabled={busy} onClick={() => void undo()} data-testid={`button-auto-undo-${field}-${task.id}`}>
+        Undo
+      </button>
+    </span>
+  );
+}
 
 /** Section 27: up to three projects a task with none probably belongs to; one tap sets it. */
 export function ProjectSuggestChips({ task }: { task: Pick<Task, 'id' | 'project' | 'status'> }) {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { UpdatesTabs } from '@/components/updates-tabs';
 import { Link } from 'wouter';
 import {
   draftFridayUpdate,
@@ -68,6 +69,7 @@ export default function FridayUpdatePage() {
   return (
     <div className="oo-fade-in" style={{ width: '100%', maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }} data-testid="page-friday-update">
       <Link href="/" className="oo-back" style={{ color: 'var(--oo-ink-muted)' }} data-testid="link-back-home"><IconLeft size={14} />Home</Link>
+      <UpdatesTabs current="friday" />
       <article className="oo-panel" style={{ padding: '36px 40px', display: 'flex', flexDirection: 'column', gap: 24 }} data-testid="article-friday-update">
         {q.isLoading ? (
           <PageSkeleton />

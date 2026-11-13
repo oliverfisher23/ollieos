@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Link, Redirect, useParams } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { getListNoiseRulesQueryKey, useListNoiseRules, updateNoiseRule, type NoiseRule } from '@workspace/api-client-react';
@@ -20,14 +20,15 @@ const MOVED: Record<string, string> = { 'ai-access': 'connectors', sweep: 'conne
 
 const SECTIONS = [
   { slug: 'connectors', label: 'Connectors', milestone: 8, line: '' },
-  { slug: 'agents', label: 'Agents', milestone: 0, line: '' },
   { slug: 'email', label: 'Email', milestone: 0, line: '' },
   { slug: 'knowledge', label: 'Knowledge', milestone: 6, line: '' },
   { slug: 'noise-rules', label: 'Noise rules', milestone: 2, line: '' },
   { slug: 'planning', label: 'Planning', milestone: 0, line: '' },
+  // Section 30, Part C: how OllieOS works inside, kept apart from the settings Ollie changes.
+  { slug: 'agents', label: 'Agents', milestone: 0, line: '', group: 'Under the bonnet' },
   { slug: 'imports', label: 'Imports', milestone: 9, line: 'Import status for your tasks, Knowledge and memory, one line per kind.' },
   { slug: 'export', label: 'Export', milestone: 9, line: 'Download your tasks and Knowledge as CSV files.' },
-];
+] as { slug: string; label: string; milestone: number; line: string; group?: string }[];
 
 export default function SettingsPage() {
   const { section } = useParams<{ section?: string }>();
@@ -44,10 +45,13 @@ export default function SettingsPage() {
         <h1 style={{ margin: 0, fontSize: 30, fontWeight: 600, letterSpacing: '-0.015em' }}>Settings</h1>
         <nav aria-label="Settings" className="oo-settings-list">
           {SECTIONS.map((s) => (
-            <Link key={s.slug} href={'/settings/' + s.slug} data-testid={'link-settings-' + s.slug}>
-              <span>{s.label}</span>
-              <IconRight size={16} />
-            </Link>
+            <Fragment key={s.slug}>
+              {s.group && <h2 className="oo-side-label" style={{ margin: 0, padding: '18px 0 4px', fontWeight: 400 }}>{s.group}</h2>}
+              <Link href={'/settings/' + s.slug} data-testid={'link-settings-' + s.slug}>
+                <span>{s.label}</span>
+                <IconRight size={16} />
+              </Link>
+            </Fragment>
           ))}
         </nav>
       </section>
@@ -64,9 +68,12 @@ export default function SettingsPage() {
       ) : (
         <nav aria-label="Settings" className="oo-panel oo-side" style={{ flex: '1 1 220px', maxWidth: 260, minWidth: 0, boxSizing: 'border-box' }}>
           {SECTIONS.map((s) => (
-            <Link key={s.slug} href={'/settings/' + s.slug} aria-current={s.slug === section ? 'page' : undefined} data-testid={'link-settings-' + s.slug}>
-              {s.label}
-            </Link>
+            <Fragment key={s.slug}>
+              {s.group && <h2 className="oo-side-label" style={{ margin: '10px 0 0', fontWeight: 400 }} data-testid="label-settings-group">{s.group}</h2>}
+              <Link href={'/settings/' + s.slug} aria-current={s.slug === section ? 'page' : undefined} data-testid={'link-settings-' + s.slug}>
+                {s.label}
+              </Link>
+            </Fragment>
           ))}
         </nav>
       )}

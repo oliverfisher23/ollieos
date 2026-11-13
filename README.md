@@ -26,6 +26,7 @@ Everything Replit Agent needs to build OllieOS: Ollie's personal operating syste
 | `ALLOWED_EMAIL` | The one email allowed to log in |
 | `INBOX_API_KEY` | A long random string for the ingest API |
 | `ANTHROPIC_API_KEY` | For Ask OllieOS (milestone 3) |
+| `SLACK_BOT_TOKEN` | Optional. The OllieOS Slack app's bot token, for nudges (build plan section 30, Part F) |
 
 ## After it's live
 

@@ -725,6 +725,76 @@ paths:
         "403":
           $ref: "#/components/responses/NotAuthorised"
 
+  /settings/nudges:
+    get:
+      operationId: getNudgeSettings
+      tags: [plan]
+      summary: Which Slack nudges are on, and whether the OllieOS Slack app is connected
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NudgeSettings"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+    put:
+      operationId: updateNudgeSettings
+      tags: [plan]
+      summary: Turn nudges on or off
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NudgeSettingsInput"
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NudgeSettings"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+
+  /settings/nudges/test:
+    post:
+      operationId: sendTestNudge
+      tags: [plan]
+      summary: Send a test message to Ollie from the OllieOS Slack app
+      responses:
+        "200":
+          description: Sent
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+        "400":
+          description: The Slack app is not connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "502":
+          description: Slack refused or could not be reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
   /backlog/clear-out:
     get:
       operationId: getClearOut
@@ -2286,6 +2356,72 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "403":
           $ref: "#/components/responses/NotAuthorised"
+
+  /tasks/{id}/auto-undo:
+    post:
+      operationId: undoTaskAutoSet
+      tags: [tasks]
+      summary: "Undo a field OllieOS filled in by itself; it is cleared and never filled on this task again"
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutoUndoInput"
+      responses:
+        "200":
+          description: The task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "400":
+          description: OllieOS did not set that field
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /tasks/{id}/drop-reason-guess:
+    post:
+      operationId: guessTaskDropReason
+      tags: [tasks]
+      summary: "Called when the Why? chips are shown for a dropped item with no reason: saves OllieOS's guess, when it has a clear one"
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: The guess (null when there is none) and the task
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reason, task]
+                properties:
+                  reason:
+                    oneOf:
+                      - $ref: "#/components/schemas/DropReason"
+                      - type: "null"
+                  task:
+                    $ref: "#/components/schemas/Task"
+        "403":
+          $ref: "#/components/responses/NotAuthorised"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
 
   /tasks/{id}/project-suggestions:
     get:
@@ -5928,10 +6064,27 @@ components:
         confidential:
           type: boolean
 
+    AutoSet:
+      type: object
+      description: "Section 30, Part H: fields OllieOS filled in by itself. set shows Set by OllieOS with Undo; undone means Ollie undid it and it is not filled again."
+      properties:
+        project: { type: string, enum: [set, undone] }
+        due: { type: string, enum: [set, undone] }
+        person: { type: string, enum: [set, undone] }
+        waitingOn: { type: string, enum: [set, undone] }
+        dropReason: { type: string, enum: [set, undone] }
+
+    AutoUndoInput:
+      type: object
+      required: [field]
+      properties:
+        field: { type: string, enum: [project, due, person, waitingOn, dropReason] }
+
     Task:
       type: object
       required:
         - id
+        - autoSet
         - title
         - kind
         - status
@@ -6095,6 +6248,8 @@ components:
           oneOf:
             - $ref: "#/components/schemas/DropReason"
             - type: "null"
+        autoSet:
+          $ref: "#/components/schemas/AutoSet"
         suggestedDue:
           type: [string, "null"]
           format: date
@@ -6280,6 +6435,22 @@ components:
       properties:
         start: { type: string, description: "HH:MM, London time" }
         end: { type: string, description: "HH:MM, London time" }
+
+    NudgeSettings:
+      type: object
+      required: [morning, meeting, evening, appConnected]
+      properties:
+        morning: { type: boolean, description: "Weekday mornings after the digest: today's plan, meetings not prepared, messages to answer" }
+        meeting: { type: boolean, description: "15 minutes before a work meeting with a prep page" }
+        evening: { type: boolean, description: "When the working day ends: done, still due, ready to chase" }
+        appConnected: { type: boolean, description: "True when the OllieOS Slack app's token (SLACK_BOT_TOKEN) is set" }
+
+    NudgeSettingsInput:
+      type: object
+      properties:
+        morning: { type: boolean }
+        meeting: { type: boolean }
+        evening: { type: boolean }
 
     PlanItemInput:
       type: object
