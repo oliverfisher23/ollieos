@@ -36,7 +36,18 @@ interface Write {
   body: unknown;
 }
 
+/** A call to Gmail, Slack, Drive, Calendar or Granola that has not answered by now is abandoned. */
+const CALL_TIMEOUT_MS = 60_000;
+
 function send(connector: string, path: string, write?: Write): Promise<Response> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`no answer within ${CALL_TIMEOUT_MS / 1000} seconds`)), CALL_TIMEOUT_MS);
+  });
+  return Promise.race([sendNow(connector, path, write), timeout]).finally(() => clearTimeout(timer));
+}
+
+function sendNow(connector: string, path: string, write?: Write): Promise<Response> {
   const direct = DIRECT_KEYS[connector];
   const key = direct ? process.env[direct.env]?.trim() : undefined;
   if (direct && key) return fetch(direct.base + path, { headers: { Authorization: `Bearer ${key}`, Accept: "application/json" } });

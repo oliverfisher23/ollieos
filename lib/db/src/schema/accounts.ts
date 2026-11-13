@@ -17,7 +17,7 @@ export const meetingTonesTable = pgTable(
     reason: text("reason"),
     personIds: integer("person_ids").array().notNull().default(sql`'{}'::integer[]`),
   },
-  (t) => [index("meeting_tones_at_idx").on(t.at)],
+  (t) => [index("meeting_tones_at_idx").on(t.at), index("meeting_tones_people_idx").using("gin", t.personIds)],
 );
 
 /**

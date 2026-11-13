@@ -1744,3 +1744,14 @@ After section 27 went live, three of Ollie's six Waiting on tasks still had nobo
 - At `GET /tasks/review?days=7`, and to Claude as the `get_task_review` tool. `list_tasks` now gives each task's `drop_reason`.
 - **Checked by** `test/section-28.test.ts` (7 tests).
 - **Not included:** a page for the review numbers in the app; guessing a due date for tasks added by hand; nicknames worked out automatically.
+
+## Reliability audit (12th November 2026)
+
+Ollie reported pages failing ("Could not load…") and being signed out. Findings and fixes:
+
+- **Signed out about once an hour (fixed).** Replit's sign-in token expires roughly hourly. Pages ask for several things at once, so every request refreshed with the same one-use refresh token; all but the first were refused, and a refused refresh deleted the session. Now one refresh runs per session at a time, a failed refresh leaves the session alone (nothing else uses Replit's tokens), the session and its cookie extend while in use, and a database error answers 500 rather than "not signed in". Checked by `test/auth-session.test.ts`, which fails on the old code (four of five requests 401).
+- **Running out of database connections (fixed).** Scheduled work holds one or two connections for whole passes (session advisory locks) and the knowledge reader keeps two workers busy, leaving about 8 of 10 for pages; Home alone sends 30 to 40 queries and the client pulse ran every client at once. The pool is now 20, client pulses run four at a time with the inbox snapshot read once, and the server no longer crashes when an idle connection drops (pool error listener, earlier today).
+- **Calls that could hang (fixed).** AI calls now give up after 4 minutes (SDK default 10, with retries up to about 30 minutes, holding the scheduled-work lock throughout). Gmail, Slack, Drive, Calendar and Granola calls give up after 60 seconds, so a stuck call can no longer stop connector checks until a restart.
+- **Contacts with thousands of people (fixed).** The project lookup put every id into four IN lists and would fail past about 16,000 contacts; it now passes one array (`test/scale.test.ts`).
+- **Indexes added.** `fact_reviews.suggestion_id` (Knowledge Inbox counts with about 2,000 cards), and GIN indexes on `calendar_events.person_ids` and `meeting_tones.person_ids` (client pulse).
+- **Not changed yet:** Home still matches calendar events against every person three times per load (`loadMatchers`), `tidyReviews` runs on each Knowledge Inbox visit, and the people list returns every contact in one response. Worth revisiting if Home or Contacts are still slow with real data.

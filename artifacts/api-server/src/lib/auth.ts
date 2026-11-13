@@ -38,6 +38,30 @@ export async function createSession(data: SessionData): Promise<string> {
   return sid;
 }
 
+/** The session, and whether its expiry was just pushed back (so the cookie should be too). */
+export async function loadSession(sid: string): Promise<{ data: SessionData; extended: boolean } | null> {
+  const [row] = await db.select().from(sessionsTable).where(eq(sessionsTable.sid, sid));
+  if (!row || row.expire < new Date()) {
+    if (row) await deleteSession(sid);
+    return null;
+  }
+  // Sliding expiry: while the session is in use it keeps going, extended at most once an hour.
+  let extended = false;
+  if (row.expire.getTime() - Date.now() < SESSION_TTL - 60 * 60 * 1000) {
+    extended = await db
+      .update(sessionsTable)
+      .set({ expire: new Date(Date.now() + SESSION_TTL) })
+      .where(eq(sessionsTable.sid, sid))
+      .then(() => true, () => false);
+  }
+  return { data: row.sess as unknown as SessionData, extended };
+}
+
+/** Sets the session cookie; the same settings as at sign-in. */
+export function setSessionCookie(res: Response, sid: string): void {
+  res.cookie(SESSION_COOKIE, sid, { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: SESSION_TTL });
+}
+
 export async function getSession(sid: string): Promise<SessionData | null> {
   const [row] = await db
     .select()

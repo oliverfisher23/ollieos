@@ -106,7 +106,7 @@ export const factReviewsTable = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   },
-  (t) => [index("fact_reviews_status_idx").on(t.status)],
+  (t) => [index("fact_reviews_status_idx").on(t.status), index("fact_reviews_suggestion_idx").on(t.suggestionId)],
 );
 
 /** One row per setting (shelf lives, when the weekly check last ran, digest email later). */
